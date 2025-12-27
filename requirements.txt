@@ -1,0 +1,19 @@
+# Heimdall - AI-Powered Crypto Trading Guide
+# Python Dependencies
+
+# 核心依赖
+ccxt>=4.0.0              # 加密货币交易所数据接口
+requests>=2.31.0         # HTTP 请求库（用于 LLM API）
+
+# 可选依赖
+python-dotenv>=1.0.0     # 环境变量管理（推荐，用于敏感信息）
+
+# Web Dashboard 依赖
+flask>=3.0.0             # Web 框架
+flask-cors>=4.0.0        # 跨域支持
+sqlalchemy>=2.0.0        # ORM 数据库
+
+# 开发依赖（可选）
+# pytest>=7.4.0          # 单元测试框架
+# black>=23.0.0          # 代码格式化
+# flake8>=6.0.0          # 代码检查
