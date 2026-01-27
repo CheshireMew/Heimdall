@@ -1,0 +1,19 @@
+- [x] Research current time handling
+  - [x] Check usage in `frontend/src/views/tools/DCA.vue`
+  - [x] Check existing backend utils in `utils/`
+  - [x] Search for datetime/timezone patterns in `core/` and `services/`
+- [x] Design Timezone Module
+  - [x] Backend: `utils/time_manager.py` (Centralized time logic)
+  - [x] Frontend: `src/utils/date.js` (Display formatting)
+- [x] Implementation
+  - [x] Create `utils/time_manager.py`
+  - [x] Refactor `core/dca_calculator.py` to use new module
+  - [x] Update `DCA.vue` to use local timezone display & selection
+  - [x] Global Refactoring
+    - [x] `utils/logger.py`
+    - [x] `core/backtester.py`
+    - [x] `services/sentiment_service.py`
+- [x] Verification
+  - [x] Create/Run `test/test_timezone.py`
+  - [x] Verify DCA simulation with timezone logic
+  - [x] Verify Logger timestamps (via `test_global_timezone.py`)

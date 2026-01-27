@@ -25,7 +25,7 @@ SYMBOLS = [
 TIMEFRAME = '1h'  # 支持 1m, 5m, 1h, 4h, 1d 等
 
 # 获取 K 线的数量 (用于计算指标)
-LIMIT = 100
+LIMIT = 1000
 
 # ==========================================
 # AI 配置 (DeepSeek)
@@ -38,6 +38,22 @@ DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
 # 模型名称
 AI_MODEL = "deepseek-chat"
+
+# ==========================================
+# Redis 配置
+# ==========================================
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+
+# ==========================================
+# 数据库配置
+# ==========================================
+from pathlib import Path
+_BASE_DIR = Path(__file__).resolve().parent.parent
+DEFAULT_DB_PATH = _BASE_DIR / "data" / "heimdall.db"
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH}")
 
 # ==========================================
 # 技术指标参数 (Technical Analysis)

@@ -20,6 +20,13 @@ def setup_logger(name="AI-Guide"):
     # 定义日志格式
     # 格式: [时间] [级别] - 消息
     formatter = logging.Formatter('%(asctime)s [%(levelname)s] - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+    # 使用 TimeManager 的时区逻辑覆盖默认的 time.localtime
+    from utils.time_manager import TimeManager
+    def time_converter(seconds):
+        return TimeManager.get_now().timetuple()
+        
+    formatter.converter = time_converter
     console_handler.setFormatter(formatter)
 
     logger.addHandler(console_handler)

@@ -8,10 +8,23 @@ requests>=2.31.0         # HTTP 请求库（用于 LLM API）
 # 可选依赖
 python-dotenv>=1.0.0     # 环境变量管理（推荐，用于敏感信息）
 
-# Web Dashboard 依赖
-flask>=3.0.0             # Web 框架
-flask-cors>=4.0.0        # 跨域支持
-sqlalchemy>=2.0.0        # ORM 数据库
+# Web Framework（FastAPI）
+fastapi>=0.100.0         # 现代Web框架
+uvicorn>=0.20.0          # ASGI服务器
+pydantic>=2.0.0          # 数据验证
+pydantic-settings>=2.0.0 # 配置管理
+
+# 数据库
+sqlalchemy>=2.0.0        # ORM
+psycopg2-binary>=2.9.0   # PostgreSQL驱动
+redis>=4.0.0             # 缓存
+
+# 数据处理
+pandas>=2.0.0            # 数据分析处理 (DCA 模块)
+
+# Legacy（可选，Flask已废弃）
+# flask>=3.0.0
+# flask-cors>=4.0.0
 
 # 开发依赖（可选）
 # pytest>=7.4.0          # 单元测试框架

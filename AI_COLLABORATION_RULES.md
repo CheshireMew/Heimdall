@@ -1,7 +1,25 @@
 # AI 协作规范
 
 > 本文档为 AI 助手提供明确的协作规范、操作步骤和代码标准
-
+迁移计划（分阶段）
+Phase 1: 后端迁移FastAPI (2-3天)
+创建 fastapi_app/ 新目录
+迁移API路由
+保留Flask，并行运行
+测试通过后切换
+Phase 2: 数据库升级 (1天)
+安装PostgreSQL
+迁移数据脚本
+更新ORM配置
+Phase 3: 前端重构Vue 3 (5-7天)
+搭建Vite项目
+迁移页面组件
+集成Lightweight Charts
+API对接
+Phase 4: 部署优化 (1天)
+Docker Compose配置
+Nginx反向代理
+SSL证书
 ---
 
 ## 📌 角色定位
