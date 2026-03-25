@@ -1,54 +1,72 @@
-# Global Timezone Refactoring Plan
+# Bitcoin Halving Cycle Chart Implementation Plan
 
 ## Goal Description
 
-Expand timezone support from just the DCA module to the entire project. This ensures that logs, backtests, and data synchronization (Sentiment) all respect the user's configured timezone (default: Asia/Shanghai), even if the underlying server/OS is in UTC.
+Add a new visualization tool to help users analyze Bitcoin price trends relative to its halving cycles.
+The interface will show a logarithmic price chart with overlaid halving dates and a cycle progress indicator.
 
 ## User Review Required
 
-> [!NOTE]
-> **Logging Time**: Application logs will now explicitly match the configured timezone.
-> **Backtest Defaults**: Default start/end times for backtests will use current **Local Time** instead of System Time.
+None (Standard feature addition).
 
 ## Proposed Changes
 
-### 1. Logger
+### 1. Frontend
 
-#### [MODIFY] [logger.py](file:///e:/Work/Code/Heimdall/utils/logger.py)
+#### [NEW] [src/views/tools/Halving.vue](file:///e:/Work/Code/Heimdall/frontend/src/views/tools/Halving.vue)
 
-- Import `TimeManager`.
-- Override `logging.Formatter.converter` to use `TimeManager`'s timezone logic.
-- This ensures all logs (INFO, ERROR) print the correct local time.
+- **Layout**: Top summary cards (Days until next halving, Cycle progress), Main Chart.
+- **Logic**:
+  - Fetch full BTC/USDT history (Daily) via existing API `dca.py` (or new endpoint?).
+  - Can reuse `DCACalculator`'s data fetching or just call generic market API.
+  - Existing `api/market.py` might need an endpoint for "full history" without DCA simulation overhead.
+- **Chart**: Uses `chart.js`. Logarithmic scale. Vertical lines at:
+  - 2012-11-28
+  - 2016-07-09
+  - 2020-05-11
+  - 2024-04-20
+  - 2028-04-17 (Est)
 
-### 2. Core Modules
+#### [MODIFY] [src/router/index.js](file:///e:/Work/Code/Heimdall/frontend/src/router/index.js)
 
-#### [MODIFY] [backtester.py](file:///e:/Work/Code/Heimdall/core/backtester.py)
+- Add route `/tools/halving`.
 
-- Replace `datetime.now()` with `TimeManager.get_now()`.
-- When converting timestamps `datetime.fromtimestamp()`, ensure timezone awareness is used if applicable, or convert to UTC then Local.
+#### [MODIFY] [src/App.vue](file:///e:/Work/Code/Heimdall/frontend/src/App.vue) (or Sidebar component)
 
-#### [MODIFY] [market_provider.py](file:///e:/Work/Code/Heimdall/core/market_provider.py)
+- Add link to the sidebar menu.
 
-- (Optional) Ensure logging metrics use consistent time. (Handled by Logger update).
-- Any internal logic relying on `time.time()` (duration calculation) is fine.
-- Any logic relying on "Start of Day" should use `TimeManager`.
+### 2. Backend
 
-### 3. Services
+No new complex logic needed, but might need a clean way to get max history.
 
-#### [MODIFY] [sentiment_service.py](file:///e:/Work/Code/Heimdall/services/sentiment_service.py)
+- Current `dca_calculator.py` logic fetches ranges.
+- I'll check `api/market.py` to see if there is a generic K-line endpoint. If not, I'll add one.
 
-- Replace `datetime.now().date()` with `TimeManager.get_now().date()`.
-- Ensure parsed API timestamps are treated correctly (UTC vs Local).
+### 3. Visualization Design
+
+I propose two possible views for this chart. We can implement the "Timeline View" first as it is the standard.
+
+#### Option A: Logarithmic Timeline (The Standard)
+
+- **X-Axis**: Time (2010 - 2030).
+- **Y-Axis**: Price (Logarithmic Scale).
+- **Features**:
+  - **Vertical Lines**: Marking each Halving Date.
+  - **Color Zoning**:
+    - 🟥 **Red Zone** (6-18 months after halving): Historically "Bull Run / Bubble" phase.
+    - 🟩 **Green Zone** (6-12 months before halving): Historically "Accumulation" phase.
+  - **Countdown**: A prominent counter showing "Days to Next Halving".
+
+#### Option B: Cycle Overlay (Epoch Comparison)
+
+- **X-Axis**: "Days Since Halving" (Day 0 to Day 1460).
+- **Y-Axis**: ROI % (Percentage Growth from Halving Day).
+- **Features**:
+  - Overlays Cycle 1 (2012), Cycle 2 (2016), Cycle 3 (2020), and Current Cycle (2024) on top of each other.
+  - This allows answering: _"Are we moving faster or slower than previous cycles?"_
 
 ## Verification Plan
 
-### Automated Tests
-
-- **Run `test_timezone.py`**: Ensure basic Utils still work.
-- **Run `dca_calculator.py`**: Ensure regerssion testing.
-- **New Test**: Check Logger output time (Manual or simple script).
-
-### Manual Verification
-
-1. **Check Logs**: Run `python main.py` or any script, observe the timestamp in the console. It should match the user's wall clock (Beijing Time).
-2. **Sentiment Sync**: Run sentiment sync, ensure it judges "Today" correctly.
+1.  **Run Frontend**: Verify page loads.
+2.  **Check Chart**: Verify Log scale works (essential for long term BTC).
+3.  **Verify Dates**: Check vertical lines align with price dips/rises correctly.

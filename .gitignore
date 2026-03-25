@@ -1,8 +1,17 @@
 # User requested
-Example/
+_references/
 test_output*.txt
 test_debug*.txt
 traceback.log
+/.claude/
+/.codex_browser/
+/.codex_browser_check.js
+/.cmd-*.err
+/.cmd-*.out
+/.codex-*.err
+/.codex-*.out
+/.uv-*.err
+/.uv-*.out
 
 # Python
 __pycache__/
@@ -21,7 +30,20 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Database
+data/*.db
+data/*.sqlite
+data/freqtrade/
+
+# Logs
+*.log
+logs/
+
 # IDE
 .vscode/
 .idea/
 *.swp
+
+# OS
+.DS_Store
+nul

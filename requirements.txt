@@ -4,6 +4,8 @@
 # 核心依赖
 ccxt>=4.0.0              # 加密货币交易所数据接口
 requests>=2.31.0         # HTTP 请求库（用于 LLM API）
+httpx>=0.24.0            # 异步 HTTP 请求库
+
 
 # 可选依赖
 python-dotenv>=1.0.0     # 环境变量管理（推荐，用于敏感信息）
@@ -13,20 +15,24 @@ fastapi>=0.100.0         # 现代Web框架
 uvicorn>=0.20.0          # ASGI服务器
 pydantic>=2.0.0          # 数据验证
 pydantic-settings>=2.0.0 # 配置管理
+slowapi>=0.1.9           # API速率限制
 
 # 数据库
 sqlalchemy>=2.0.0        # ORM
+alembic>=1.13.0          # 数据库迁移
 psycopg2-binary>=2.9.0   # PostgreSQL驱动
 redis>=4.0.0             # 缓存
+apscheduler>=3.10.0      # 定时任务调度（用于市场指标数据抓取）
 
 # 数据处理
 pandas>=2.0.0            # 数据分析处理 (DCA 模块)
+freqtrade>=2026.2        # Freqtrade 本地回测引擎
 
 # Legacy（可选，Flask已废弃）
 # flask>=3.0.0
 # flask-cors>=4.0.0
 
-# 开发依赖（可选）
-# pytest>=7.4.0          # 单元测试框架
+# 开发依赖
+pytest>=7.4.0            # 单元测试框架
 # black>=23.0.0          # 代码格式化
 # flake8>=6.0.0          # 代码检查

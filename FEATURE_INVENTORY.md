@@ -3,6 +3,7 @@
 - [x] DCACalculator: Basic DCA (Standard)
 - [x] DCACalculator: Value Averaging (Fixed Market Value)
 - [ ] DCACalculator: Advanced Strategies (RSI, FearGreed)
+- [ ] MarketIndicators: Macro Data & Crypto Metrics (Yields, On-chain, Mining, Sentiment)
 
 ## Known Issues
 

@@ -42,6 +42,26 @@ let chart = null
 let mainSeries = null
 let volumeSeries = null
 
+const syncVolumeSeries = () => {
+    if (!chart) return
+
+    if (props.volumeData.length > 0 && !volumeSeries) {
+        volumeSeries = chart.addSeries(HistogramSeries, {
+            priceFormat: { type: 'volume' },
+            priceScaleId: '',
+        })
+        volumeSeries.priceScale().applyOptions({
+            scaleMargins: { top: 0.8, bottom: 0 },
+        })
+        return
+    }
+
+    if (props.volumeData.length === 0 && volumeSeries) {
+        chart.removeSeries(volumeSeries)
+        volumeSeries = null
+    }
+}
+
 const initChart = () => {
     if (!chartContainer.value) return
 
@@ -79,25 +99,14 @@ const initChart = () => {
             wickDownColor: props.colors.downColor,
         })
     }
-    
-    // Volume Series
-    if (props.volumeData.length > 0) {
-        // 配置 Volume 放在底部
-        volumeSeries = chart.addSeries(HistogramSeries, {
-             priceFormat: { type: 'volume' },
-             priceScaleId: '', // set as overlay
-        })
-        volumeSeries.priceScale().applyOptions({
-            scaleMargins: { top: 0.8, bottom: 0 }, 
-        })
-    }
 
     updateData()
 }
 
 const updateData = () => {
-    if (mainSeries) mainSeries.setData(props.data)
-    if (volumeSeries) volumeSeries.setData(props.volumeData)
+    syncVolumeSeries()
+    if (mainSeries && props.data.length > 0) mainSeries.setData(props.data)
+    if (volumeSeries && props.volumeData.length > 0) volumeSeries.setData(props.volumeData)
 }
 
 // Resize Observer
@@ -143,6 +152,37 @@ onUnmounted(() => {
 })
 
 watch(() => props.data, updateData, { deep: true })
+watch(() => props.volumeData, updateData, { deep: true })
+
+watch(() => props.colors, (newColors) => {
+    if (!chart) return
+    chart.applyOptions({
+        layout: {
+            background: { color: newColors.bg },
+            textColor: newColors.text,
+        },
+        grid: {
+            vertLines: { color: newColors.grid },
+            horzLines: { color: newColors.grid },
+        },
+        timeScale: {
+            borderColor: newColors.grid,
+        },
+        rightPriceScale: {
+            borderColor: newColors.grid,
+        },
+    })
+    
+    // Update Candlestick colors if needed
+    if (mainSeries && props.chartType !== 'area') {
+        mainSeries.applyOptions({
+            upColor: newColors.upColor,
+            downColor: newColors.downColor,
+            wickUpColor: newColors.upColor,
+            wickDownColor: newColors.downColor,
+        })
+    }
+}, { deep: true })
 
 defineExpose({
     get chart() { return chart }

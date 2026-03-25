@@ -4,9 +4,9 @@ import os
 db_path = 'data/heimdall.db'
 
 if not os.path.exists(db_path):
-    print(f"❌ Database file not found at {db_path}")
+    print(f"[ERROR] Database file not found at {db_path}")
 else:
-    print(f"✅ Database file found: {db_path}")
+    print(f"[OK] Database file found: {db_path}")
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
@@ -15,7 +15,7 @@ else:
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = cursor.fetchall()
         
-        print(f"📊 Found {len(tables)} tables:")
+        print(f"[DATA] Found {len(tables)} tables:")
         
         total_rows = 0
         for table_name in tables:
@@ -29,8 +29,8 @@ else:
             print(f"  - {name}: {count} rows")
             total_rows += count
             
-        print(f"\n📈 Total rows across all tables: {total_rows}")
+        print(f"\n[DATA] Total rows across all tables: {total_rows}")
         conn.close()
         
     except Exception as e:
-        print(f"❌ Error reading database: {e}")
+        print(f"[ERROR] Error reading database: {e}")

@@ -7,6 +7,36 @@ const routes = [
         component: () => import('@/views/Dashboard.vue')
     },
     {
+        path: '/indicators/macro',
+        name: 'IndicatorsMacro',
+        component: () => import('@/views/indicators/CategoryView.vue'),
+        meta: { title: '宏观经济', category: 'Macro' }
+    },
+    {
+        path: '/indicators/onchain',
+        name: 'IndicatorsOnchain',
+        component: () => import('@/views/indicators/CategoryView.vue'),
+        meta: { title: '链上数据', category: 'Onchain' }
+    },
+    {
+        path: '/indicators/sentiment',
+        name: 'IndicatorsSentiment',
+        component: () => import('@/views/indicators/CategoryView.vue'),
+        meta: { title: '市场情绪', category: 'Sentiment' }
+    },
+    {
+        path: '/indicators/technical',
+        name: 'IndicatorsTech',
+        component: () => import('@/views/indicators/CategoryView.vue'),
+        meta: { title: '技术指标', category: 'Tech' }
+    },
+    {
+        path: '/indicators/crypto-index',
+        name: 'CryptoIndex',
+        component: () => import('@/views/indicators/CryptoIndex.vue'),
+        meta: { title: '加密指数' }
+    },
+    {
         path: '/tools/compare',
         name: 'Compare',
         component: () => import('@/views/tools/Compare.vue'),
@@ -19,6 +49,12 @@ const routes = [
         meta: { title: 'DCA模拟' }
     },
     {
+        path: '/tools/halving',
+        name: 'Halving',
+        component: () => import('@/views/tools/Halving.vue'),
+        meta: { title: '减半周期' }
+    },
+    {
         path: '/backtest',
         name: 'Backtest',
         component: () => import('@/views/Backtest.vue'),
@@ -27,6 +63,11 @@ const routes = [
         path: '/settings',
         name: 'Settings',
         component: () => import('@/views/settings/Settings.vue'),
+    },
+    {
+        path: '/:pathMatch(.*)*',
+        name: 'NotFound',
+        component: () => import('@/views/NotFound.vue'),
     }
 ]
 

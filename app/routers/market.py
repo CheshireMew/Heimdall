@@ -1,255 +1,180 @@
 """
-市场数据相关API路由
+市场数据相关 API 路由
 """
+from __future__ import annotations
+
 import asyncio
-from functools import lru_cache
-from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
-from typing import Optional
 from datetime import datetime
-import sys
-from pathlib import Path
 
-# 添加项目根目录到Python路径
-root_path = Path(__file__).parent.parent.parent
-if str(root_path) not in sys.path:
-    sys.path.insert(0, str(root_path))
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 
-# 导入核心模块
-try:
-    from core.market_provider import MarketProvider
-    from core.technical_analysis import TechnicalAnalysis
-    from core.prompt_engine import PromptEngine
-    from services.llm_client import LLMClient
-    from config import settings
-    from utils.logger import logger
-    DEPS_AVAILABLE = True
-except ImportError as e:
-    logger_msg = f"依赖导入失败: {e}"
-    print(logger_msg)
-    DEPS_AVAILABLE = False
+from app.dependencies import get_market_app_service, get_market_data_service
+from app.rate_limit import limiter
+from app.schemas.market import ApiStatusResponse, CryptoIndexResponse, MarketIndicatorResponse, RealtimeResponse
+from app.services.market.app_service import MarketAppService
+from app.services.market.market_data_service import MarketDataService
+from app.services.market.websocket_service import MarketWebSocketService
+from config import settings
+from utils.logger import logger
 
-router = APIRouter()
 
-# 延迟创建重资源实例，避免在模块导入时阻塞事件循环
-@lru_cache(maxsize=1)
-def get_market_provider():
-    return MarketProvider()
+router = APIRouter(tags=["Market Data"])
+websocket_service = MarketWebSocketService()
 
-@lru_cache(maxsize=1)
-def get_llm_client():
-    if not settings.DEEPSEEK_API_KEY or len(settings.DEEPSEEK_API_KEY) < 10:
-        return None
-    return LLMClient()
 
-@router.get("/realtime")
+@router.get("/realtime", response_model=RealtimeResponse)
 async def get_realtime_analysis(
     symbol: str = Query(..., description="交易对，如 BTC/USDT"),
-    timeframe: Optional[str] = Query(default=None),
-    limit: Optional[int] = Query(default=None)
+    timeframe: str | None = Query(default=None),
+    limit: int | None = Query(default=None, ge=1, le=settings.API_MAX_LIMIT),
+    market_data_service: MarketDataService = Depends(get_market_data_service),
+    service: MarketAppService = Depends(get_market_app_service),
 ):
-    """
-    获取实时市场分析
-    """
-    if not DEPS_AVAILABLE:
-        raise HTTPException(status_code=503, detail="服务依赖未就绪")
-    
     try:
-        logger.info(f"实时分析请求: {symbol}")
-        
-        # 使用默认值
-        timeframe = timeframe or settings.TIMEFRAME
-        limit = limit or settings.LIMIT
-        
-        # 获取 K 线数据
-        market_provider = get_market_provider()
-        loop = asyncio.get_running_loop()
-        kline_data = await loop.run_in_executor(
-            None, lambda: market_provider.get_kline_data(symbol, timeframe, limit)
+        return await service.get_realtime(
+            market_data_service=market_data_service,
+            symbol=symbol,
+            timeframe=timeframe,
+            limit=limit,
         )
-        
-        if not kline_data:
-            raise HTTPException(status_code=500, detail='获取数据失败')
-        
-        # 计算技术指标
-        closes = [x[4] for x in kline_data]
-        highs = [x[2] for x in kline_data]
-        lows = [x[3] for x in kline_data]
-        
-        indicators = {
-            'ema': TechnicalAnalysis.calculate_ema(closes, settings.EMA_PERIOD),
-            'rsi': TechnicalAnalysis.calculate_rsi(closes, settings.RSI_PERIOD),
-            'macd': TechnicalAnalysis.calculate_macd(
-                closes, settings.MACD_FAST, settings.MACD_SLOW, settings.MACD_SIGNAL
-            ),
-            'atr': TechnicalAnalysis.calculate_atr(highs, lows, closes, 14)
-        }
-        
-        # AI分析（可选）
-        ai_analysis = None
-        llm_client = get_llm_client()
-        if llm_client:
-            try:
-                prompt = PromptEngine.build_analysis_prompt(symbol, kline_data, indicators)
-                ai_analysis = await loop.run_in_executor(None, lambda: llm_client.analyze(prompt))
-            except Exception as e:
-                logger.warning(f"AI 分析失败: {e}")
-        
-        # 返回结果
-        return {
-            'symbol': symbol,
-            'timestamp': datetime.now().isoformat(),
-            'current_price': closes[-1],
-            'indicators': {
-                'ema': indicators['ema'],
-                'rsi': indicators['rsi'],
-                'macd': {
-                    'dif': indicators['macd'][0] if indicators['macd'][0] else None,
-                    'dea': indicators['macd'][1] if indicators['macd'][1] else None,
-                    'histogram': indicators['macd'][2] if indicators['macd'][2] else None
-                } if indicators['macd'] else None,
-                'atr': indicators['atr']
-            },
-            'ai_analysis': ai_analysis,
-            'kline_data': kline_data
-        }
-        
-    except Exception as e:
-        logger.error(f"API /realtime 错误: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"API /realtime 错误: {exc}")
+        err_str = str(exc).lower()
+        if "network" in err_str or "connection" in err_str or "timeout" in err_str:
+            raise HTTPException(status_code=503, detail="无法连接到交易所 (Network Error)")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.websocket("/ws/realtime")
-async def websocket_realtime(websocket: WebSocket):
-    """
-    WebSocket 实时推送：每隔 5s 发送最新 K 线、指标，可选 AI 文本
-    参数（query）:
-      - symbol: 交易对，例如 BTC/USDT
-      - timeframe: 可选，默认 settings.TIMEFRAME
-      - limit: 可选，默认 settings.LIMIT
-      - ai: 可选，true/1 时启用 AI 分析（需要配置 DEEPSEEK_API_KEY）
-    """
+async def websocket_realtime(
+    websocket: WebSocket,
+    market_data_service: MarketDataService = Depends(get_market_data_service),
+    service: MarketAppService = Depends(get_market_app_service),
+):
     await websocket.accept()
     try:
-        symbol = websocket.query_params.get("symbol")
-        if not symbol:
-            await websocket.close(code=1008, reason="symbol is required")
+        try:
+            params = websocket_service.parse_params(websocket, service.valid_symbols, service.valid_timeframes)
+        except ValueError as exc:
+            await websocket_service.reject(websocket, str(exc))
             return
-        timeframe = websocket.query_params.get("timeframe") or settings.TIMEFRAME
-        limit = int(websocket.query_params.get("limit") or settings.LIMIT)
-        use_ai = websocket.query_params.get("ai", "").lower() in ("1", "true", "yes")
-
-        market_provider = get_market_provider()
-        llm_client = get_llm_client() if use_ai else None
-        loop = asyncio.get_running_loop()
 
         while True:
-            # 获取行情与指标（线程池避免阻塞事件循环）
-            kline_data = await loop.run_in_executor(
-                None, lambda: market_provider.get_kline_data(symbol, timeframe, limit)
+            payload = await service.get_realtime_ws_payload(
+                market_data_service=market_data_service,
+                symbol=params["symbol"],
+                timeframe=params["timeframe"],
+                limit=params["limit"],
+                use_ai=params["use_ai"],
             )
-            if not kline_data:
+            if not payload:
                 await websocket.send_json({"type": "error", "message": "no data"})
-                await asyncio.sleep(5)
+                await asyncio.sleep(settings.WS_UPDATE_INTERVAL)
                 continue
-
-            closes = [x[4] for x in kline_data]
-            highs = [x[2] for x in kline_data]
-            lows = [x[3] for x in kline_data]
-            indicators = {
-                'ema': TechnicalAnalysis.calculate_ema(closes, settings.EMA_PERIOD),
-                'rsi': TechnicalAnalysis.calculate_rsi(closes, settings.RSI_PERIOD),
-                'macd': TechnicalAnalysis.calculate_macd(
-                    closes, settings.MACD_FAST, settings.MACD_SLOW, settings.MACD_SIGNAL
-                ),
-                'atr': TechnicalAnalysis.calculate_atr(highs, lows, closes, 14)
-            }
-
-            ai_analysis = None
-            if llm_client:
-                try:
-                    prompt = PromptEngine.build_analysis_prompt(symbol, kline_data, indicators)
-                    ai_analysis = await loop.run_in_executor(None, lambda: llm_client.analyze(prompt))
-                except Exception as e:
-                    logger.warning(f"WS AI 分析失败: {e}")
-
-            payload = {
-                'type': 'realtime',
-                'symbol': symbol,
-                'timeframe': timeframe,
-                'timestamp': datetime.now().isoformat(),
-                'current_price': closes[-1],
-                'indicators': {
-                    'ema': indicators['ema'],
-                    'rsi': indicators['rsi'],
-                    'macd': {
-                        'dif': indicators['macd'][0] if indicators['macd'] and indicators['macd'][0] else None,
-                        'dea': indicators['macd'][1] if indicators['macd'] and indicators['macd'][1] else None,
-                        'histogram': indicators['macd'][2] if indicators['macd'] and indicators['macd'][2] else None
-                    } if indicators['macd'] else None,
-                    'atr': indicators['atr']
-                },
-                'ai_analysis': ai_analysis,
-                'kline_data': kline_data
-            }
-
             await websocket.send_json(payload)
-            await asyncio.sleep(5)
+            await asyncio.sleep(settings.WS_UPDATE_INTERVAL)
     except WebSocketDisconnect:
         logger.info("客户端断开实时推送")
-    except Exception as e:
-        logger.error(f"WS /ws/realtime 错误: {e}")
+    except Exception as exc:
+        logger.error(f"WS /ws/realtime 错误: {exc}")
         try:
-            await websocket.send_json({"type": "error", "message": str(e)})
+            await websocket.send_json({"type": "error", "message": str(exc)})
         except Exception:
             pass
-        await websocket.close()
 
-@router.get("/history")
+
+@router.get("/history", response_model=list[list[float]])
 async def get_market_history(
     symbol: str = Query(..., description="Symbol eg BTC/USDT"),
     timeframe: str = Query(..., description="Timeframe eg 5m"),
-    end_ts: int = Query(..., description="End Timestamp (ms)"),
-    limit: int = Query(500, description="Limit")
+    end_ts: int = Query(..., description="End Timestamp (ms)", gt=0),
+    limit: int = Query(settings.HISTORY_DEFAULT_LIMIT, description="Limit", ge=1, le=settings.API_MAX_LIMIT),
+    market_data_service: MarketDataService = Depends(get_market_data_service),
+    service: MarketAppService = Depends(get_market_app_service),
 ):
-    """获取历史K线数据 (用于无限滚动)"""
-    if not DEPS_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Deps not ready")
-        
     try:
-        mp = get_market_provider()
-        data = mp.get_history_data(symbol, timeframe, end_ts, limit)
-        return data
-    except Exception as e:
-        logger.error(f"History API Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return service.get_history(
+            market_data_service=market_data_service,
+            symbol=symbol,
+            timeframe=timeframe,
+            end_ts=end_ts,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"History API Error: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/market/sentiment")
-async def get_market_sentiment():
-    """获取市场情绪指标"""
-    if not DEPS_AVAILABLE:
-        raise HTTPException(status_code=503, detail="服务依赖未就绪")
-    
+
+@router.get("/full_history", response_model=list[list[float]])
+@limiter.limit(settings.RATE_LIMIT_HEAVY)
+async def get_market_full_history(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    symbol: str = Query(..., description="Symbol eg BTC/USDT"),
+    timeframe: str = Query("1d", description="Timeframe eg 1d"),
+    start_date: str = Query("2010-01-01", description="Start Date YYYY-MM-DD"),
+    market_data_service: MarketDataService = Depends(get_market_data_service),
+    service: MarketAppService = Depends(get_market_app_service),
+):
     try:
-        from services.sentiment_service import sentiment_service
-        data = sentiment_service.get_fear_greed_index()
-        
-        if not data:
-            raise HTTPException(status_code=500, detail='Failed to fetch sentiment')
-        
-        return data
-        
-    except Exception as e:
-        from utils.logger import logger
-        logger.error(f"API Error (getSentiment): {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        persist_klines = lambda save_symbol, save_timeframe, klines: background_tasks.add_task(
+            market_data_service.save_klines_background,
+            save_symbol,
+            save_timeframe,
+            klines,
+        )
+        return await service.get_full_history(
+            market_data_service=market_data_service,
+            symbol=symbol,
+            timeframe=timeframe,
+            start_date=start_date,
+            persist_klines=persist_klines,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"Full History API Error: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/status")
+
+@router.get("/indicators", response_model=list[MarketIndicatorResponse])
+async def get_market_indicators(
+    category: str | None = Query(None, description="过滤分类, 如 Macro, Onchain, Sentiment, General"),
+    days: int = Query(settings.INDICATORS_DEFAULT_DAYS, description="历史数据天数"),
+    service: MarketAppService = Depends(get_market_app_service),
+):
+    try:
+        return service.get_indicators(category=category, days=days)
+    except Exception as exc:
+        logger.error(f"API /indicators 错误: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/status", response_model=ApiStatusResponse)
 async def get_api_status():
-    """获取API系统状态"""
     return {
         "status": "running",
         "version": "2.0.0",
         "framework": "FastAPI",
-        "dependencies": "ready" if DEPS_AVAILABLE else "error",
-        "timestamp": datetime.now().isoformat()
+        "dependencies": "ready",
+        "timestamp": datetime.now().isoformat(),
     }
+
+
+@router.get("/crypto_index", response_model=CryptoIndexResponse)
+@limiter.limit(settings.RATE_LIMIT_HEAVY)
+async def get_crypto_index(
+    request: Request,
+    top_n: int = Query(20, ge=5, le=100, description="Current top N market cap assets"),
+    days: int = Query(90, ge=30, le=365, description="Historical days"),
+    service: MarketAppService = Depends(get_market_app_service),
+):
+    try:
+        return await service.get_crypto_index(top_n=top_n, days=days)
+    except Exception as exc:
+        logger.error(f"Crypto index API error: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to build crypto index")

@@ -1,15 +1,11 @@
 
 import unittest
-import sys
-import os
 from datetime import datetime
 from unittest.mock import MagicMock
-# Add root to sys.path
-sys.path.append(os.getcwd())
 
 import pytz
 from utils.time_manager import TimeManager
-from core.dca_calculator import DCACalculator
+from app.services.tools.dca_service import DCAService as DCACalculator
 
 class TestTimezoneLogic(unittest.TestCase):
     def test_time_manager_basics(self):
@@ -28,7 +24,7 @@ class TestTimezoneLogic(unittest.TestCase):
         calc = DCACalculator()
         
         # Mock Market Provider
-        calc.market_provider = MagicMock()
+        calc.market_data_service = MagicMock()
         
         # Scenario: User wants to buy at 08:00 Beijing Time.
         # 08:00 Beijing = 00:00 UTC.
@@ -49,10 +45,10 @@ class TestTimezoneLogic(unittest.TestCase):
             [ts_nomatch, 101, 101, 101, 101, 1000]
         ]
         
-        calc.market_provider.fetch_ohlcv_range.return_value = mock_klines
+        calc.market_data_service.fetch_ohlcv_range.return_value = mock_klines
         
         # We need to ensure get_kline_data is also mocked for current price check
-        calc.market_provider.get_kline_data.return_value = [[ts_match, 100, 100, 100, 100, 1000]]
+        calc.market_data_service.get_kline_data.return_value = [[ts_match, 100, 100, 100, 100, 1000]]
         
         res = calc.calculate_dca(
             symbol="BTC/USDT",

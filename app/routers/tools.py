@@ -1,109 +1,67 @@
 """
-工具类API路由
+工具类 API 路由
 """
-import asyncio
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime, timedelta
-import sys
-from pathlib import Path
+from __future__ import annotations
 
-# 添加项目根目录到Python路径
-root_path = Path(__file__).parent.parent.parent
-if str(root_path) not in sys.path:
-    sys.path.insert(0, str(root_path))
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-try:
-    from utils.logger import logger
-    DEPS_AVAILABLE = True
-except ImportError:
-    DEPS_AVAILABLE = False
+from app.dependencies import get_tools_app_service
+from app.rate_limit import limiter
+from app.schemas.tools import DCARequestSchema, DynamicToolResponse, PairCompareRequestSchema
+from app.services.tools.app_service import ToolsAppService
+from app.services.tools.contracts import ComparePairsCommand, SimulateDcaCommand
+from config import settings
+from utils.logger import logger
+
 
 router = APIRouter()
 
-# Pydantic模型
-class DCARequest(BaseModel):
-    symbol: str = 'BTC/USDT'
-    amount: float = 100.0
-    start_date: Optional[str] = None
-    investment_time: str = '23:00'
-    days: Optional[int] = None
-    strategy: str = 'standard' # standard, ema_deviation
-    strategy_params: Optional[dict] = {}
 
-class PairCompareRequest(BaseModel):
-    symbol_a: str = 'BTC'
-    symbol_b: str = 'ETH'
-    days: int = 7
-    timeframe: str = '1h'
-
-@router.post("/dca_simulate")
-async def dca_simulate(request: DCARequest):
-    """定投回测模拟"""
-    if not DEPS_AVAILABLE:
-        raise HTTPException(status_code=503, detail="服务依赖未就绪")
-    
+@router.post("/dca_simulate", response_model=DynamicToolResponse)
+@limiter.limit(settings.RATE_LIMIT_HEAVY)
+async def dca_simulate(
+    request: Request,
+    body: DCARequestSchema,
+    service: ToolsAppService = Depends(get_tools_app_service),
+):
     try:
-        # 处理日期
-        if request.start_date:
-            start_date_str = request.start_date
-        else:
-            days = request.days or 365
-            start_date_str = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
-        
-        from core.dca_calculator import DCACalculator
-        calculator = DCACalculator()
-        loop = asyncio.get_running_loop()
-        
-        result = await loop.run_in_executor(
-            None,
-            lambda: calculator.calculate_dca(
-                symbol=request.symbol,
-                start_date_str=start_date_str,
-                end_date_str=None,
-                daily_investment=request.amount,
-                target_time_str=request.investment_time,
-                strategy=request.strategy,
-                strategy_params=request.strategy_params
+        return await service.simulate_dca(
+            SimulateDcaCommand(
+                symbol=body.symbol,
+                amount=body.amount,
+                start_date=body.start_date,
+                investment_time=body.investment_time,
+                timezone=body.timezone,
+                days=body.days,
+                strategy=body.strategy,
+                strategy_params=dict(body.strategy_params or {}),
             )
         )
-        
-        if 'error' in result:
-            raise HTTPException(status_code=400, detail=result['error'])
-        
-        return result
-        
-    except Exception as e:
-        logger.error(f"API Error (DCA): {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"API Error (DCA): {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.post("/compare_pairs")
-async def compare_pairs(request: PairCompareRequest):
-    """币种对比分析"""
-    if not DEPS_AVAILABLE:
-        raise HTTPException(status_code=503, detail="服务依赖未就绪")
-    
+
+@router.post("/compare_pairs", response_model=DynamicToolResponse)
+@limiter.limit(settings.RATE_LIMIT_HEAVY)
+async def compare_pairs(
+    request: Request,
+    body: PairCompareRequestSchema,
+    service: ToolsAppService = Depends(get_tools_app_service),
+):
     try:
-        symbol_a = request.symbol_a.upper()
-        symbol_b = request.symbol_b.upper()
-        
-        logger.info(f"币种对比请求: {symbol_a} vs {symbol_b}, {request.days}天, {request.timeframe}")
-        
-        from core.pair_comparator import PairComparator
-        comparator = PairComparator()
-        loop = asyncio.get_running_loop()
-        
-        result = await loop.run_in_executor(
-            None,
-            lambda: comparator.compare_pairs(symbol_a, symbol_b, request.days, request.timeframe)
+        return await service.compare_pairs(
+            ComparePairsCommand(
+                symbol_a=body.symbol_a,
+                symbol_b=body.symbol_b,
+                days=body.days,
+                timeframe=body.timeframe,
+            )
         )
-        
-        if 'error' in result:
-            raise HTTPException(status_code=400, detail=result['error'])
-        
-        return result
-        
-    except Exception as e:
-        logger.error(f"API Error (Pair Comparison): {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"API Error (Pair Comparison): {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")

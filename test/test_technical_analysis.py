@@ -1,9 +1,4 @@
-import sys
-import os
-# Ensure we can import from core
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from core.technical_analysis import TechnicalAnalysis
+from app.domain.market.technical_analysis import TechnicalAnalysis
 
 def test_ema():
     print("\n--- Testing EMA ---")

@@ -1,0 +1,124 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+from typing import Any
+
+import pandas as pd
+
+from app.services.backtest.models import BacktestSignalRecord, BacktestTradeRecord, ResearchConfigRecord
+
+
+class FreqtradeTradeMapper:
+    def build_trade_records(self, trades: pd.DataFrame) -> list[BacktestTradeRecord]:
+        if trades.empty:
+            return []
+        records = []
+        for trade in trades.sort_values("open_date").to_dict("records"):
+            closed_at = None
+            if trade.get("close_date") is not None and not pd.isna(trade.get("close_date")):
+                closed_at = self._to_datetime(trade["close_date"])
+            records.append(
+                BacktestTradeRecord(
+                    opened_at=self._to_datetime(trade["open_date"]),
+                    closed_at=closed_at,
+                    entry_price=float(trade["open_rate"]),
+                    exit_price=self._coerce_float(trade.get("close_rate")),
+                    stake_amount=self._coerce_float(trade.get("stake_amount")) or 0.0,
+                    amount=self._coerce_float(trade.get("amount")) or 0.0,
+                    profit_abs=self._coerce_float(trade.get("profit_abs")) or 0.0,
+                    profit_pct=(self._coerce_float(trade.get("profit_ratio")) or 0.0) * 100.0,
+                    max_drawdown_pct=None,
+                    duration_minutes=self._coerce_int(trade.get("trade_duration")),
+                    entry_tag=trade.get("enter_tag"),
+                    exit_reason=trade.get("exit_reason"),
+                    leverage=self._coerce_float(trade.get("leverage")) or 1.0,
+                    pair=trade.get("pair") or "",
+                )
+            )
+        return records
+
+    def apply_execution_adjustments(
+        self,
+        trades: list[BacktestTradeRecord],
+        research: ResearchConfigRecord,
+        end_date: datetime,
+    ) -> list[BacktestTradeRecord]:
+        slippage_ratio = research.slippage_bps / 10_000.0
+        adjusted = []
+        for trade in trades:
+            holding_end = trade.closed_at or end_date
+            holding_days = max((holding_end - trade.opened_at).total_seconds() / 86_400.0, 0.0)
+            leverage = max(trade.leverage, 1.0)
+            slippage_abs = (trade.stake_amount or 0.0) * slippage_ratio * 2.0 * leverage
+            funding_abs = (trade.stake_amount or 0.0) * leverage * (research.funding_rate_daily / 100.0) * holding_days
+            adjusted_profit = trade.profit_abs - slippage_abs - funding_abs
+            adjusted.append(
+                BacktestTradeRecord(
+                    opened_at=trade.opened_at,
+                    closed_at=trade.closed_at,
+                    entry_price=max(trade.entry_price * (1.0 + slippage_ratio), 1e-8),
+                    exit_price=max(trade.exit_price * (1.0 - slippage_ratio), 1e-8) if trade.exit_price is not None else None,
+                    stake_amount=trade.stake_amount,
+                    amount=trade.amount,
+                    profit_abs=adjusted_profit,
+                    profit_pct=(adjusted_profit / trade.stake_amount * 100.0) if trade.stake_amount else 0.0,
+                    max_drawdown_pct=trade.max_drawdown_pct,
+                    duration_minutes=trade.duration_minutes,
+                    entry_tag=trade.entry_tag,
+                    exit_reason=trade.exit_reason,
+                    leverage=trade.leverage,
+                    pair=trade.pair,
+                )
+            )
+        return adjusted
+
+    def build_signal_records(self, trades: list[BacktestTradeRecord]) -> list[BacktestSignalRecord]:
+        signals = []
+        for trade in sorted(trades, key=lambda item: item.opened_at):
+            signals.append(
+                BacktestSignalRecord(
+                    timestamp=trade.opened_at,
+                    price=trade.entry_price,
+                    signal="BUY",
+                    confidence=100.0,
+                    indicators={
+                        "pair": trade.pair,
+                        "trade_duration": trade.duration_minutes,
+                        "profit_ratio": trade.profit_pct / 100.0,
+                    },
+                    reasoning=f"Freqtrade entry: {trade.entry_tag or 'entry_signal'}",
+                )
+            )
+            if trade.closed_at and trade.exit_price is not None:
+                close_at = trade.closed_at if trade.closed_at > trade.opened_at else trade.closed_at + timedelta(seconds=1)
+                signals.append(
+                    BacktestSignalRecord(
+                        timestamp=close_at,
+                        price=trade.exit_price,
+                        signal="SELL",
+                        confidence=100.0,
+                        indicators={
+                            "pair": trade.pair,
+                            "profit_abs": trade.profit_abs,
+                            "profit_ratio": trade.profit_pct / 100.0,
+                        },
+                        reasoning=f"Freqtrade exit: {trade.exit_reason or 'exit_signal'}",
+                    )
+                )
+        return signals
+
+    def _to_datetime(self, value: Any) -> datetime:
+        timestamp = pd.Timestamp(value)
+        if timestamp.tzinfo is None:
+            return timestamp.to_pydatetime().replace(tzinfo=None)
+        return timestamp.tz_convert("UTC").to_pydatetime().replace(tzinfo=None)
+
+    def _coerce_float(self, value: Any) -> float | None:
+        if value is None or pd.isna(value):
+            return None
+        return float(value)
+
+    def _coerce_int(self, value: Any) -> int | None:
+        if value is None or pd.isna(value):
+            return None
+        return int(value)

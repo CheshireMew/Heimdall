@@ -1,19 +1,13 @@
-
-import sys
-import os
 import unittest
 from unittest.mock import MagicMock, patch
 from datetime import datetime, timedelta, timezone
 
-# Add root to sys.path
-sys.path.append(os.getcwd())
-
-from core.dca_calculator import DCACalculator
+from app.services.tools.dca_service import DCAService as DCACalculator
 
 class TestValueAveraging(unittest.TestCase):
     def setUp(self):
         self.calculator = DCACalculator()
-        self.calculator.market_provider = MagicMock()
+        self.calculator.market_data_service = MagicMock()
         
     def test_value_averaging_zero_invested(self):
         print("\n--- Testing Value Averaging Zero Invested Scenario ---")
@@ -53,10 +47,10 @@ class TestValueAveraging(unittest.TestCase):
         ]
 
         
-        self.calculator.market_provider.fetch_ohlcv_range.return_value = mock_data
+        self.calculator.market_data_service.fetch_ohlcv_range.return_value = mock_data
         
         # Mock get_kline_data for current price check at end
-        self.calculator.market_provider.get_kline_data.return_value = [[
+        self.calculator.market_data_service.get_kline_data.return_value = [[
              int(d3.timestamp() * 1000), 1000.0, 1000.0, 1000.0, 1000.0, 1000
         ]]
 
@@ -66,7 +60,9 @@ class TestValueAveraging(unittest.TestCase):
             end_date_str='2024-01-03',
             daily_investment=100.0,
             target_time_str='23:00',
-            strategy='value_averaging'
+            timezone='UTC',
+            strategy='value_averaging',
+            strategy_params={'fee_rate': 0},
         )
         
         if 'error' in result:

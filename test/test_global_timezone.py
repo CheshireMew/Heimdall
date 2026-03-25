@@ -1,14 +1,9 @@
 
 import unittest
-import sys
-import os
 import logging
 from unittest.mock import MagicMock, patch
 from datetime import datetime
 import pytz
-
-# Add root to sys.path
-sys.path.append(os.getcwd())
 
 from utils.time_manager import TimeManager
 
@@ -35,7 +30,7 @@ class TestGlobalTimezone(unittest.TestCase):
     def test_backtester_imports(self):
         print("\n--- Testing Backtester Imports ---")
         # Just check if we can import it and if it uses TimeManager
-        from core.backtester import Backtester
+        from app.services.backtest.run_service import BacktestRunService
         
         # Inspect source code or just rely on the fact that import didn't crash
         # and that we patched it successfully.
@@ -46,7 +41,7 @@ class TestGlobalTimezone(unittest.TestCase):
 
     def test_sentiment_service(self):
         print("\n--- Testing Sentiment Service ---")
-        from services.sentiment_service import sentiment_service
+        from app.services.sentiment_service import sentiment_service
         
         with patch('utils.time_manager.TimeManager.get_now') as mock_now:
             # Mock "Now" to be a specific timezone time
@@ -59,13 +54,12 @@ class TestGlobalTimezone(unittest.TestCase):
                 mock_get.return_value.status_code = 200
                 mock_get.return_value.json.return_value = {'data': []}
                 
-                # Mock DB session to avoid errors
-                with patch('models.database.session_scope') as mock_scope:
-                     # Just ensure it runs without error and calls get_now
-                     try:
-                        sentiment_service.sync_data()
-                     except Exception as e:
-                        print(f"Sync failed (expected DB error maybe): {e}")
+                # Mock DB session to avoid touching the real database
+                with patch('app.services.sentiment_service.session_scope') as mock_scope:
+                    mock_session = MagicMock()
+                    mock_scope.return_value.__enter__.return_value = mock_session
+                    mock_session.query.return_value.order_by.return_value.first.return_value = None
+                    sentiment_service.sync_data()
                         
             # Verify get_now was called
             mock_now.assert_called()

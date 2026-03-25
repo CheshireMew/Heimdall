@@ -4,21 +4,15 @@
 import sqlite3
 import json
 from datetime import datetime
-import sys
-from pathlib import Path
 
-# 添加根目录
-root_path = Path(__file__).parent.parent
-sys.path.insert(0, str(root_path))
-
-from app.database import SessionLocal, engine
-from app.models import schema
+from app.infra.db.database import SessionLocal, engine
+from models import schema
 from sqlalchemy import text
 
 SQLITE_DB = 'data/heimdall.db'
 
 def migrate_klines(sqlite_cursor, pg_session):
-    print("⏳ 正在迁移 klines 表...")
+    print("[WAIT] 正在迁移 klines 表...")
     sqlite_cursor.execute("SELECT symbol, timeframe, timestamp, open, high, low, close, volume FROM klines")
     rows = sqlite_cursor.fetchall()
     
@@ -51,14 +45,14 @@ def migrate_klines(sqlite_cursor, pg_session):
             print(f"    - 已插入 {i + len(batch)} / {len(data)}")
             
         pg_session.commit()
-        print("✅ klines 表迁移完成！")
+        print("[OK] klines 表迁移完成！")
         
     except Exception as e:
         pg_session.rollback()
-        print(f"❌ klines 迁移失败: {e}")
+        print(f"[ERROR] klines 迁移失败: {e}")
 
 def migrate_backtests(sqlite_cursor, pg_session):
-    print("\n⏳ 正在迁移回测数据...")
+    print("\n[WAIT] 正在迁移回测数据...")
     
     # 1. 迁移 backtest_runs
     sqlite_cursor.execute("SELECT id, symbol, timeframe, start_date, end_date, created_at, status, total_candles, total_signals, buy_signals, sell_signals, hold_signals, metadata FROM backtest_runs")
@@ -150,27 +144,27 @@ def migrate_backtests(sqlite_cursor, pg_session):
     print(f"  - 已迁移 {len(batch_signals)} 条 backtest_signals (跳过 {skipped} 条无效外键)")
     
     pg_session.commit()
-    print("✅ 回测数据迁移完成！")
+    print("[OK] 回测数据迁移完成！")
 
 def main():
     if not Path(SQLITE_DB).exists():
-        print(f"❌ SQLite数据库未找到: {SQLITE_DB}")
+        print(f"[ERROR] SQLite数据库未找到: {SQLITE_DB}")
         return
 
-    print(f"🔌 连接SQLite: {SQLITE_DB} ...")
+    print(f"[CONN] 连接SQLite: {SQLITE_DB} ...")
     sqlite_conn = sqlite3.connect(SQLITE_DB)
     sqlite_cursor = sqlite_conn.cursor()
     
-    print("🔌 连接PostgreSQL...")
+    print("[CONN] 连接PostgreSQL...")
     pg_session = SessionLocal()
     
     try:
         migrate_klines(sqlite_cursor, pg_session)
         migrate_backtests(sqlite_cursor, pg_session)
-        print("\n🎉🎉🎉 全部迁移成功！")
+        print("\n[OK] 全部迁移成功！")
     except Exception as e:
         pg_session.rollback()
-        print(f"\n❌ 迁移过程中发生错误: {e}")
+        print(f"\n[ERROR] 迁移过程中发生错误: {e}")
     finally:
         sqlite_conn.close()
         pg_session.close()

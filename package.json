@@ -1,0 +1,25 @@
+{
+  "name": "heimdall",
+  "version": "1.0.0",
+  "description": "> **海姆达尔** —— 北欧神话中的光之神，拥有千里眼和顺风耳，守护彩虹桥并预知未来。",
+  "main": ".codex_browser_check.js",
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CheshireMew/Heimdall.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/CheshireMew/Heimdall/issues"
+  },
+  "homepage": "https://github.com/CheshireMew/Heimdall#readme"
+}
