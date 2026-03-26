@@ -53,6 +53,27 @@ class BacktestStartResponse(BaseModel):
     message: str
 
 
+class PaperStartRequest(BaseModel):
+    strategy_key: str = "ema_rsi_macd"
+    strategy_version: int | None = None
+    timeframe: str = "1h"
+    initial_cash: float = Field(default=100000.0, gt=0)
+    fee_rate: float = Field(default=0.1, ge=0, le=100)
+    portfolio: BacktestPortfolioRequest = Field(default_factory=BacktestPortfolioRequest)
+
+
+class PaperStartResponse(BaseModel):
+    success: bool
+    run_id: int
+    message: str
+
+
+class PaperStopResponse(BaseModel):
+    success: bool
+    run_id: int
+    message: str
+
+
 class BacktestMetricsResponse(BaseModel):
     total_candles: int
     total_signals: int

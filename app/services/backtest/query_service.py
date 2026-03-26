@@ -36,6 +36,10 @@ class BacktestQueryService:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self.strategy_library.list_indicator_engines)
 
+    async def repair_run_storage(self) -> int:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.run_repository.repair_run_contracts)
+
     async def list_runs(self) -> list[dict[str, Any]]:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self.run_repository.list_runs)
@@ -43,3 +47,11 @@ class BacktestQueryService:
     async def get_run(self, backtest_id: int, page: int, page_size: int) -> dict[str, Any] | None:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, lambda: self.run_repository.get_run(backtest_id, page, page_size))
+
+    async def list_paper_runs(self) -> list[dict[str, Any]]:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, lambda: self.run_repository.list_runs("paper_live"))
+
+    async def get_paper_run(self, run_id: int, page: int, page_size: int) -> dict[str, Any] | None:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, lambda: self.run_repository.get_run(run_id, page, page_size, "paper_live"))

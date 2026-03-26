@@ -13,7 +13,7 @@ $frontendPort = 4173
 
 Write-Host "Launching Heimdall development environment..." -ForegroundColor Cyan
 
-$backend = Start-Process $pythonExe -WorkingDirectory $projectRoot -ArgumentList "-m", "uvicorn", "app.main:app", "--reload", "--port", "$apiPort" -PassThru
+$backend = Start-Process $pythonExe -WorkingDirectory $projectRoot -ArgumentList "-m", "uvicorn", "app.main:app", "--reload", "--reload-dir", "app", "--reload-dir", "config", "--reload-dir", "utils", "--reload-exclude", "data/*", "--reload-exclude", "logs/*", "--reload-exclude", "frontend/dist/*", "--port", "$apiPort" -PassThru
 Start-Sleep -Seconds 3
 $frontend = Start-Process "npm.cmd" -WorkingDirectory $frontendRoot -ArgumentList "run", "dev", "--", "--host", "127.0.0.1", "--port", "$frontendPort" -PassThru
 

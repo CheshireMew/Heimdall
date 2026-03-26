@@ -21,6 +21,9 @@ from app.schemas.backtest import (
     StrategyTemplateResponse,
     StrategyVersionCreateRequest,
     StrategyVersionResponse,
+    PaperStartRequest,
+    PaperStartResponse,
+    PaperStopResponse,
 )
 from app.services.backtest.command_service import BacktestCommandService
 from app.services.backtest.contracts import (
@@ -28,6 +31,7 @@ from app.services.backtest.contracts import (
     CreateIndicatorDefinitionCommand,
     CreateStrategyTemplateCommand,
     CreateStrategyVersionCommand,
+    PaperStartCommand,
 )
 from app.services.backtest.models import PortfolioConfigRecord, ResearchConfigRecord
 from app.services.backtest.query_service import BacktestQueryService
@@ -74,6 +78,48 @@ async def start_backtest(
         raise
     except Exception as exc:
         logger.error(f"API /backtest/start 错误: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/paper/start", response_model=PaperStartResponse)
+@limiter.limit(settings.RATE_LIMIT_HEAVY)
+async def start_paper_run(
+    request: Request,
+    body: PaperStartRequest,
+    service: BacktestCommandService = Depends(get_backtest_command_service),
+):
+    try:
+        return await service.start_paper_run(
+            PaperStartCommand(
+                strategy_key=body.strategy_key,
+                strategy_version=body.strategy_version,
+                timeframe=body.timeframe,
+                initial_cash=body.initial_cash,
+                fee_rate=body.fee_rate,
+                portfolio=PortfolioConfigRecord(
+                    symbols=list(body.portfolio.symbols),
+                    max_open_trades=body.portfolio.max_open_trades,
+                    position_size_pct=body.portfolio.position_size_pct,
+                    stake_mode=body.portfolio.stake_mode,
+                ),
+            )
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"API /paper/start 错误: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/paper/{run_id}/stop", response_model=PaperStopResponse)
+async def stop_paper_run(
+    run_id: int,
+    service: BacktestCommandService = Depends(get_backtest_command_service),
+):
+    try:
+        return await service.stop_paper_run(run_id)
+    except Exception as exc:
+        logger.error(f"API /paper/{run_id}/stop 错误: {exc}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -213,4 +259,32 @@ async def get_backtest(
         raise
     except Exception as exc:
         logger.error(f"API /backtest/{backtest_id} 错误: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/paper/list", response_model=list[BacktestRunResponse])
+async def list_paper_runs(service: BacktestQueryService = Depends(get_backtest_query_service)):
+    try:
+        return await service.list_paper_runs()
+    except Exception as exc:
+        logger.error(f"API /paper/list 错误: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/paper/{run_id}", response_model=BacktestDetailResponse)
+async def get_paper_run(
+    run_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=1000),
+    service: BacktestQueryService = Depends(get_backtest_query_service),
+):
+    try:
+        result = await service.get_paper_run(run_id, page, page_size)
+        if not result:
+            raise HTTPException(status_code=404, detail="模拟盘记录不存在")
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"API /paper/{run_id} 错误: {exc}")
         raise HTTPException(status_code=500, detail="Internal server error")

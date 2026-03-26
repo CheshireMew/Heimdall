@@ -12,8 +12,8 @@
         <div>
           <label class="label">{{ $t('backtest.version') }}</label>
           <select v-model="page.config.strategy_version" class="input">
-            <option v-for="item in page.selectedStrategyVersions" :key="item.version" :value="item.version">
-              v{{ item.version }} · {{ item.name }}
+            <option v-for="item in page.selectedStrategyVersions" :key="item?.version ?? String(item)" :value="item?.version">
+              v{{ item?.version ?? '-' }} · {{ item?.name ?? '-' }}
             </option>
           </select>
         </div>
@@ -28,14 +28,11 @@
           </div>
         </div>
         <div class="flex gap-2">
-          <button class="btn-secondary flex-1" :disabled="!page.editorReady" @click="page.fillVersionDraft">{{ $t('backtest.fillFromCurrent') }}</button>
-          <button class="btn-secondary flex-1" :disabled="!page.editorReady" @click="page.showVersionEditor = !page.showVersionEditor">
-            {{ page.showVersionEditor ? $t('backtest.hideVersionEditor') : $t('backtest.showVersionEditor') }}
-          </button>
+          <button class="btn-secondary flex-1" :disabled="!page.selectedVersion" @click="page.openCopyEditor">{{ $t('backtest.fillFromCurrent') }}</button>
+          <button class="btn-secondary flex-1" @click="page.openBlankEditor">{{ $t('backtest.startBlankBuilder') }}</button>
         </div>
       </section>
 
-      <BacktestVersionEditor :page="page" />
       <BacktestRunForm :page="page" />
     </div>
   </div>
@@ -43,7 +40,6 @@
 
 <script setup lang="ts">
 import BacktestRunForm from '@/components/backtest/BacktestRunForm.vue'
-import BacktestVersionEditor from '@/components/backtest/BacktestVersionEditor.vue'
 import type { BacktestPageState } from '@/modules/backtest/useBacktestPage'
 
 const props = defineProps<{ page: BacktestPageState }>()

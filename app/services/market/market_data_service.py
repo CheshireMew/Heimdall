@@ -119,6 +119,25 @@ class MarketDataService:
                 f"cached={len(cached_klines)} new={len(new_data)} elapsed={elapsed:.2f}s"
             )
 
+    def fetch_live_ohlcv_range(
+        self,
+        symbol: str,
+        timeframe: str,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> list[list[float]]:
+        start_ts = int(start_date.timestamp() * 1000)
+        end_ts = int(end_date.timestamp() * 1000)
+        range_start = time.time()
+        try:
+            return self._fetch_gap(symbol, timeframe, start_ts, end_ts + 1)
+        finally:
+            elapsed = time.time() - range_start
+            logger.debug(
+                f"[metrics] fetch_live_ohlcv_range symbol={symbol} tf={timeframe} "
+                f"elapsed={elapsed:.2f}s"
+            )
+
     def save_klines_background(self, symbol: str, timeframe: str, klines: list[list[float]]) -> None:
         try:
             self.kline_store.save(symbol, timeframe, klines)

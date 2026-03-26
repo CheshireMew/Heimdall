@@ -1,8 +1,8 @@
 <template>
   <div v-if="page.selectedRun" class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 flex-1 flex flex-col min-h-[500px] transition-colors space-y-6">
     <BacktestResultOverview :page="page" />
-    <BacktestResearchSection :page="page" />
-    <BacktestCompareSection :page="page" />
+    <BacktestResearchSection v-if="!page.isPaperRun" :page="page" />
+    <BacktestCompareSection v-if="!page.isPaperRun" :page="page" />
     <BacktestTradeReview :page="page" />
   </div>
 </template>

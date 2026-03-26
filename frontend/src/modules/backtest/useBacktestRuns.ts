@@ -5,6 +5,12 @@ import { marketApi } from '@/modules/market'
 import { backtestApi } from './api'
 import { asNumber } from './format'
 
+export type BacktestRunMode = 'backtest' | 'paper'
+
+interface BacktestRunTarget {
+  id: number
+  mode: BacktestRunMode
+}
 
 interface UseBacktestRunsOptions {
   t: (key: string) => string
@@ -20,15 +26,20 @@ export const useBacktestRuns = ({
 }: UseBacktestRunsOptions) => {
   const loading = ref(false)
   const history = ref<any[]>([])
+  const paperHistory = ref<any[]>([])
+  const historyMode = ref<'backtest' | 'paper'>('backtest')
   const selectedRun = ref<any | null>(null)
+  const selectedRunMode = ref<'backtest' | 'paper' | null>(null)
   const chartData = reactive({ candles: [] as any[], volume: [] as any[] })
   const symbolsText = ref('BTC/USDT, ETH/USDT')
   const compareRunIds = ref<number[]>([])
   const versionCompareSelections = ref<number[]>([])
 
+  const visibleHistory = computed(() => (historyMode.value === 'paper' ? paperHistory.value : history.value))
+  const isPaperRun = computed(() => selectedRunMode.value === 'paper' || selectedRun.value?.metadata?.execution_mode === 'paper_live')
   const pairBreakdown = computed(() => selectedRun.value?.report?.pair_breakdown || [])
-  const optimizationTrials = computed(() => selectedRun.value?.report?.research?.optimization?.trials || [])
-  const rollingWindows = computed(() => selectedRun.value?.report?.research?.rolling_windows || [])
+  const optimizationTrials = computed(() => (isPaperRun.value ? [] : (selectedRun.value?.report?.research?.optimization?.trials || [])))
+  const rollingWindows = computed(() => (isPaperRun.value ? [] : (selectedRun.value?.report?.research?.rolling_windows || [])))
   const selectedCompareRuns = computed(() => compareRunIds.value.map((id) => history.value.find((run) => run.id === id)).filter(Boolean))
   const latestRunsByVersion = computed(() => {
     const runs = [...history.value]
@@ -91,8 +102,18 @@ export const useBacktestRuns = ({
 
   const joinSymbols = (symbols: string[] | undefined) => (Array.isArray(symbols) && symbols.length ? symbols.join(', ') : '-')
   const portfolioLabel = (run: any) => run?.metadata?.portfolio_label || joinSymbols(run?.metadata?.symbols) || run?.symbol || '-'
-  const configLabel = (value: Record<string, unknown> | null | undefined) => (value ? Object.entries(value).slice(0, 3).map(([key, item]) => `${key}:${item}`).join(' · ') : '-')
+  const previewValue = (value: unknown) => {
+    if (Array.isArray(value)) return `${value.length}项`
+    if (value && typeof value === 'object') return `${Object.keys(value as Record<string, unknown>).length}项`
+    return value ?? '-'
+  }
+  const configLabel = (value: Record<string, unknown> | null | undefined) => (
+    value
+      ? Object.entries(value).slice(0, 3).map(([key, item]) => `${key}:${previewValue(item)}`).join(' · ')
+      : '-'
+  )
   const compareRunLabel = (run: any) => `#${run.id} · v${run.metadata?.strategy_version || '-'}`
+  const runStatusLabel = (run: any) => (run?.status || '-').toUpperCase()
 
   const fetchHistory = async () => {
     try {
@@ -102,6 +123,15 @@ export const useBacktestRuns = ({
       compareRunIds.value = compareRunIds.value.filter((item) => validRunIds.has(item))
       const validVersions = new Set(versionCompareOptions.value.map((item) => item.version))
       versionCompareSelections.value = versionCompareSelections.value.filter((item) => validVersions.has(item))
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const fetchPaperHistory = async () => {
+    try {
+      const res = await backtestApi.listPaperRuns()
+      paperHistory.value = res.data
     } catch (error) {
       console.error(error)
     }
@@ -130,6 +160,20 @@ export const useBacktestRuns = ({
     },
   })
 
+  const buildPaperPayload = () => ({
+    strategy_key: config.strategy_key,
+    strategy_version: config.strategy_version,
+    timeframe: config.timeframe,
+    initial_cash: config.initial_cash,
+    fee_rate: config.fee_rate,
+    portfolio: {
+      symbols: symbolsText.value.split(',').map((item) => item.trim()).filter(Boolean),
+      max_open_trades: config.portfolio.max_open_trades,
+      position_size_pct: config.portfolio.position_size_pct,
+      stake_mode: config.portfolio.stake_mode,
+    },
+  })
+
   const loadChart = async (run: any) => {
     const targetSymbol = Array.isArray(run?.metadata?.symbols) && run.metadata.symbols.length ? run.metadata.symbols[0] : run?.symbol
     if (!targetSymbol || targetSymbol === 'PORTFOLIO' || !run?.start_date) {
@@ -153,10 +197,28 @@ export const useBacktestRuns = ({
     try {
       const res = await backtestApi.getRun(id)
       selectedRun.value = res.data
+      selectedRunMode.value = 'backtest'
+      historyMode.value = 'backtest'
       if (!compareRunIds.value.includes(id)) compareRunIds.value = [...compareRunIds.value, id]
       await loadChart(res.data)
+      return res.data
     } catch (error) {
       console.error(error)
+      return null
+    }
+  }
+
+  const loadPaperResult = async (id: number) => {
+    try {
+      const res = await backtestApi.getPaperRun(id)
+      selectedRun.value = res.data
+      selectedRunMode.value = 'paper'
+      historyMode.value = 'paper'
+      await loadChart(res.data)
+      return res.data
+    } catch (error) {
+      console.error(error)
+      return null
     }
   }
 
@@ -165,20 +227,75 @@ export const useBacktestRuns = ({
     try {
       const res = await backtestApi.startRun(buildPayload())
       if (res.data.success) {
+        historyMode.value = 'backtest'
         await fetchHistory()
-        await loadResult(res.data.backtest_id)
+        return { id: res.data.backtest_id, mode: 'backtest' as const }
       }
     } catch (error: any) {
       alert(`${t('backtest.failed')}: ${error.message}`)
     } finally {
       loading.value = false
     }
+    return null
+  }
+
+  const startPaperRun = async () => {
+    loading.value = true
+    try {
+      const res = await backtestApi.startPaperRun(buildPaperPayload())
+      if (res.data.success) {
+        historyMode.value = 'paper'
+        await fetchPaperHistory()
+        return { id: res.data.run_id, mode: 'paper' as const }
+      }
+    } catch (error: any) {
+      alert(`${t('backtest.paperFailed')}: ${error.message}`)
+    } finally {
+      loading.value = false
+    }
+    return null
+  }
+
+  const loadRunTarget = async (target: BacktestRunTarget) => {
+    if (target.mode === 'paper') return loadPaperResult(target.id)
+    return loadResult(target.id)
+  }
+
+  const clearSelectedRun = () => {
+    selectedRun.value = null
+    selectedRunMode.value = null
+    chartData.candles = []
+    chartData.volume = []
+  }
+
+  const stopPaperRun = async (runId: number) => {
+    try {
+      await backtestApi.stopPaperRun(runId)
+      await fetchPaperHistory()
+      if (selectedRunMode.value === 'paper' && selectedRun.value?.id === runId) {
+        await loadPaperResult(runId)
+      }
+    } catch (error: any) {
+      alert(`${t('backtest.paperStopFailed')}: ${error.message}`)
+    }
+  }
+
+  const refreshPaperSelection = async () => {
+    await fetchPaperHistory()
+    if (selectedRunMode.value === 'paper' && selectedRun.value?.id) {
+      await loadPaperResult(selectedRun.value.id)
+    }
   }
 
   return {
     loading,
     history,
+    paperHistory,
+    historyMode,
+    visibleHistory,
     selectedRun,
+    selectedRunMode,
+    isPaperRun,
     chartData,
     symbolsText,
     compareRunIds,
@@ -198,10 +315,19 @@ export const useBacktestRuns = ({
     portfolioLabel,
     configLabel,
     compareRunLabel,
+    runStatusLabel,
     fetchHistory,
+    fetchPaperHistory,
     buildPayload,
+    buildPaperPayload,
     loadChart,
     loadResult,
+    loadPaperResult,
+    loadRunTarget,
+    clearSelectedRun,
     startBacktest,
+    startPaperRun,
+    stopPaperRun,
+    refreshPaperSelection,
   }
 }

@@ -19,6 +19,16 @@ class BacktestStartCommand:
 
 
 @dataclass(slots=True)
+class PaperStartCommand:
+    strategy_key: str
+    strategy_version: int | None
+    timeframe: str
+    initial_cash: float
+    fee_rate: float
+    portfolio: PortfolioConfigRecord
+
+
+@dataclass(slots=True)
 class CreateIndicatorDefinitionCommand:
     key: str
     name: str

@@ -27,7 +27,7 @@ echo API Documentation: http://localhost:%API_PORT%/docs
 echo.
 
 :: Start backend in new window
-start "Heimdall Backend" cmd /k "cd /d %~dp0.. && set HEIMDALL_API_PORT=%API_PORT% && python -m uvicorn app.main:app --reload --port %API_PORT%"
+start "Heimdall Backend" cmd /k "cd /d %~dp0.. && set HEIMDALL_API_PORT=%API_PORT% && python -m uvicorn app.main:app --reload --reload-dir app --reload-dir config --reload-dir utils --reload-exclude data/* --reload-exclude logs/* --reload-exclude frontend/dist/* --port %API_PORT%"
 
 :: Wait a bit for backend to start
 timeout /t 3 /nobreak >nul

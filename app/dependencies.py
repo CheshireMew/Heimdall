@@ -1,6 +1,7 @@
 from functools import lru_cache
 from config import settings
 from app.services.backtest.command_service import BacktestCommandService
+from app.services.backtest.paper_manager import PaperRunManager
 from app.services.backtest.query_service import BacktestQueryService
 from app.services.market.exchange_gateway import ExchangeGateway
 from app.services.market.kline_store import KlineStore
@@ -33,12 +34,20 @@ def get_market_app_service() -> MarketAppService:
 
 @lru_cache(maxsize=1)
 def get_backtest_command_service() -> BacktestCommandService:
-    return BacktestCommandService(market_data_service=get_market_data_service())
+    return BacktestCommandService(
+        market_data_service=get_market_data_service(),
+        paper_manager=get_paper_run_manager(),
+    )
 
 
 @lru_cache(maxsize=1)
 def get_backtest_query_service() -> BacktestQueryService:
     return BacktestQueryService()
+
+
+@lru_cache(maxsize=1)
+def get_paper_run_manager() -> PaperRunManager:
+    return PaperRunManager(market_data_service=get_market_data_service())
 
 
 @lru_cache(maxsize=1)

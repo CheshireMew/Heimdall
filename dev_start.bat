@@ -6,7 +6,7 @@ echo       Heimdall Development Environment
 echo ===================================================
 echo.
 echo 1. Starting Backend (FastAPI :%API_PORT%)...
-start "Heimdall Backend" cmd /k "call venv\Scripts\activate & set HEIMDALL_API_PORT=%API_PORT% & python -m uvicorn app.main:app --reload --port %API_PORT%"
+start "Heimdall Backend" cmd /k "call venv\Scripts\activate & set HEIMDALL_API_PORT=%API_PORT% & python -m uvicorn app.main:app --reload --reload-dir app --reload-dir config --reload-dir utils --reload-exclude data/* --reload-exclude logs/* --reload-exclude frontend/dist/* --port %API_PORT%"
 
 echo 2. Starting Frontend (Vite :%FRONTEND_PORT%)...
 start "Heimdall Frontend" cmd /k "cd frontend & set HEIMDALL_API_PORT=%API_PORT% & set HEIMDALL_FRONTEND_PORT=%FRONTEND_PORT% & npm run dev"

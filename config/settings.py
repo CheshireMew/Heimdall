@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_DB_PATH = BASE_DIR / "data" / "heimdall.db"
+
+
+def _default_runtime_root() -> Path:
+    local_appdata = os.getenv("LOCALAPPDATA")
+    if local_appdata:
+        return Path(local_appdata) / "Heimdall"
+    return Path.home() / ".heimdall"
 
 
 class AppSettings(BaseSettings):
@@ -124,7 +132,7 @@ class AppSettings(BaseSettings):
     BACKTEST_DEFAULT_FEE_RATE: float = 0.1
 
     FREQTRADE_BACKTEST_TIMEOUT_SECONDS: int = 600
-    FREQTRADE_WORKSPACE_DIR: Path = Field(default_factory=lambda: BASE_DIR / "data" / "freqtrade")
+    FREQTRADE_WORKSPACE_DIR: Path = Field(default_factory=lambda: _default_runtime_root() / "freqtrade")
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

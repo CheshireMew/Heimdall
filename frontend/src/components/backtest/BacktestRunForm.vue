@@ -87,11 +87,19 @@
     </section>
 
     <div class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
-      Freqtrade research engine
+      {{ $t('backtest.backtestHint') }}
     </div>
-    <button :disabled="page.loading || !page.strategies.length" class="btn-primary w-full" @click="page.startBacktest">
-      {{ page.loading ? $t('backtest.running') : $t('backtest.run') }}
-    </button>
+    <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+      {{ $t('backtest.paperHint') }}
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <button :disabled="page.loading || !page.strategies.length" class="btn-primary" @click="page.startBacktest">
+        {{ page.loading ? $t('backtest.running') : $t('backtest.run') }}
+      </button>
+      <button :disabled="page.loading || !page.strategies.length" class="btn-paper" @click="page.startPaperRun">
+        {{ page.loading ? $t('backtest.running') : $t('backtest.paperRun') }}
+      </button>
+    </div>
   </section>
 </template>
 
@@ -106,5 +114,6 @@ const page = props.page
 .label { @apply block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1; }
 .input { @apply w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white outline-none focus:border-blue-500 transition-colors; }
 .btn-primary { @apply bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-bold transition disabled:opacity-50; }
+.btn-paper { @apply bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-lg font-bold transition disabled:opacity-50; }
 .section-title { @apply text-sm font-bold text-gray-900 dark:text-white; }
 </style>

@@ -7,17 +7,18 @@ from typing import Any
 
 from app.services.backtest.strategy_catalog import (
     get_indicator_registry_map,
-    get_template_spec,
 )
-from app.services.backtest.strategy_contract import normalize_strategy_payload, set_by_path
+from app.services.backtest.strategy_contract import set_by_path
+from app.services.backtest.strategy_runtime import StrategyRuntime
 
 
 class FreqtradeStrategyBuilder:
     def __init__(self, strategy_class_name: str) -> None:
         self.strategy_class_name = strategy_class_name
+        self.runtime = StrategyRuntime()
 
     def build_code(self, template: str, timeframe: str, config: dict[str, Any]) -> str:
-        normalized_config = self._normalized_config(template, config)
+        normalized_config = self.runtime.normalized_config(template, config)
         indicator_registry = get_indicator_registry_map()
         indicators = normalized_config.get("indicators") or {}
         risk = normalized_config.get("risk") or {}
@@ -78,29 +79,7 @@ class {self.strategy_class_name}(IStrategy):
 """
 
     def warmup_bars(self, template: str, config: dict[str, Any]) -> int:
-        normalized_config = self._normalized_config(template, config)
-        indicator_registry = get_indicator_registry_map()
-        warmups = [5]
-        for indicator in (normalized_config.get("indicators") or {}).values():
-            indicator_type = indicator.get("type")
-            indicator_spec = indicator_registry.get(indicator_type) or {}
-            engine = indicator_spec.get("engine", indicator_type)
-            params = indicator.get("params") or {}
-            if engine in {"ema", "sma", "roc"}:
-                warmups.append(int(params.get("period", 20)))
-            elif engine == "rsi":
-                warmups.append(int(params.get("period", 14)))
-            elif engine == "macd":
-                warmups.append(int(params.get("slow", 26)) + int(params.get("signal", 9)))
-            elif engine == "bbands":
-                warmups.append(int(params.get("period", 20)))
-            elif engine == "volume_sma":
-                warmups.append(int(params.get("period", 20)))
-            elif engine == "atr":
-                warmups.append(int(params.get("period", 14)))
-            elif engine in {"rolling_high", "rolling_low"}:
-                warmups.append(int(params.get("lookback", 20)))
-        return max(warmups) + 5
+        return self.runtime.warmup_bars(template, config)
 
     def candidate_configs(
         self,
@@ -124,14 +103,6 @@ class {self.strategy_class_name}(IStrategy):
                 continue
             seen.add(signature)
             yield candidate
-
-    def _normalized_config(self, template: str, config: dict[str, Any]) -> dict[str, Any]:
-        normalized_config, _ = normalize_strategy_payload(
-            template_spec=get_template_spec(template),
-            config=dict(config or {}),
-            parameter_space={},
-        )
-        return normalized_config
 
     def _render_indicator_block(self, indicator_id: str, indicator: dict[str, Any], indicator_registry: dict[str, dict[str, Any]]) -> str:
         indicator_type = indicator.get("type")

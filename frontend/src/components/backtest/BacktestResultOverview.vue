@@ -2,16 +2,16 @@
   <section class="space-y-6">
     <div class="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-3">
       <div>
-        <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{ $t('backtest.result') }}: #{{ page.selectedRun.id }}</h3>
+        <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{ $t('backtest.result') }}: #{{ page.selectedRun?.id ?? '-' }}</h3>
         <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          {{ page.portfolioLabel(page.selectedRun) }} · {{ page.selectedRun.metadata?.strategy_name || '-' }} · v{{ page.selectedRun.metadata?.strategy_version || '-' }}
+          {{ page.portfolioLabel(page.selectedRun) }} · {{ page.selectedRun?.metadata?.strategy_name || '-' }} · v{{ page.selectedRun?.metadata?.strategy_version || '-' }}
         </div>
       </div>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <div class="stat-badge">{{ $t('backtest.buy') }}: {{ page.selectedRun.metrics.buy_signals }}</div>
-        <div class="stat-badge">{{ $t('backtest.sell') }}: {{ page.selectedRun.metrics.sell_signals }}</div>
-        <div class="stat-badge">{{ $t('backtest.optimizeTrials') }}: {{ page.selectedRun.report?.research?.optimization?.trial_count ?? 0 }}</div>
-        <div class="stat-badge">{{ $t('backtest.rollingWindows') }}: {{ page.selectedRun.report?.research?.rolling_windows?.length ?? 0 }}</div>
+        <div class="stat-badge">{{ $t('backtest.buy') }}: {{ page.selectedRun?.metrics?.buy_signals ?? 0 }}</div>
+        <div class="stat-badge">{{ $t('backtest.sell') }}: {{ page.selectedRun?.metrics?.sell_signals ?? 0 }}</div>
+        <div class="stat-badge">{{ $t('backtest.runMode') }}: {{ page.isPaperRun ? $t('backtest.paperRunShort') : $t('backtest.runShort') }}</div>
+        <div class="stat-badge">{{ $t('backtest.runStatus') }}: {{ page.runStatusLabel(page.selectedRun) }}</div>
       </div>
     </div>
 
@@ -60,9 +60,17 @@
         <div class="config-row"><span>{{ $t('backtest.maxOpenTrades') }}</span><strong>{{ page.selectedRun.report?.portfolio?.max_open_trades ?? '-' }}</strong></div>
         <div class="config-row"><span>{{ $t('backtest.positionSize') }}</span><strong>{{ formatPercent(page.selectedRun.report?.portfolio?.position_size_pct) }}</strong></div>
         <div class="config-row"><span>{{ $t('backtest.stakeMode') }}</span><strong>{{ page.selectedRun.report?.portfolio?.stake_mode || '-' }}</strong></div>
-        <div class="config-row"><span>{{ $t('backtest.slippage') }}</span><strong>{{ formatMetric(page.selectedRun.report?.research?.slippage_bps) }} bps</strong></div>
-        <div class="config-row"><span>{{ $t('backtest.fundingRate') }}</span><strong>{{ formatPercent(page.selectedRun.report?.research?.funding_rate_daily) }}</strong></div>
-        <div class="config-row"><span>{{ $t('backtest.inSampleRatio') }}</span><strong>{{ formatPercent(page.selectedRun.report?.research?.in_sample_ratio) }}</strong></div>
+        <div v-if="!page.isPaperRun" class="config-row"><span>{{ $t('backtest.slippage') }}</span><strong>{{ formatMetric(page.selectedRun.report?.research?.slippage_bps) }} bps</strong></div>
+        <div v-if="!page.isPaperRun" class="config-row"><span>{{ $t('backtest.fundingRate') }}</span><strong>{{ formatPercent(page.selectedRun.report?.research?.funding_rate_daily) }}</strong></div>
+        <div v-if="!page.isPaperRun" class="config-row"><span>{{ $t('backtest.inSampleRatio') }}</span><strong>{{ formatPercent(page.selectedRun.report?.research?.in_sample_ratio) }}</strong></div>
+        <div v-if="page.isPaperRun" class="config-row">
+          <span>{{ $t('backtest.paperOpenPositions') }}</span>
+          <strong>{{ page.selectedRun.metadata?.paper_live?.open_positions ?? 0 }}</strong>
+        </div>
+        <div v-if="page.isPaperRun" class="config-row">
+          <span>{{ $t('backtest.paperCash') }}</span>
+          <strong>{{ formatMoney(page.selectedRun.metadata?.paper_live?.cash_balance) }}</strong>
+        </div>
       </div>
 
       <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4">

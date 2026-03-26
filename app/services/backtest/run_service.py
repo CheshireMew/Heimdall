@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from app.services.backtest import FreqtradeBacktestService
 from app.services.backtest.models import PortfolioConfigRecord, ResearchConfigRecord, StrategyVersionRecord
+from app.services.backtest.run_contract import build_backtest_metadata
 from app.services.market.market_data_service import MarketDataService
 from config import settings
 from app.infra.db.database import init_db, session_scope
@@ -43,30 +44,14 @@ class BacktestRunService:
                 start_date=start_date,
                 end_date=end_date,
                 status="running",
-                metadata_info={
-                    "engine": "Freqtrade",
-                    "strategy_key": strategy.strategy_key,
-                    "strategy_name": strategy.strategy_name,
-                    "strategy_version": strategy.version,
-                    "symbols": symbols,
-                    "portfolio_label": display_symbol if len(symbols) == 1 else f"{len(symbols)} symbols",
-                    "initial_cash": initial_cash,
-                    "fee_rate": fee_rate,
-                    "portfolio": {
-                        "symbols": symbols,
-                        "max_open_trades": portfolio.max_open_trades,
-                        "position_size_pct": portfolio.position_size_pct,
-                        "stake_mode": portfolio.stake_mode,
-                    },
-                    "research": {
-                        "slippage_bps": research.slippage_bps,
-                        "funding_rate_daily": research.funding_rate_daily,
-                        "in_sample_ratio": research.in_sample_ratio,
-                        "optimize_metric": research.optimize_metric,
-                        "optimize_trials": research.optimize_trials,
-                        "rolling_windows": research.rolling_windows,
-                    },
-                },
+                metadata_info=build_backtest_metadata(
+                    strategy=strategy,
+                    symbols=symbols,
+                    initial_cash=initial_cash,
+                    fee_rate=fee_rate,
+                    portfolio=portfolio,
+                    research=research,
+                ),
             )
             session.add(backtest_run)
             session.flush()
@@ -170,7 +155,6 @@ class BacktestRunService:
                 backtest_run.status = "failed"
                 backtest_run.metadata_info = {
                     **(backtest_run.metadata_info or {}),
-                    "engine": "Freqtrade",
                     "error": str(exc),
                 }
                 session.commit()

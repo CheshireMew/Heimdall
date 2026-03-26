@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from app.dependencies import get_backtest_query_service, get_paper_run_manager
 from app.rate_limit import limiter
 from app.services.market_cron import start_scheduler, scheduler
 from utils.logger import logger
@@ -27,8 +28,13 @@ FRONTEND_INDEX_FILE = FRONTEND_DIST_DIR / "index.html"
 async def lifespan(app: FastAPI):
     # 启动定时任务调度器
     start_scheduler()
+    repaired_runs = await get_backtest_query_service().repair_run_storage()
+    if repaired_runs:
+        logger.info(f"已修复/归档 {repaired_runs} 条旧版回测记录")
+    await get_paper_run_manager().restore_active_runs()
     yield
     # 停止定时任务调度器
+    await get_paper_run_manager().shutdown()
     if scheduler.running:
         scheduler.shutdown()
 
@@ -117,4 +123,11 @@ async def frontend_fallback(full_path: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host=settings.API_HOST, port=settings.API_PORT, reload=True)
+    uvicorn.run(
+        "app.main:app",
+        host=settings.API_HOST,
+        port=settings.API_PORT,
+        reload=True,
+        reload_dirs=["app", "config", "utils"],
+        reload_excludes=["data/*", "logs/*", "frontend/dist/*"],
+    )

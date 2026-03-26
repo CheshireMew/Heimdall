@@ -34,6 +34,9 @@ export const useBacktestEditor = ({
   selectedStrategy,
   selectedVersion,
 }: UseBacktestEditorOptions) => {
+  const normalizedTemplates = computed(() => (Array.isArray(templates.value) ? templates.value.filter((item) => item?.template) : []))
+  const normalizedIndicators = computed(() => (Array.isArray(indicators.value) ? indicators.value.filter((item) => item?.key) : []))
+  const normalizedIndicatorEngines = computed(() => (Array.isArray(indicatorEngines.value) ? indicatorEngines.value.filter((item) => item?.key) : []))
   const showVersionEditor = ref(false)
   const showIndicatorCreator = ref(false)
   const showTemplateCreator = ref(false)
@@ -55,21 +58,21 @@ export const useBacktestEditor = ({
   const indicatorDraft = reactive(createBlankIndicatorDraft())
   const templateDraft = reactive(createBlankTemplateDraft())
 
-  const editorTemplate = computed(() => templates.value.find((item) => item.template === versionDraft.template) || null)
+  const editorTemplate = computed(() => normalizedTemplates.value.find((item) => item.template === versionDraft.template) || null)
   const availableIndicators = computed(() => (
     useGlobalIndicatorCatalog.value
-      ? indicators.value
-      : (editorTemplate.value?.indicator_registry || indicators.value)
-  ))
+      ? normalizedIndicators.value
+      : ((Array.isArray(editorTemplate.value?.indicator_registry) ? editorTemplate.value?.indicator_registry.filter((item: any) => item?.key) : normalizedIndicators.value))
+  ).filter((item: any) => item?.key))
   const operatorOptions = computed(() => editorTemplate.value?.operators || editorContract.value?.operators || [])
   const groupLogicOptions = computed(() => editorTemplate.value?.group_logics || editorContract.value?.group_logics || [])
   const indicatorCards = computed(() => Object.entries(versionDraft.config?.indicators || {}).map(([id, indicator]: any) => {
-    const spec = availableIndicators.value.find((item) => item.key === indicator.type) || indicators.value.find((item) => item.key === indicator.type)
+    const spec = availableIndicators.value.find((item: any) => item?.key === indicator.type) || normalizedIndicators.value.find((item: any) => item?.key === indicator.type)
     return {
       id,
       label: indicator.label || spec?.name || id,
       typeLabel: spec?.name || indicator.type,
-      params: spec?.params || [],
+      params: Array.isArray(spec?.params) ? spec.params.filter((item: any) => item?.key) : [],
     }
   }))
 
@@ -83,7 +86,7 @@ export const useBacktestEditor = ({
     ]
     const extra = []
     for (const [indicatorId, indicator] of Object.entries(versionDraft.config?.indicators || {})) {
-      const spec = availableIndicators.value.find((item) => item.key === (indicator as any).type) || indicators.value.find((item) => item.key === (indicator as any).type)
+      const spec = availableIndicators.value.find((item: any) => item?.key === (indicator as any).type) || normalizedIndicators.value.find((item: any) => item?.key === (indicator as any).type)
       for (const output of spec?.outputs || []) {
         extra.push({
           value: `indicator:${indicatorId}:${output.key}`,
@@ -98,7 +101,7 @@ export const useBacktestEditor = ({
   const optimizableTargets = computed(() => {
     const targets: Array<{ path: string; label: string; type: string; fallback: number }> = []
     for (const [indicatorId, indicator] of Object.entries(versionDraft.config?.indicators || {})) {
-      const spec = availableIndicators.value.find((item) => item.key === (indicator as any).type) || indicators.value.find((item) => item.key === (indicator as any).type)
+      const spec = availableIndicators.value.find((item: any) => item?.key === (indicator as any).type) || normalizedIndicators.value.find((item: any) => item?.key === (indicator as any).type)
       for (const param of spec?.params || []) {
         if (param.type === 'bool') continue
         targets.push({ path: `indicators.${indicatorId}.params.${param.key}`, label: `${(indicator as any).label || indicatorId} · ${param.label}`, type: param.type, fallback: param.default })
@@ -119,7 +122,7 @@ export const useBacktestEditor = ({
   })
 
   const resetIndicatorDraft = () => {
-    Object.assign(indicatorDraft, createBlankIndicatorDraft(indicatorEngines.value))
+    Object.assign(indicatorDraft, createBlankIndicatorDraft(normalizedIndicatorEngines.value))
   }
 
   const resetTemplateDraft = () => {
@@ -127,12 +130,12 @@ export const useBacktestEditor = ({
   }
 
   const syncIndicatorDraftEngine = () => {
-    const engine = indicatorEngines.value.find((item) => item.key === indicatorDraft.engine_key)
+    const engine = normalizedIndicatorEngines.value.find((item) => item.key === indicatorDraft.engine_key)
     indicatorDraft.params = clone(engine?.params || [])
   }
 
   const applyDraftFromTemplate = (templateKey: string, configValues = {}, parameterSpaceValues = {}, overrides = {}) => {
-    const templateSpec = templates.value.find((item) => item.template === templateKey)
+    const templateSpec = normalizedTemplates.value.find((item) => item.template === templateKey)
     if (!templateSpec) return
     useGlobalIndicatorCatalog.value = false
     versionDraft.template = templateSpec.template
@@ -146,7 +149,7 @@ export const useBacktestEditor = ({
       nextParameterSpaceValues[key] = Array.isArray(values) ? values.join(', ') : ''
     }
     versionDraft.parameterSpaceValues = nextParameterSpaceValues
-    newIndicatorType.value = templateSpec.indicator_registry?.[0]?.key || indicators.value[0]?.key || 'ema'
+    newIndicatorType.value = templateSpec.indicator_registry?.find((item: any) => item?.key)?.key || normalizedIndicators.value[0]?.key || 'ema'
   }
 
   const syncVersionDraftTemplate = () => {
@@ -223,7 +226,7 @@ export const useBacktestEditor = ({
     versionDraft.config = createBlankConfig(editorContract.value)
     versionDraft.parameterSpaceValues = {}
     versionDraft.make_default = true
-    newIndicatorType.value = indicators.value[0]?.key || 'ema'
+    newIndicatorType.value = normalizedIndicators.value[0]?.key || 'ema'
     resetTemplateDraft()
     showVersionEditor.value = true
   }

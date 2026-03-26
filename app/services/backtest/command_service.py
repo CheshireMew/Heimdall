@@ -9,7 +9,9 @@ from app.services.backtest.contracts import (
     CreateIndicatorDefinitionCommand,
     CreateStrategyTemplateCommand,
     CreateStrategyVersionCommand,
+    PaperStartCommand,
 )
+from app.services.backtest.paper_manager import PaperRunManager
 from app.services.backtest.run_service import BacktestRunService
 from app.services.backtest.strategy_library import StrategyLibraryService
 from app.services.market.market_data_service import MarketDataService
@@ -22,9 +24,11 @@ class BacktestCommandService:
         market_data_service: MarketDataService,
         strategy_library: StrategyLibraryService | None = None,
         run_service: BacktestRunService | None = None,
+        paper_manager: PaperRunManager | None = None,
     ) -> None:
         self.strategy_library = strategy_library or StrategyLibraryService()
         self.run_service = run_service or BacktestRunService(market_data_service=market_data_service)
+        self.paper_manager = paper_manager or PaperRunManager(market_data_service=market_data_service)
 
     async def start_backtest(self, command: BacktestStartCommand) -> dict[str, Any]:
         strategy = self.strategy_library.get_strategy_version(command.strategy_key, command.strategy_version)
@@ -53,6 +57,19 @@ class BacktestCommandService:
         if not backtest_id:
             raise RuntimeError("回测执行失败")
         return {"success": True, "backtest_id": backtest_id, "message": "回测已完成"}
+
+    async def start_paper_run(self, command: PaperStartCommand) -> dict[str, Any]:
+        strategy = self.strategy_library.get_strategy_version(command.strategy_key, command.strategy_version)
+        logger.info(
+            f"启动模拟盘: strategy={strategy.strategy_key} v{strategy.version}, "
+            f"symbols={','.join(command.portfolio.symbols)}, tf={command.timeframe}, "
+            f"本金={command.initial_cash}, 手续费={command.fee_rate}%"
+        )
+        return await self.paper_manager.start_run(command)
+
+    async def stop_paper_run(self, run_id: int) -> dict[str, Any]:
+        logger.info(f"停止模拟盘: run_id={run_id}")
+        return await self.paper_manager.stop_run(run_id)
 
     async def create_template(self, command: CreateStrategyTemplateCommand) -> dict[str, Any]:
         loop = asyncio.get_running_loop()

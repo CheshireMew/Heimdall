@@ -12,13 +12,15 @@
       </div>
     </div>
     <div class="grid grid-cols-2 gap-3">
-      <div>
-        <label class="label">{{ $t('backtest.template') }}</label>
-        <select v-model="page.versionDraft.template" class="input" @change="page.syncVersionDraftTemplate">
-          <option value="">{{ $t('backtest.customTemplateMode') }}</option>
-          <option v-for="item in page.templates" :key="item.template" :value="item.template">{{ item.name }}</option>
-        </select>
-      </div>
+        <div>
+          <label class="label">{{ $t('backtest.template') }}</label>
+          <select v-model="page.versionDraft.template" class="input" @change="page.syncVersionDraftTemplate">
+            <option value="">{{ $t('backtest.customTemplateMode') }}</option>
+            <option v-for="item in page.templates" :key="item?.template ?? String(item)" :value="item?.template">
+              {{ item?.name ?? item?.template ?? '-' }}
+            </option>
+          </select>
+        </div>
       <div>
         <label class="label">{{ $t('backtest.category') }}</label>
         <input :value="page.categoryLabel(page.versionDraft.category)" class="input" type="text" readonly />
@@ -55,7 +57,9 @@
         <div>
           <label class="label">{{ $t('backtest.indicatorEngine') }}</label>
           <select v-model="page.indicatorDraft.engine_key" class="input" @change="page.syncIndicatorDraftEngine">
-            <option v-for="engine in page.indicatorEngines" :key="engine.key" :value="engine.key">{{ engine.name }}</option>
+            <option v-for="engine in page.indicatorEngines" :key="engine?.key ?? String(engine)" :value="engine?.key">
+              {{ engine?.name ?? engine?.key ?? '-' }}
+            </option>
           </select>
         </div>
         <div>
@@ -63,10 +67,10 @@
           <input v-model="page.indicatorDraft.description" class="input" type="text" />
         </div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div v-for="param in page.indicatorDraft.params" :key="param.key" class="editor-card space-y-2">
-          <div class="font-semibold text-gray-900 dark:text-white">{{ param.label }}</div>
-          <input v-model="param.label" class="input" type="text" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div v-for="param in page.indicatorDraft.params" :key="param?.key ?? String(param)" class="editor-card space-y-2">
+            <div class="font-semibold text-gray-900 dark:text-white">{{ param.label }}</div>
+            <input v-model="param.label" class="input" type="text" />
           <div class="grid grid-cols-2 gap-2">
             <input v-model.number="param.default" class="input" type="number" step="0.1" />
             <input v-model.number="param.step" class="input" type="number" step="0.1" />
@@ -105,9 +109,9 @@
       <div>
         <label class="label">{{ $t('backtest.allowedIndicators') }}</label>
         <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-gray-700 dark:text-gray-200">
-          <label v-for="indicator in page.indicators" :key="indicator.key" class="flex items-center gap-2">
-            <input :checked="page.templateDraft.indicator_keys.includes(indicator.key)" type="checkbox" @change="page.toggleTemplateIndicator(indicator.key)" />
-            <span>{{ indicator.name }}</span>
+          <label v-for="indicator in page.indicators" :key="indicator?.key ?? String(indicator)" class="flex items-center gap-2">
+            <input :checked="page.templateDraft.indicator_keys.includes(indicator?.key)" type="checkbox" @change="indicator?.key && page.toggleTemplateIndicator(indicator.key)" />
+            <span>{{ indicator?.name ?? indicator?.key ?? '-' }}</span>
           </label>
         </div>
       </div>
@@ -117,15 +121,17 @@
     <div v-if="page.editorContract && page.versionDraft.config && (page.editorTemplate || page.useGlobalIndicatorCatalog)" class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-4">
       <div class="space-y-4">
         <div class="editor-section">
-          <div class="flex items-center justify-between gap-3">
-            <div class="section-title">{{ $t('backtest.indicatorConfig') }}</div>
-            <div class="flex gap-2">
-              <select v-model="page.newIndicatorType" class="input !w-[180px]">
-                <option v-for="indicator in page.availableIndicators" :key="indicator.key" :value="indicator.key">{{ indicator.name }}</option>
-              </select>
-              <button class="btn-secondary px-3" @click="page.addIndicator">{{ $t('backtest.addIndicator') }}</button>
+            <div class="flex items-center justify-between gap-3">
+              <div class="section-title">{{ $t('backtest.indicatorConfig') }}</div>
+              <div class="flex gap-2">
+                <select v-model="page.newIndicatorType" class="input !w-[180px]">
+                  <option v-for="indicator in page.availableIndicators" :key="indicator?.key ?? String(indicator)" :value="indicator?.key">
+                    {{ indicator?.name ?? indicator?.key ?? '-' }}
+                  </option>
+                </select>
+                <button class="btn-secondary px-3" @click="page.addIndicator">{{ $t('backtest.addIndicator') }}</button>
+              </div>
             </div>
-          </div>
           <div v-for="indicator in page.indicatorCards" :key="indicator.id" class="editor-card space-y-3">
             <div class="flex items-center justify-between gap-3">
               <div>
@@ -135,7 +141,7 @@
               <button class="btn-danger" @click="page.removeIndicator(indicator.id)">{{ $t('backtest.remove') }}</button>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div v-for="param in indicator.params" :key="param.key">
+              <div v-for="param in indicator.params" :key="param?.key ?? String(param)">
                 <label v-if="param.type !== 'bool'" class="label">{{ param.label }}</label>
                 <input
                   v-if="param.type !== 'bool'"
@@ -158,15 +164,15 @@
           <div class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ $t('backtest.templateRules') }}</div>
           <div class="mt-2 text-sm text-gray-700 dark:text-gray-200">
             <div class="font-semibold">{{ $t('backtest.availableIndicators') }}</div>
-            <div class="mt-1">{{ page.availableIndicators.map((item) => item.name).join(' / ') || '-' }}</div>
+            <div class="mt-1">{{ page.availableIndicators.map((item) => item?.name || item?.key || '-').join(' / ') || '-' }}</div>
           </div>
           <div class="mt-3 text-sm text-gray-700 dark:text-gray-200">
             <div class="font-semibold">{{ $t('backtest.availableOperators') }}</div>
-            <div class="mt-1">{{ page.operatorOptions.map((item) => item.label).join(' / ') || '-' }}</div>
+            <div class="mt-1">{{ page.operatorOptions.map((item) => item?.label || item?.key || '-').join(' / ') || '-' }}</div>
           </div>
           <div class="mt-3 text-sm text-gray-700 dark:text-gray-200">
             <div class="font-semibold">{{ $t('backtest.groupLogic') }}</div>
-            <div class="mt-1">{{ page.groupLogicOptions.map((item) => item.label).join(' / ') || '-' }}</div>
+            <div class="mt-1">{{ page.groupLogicOptions.map((item) => item?.label || item?.key || '-').join(' / ') || '-' }}</div>
           </div>
         </div>
       </div>
@@ -261,9 +267,9 @@
 
 <script setup lang="ts">
 import RuleTreeEditor from '@/components/RuleTreeEditor.vue'
-import type { BacktestPageState } from '@/modules/backtest/useBacktestPage'
+import type { BacktestEditorPageState } from '@/modules/backtest/useBacktestEditorPage'
 
-const props = defineProps<{ page: BacktestPageState }>()
+const props = defineProps<{ page: BacktestEditorPageState }>()
 const page = props.page
 </script>
 

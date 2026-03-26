@@ -6,6 +6,9 @@ import type {
   BacktestStartRequest,
   BacktestStartResponse,
   IndicatorDefinitionCreateRequest,
+  PaperStartRequest,
+  PaperStartResponse,
+  PaperStopResponse,
   StrategyEditorContract,
   StrategyDefinition,
   StrategyIndicatorEngine,
@@ -23,6 +26,18 @@ export const backtestApi = {
 
   startRun(body: BacktestStartRequest): Promise<AxiosResponse<BacktestStartResponse>> {
     return request.post('/backtest/start', body)
+  },
+
+  listPaperRuns(): Promise<AxiosResponse<BacktestRun[]>> {
+    return request.get('/paper/list')
+  },
+
+  startPaperRun(body: PaperStartRequest): Promise<AxiosResponse<PaperStartResponse>> {
+    return request.post('/paper/start', body)
+  },
+
+  stopPaperRun(runId: number): Promise<AxiosResponse<PaperStopResponse>> {
+    return request.post(`/paper/${runId}/stop`)
   },
 
   listStrategies(): Promise<AxiosResponse<StrategyDefinition[]>> {
@@ -59,6 +74,15 @@ export const backtestApi = {
 
   getRun(backtestId: number, page: number = 1, pageSize: number = 100): Promise<AxiosResponse<BacktestDetailResponse>> {
     return request.get(`/backtest/${backtestId}`, {
+      params: {
+        page,
+        page_size: pageSize,
+      },
+    })
+  },
+
+  getPaperRun(runId: number, page: number = 1, pageSize: number = 100): Promise<AxiosResponse<BacktestDetailResponse>> {
+    return request.get(`/paper/${runId}`, {
       params: {
         page,
         page_size: pageSize,

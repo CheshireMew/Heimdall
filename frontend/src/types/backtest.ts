@@ -15,6 +15,27 @@ export interface BacktestStartResponse {
   message: string
 }
 
+export interface PaperStartRequest {
+  strategy_key: string
+  strategy_version?: number | null
+  timeframe: string
+  initial_cash: number
+  fee_rate: number
+  portfolio: BacktestPortfolioConfig
+}
+
+export interface PaperStartResponse {
+  success: boolean
+  run_id: number
+  message: string
+}
+
+export interface PaperStopResponse {
+  success: boolean
+  run_id: number
+  message: string
+}
+
 export interface BacktestMetrics {
   total_candles: number
   total_signals: number

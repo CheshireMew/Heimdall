@@ -60,6 +60,16 @@ const routes = [
         component: () => import('@/views/Backtest.vue'),
     },
     {
+        path: '/backtest/editor',
+        name: 'BacktestEditor',
+        component: () => import('@/views/BacktestEditor.vue'),
+    },
+    {
+        path: '/backtest/:mode(runs|paper)/:id(\\d+)',
+        name: 'BacktestDetail',
+        component: () => import('@/views/BacktestDetail.vue'),
+    },
+    {
         path: '/settings',
         name: 'Settings',
         component: () => import('@/views/settings/Settings.vue'),

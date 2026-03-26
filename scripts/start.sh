@@ -45,7 +45,7 @@ echo ""
 
 # Start backend in background
 cd "$PROJECT_ROOT"
-HEIMDALL_API_PORT="$API_PORT" python -m uvicorn app.main:app --reload --port "$API_PORT" > "$LOG_DIR/backend.log" 2>&1 &
+HEIMDALL_API_PORT="$API_PORT" python -m uvicorn app.main:app --reload --reload-dir app --reload-dir config --reload-dir utils --reload-exclude "data/*" --reload-exclude "logs/*" --reload-exclude "frontend/dist/*" --port "$API_PORT" > "$LOG_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!
 echo "Backend PID: $BACKEND_PID"
 
