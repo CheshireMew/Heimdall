@@ -10,13 +10,13 @@ from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.dependencies import get_backtest_query_service, get_paper_run_manager
+from app.dependencies import get_backtest_query_service, get_factor_paper_run_manager, get_paper_run_manager
 from app.rate_limit import limiter
 from app.services.market_cron import start_scheduler, scheduler
 from utils.logger import logger
 
 # 导入路由
-from app.routers import market, backtest, tools, config_router
+from app.routers import market, backtest, tools, config_router, factor
 from config import settings
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,8 +32,10 @@ async def lifespan(app: FastAPI):
     if repaired_runs:
         logger.info(f"已修复/归档 {repaired_runs} 条旧版回测记录")
     await get_paper_run_manager().restore_active_runs()
+    await get_factor_paper_run_manager().restore_active_runs()
     yield
     # 停止定时任务调度器
+    await get_factor_paper_run_manager().shutdown()
     await get_paper_run_manager().shutdown()
     if scheduler.running:
         scheduler.shutdown()
@@ -67,6 +69,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # 注册路由 (API v1)
 app.include_router(market.router, prefix="/api/v1", tags=["市场数据"])
+app.include_router(factor.router, prefix="/api/v1", tags=["因子研究"])
 app.include_router(backtest.router, prefix="/api/v1", tags=["回测"])
 app.include_router(tools.router, prefix="/api/v1/tools", tags=["工具"])
 app.include_router(config_router.router, prefix="/api/v1", tags=["配置"])

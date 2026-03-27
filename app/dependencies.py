@@ -3,6 +3,9 @@ from config import settings
 from app.services.backtest.command_service import BacktestCommandService
 from app.services.backtest.paper_manager import PaperRunManager
 from app.services.backtest.query_service import BacktestQueryService
+from app.services.factors.execution import FactorExecutionService
+from app.services.factors.paper_manager import FactorPaperRunManager
+from app.services.factors import FactorResearchService
 from app.services.market.exchange_gateway import ExchangeGateway
 from app.services.market.kline_store import KlineStore
 from app.services.market.app_service import MarketAppService
@@ -53,6 +56,22 @@ def get_paper_run_manager() -> PaperRunManager:
 @lru_cache(maxsize=1)
 def get_tools_app_service() -> ToolsAppService:
     return ToolsAppService(market_data_service=get_market_data_service())
+
+
+@lru_cache(maxsize=1)
+def get_factor_research_service() -> FactorResearchService:
+    return FactorResearchService(market_data_service=get_market_data_service())
+
+
+@lru_cache(maxsize=1)
+def get_factor_execution_service() -> FactorExecutionService:
+    return FactorExecutionService(factor_service=get_factor_research_service())
+
+
+@lru_cache(maxsize=1)
+def get_factor_paper_run_manager() -> FactorPaperRunManager:
+    return FactorPaperRunManager(factor_service=get_factor_research_service())
+
 
 def get_settings():
     """

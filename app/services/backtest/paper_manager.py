@@ -104,7 +104,7 @@ class PaperRunManager:
             if not run:
                 return False
             metadata = dict(run.metadata_info or {})
-            if metadata.get("execution_mode") != "paper_live":
+            if metadata.get("execution_mode") != "paper_live" or metadata.get("engine") != "PaperLive":
                 return False
             if run.status != "running":
                 return False
@@ -689,7 +689,9 @@ class PaperRunManager:
             return [
                 run.id
                 for run in runs
-                if run.status == "running" and (run.metadata_info or {}).get("execution_mode") == "paper_live"
+                if run.status == "running"
+                and (run.metadata_info or {}).get("execution_mode") == "paper_live"
+                and (run.metadata_info or {}).get("engine") == "PaperLive"
             ]
 
     def _latest_closed_timestamp(

@@ -40,6 +40,9 @@
         <router-link to="/tools/compare" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
           <ScaleIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.compare') }}
         </router-link>
+        <router-link to="/tools/factors" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+          <PresentationChartLineIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.factorResearch') }}
+        </router-link>
         <router-link to="/tools/dca" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
           <BanknotesIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.dca') }}
         </router-link>
@@ -103,7 +106,8 @@ import {
   HeartIcon,
   CalculatorIcon,
   LanguageIcon,
-  CircleStackIcon
+  CircleStackIcon,
+  PresentationChartLineIcon
 } from '@heroicons/vue/24/outline'
 import { useTheme } from '@/composables/useTheme'
 import { useMarketStore } from '@/modules/market'

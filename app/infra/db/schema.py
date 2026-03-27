@@ -268,3 +268,83 @@ class MarketIndicatorData(Base):
 
     def __repr__(self):
         return f"<MarketIndicatorData(indicator={self.indicator_id}, ts={self.timestamp}, val={self.value})>"
+
+
+class FactorDataset(Base):
+    """因子研究数据集快照"""
+    __tablename__ = 'factor_datasets'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    signature = Column(String(128), nullable=False, unique=True)
+    symbol = Column(String(20), nullable=False)
+    timeframe = Column(String(10), nullable=False)
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+    primary_horizon = Column(Integer, nullable=False)
+    forward_horizons = Column(JSON, nullable=False)
+    factor_ids = Column(JSON, nullable=False)
+    categories = Column(JSON, nullable=False)
+    cleaning = Column(JSON, nullable=False)
+    row_count = Column(Integer, default=0, nullable=False)
+    dataset_info = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    rows = relationship("FactorDatasetRow", back_populates="dataset", cascade="all, delete-orphan")
+    research_runs = relationship("FactorResearchRun", back_populates="dataset", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index('ix_factor_dataset_signature', 'signature', unique=True),
+        Index('ix_factor_dataset_symbol_tf', 'symbol', 'timeframe'),
+    )
+
+    def __repr__(self):
+        return f"<FactorDataset(id={self.id}, symbol={self.symbol}, timeframe={self.timeframe})>"
+
+
+class FactorDatasetRow(Base):
+    """因子数据集逐行快照"""
+    __tablename__ = 'factor_dataset_rows'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    dataset_id = Column(Integer, ForeignKey('factor_datasets.id'), nullable=False)
+    timestamp = Column(DateTime, nullable=False)
+    close = Column(Float, nullable=False)
+    volume = Column(Float, nullable=False)
+    raw_values = Column(JSON, nullable=False)
+    feature_values = Column(JSON, nullable=False)
+    labels = Column(JSON, nullable=False)
+
+    dataset = relationship("FactorDataset", back_populates="rows")
+
+    __table_args__ = (
+        Index('ix_factor_dataset_row_dataset_ts', 'dataset_id', 'timestamp', unique=True),
+    )
+
+    def __repr__(self):
+        return f"<FactorDatasetRow(dataset_id={self.dataset_id}, timestamp={self.timestamp})>"
+
+
+class FactorResearchRun(Base):
+    """因子研究结果快照"""
+    __tablename__ = 'factor_research_runs'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    dataset_id = Column(Integer, ForeignKey('factor_datasets.id'), nullable=False)
+    status = Column(String(20), default='completed', nullable=False)
+    request_payload = Column(JSON, nullable=False)
+    summary = Column(JSON, nullable=False)
+    ranking = Column(JSON, nullable=False)
+    details = Column(JSON, nullable=False)
+    blend = Column(JSON, nullable=False)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    dataset = relationship("FactorDataset", back_populates="research_runs")
+
+    __table_args__ = (
+        Index('ix_factor_research_run_dataset_id', 'dataset_id'),
+        Index('ix_factor_research_run_created_at', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f"<FactorResearchRun(id={self.id}, dataset_id={self.dataset_id}, status={self.status})>"

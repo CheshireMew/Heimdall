@@ -43,6 +43,12 @@ const routes = [
         meta: { title: '币种对比' }
     },
     {
+        path: '/tools/factors',
+        name: 'FactorResearch',
+        component: () => import('@/views/tools/FactorResearch.vue'),
+        meta: { title: '因子研究' }
+    },
+    {
         path: '/tools/dca',
         name: 'DCA',
         component: () => import('@/views/tools/DCA.vue'),
