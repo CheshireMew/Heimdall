@@ -7,8 +7,6 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from app.infra.cache import redis_service
-from app.services.market.market_data_service import MarketDataService
-from app.services.sentiment_service import SentimentService
 from app.services.tools.contracts import ComparePairsCommand, SimulateDcaCommand
 from app.services.tools.dca_service import DCAService
 from app.services.tools.pair_compare_service import PairCompareService
@@ -20,14 +18,9 @@ VALID_STRATEGIES = ["standard", "ema_deviation", "rsi_dynamic", "ahr999", "fear_
 
 
 class ToolsAppService:
-    def __init__(self, market_data_service: MarketDataService) -> None:
-        self.market_data_service = market_data_service
-        self.sentiment_service = SentimentService()
-        self.dca_service = DCAService(
-            market_data_service=market_data_service,
-            sentiment_service=self.sentiment_service,
-        )
-        self.pair_compare_service = PairCompareService(market_data_service=market_data_service)
+    def __init__(self, dca_service: DCAService, pair_compare_service: PairCompareService) -> None:
+        self.dca_service = dca_service
+        self.pair_compare_service = pair_compare_service
 
     @staticmethod
     def _dca_cache_key(command: SimulateDcaCommand, start_date_str: str) -> str:

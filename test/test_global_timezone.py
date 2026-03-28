@@ -41,7 +41,14 @@ class TestGlobalTimezone(unittest.TestCase):
 
     def test_sentiment_service(self):
         print("\n--- Testing Sentiment Service ---")
-        from app.services.sentiment_service import sentiment_service
+        from app.services.sentiment_service import SentimentService
+
+        repository = MagicMock()
+        repository.get_latest_date.return_value = None
+        repository.save_missing.return_value = 0
+        client = MagicMock()
+        client.fetch_history.return_value = []
+        sentiment_service = SentimentService(client=client, repository=repository)
         
         with patch('utils.time_manager.TimeManager.get_now') as mock_now:
             # Mock "Now" to be a specific timezone time
@@ -49,20 +56,12 @@ class TestGlobalTimezone(unittest.TestCase):
             mock_dt = datetime(2024, 1, 1, 12, 0, 0, tzinfo=tz)
             mock_now.return_value = mock_dt
             
-            # Call sync (mocking web request to avoid network)
-            with patch('requests.get') as mock_get:
-                mock_get.return_value.status_code = 200
-                mock_get.return_value.json.return_value = {'data': []}
-                
-                # Mock DB session to avoid touching the real database
-                with patch('app.services.sentiment_service.session_scope') as mock_scope:
-                    mock_session = MagicMock()
-                    mock_scope.return_value.__enter__.return_value = mock_session
-                    mock_session.query.return_value.order_by.return_value.first.return_value = None
-                    sentiment_service.sync_data()
+            sentiment_service.sync_data()
                         
             # Verify get_now was called
             mock_now.assert_called()
+            client.fetch_history.assert_called_once()
+            repository.save_missing.assert_called_once_with([])
             print("SentimentService used TimeManager.get_now()")
 
 if __name__ == '__main__':

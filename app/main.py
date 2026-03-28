@@ -10,7 +10,8 @@ from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.dependencies import get_backtest_query_service, get_factor_paper_run_manager, get_paper_run_manager
+from app.dependencies import get_factor_paper_run_manager, get_paper_run_manager
+from app.infra.db.database import init_db
 from app.rate_limit import limiter
 from app.services.market_cron import start_scheduler, scheduler
 from utils.logger import logger
@@ -26,11 +27,9 @@ FRONTEND_INDEX_FILE = FRONTEND_DIST_DIR / "index.html"
 # 定义应用生命周期事件
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_db()
     # 启动定时任务调度器
     start_scheduler()
-    repaired_runs = await get_backtest_query_service().repair_run_storage()
-    if repaired_runs:
-        logger.info(f"已修复/归档 {repaired_runs} 条旧版回测记录")
     await get_paper_run_manager().restore_active_runs()
     await get_factor_paper_run_manager().restore_active_runs()
     yield

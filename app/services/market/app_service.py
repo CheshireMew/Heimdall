@@ -6,6 +6,7 @@ from typing import Any, Callable
 
 from app.infra.llm_client import LLMClient
 from app.services.market.crypto_index_app_service import CryptoIndexAppService
+from app.services.market.funding_rate_service import FundingRateService
 from app.services.market.history_service import HistoryService
 from app.services.market.indicator_service import IndicatorService
 from app.services.market.market_data_service import MarketDataService
@@ -19,14 +20,16 @@ class MarketAppService:
     def __init__(
         self,
         crypto_index_service: CryptoIndexAppService,
-        realtime_service: RealtimeService | None = None,
-        indicator_service: IndicatorService | None = None,
-        history_service: HistoryService | None = None,
+        realtime_service: RealtimeService,
+        indicator_service: IndicatorService,
+        history_service: HistoryService,
+        funding_rate_service: FundingRateService,
     ) -> None:
         self.crypto_index_service = crypto_index_service
-        self.realtime_service = realtime_service or RealtimeService()
-        self.indicator_service = indicator_service or IndicatorService()
-        self.history_service = history_service or HistoryService()
+        self.realtime_service = realtime_service
+        self.indicator_service = indicator_service
+        self.history_service = history_service
+        self.funding_rate_service = funding_rate_service
         self.valid_symbols = settings.SYMBOLS
         self.valid_timeframes = [item.value for item in Timeframe]
 
@@ -159,3 +162,89 @@ class MarketAppService:
 
     async def get_crypto_index(self, top_n: int, days: int) -> dict[str, Any]:
         return await self.crypto_index_service.get_index(top_n=top_n, days=days)
+
+    async def get_current_funding_rate(self, symbol: str) -> dict[str, Any]:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            lambda: self.funding_rate_service.fetch_current_rate(symbol),
+        )
+
+    async def sync_funding_rate_history(
+        self,
+        *,
+        symbol: str,
+        start_date: str | None,
+        end_date: str | None,
+    ) -> dict[str, Any]:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            lambda: self.funding_rate_service.sync_history(
+                symbol,
+                start_date=start_date,
+                end_date=end_date,
+            ),
+        )
+
+    async def get_funding_rate_history(
+        self,
+        *,
+        symbol: str,
+        start_date: str | None,
+        end_date: str | None,
+        limit: int | None,
+    ) -> dict[str, Any]:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            lambda: self.funding_rate_service.get_history(
+                symbol,
+                start_date=start_date,
+                end_date=end_date,
+                limit=limit,
+            ),
+        )
+
+    async def get_technical_metrics(
+        self,
+        *,
+        market_data_service: MarketDataService,
+        symbol: str,
+        timeframe: str,
+        limit: int,
+        atr_period: int,
+        volatility_period: int,
+    ) -> dict[str, Any]:
+        self.validate_market_request(symbol, timeframe)
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: self.realtime_service.compute_market_snapshot(
+                market_data_service,
+                symbol,
+                timeframe,
+                limit,
+                atr_period=atr_period,
+                volatility_period=volatility_period,
+            ),
+        )
+        if not result:
+            raise RuntimeError("获取数据失败")
+
+        kline_data, indicators = result
+        current_price = kline_data[-1][4]
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "sample_size": len(kline_data),
+            "current_price": current_price,
+            "atr": indicators.get("atr"),
+            "atr_pct": indicators.get("atr_pct") * 100.0 if indicators.get("atr_pct") is not None else None,
+            "realized_volatility_pct": indicators.get("realized_volatility") * 100.0
+            if indicators.get("realized_volatility") is not None
+            else None,
+            "annualized_volatility_pct": indicators.get("annualized_volatility") * 100.0
+            if indicators.get("annualized_volatility") is not None
+            else None,
+        }

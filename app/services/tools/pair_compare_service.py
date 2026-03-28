@@ -9,7 +9,9 @@ from utils.logger import logger
 
 class PairCompareService:
     def __init__(self, market_data_service: MarketDataService | None = None) -> None:
-        self.market_data_service = market_data_service or MarketDataService()
+        if market_data_service is None:
+            raise ValueError("PairCompareService 需要显式注入 market_data_service")
+        self.market_data_service = market_data_service
 
     def compare_pairs(self, symbol_a: str, symbol_b: str, days: int = 7, timeframe: str = "1h") -> dict:
         try:
@@ -114,4 +116,3 @@ class PairCompareService:
                 }
             )
         return ratio_klines
-

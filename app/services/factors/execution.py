@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from app.infra.db.database import init_db, session_scope
+from app.infra.db.database import session_scope
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
 from app.services.backtest.models import (
@@ -15,7 +15,7 @@ from app.services.backtest.models import (
     ResearchConfigRecord,
     StrategyVersionRecord,
 )
-from app.services.backtest.run_contract import build_backtest_metadata
+from app.services.backtest.run_contract import BACKTEST_EXECUTION_MODE, FACTOR_BLEND_ENGINE, build_backtest_metadata
 from app.services.factors.service import FactorResearchService
 
 
@@ -37,7 +37,6 @@ class FactorExecutionService:
     ) -> None:
         self.factor_service = factor_service
         self.report_builder = report_builder or FreqtradeReportBuilder()
-        init_db()
 
     def run_backtest(
         self,
@@ -202,7 +201,6 @@ class FactorExecutionService:
             fee_rate=fee_rate,
             portfolio=portfolio,
             research=research,
-            engine="FactorBlend",
         )
         metadata["factor_research"] = {
             "run_id": research_run_id,
@@ -248,6 +246,8 @@ class FactorExecutionService:
                 start_date=start_date,
                 end_date=end_date,
                 status="completed",
+                execution_mode=BACKTEST_EXECUTION_MODE,
+                engine=FACTOR_BLEND_ENGINE,
                 total_candles=total_candles,
                 total_signals=len(signals),
                 buy_signals=sum(1 for item in signals if item.signal == "BUY"),

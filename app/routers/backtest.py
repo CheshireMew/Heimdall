@@ -9,6 +9,7 @@ from app.dependencies import get_backtest_command_service, get_backtest_query_se
 from app.rate_limit import limiter
 from app.schemas.backtest import (
     BacktestDetailResponse,
+    BacktestDeleteResponse,
     BacktestRunResponse,
     BacktestStartRequest,
     BacktestStartResponse,
@@ -120,6 +121,34 @@ async def stop_paper_run(
         return await service.stop_paper_run(run_id)
     except Exception as exc:
         logger.error(f"API /paper/{run_id}/stop 错误: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/backtest/{backtest_id}", response_model=BacktestDeleteResponse)
+async def delete_backtest(
+    backtest_id: int,
+    service: BacktestCommandService = Depends(get_backtest_command_service),
+):
+    try:
+        return await service.delete_backtest(backtest_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"API /backtest/{backtest_id} 删除错误: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/paper/{run_id}", response_model=BacktestDeleteResponse)
+async def delete_paper_run(
+    run_id: int,
+    service: BacktestCommandService = Depends(get_backtest_command_service),
+):
+    try:
+        return await service.delete_paper_run(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"API /paper/{run_id} 删除错误: {exc}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

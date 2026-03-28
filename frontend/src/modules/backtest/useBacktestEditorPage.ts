@@ -2,27 +2,56 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
+import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
 import type { StrategyEditorContract } from '@/types'
 
-import { backtestApi } from './api'
-import { buildParameterSpaceJson, clone } from './editorContract'
 import { useBacktestEditor } from './useBacktestEditor'
+import { useBacktestEditorActions } from './useBacktestEditorActions'
+import { useBacktestEditorCatalog } from './useBacktestEditorCatalog'
+import { useBacktestEditorSeeds } from './useBacktestEditorSeeds'
+
+interface BacktestEditorPageSnapshot {
+  config: {
+    strategy_key: string
+    strategy_version: number
+  }
+  editor: unknown
+}
+
+const createDefaultSnapshot = (): BacktestEditorPageSnapshot => ({
+  config: {
+    strategy_key: 'ema_rsi_macd',
+    strategy_version: 1,
+  },
+  editor: null,
+})
+
+const normalizeSnapshot = (value: unknown): BacktestEditorPageSnapshot => {
+  const defaults = createDefaultSnapshot()
+  if (!isRecord(value) || !isRecord(value.config)) return defaults
+  return {
+    config: {
+      strategy_key: readString(value.config.strategy_key, defaults.config.strategy_key),
+      strategy_version: readNumber(value.config.strategy_version, defaults.config.strategy_version),
+    },
+    editor: value.editor ?? null,
+  }
+}
 
 
 export const useBacktestEditorPage = () => {
   const { t } = useI18n()
   const route = useRoute()
   const router = useRouter()
+  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.backtestEditor, normalizeSnapshot, createDefaultSnapshot())
+  const restoredSnapshot = pageSnapshot.load()
 
   const editorContract = ref<StrategyEditorContract | null>(null)
   const strategies = ref<any[]>([])
   const templates = ref<any[]>([])
   const indicators = ref<any[]>([])
   const indicatorEngines = ref<any[]>([])
-  const config = reactive({
-    strategy_key: 'ema_rsi_macd',
-    strategy_version: 1,
-  })
+  const config = reactive(restoredSnapshot.config)
 
   const selectedStrategy = computed(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
   const selectedStrategyVersions = computed(() => {
@@ -42,254 +71,167 @@ export const useBacktestEditorPage = () => {
     selectedVersion,
   })
 
-  const categoryLabel = (value: string) => {
-    if (value === 'trend') return t('backtest.categoryTrend')
-    if (value === 'mean_reversion') return t('backtest.categoryMeanReversion')
-    if (value === 'breakout') return t('backtest.categoryBreakout')
-    if (value === 'custom') return t('backtest.categoryCustom')
-    return value || '-'
-  }
+  const catalog = useBacktestEditorCatalog({
+    t,
+    config,
+    strategies,
+    templates,
+    indicators,
+    indicatorEngines,
+    editorContract,
+    selectedStrategyVersions,
+    editor,
+  })
 
-  const syncStrategyVersion = () => {
-    const versions = selectedStrategyVersions.value
-    if (!versions.length) return
-    if (!versions.find((item: any) => item.version === config.strategy_version)) {
-      const fallback = versions.find((item: any) => item.is_default) || versions[0]
-      config.strategy_version = fallback.version
-    }
-  }
+  const actions = useBacktestEditorActions({
+    t,
+    router,
+    config,
+    editor,
+    fetchStrategies: catalog.fetchStrategies,
+    fetchTemplates: catalog.fetchTemplates,
+    fetchIndicators: catalog.fetchIndicators,
+    syncStrategyVersion: catalog.syncStrategyVersion,
+  })
 
-  const fetchStrategies = async () => {
-    try {
-      const res = await backtestApi.listStrategies()
-      strategies.value = res.data
-      if (strategies.value.length && !strategies.value.find((item) => item.key === config.strategy_key)) {
-        config.strategy_key = strategies.value[0].key
-      }
-      syncStrategyVersion()
-    } catch (error) {
-      console.error(error)
-    }
-  }
+  const seeds = useBacktestEditorSeeds({
+    route,
+    router,
+    config,
+    strategies,
+    selectedStrategy,
+    selectedVersion,
+    editor,
+    syncStrategyVersion: catalog.syncStrategyVersion,
+  })
 
-  const fetchTemplates = async () => {
-    try {
-      const res = await backtestApi.listTemplates()
-      templates.value = res.data
-      if (!templates.value.length) return
-      const matchedTemplate = templates.value.find((item) => item.template === editor.versionDraft.template) || templates.value[0]
-      if (!editor.versionDraft.template) return
-      if (!Object.keys(editor.versionDraft.config?.indicators || {}).length) {
-        editor.applyDraftFromTemplate(matchedTemplate.template)
-      } else {
-        editor.newIndicatorType.value = matchedTemplate.indicator_registry?.[0]?.key || indicators.value[0]?.key || 'ema'
-      }
-    } catch (error) {
-      console.error(error)
-    }
-  }
+  const hasExplicitSeed = () => (
+    typeof route.query.mode === 'string'
+    || typeof route.query.strategy === 'string'
+    || typeof route.query.version === 'string'
+  )
 
-  const fetchIndicators = async () => {
-    try {
-      const [indicatorRes, engineRes] = await Promise.all([backtestApi.listIndicators(), backtestApi.listIndicatorEngines()])
-      indicators.value = indicatorRes.data
-      indicatorEngines.value = engineRes.data
-      if (!editor.newIndicatorType.value) editor.newIndicatorType.value = indicators.value[0]?.key || 'ema'
-      editor.resetIndicatorDraft()
-    } catch (error) {
-      console.error(error)
-    }
-  }
+  onMounted(async () => {
+    await catalog.fetchEditorContract()
+    await Promise.all([catalog.fetchStrategies(), catalog.fetchTemplates(), catalog.fetchIndicators()])
+    editor.initializeDraftFromContract()
 
-  const fetchEditorContract = async () => {
-    try {
-      const res = await backtestApi.getEditorContract()
-      editorContract.value = res.data
-      editor.initializeDraftFromContract()
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
-  const createIndicator = async () => {
-    try {
-      await backtestApi.createIndicator({
-        key: editor.indicatorDraft.key.trim(),
-        name: editor.indicatorDraft.name.trim(),
-        engine_key: editor.indicatorDraft.engine_key,
-        description: editor.indicatorDraft.description.trim() || null,
-        params: clone(editor.indicatorDraft.params),
-      })
-      await fetchIndicators()
-      editor.resetIndicatorDraft()
-      alert(t('backtest.indicatorSaved'))
-    } catch (error: any) {
-      alert(`${t('backtest.versionSaveFailed')}: ${error.message}`)
-    }
-  }
-
-  const createTemplate = async () => {
-    try {
-      if (!editor.versionDraft.config) throw new Error(t('backtest.templateMissing'))
-      if (!editor.templateDraft.key.trim() || !editor.templateDraft.name.trim()) throw new Error(t('backtest.templateDraftRequired'))
-      const indicatorKeys = Array.from(new Set([
-        ...editor.templateDraft.indicator_keys,
-        ...Object.values(editor.versionDraft.config.indicators).map((item: any) => item.type),
-      ]))
-      const res = await backtestApi.createTemplate({
-        key: editor.templateDraft.key.trim(),
-        name: editor.templateDraft.name.trim(),
-        category: editor.templateDraft.category.trim() || 'custom',
-        description: editor.templateDraft.description.trim() || null,
-        indicator_keys: indicatorKeys,
-        default_config: clone(editor.versionDraft.config),
-        default_parameter_space: buildParameterSpaceJson(editor.optimizableTargets.value, editor.versionDraft.parameterSpaceValues),
-      })
-      await fetchTemplates()
-      editor.applyDraftFromTemplate(res.data.template, res.data.default_config, res.data.default_parameter_space, { description: res.data.description || '' })
-      editor.resetTemplateDraft()
-      alert(t('backtest.templateSaved'))
-    } catch (error: any) {
-      alert(`${t('backtest.versionSaveFailed')}: ${error.message}`)
-    }
-  }
-
-  const createStrategyVersion = async () => {
-    try {
-      if (!editor.versionDraft.key.trim() || !editor.versionDraft.name.trim()) throw new Error(t('backtest.versionDraftRequired'))
-      if (!editor.versionDraft.config) throw new Error(t('backtest.templateMissing'))
-      if (!editor.versionDraft.template || !editor.editorTemplate.value) throw new Error(t('backtest.templateMissing'))
-      const res = await backtestApi.createStrategyVersion({
-        key: editor.versionDraft.key.trim(),
-        name: editor.versionDraft.name.trim(),
-        template: editor.versionDraft.template,
-        category: editor.editorTemplate.value.category || editor.versionDraft.category,
-        description: editor.versionDraft.description.trim() || null,
-        notes: editor.versionDraft.notes.trim() || null,
-        config: clone(editor.versionDraft.config),
-        parameter_space: buildParameterSpaceJson(editor.optimizableTargets.value, editor.versionDraft.parameterSpaceValues),
-        make_default: editor.versionDraft.make_default,
-      })
-      await fetchStrategies()
-      config.strategy_key = editor.versionDraft.key.trim()
-      config.strategy_version = res.data.version
-      syncStrategyVersion()
-      await router.replace({
-        path: '/backtest/editor',
-        query: {
-          mode: 'copy',
-          strategy: config.strategy_key,
-          version: String(config.strategy_version),
-        },
-      })
-      alert(t('backtest.versionSaved'))
-    } catch (error: any) {
-      alert(`${t('backtest.versionSaveFailed')}: ${error.message}`)
-    }
-  }
-
-  const prepareCopyDraft = () => {
-    if (!selectedStrategy.value || !selectedVersion.value) return
-    editor.fillVersionDraft()
-    editor.showVersionEditor.value = true
-  }
-
-  const prepareBlankDraft = () => {
-    editor.startBlankBuilder()
-    editor.showVersionEditor.value = true
-    editor.versionDraft.key = config.strategy_key || editor.versionDraft.key
-  }
-
-  const syncRouteFromSelection = async (mode: 'copy' | 'blank') => {
-    await router.replace({
-      path: '/backtest/editor',
-      query: {
-        mode,
-        strategy: config.strategy_key,
-        ...(mode === 'copy' ? { version: String(config.strategy_version) } : {}),
-      },
-    })
-  }
-
-  const applyRouteSeed = () => {
-    const strategyKey = typeof route.query.strategy === 'string' ? route.query.strategy : ''
-    const version = Number(route.query.version)
-    const mode = route.query.mode === 'blank' ? 'blank' : 'copy'
-
-    if (strategyKey && strategies.value.find((item) => item.key === strategyKey)) {
-      config.strategy_key = strategyKey
-    }
-    syncStrategyVersion()
-
-    if (Number.isFinite(version) && version > 0) {
-      config.strategy_version = version
-      syncStrategyVersion()
-    }
-
-    if (mode === 'blank') {
-      prepareBlankDraft()
+    if (hasExplicitSeed()) {
+      seeds.applyRouteSeed()
       return
     }
 
-    prepareCopyDraft()
-  }
+    if (restoredSnapshot.editor) {
+      editor.restoreSnapshot(restoredSnapshot.editor)
+      return
+    }
 
-  const openCopySeed = async () => {
-    await syncRouteFromSelection('copy')
-    prepareCopyDraft()
-  }
-
-  const openBlankSeed = async () => {
-    await syncRouteFromSelection('blank')
-    prepareBlankDraft()
-  }
-
-  const goBackToCenter = () => {
-    router.push('/backtest')
-  }
-
-  onMounted(async () => {
-    await fetchEditorContract()
-    await Promise.all([fetchStrategies(), fetchTemplates(), fetchIndicators()])
-    applyRouteSeed()
+    seeds.applyRouteSeed()
   })
 
   watch(
     () => [route.query.mode, route.query.strategy, route.query.version],
     () => {
       if (!strategies.value.length) return
-      applyRouteSeed()
+      seeds.applyRouteSeed()
     },
   )
 
-  const page = reactive({
-    t,
-    strategies,
-    templates,
-    indicators,
-    indicatorEngines,
-    editorContract,
+  bindPageSnapshot(
+    [
+      config,
+      editor.showVersionEditor,
+      editor.showIndicatorCreator,
+      editor.showTemplateCreator,
+      editor.useGlobalIndicatorCatalog,
+      editor.newIndicatorType,
+      editor.versionDraft,
+      editor.indicatorDraft,
+      editor.templateDraft,
+    ],
+    () => ({
+      config: {
+        strategy_key: readString(config.strategy_key, 'ema_rsi_macd'),
+        strategy_version: readNumber(config.strategy_version, 1),
+      },
+      editor: editor.buildSnapshot(),
+    }),
+    pageSnapshot.save,
+  )
+
+  const toggleIndicatorCreator = () => {
+    editor.showIndicatorCreator.value = !editor.showIndicatorCreator.value
+  }
+
+  const toggleTemplateCreator = () => {
+    editor.showTemplateCreator.value = !editor.showTemplateCreator.value
+  }
+
+  const seedPanel = reactive({
     config,
+    strategies,
     selectedStrategy,
     selectedStrategyVersions,
     selectedVersion,
-    categoryLabel,
-    syncStrategyVersion,
-    fetchStrategies,
-    fetchTemplates,
-    fetchIndicators,
-    fetchEditorContract,
-    createIndicator,
-    createTemplate,
-    createStrategyVersion,
-    openCopySeed,
-    openBlankSeed,
-    goBackToCenter,
-    ...editor,
+    syncStrategyVersion: catalog.syncStrategyVersion,
+    openCopySeed: seeds.openCopySeed,
+    openBlankSeed: seeds.openBlankSeed,
+    goBackToCenter: seeds.goBackToCenter,
   })
 
-  return page
+  const editorPanel = reactive({
+    showVersionEditor: editor.showVersionEditor,
+    versionDraft: editor.versionDraft,
+    metaPanel: {
+      versionDraft: editor.versionDraft,
+      templates,
+      categoryLabel: catalog.categoryLabel,
+      syncVersionDraftTemplate: editor.syncVersionDraftTemplate,
+      startBlankBuilder: editor.startBlankBuilder,
+      showIndicatorCreator: editor.showIndicatorCreator,
+      showTemplateCreator: editor.showTemplateCreator,
+      toggleIndicatorCreator,
+      toggleTemplateCreator,
+    },
+    indicatorCreatorPanel: {
+      show: editor.showIndicatorCreator,
+      indicatorDraft: editor.indicatorDraft,
+      indicatorEngines,
+      createIndicator: actions.createIndicator,
+      syncIndicatorDraftEngine: editor.syncIndicatorDraftEngine,
+    },
+    templateCreatorPanel: {
+      show: editor.showTemplateCreator,
+      templateDraft: editor.templateDraft,
+      indicators,
+      toggleTemplateIndicator: editor.toggleTemplateIndicator,
+      createTemplate: actions.createTemplate,
+    },
+    strategyBuilderPanel: {
+      editorContract,
+      versionDraft: editor.versionDraft,
+      editorTemplate: editor.editorTemplate,
+      useGlobalIndicatorCatalog: editor.useGlobalIndicatorCatalog,
+      availableIndicators: editor.availableIndicators,
+      newIndicatorType: editor.newIndicatorType,
+      indicatorCards: editor.indicatorCards,
+      sourceOptions: editor.sourceOptions,
+      indicatorSourceOptions: editor.indicatorSourceOptions,
+      operatorOptions: editor.operatorOptions,
+      groupLogicOptions: editor.groupLogicOptions,
+      optimizableTargets: editor.optimizableTargets,
+      addIndicator: editor.addIndicator,
+      removeIndicator: editor.removeIndicator,
+      addRoiTarget: editor.addRoiTarget,
+      removeRoiTarget: editor.removeRoiTarget,
+      addPartialExit: editor.addPartialExit,
+      removePartialExit: editor.removePartialExit,
+    },
+    createStrategyVersion: actions.createStrategyVersion,
+  })
+
+  return {
+    seedPanel,
+    editorPanel,
+  }
 }
-
-
-export type BacktestEditorPageState = ReturnType<typeof useBacktestEditorPage>

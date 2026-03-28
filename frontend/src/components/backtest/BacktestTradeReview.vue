@@ -2,7 +2,7 @@
   <section class="space-y-6">
     <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
       <div class="text-sm font-bold text-gray-900 dark:text-white mb-3">{{ $t('backtest.tradeList') }}</div>
-      <div v-if="page.selectedRun.trades?.length" class="overflow-x-auto">
+      <div v-if="panel.selectedRun.trades?.length" class="overflow-x-auto">
         <table class="min-w-full text-sm">
           <thead>
             <tr class="text-left text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
@@ -17,13 +17,13 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="trade in page.selectedRun.trades" :key="trade.id" class="border-b border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-200">
+            <tr v-for="trade in panel.selectedRun.trades" :key="trade.id" class="border-b border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-200">
               <td class="py-2 pr-4 whitespace-nowrap">{{ formatDateTime(trade.opened_at) }}</td>
               <td class="py-2 pr-4 whitespace-nowrap">{{ formatDateTime(trade.closed_at) }}</td>
               <td class="py-2 pr-4 whitespace-nowrap">{{ trade.pair }}</td>
               <td class="py-2 pr-4 whitespace-nowrap">{{ formatPrice(trade.entry_price) }}</td>
               <td class="py-2 pr-4 whitespace-nowrap">{{ formatPrice(trade.exit_price) }}</td>
-              <td class="py-2 pr-4 whitespace-nowrap font-semibold" :class="page.profitColorClass(trade.profit_pct)">
+              <td class="py-2 pr-4 whitespace-nowrap font-semibold" :class="panel.profitColorClass(trade.profit_pct)">
                 {{ formatPercent(trade.profit_pct) }} / {{ formatMoney(trade.profit_abs) }}
               </td>
               <td class="py-2 pr-4 whitespace-nowrap">{{ formatDuration(trade.duration_minutes) }}</td>
@@ -40,7 +40,7 @@
         {{ $t('backtest.report') }} / K线复盘
       </div>
       <div class="h-[420px] relative">
-        <TradingViewChart :data="page.chartData.candles" :volume-data="page.chartData.volume" :colors="page.chartColors" />
+        <TradingViewChart :data="panel.chartData.candles" :volume-data="panel.chartData.volume" :colors="panel.chartColors" />
       </div>
     </div>
   </section>
@@ -49,8 +49,8 @@
 <script setup lang="ts">
 import TradingViewChart from '@/components/TradingViewChart.vue'
 import { formatDateTime, formatDuration, formatMoney, formatPercent, formatPrice } from '@/modules/backtest/format'
-import type { BacktestPageState } from '@/modules/backtest/useBacktestPage'
+import type { BacktestResultPanelView } from '@/modules/backtest/viewTypes'
 
-const props = defineProps<{ page: BacktestPageState }>()
-const page = props.page
+const props = defineProps<{ panel: BacktestResultPanelView }>()
+const panel = props.panel
 </script>

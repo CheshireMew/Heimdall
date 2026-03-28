@@ -1,0 +1,54 @@
+import type { FactorResearchState } from './state'
+
+
+export const useFactorResearchFormatting = (state: FactorResearchState) => {
+  const factorChipClass = (factorId: string) => {
+    const active = state.useAllFactors.value || state.selectedFactorLookup.value.has(factorId)
+    return active
+      ? 'bg-cyan-600 text-white border-cyan-500'
+      : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700'
+  }
+
+  const categoryChipClass = (category: string) => (
+    state.form.categories.includes(category)
+      ? 'bg-slate-900 text-white border-slate-700 dark:bg-cyan-600 dark:border-cyan-500'
+      : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700'
+  )
+
+  const scoreClass = (score: number) => {
+    if (score >= 70) return 'text-emerald-600 dark:text-emerald-400'
+    if (score >= 45) return 'text-amber-600 dark:text-amber-300'
+    return 'text-slate-500 dark:text-slate-400'
+  }
+
+  const correlationClass = (value: number) => {
+    if (value > 0) return 'text-emerald-600 dark:text-emerald-400'
+    if (value < 0) return 'text-rose-600 dark:text-rose-400'
+    return 'text-slate-500 dark:text-slate-400'
+  }
+
+  const formatPct = (value: number | null | undefined, digits: number = 2) => {
+    if (value === null || value === undefined || Number.isNaN(value)) return '--'
+    return `${(value * 100).toFixed(digits)}%`
+  }
+
+  const formatNumber = (value: number | null | undefined, digits: number = 3) => {
+    if (value === null || value === undefined || Number.isNaN(value)) return '--'
+    return value.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: 0 })
+  }
+
+  const formatDate = (value: string | null | undefined) => {
+    if (!value) return '--'
+    return new Date(value).toLocaleDateString()
+  }
+
+  return {
+    factorChipClass,
+    categoryChipClass,
+    scoreClass,
+    correlationClass,
+    formatPct,
+    formatNumber,
+    formatDate,
+  }
+}

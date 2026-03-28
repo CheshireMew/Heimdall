@@ -1,3 +1,5 @@
+from app.services.market.exchange_gateway import ExchangeGateway
+from app.services.market.kline_store import KlineStore
 from app.services.market.market_data_service import MarketDataService
 from config import settings
 
@@ -6,7 +8,10 @@ def test_fetch_data():
     print(f"\n--- Testing MarketDataService ({settings.EXCHANGE_ID}) ---")
 
     try:
-        service = MarketDataService()
+        service = MarketDataService(
+            exchange_gateway=ExchangeGateway(),
+            kline_store=KlineStore(),
+        )
     except Exception as e:
         print(f"Failed to init service: {e}")
         return

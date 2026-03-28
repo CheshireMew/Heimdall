@@ -27,13 +27,13 @@ class FreqtradeReportBuilder:
             return None
         return {key: report.get(key) for key in self.SNAPSHOT_KEYS}
 
-    def extract_metric(self, report: dict[str, Any], metric: str) -> float:
+    def extract_metric(self, report: dict[str, Any], metric: str) -> float | None:
         value = report.get(metric)
         if value is None:
-            return float("-inf")
+            return None
         numeric = float(value)
         if math.isnan(numeric) or math.isinf(numeric):
-            return float("-inf")
+            return None
         return numeric
 
     def build_equity_curve(

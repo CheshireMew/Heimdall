@@ -4,23 +4,46 @@ import Chart from 'chart.js/auto'
 import annotationPlugin from 'chartjs-plugin-annotation'
 import 'chartjs-adapter-date-fns'
 
+import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readBoolean, readString } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
 import { marketApi } from './api'
 
 
 Chart.register(annotationPlugin)
 
+interface HalvingPageSnapshot {
+  showPhases: boolean
+  scaleType: 'logarithmic' | 'linear'
+}
+
+const createDefaultSnapshot = (): HalvingPageSnapshot => ({
+  showPhases: true,
+  scaleType: 'logarithmic',
+})
+
+const normalizeSnapshot = (value: unknown): HalvingPageSnapshot => {
+  const defaults = createDefaultSnapshot()
+  if (!isRecord(value)) return defaults
+  const scaleType = readString(value.scaleType, defaults.scaleType)
+  return {
+    showPhases: readBoolean(value.showPhases, defaults.showPhases),
+    scaleType: scaleType === 'linear' ? 'linear' : 'logarithmic',
+  }
+}
+
 
 export function useHalvingPage() {
   const { t } = useI18n()
   const { theme } = useTheme()
+  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.halving, normalizeSnapshot, createDefaultSnapshot())
+  const restoredSnapshot = pageSnapshot.load()
 
   const loading = ref(true)
   const chartCanvas = ref<HTMLCanvasElement | null>(null)
   const historyData = ref<any[]>([])
   const currentPrice = ref(0)
-  const showPhases = ref(true)
-  const scaleType = ref<'logarithmic' | 'linear'>('logarithmic')
+  const showPhases = ref(restoredSnapshot.showPhases)
+  const scaleType = ref<'logarithmic' | 'linear'>(restoredSnapshot.scaleType)
   const lastHalvingDate = new Date('2024-04-20')
   const nextHalvingEst = new Date('2028-04-17')
   const halvingDates = [
@@ -249,6 +272,15 @@ export function useHalvingPage() {
   onMounted(() => {
     fetchData()
   })
+
+  bindPageSnapshot(
+    [showPhases, scaleType],
+    () => ({
+      showPhases: showPhases.value,
+      scaleType: scaleType.value,
+    }),
+    pageSnapshot.save,
+  )
 
   onBeforeUnmount(() => {
     chartInstance?.destroy()

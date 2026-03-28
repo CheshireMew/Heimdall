@@ -18,8 +18,8 @@ class FreqtradeBacktestService:
     STRATEGY_CLASS_NAME = "HeimdallStrategy"
     SUPPORTED_TIMEFRAMES = {"1m", "5m", "15m", "1h", "4h", "1d"}
 
-    def __init__(self, market_data_service: MarketDataService | None = None) -> None:
-        self.market_data_service = market_data_service or MarketDataService()
+    def __init__(self, market_data_service: MarketDataService) -> None:
+        self.market_data_service = market_data_service
         self.strategy_builder = FreqtradeStrategyBuilder(self.STRATEGY_CLASS_NAME)
         self.result_builder = FreqtradeResultBuilder(self.STRATEGY_CLASS_NAME)
         self.iteration_executor = FreqtradeIterationExecutor(

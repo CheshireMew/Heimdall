@@ -3,6 +3,8 @@ import unittest
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
+from app.services.market.exchange_gateway import ExchangeGateway
+from app.services.market.kline_store import KlineStore
 from app.services.market.market_data_service import MarketDataService
 from app.infra.db.database import get_session, init_db
 from app.infra.db.schema import Kline
@@ -11,7 +13,10 @@ class CachingTestCase(unittest.TestCase):
     def setUp(self):
         # Use a test DB or just ensure we clean up
         init_db()
-        self.provider = MarketDataService()
+        self.provider = MarketDataService(
+            exchange_gateway=ExchangeGateway(),
+            kline_store=KlineStore(),
+        )
         self.symbol = 'BTC/USDT'
         self.timeframe = '1h'
         

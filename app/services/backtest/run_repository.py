@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from app.infra.db.database import session_scope
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade
-from app.services.backtest.run_contract import normalize_run_metadata
 from app.services.backtest.serializers import (
     serialize_backtest_equity_point,
     serialize_backtest_run,
@@ -12,35 +11,23 @@ from app.services.backtest.serializers import (
 
 
 class BacktestRunRepository:
-    def repair_run_contracts(self) -> int:
-        with session_scope() as session:
-            runs = session.query(BacktestRun).all()
-            updated = 0
-            for run in runs:
-                normalized_metadata, changed = normalize_run_metadata(run.metadata_info)
-                if not changed:
-                    continue
-                run.metadata_info = normalized_metadata
-                updated += 1
-            if updated:
-                session.flush()
-            return updated
-
     def list_runs(self, execution_mode: str = "backtest") -> list[dict]:
         with session_scope() as session:
-            runs = session.query(BacktestRun).order_by(BacktestRun.created_at.desc()).all()
-            return [
-                serialize_backtest_run(run, include_signals=False)
-                for run in runs
-                if self._matches_execution_mode(run, execution_mode)
-            ]
+            runs = (
+                session.query(BacktestRun)
+                .filter(BacktestRun.execution_mode == execution_mode)
+                .order_by(BacktestRun.created_at.desc())
+                .all()
+            )
+            return [serialize_backtest_run(run, include_signals=False) for run in runs]
 
     def get_run(self, backtest_id: int, page: int, page_size: int, execution_mode: str | None = None) -> dict | None:
         with session_scope() as session:
-            backtest_run = session.query(BacktestRun).filter(BacktestRun.id == backtest_id).first()
+            query = session.query(BacktestRun).filter(BacktestRun.id == backtest_id)
+            if execution_mode:
+                query = query.filter(BacktestRun.execution_mode == execution_mode)
+            backtest_run = query.first()
             if not backtest_run:
-                return None
-            if execution_mode and not self._matches_execution_mode(backtest_run, execution_mode):
                 return None
 
             total = session.query(BacktestSignal).filter(BacktestSignal.backtest_id == backtest_id).count()
@@ -77,7 +64,29 @@ class BacktestRunRepository:
             }
             return payload
 
-    def _matches_execution_mode(self, run: BacktestRun, execution_mode: str) -> bool:
-        metadata = run.metadata_info or {}
-        current_mode = metadata.get("execution_mode") or "backtest"
-        return current_mode == execution_mode
+    def delete_run(self, backtest_id: int, execution_mode: str | None = None) -> bool:
+        with session_scope() as session:
+            query = session.query(BacktestRun).filter(BacktestRun.id == backtest_id)
+            if execution_mode:
+                query = query.filter(BacktestRun.execution_mode == execution_mode)
+            run = query.first()
+            if not run:
+                return False
+
+            session.delete(run)
+            session.flush()
+            return True
+
+    def list_active_run_ids(self, *, execution_mode: str, engine: str) -> list[int]:
+        with session_scope() as session:
+            rows = (
+                session.query(BacktestRun.id)
+                .filter(
+                    BacktestRun.status == "running",
+                    BacktestRun.execution_mode == execution_mode,
+                    BacktestRun.engine == engine,
+                )
+                .order_by(BacktestRun.created_at.asc())
+                .all()
+            )
+            return [run_id for (run_id,) in rows]

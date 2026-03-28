@@ -3,28 +3,28 @@
     <section class="space-y-3">
       <div>
         <label class="label">{{ $t('backtest.symbols') }}</label>
-        <input v-model="page.symbolsText" class="input" type="text" />
+        <input v-model="panel.symbolsText" class="input" type="text" />
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="label">{{ $t('compare.timeframe') }}</label>
-          <select v-model="page.config.timeframe" class="input">
-            <option v-for="tf in page.timeframes" :key="tf" :value="tf">{{ $t(`compare.tf.${tf}`) }}</option>
+          <select v-model="panel.config.timeframe" class="input">
+            <option v-for="tf in panel.timeframes" :key="tf" :value="tf">{{ $t(`compare.tf.${tf}`) }}</option>
           </select>
         </div>
         <div>
           <label class="label">{{ $t('backtest.days') }}</label>
-          <input v-model.number="page.config.days" class="input" type="number" min="7" />
+          <input v-model.number="panel.config.days" class="input" type="number" min="7" />
         </div>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="label">{{ $t('backtest.initialCash') }}</label>
-          <input v-model.number="page.config.initial_cash" class="input" type="number" min="1" step="1000" />
+          <input v-model.number="panel.config.initial_cash" class="input" type="number" min="1" step="1000" />
         </div>
         <div>
           <label class="label">{{ $t('backtest.feeRate') }}</label>
-          <input v-model.number="page.config.fee_rate" class="input" type="number" min="0" max="100" step="0.01" />
+          <input v-model.number="panel.config.fee_rate" class="input" type="number" min="0" max="100" step="0.01" />
         </div>
       </div>
     </section>
@@ -34,16 +34,16 @@
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="label">{{ $t('backtest.maxOpenTrades') }}</label>
-          <input v-model.number="page.config.portfolio.max_open_trades" class="input" type="number" min="1" max="50" />
+          <input v-model.number="panel.config.portfolio.max_open_trades" class="input" type="number" min="1" max="50" />
         </div>
         <div>
           <label class="label">{{ $t('backtest.positionSize') }}</label>
-          <input v-model.number="page.config.portfolio.position_size_pct" class="input" type="number" min="0.1" max="100" step="0.1" />
+          <input v-model.number="panel.config.portfolio.position_size_pct" class="input" type="number" min="0.1" max="100" step="0.1" />
         </div>
       </div>
       <div>
         <label class="label">{{ $t('backtest.stakeMode') }}</label>
-        <select v-model="page.config.portfolio.stake_mode" class="input">
+        <select v-model="panel.config.portfolio.stake_mode" class="input">
           <option value="fixed">{{ $t('backtest.stakeModeFixed') }}</option>
           <option value="unlimited">{{ $t('backtest.stakeModeUnlimited') }}</option>
         </select>
@@ -55,33 +55,33 @@
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="label">{{ $t('backtest.slippage') }}</label>
-          <input v-model.number="page.config.research.slippage_bps" class="input" type="number" min="0" step="1" />
+          <input v-model.number="panel.config.research.slippage_bps" class="input" type="number" min="0" step="1" />
         </div>
         <div>
           <label class="label">{{ $t('backtest.fundingRate') }}</label>
-          <input v-model.number="page.config.research.funding_rate_daily" class="input" type="number" step="0.01" />
+          <input v-model.number="panel.config.research.funding_rate_daily" class="input" type="number" step="0.01" />
         </div>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="label">{{ $t('backtest.inSampleRatio') }}</label>
-          <input v-model.number="page.config.research.in_sample_ratio" class="input" type="number" min="50" max="100" step="1" />
+          <input v-model.number="panel.config.research.in_sample_ratio" class="input" type="number" min="50" max="100" step="1" />
         </div>
         <div>
           <label class="label">{{ $t('backtest.optimizeTrials') }}</label>
-          <input v-model.number="page.config.research.optimize_trials" class="input" type="number" min="0" step="1" />
+          <input v-model.number="panel.config.research.optimize_trials" class="input" type="number" min="0" step="1" />
         </div>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="label">{{ $t('backtest.optimizeMetric') }}</label>
-          <select v-model="page.config.research.optimize_metric" class="input">
-            <option v-for="metric in page.optimizeMetrics" :key="metric" :value="metric">{{ metric }}</option>
+          <select v-model="panel.config.research.optimize_metric" class="input">
+            <option v-for="metric in panel.optimizeMetrics" :key="metric" :value="metric">{{ metric }}</option>
           </select>
         </div>
         <div>
           <label class="label">{{ $t('backtest.rollingWindows') }}</label>
-          <input v-model.number="page.config.research.rolling_windows" class="input" type="number" min="0" step="1" />
+          <input v-model.number="panel.config.research.rolling_windows" class="input" type="number" min="0" step="1" />
         </div>
       </div>
     </section>
@@ -93,21 +93,21 @@
       {{ $t('backtest.paperHint') }}
     </div>
     <div class="grid grid-cols-2 gap-3">
-      <button :disabled="page.loading || !page.strategies.length" class="btn-primary" @click="page.startBacktest">
-        {{ page.loading ? $t('backtest.running') : $t('backtest.run') }}
+      <button :disabled="panel.isBusy || !panel.strategies.length" class="btn-primary" @click="panel.startBacktest">
+        {{ panel.backtestLoading ? $t('backtest.running') : $t('backtest.run') }}
       </button>
-      <button :disabled="page.loading || !page.strategies.length" class="btn-paper" @click="page.startPaperRun">
-        {{ page.loading ? $t('backtest.running') : $t('backtest.paperRun') }}
+      <button :disabled="panel.isBusy || !panel.strategies.length" class="btn-paper" @click="panel.startPaperRun">
+        {{ panel.paperLoading ? $t('backtest.running') : $t('backtest.paperRun') }}
       </button>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import type { BacktestPageState } from '@/modules/backtest/useBacktestPage'
+import type { BacktestControlPanelView } from '@/modules/backtest/viewTypes'
 
-const props = defineProps<{ page: BacktestPageState }>()
-const page = props.page
+const props = defineProps<{ panel: BacktestControlPanelView }>()
+const panel = props.panel
 </script>
 
 <style scoped>

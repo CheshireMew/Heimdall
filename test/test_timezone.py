@@ -21,10 +21,10 @@ class TestTimezoneLogic(unittest.TestCase):
 
     def test_dca_calculator_timezone(self):
         print("\n--- Testing DCACalculator Timezone Filtering ---")
-        calc = DCACalculator()
-        
-        # Mock Market Provider
-        calc.market_data_service = MagicMock()
+        calc = DCACalculator(
+            market_data_service=MagicMock(),
+            sentiment_service=MagicMock(),
+        )
         
         # Scenario: User wants to buy at 08:00 Beijing Time.
         # 08:00 Beijing = 00:00 UTC.

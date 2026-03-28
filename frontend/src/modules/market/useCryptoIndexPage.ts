@@ -1,15 +1,37 @@
 import { computed, onMounted, ref } from 'vue'
 
+import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
 import { marketApi } from './api'
+
+interface CryptoIndexSnapshot {
+  topN: number
+  days: number
+}
+
+const createDefaultSnapshot = (): CryptoIndexSnapshot => ({
+  topN: 20,
+  days: 90,
+})
+
+const normalizeSnapshot = (value: unknown): CryptoIndexSnapshot => {
+  const defaults = createDefaultSnapshot()
+  if (!isRecord(value)) return defaults
+  return {
+    topN: readNumber(value.topN, defaults.topN),
+    days: readNumber(value.days, defaults.days),
+  }
+}
 
 
 export function useCryptoIndexPage() {
   const { theme } = useTheme()
+  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.cryptoIndex, normalizeSnapshot, createDefaultSnapshot())
+  const restoredSnapshot = pageSnapshot.load()
 
   const basketSizes = [10, 20, 50]
-  const topN = ref(20)
-  const days = ref(90)
+  const topN = ref(restoredSnapshot.topN)
+  const days = ref(restoredSnapshot.days)
   const loading = ref(false)
   const error = ref('')
   const data = ref<any | null>(null)
@@ -136,6 +158,15 @@ export function useCryptoIndexPage() {
   onMounted(() => {
     fetchData()
   })
+
+  bindPageSnapshot(
+    [topN, days],
+    () => ({
+      topN: readNumber(topN.value, 20),
+      days: readNumber(days.value, 90),
+    }),
+    pageSnapshot.save,
+  )
 
   return {
     basketSizes,

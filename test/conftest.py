@@ -1,10 +1,12 @@
 """
 Shared pytest fixtures for Heimdall tests.
 """
+from contextlib import asynccontextmanager
 from pathlib import Path
 import sys
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -12,7 +14,28 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+import app.main as main_module
+from app.dependencies import (
+    get_backtest_command_service,
+    get_backtest_query_service,
+    get_factor_execution_service,
+    get_factor_paper_run_manager,
+    get_factor_research_service,
+    get_market_app_service,
+    get_market_data_service,
+    get_tools_app_service,
+)
 from app.infra.db.schema import Base
+from test.regression_support import (
+    StubBacktestCommandService,
+    StubBacktestQueryService,
+    StubFactorExecutionService,
+    StubFactorPaperRunManager,
+    StubFactorResearchService,
+    StubMarketAppService,
+    StubMarketDataService,
+    StubToolsAppService,
+)
 
 
 @pytest.fixture(scope="session")
@@ -46,3 +69,40 @@ def mock_kline_data():
         [base_ts + i * 3600000, 40000 + i * 10, 40050 + i * 10, 39950 + i * 10, 40000 + i * 15, 100 + i]
         for i in range(300)
     ]
+
+
+@pytest.fixture
+def api_harness():
+    @asynccontextmanager
+    async def noop_lifespan(_app):
+        yield
+
+    services = {
+        "market_data": StubMarketDataService(),
+        "market_app": StubMarketAppService(),
+        "backtest_command": StubBacktestCommandService(),
+        "backtest_query": StubBacktestQueryService(),
+        "tools_app": StubToolsAppService(),
+        "factor_research": StubFactorResearchService(),
+        "factor_execution": StubFactorExecutionService(),
+        "factor_paper": StubFactorPaperRunManager(),
+    }
+    app = main_module.app
+    original_lifespan = app.router.lifespan_context
+    app.router.lifespan_context = noop_lifespan
+    app.dependency_overrides = {
+        get_market_data_service: lambda: services["market_data"],
+        get_market_app_service: lambda: services["market_app"],
+        get_backtest_command_service: lambda: services["backtest_command"],
+        get_backtest_query_service: lambda: services["backtest_query"],
+        get_tools_app_service: lambda: services["tools_app"],
+        get_factor_research_service: lambda: services["factor_research"],
+        get_factor_execution_service: lambda: services["factor_execution"],
+        get_factor_paper_run_manager: lambda: services["factor_paper"],
+    }
+
+    with TestClient(app) as client:
+        yield {"client": client, **services}
+
+    app.dependency_overrides.clear()
+    app.router.lifespan_context = original_lifespan

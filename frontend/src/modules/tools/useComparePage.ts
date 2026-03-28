@@ -1,11 +1,45 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 
+import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
 import { toolsApi } from './api'
+
+interface ComparePageSnapshot {
+  config: {
+    symbolA: string
+    symbolB: string
+    days: number
+    timeframe: string
+  }
+}
+
+const createDefaultSnapshot = (): ComparePageSnapshot => ({
+  config: {
+    symbolA: 'BTC',
+    symbolB: 'ETH',
+    days: 30,
+    timeframe: '1h',
+  },
+})
+
+const normalizeSnapshot = (value: unknown): ComparePageSnapshot => {
+  const defaults = createDefaultSnapshot()
+  if (!isRecord(value) || !isRecord(value.config)) return defaults
+  return {
+    config: {
+      symbolA: readString(value.config.symbolA, defaults.config.symbolA),
+      symbolB: readString(value.config.symbolB, defaults.config.symbolB),
+      days: readNumber(value.config.days, defaults.config.days),
+      timeframe: readString(value.config.timeframe, defaults.config.timeframe),
+    },
+  }
+}
 
 
 export function useComparePage() {
   const { theme } = useTheme()
+  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.compare, normalizeSnapshot, createDefaultSnapshot())
+  const restoredSnapshot = pageSnapshot.load()
 
   const chartColors = computed(() => {
     const isDark = theme.value === 'dark'
@@ -18,12 +52,7 @@ export function useComparePage() {
     }
   })
 
-  const config = reactive({
-    symbolA: 'BTC',
-    symbolB: 'ETH',
-    days: 30,
-    timeframe: '1h',
-  })
+  const config = reactive(restoredSnapshot.config)
 
   const loading = ref(false)
   const dataA = ref([])
@@ -94,6 +123,19 @@ export function useComparePage() {
   onMounted(() => {
     fetchComparisonData()
   })
+
+  bindPageSnapshot(
+    config,
+    () => ({
+      config: {
+        symbolA: readString(config.symbolA, 'BTC'),
+        symbolB: readString(config.symbolB, 'ETH'),
+        days: readNumber(config.days, 30),
+        timeframe: readString(config.timeframe, '1h'),
+      },
+    }),
+    pageSnapshot.save,
+  )
 
   onBeforeUnmount(() => {
     syncUnsubscribers.value.forEach((fn) => fn())

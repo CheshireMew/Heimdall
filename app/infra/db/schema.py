@@ -2,23 +2,33 @@
 数据库 Schema 定义
 仅定义表结构数据模型，与业务逻辑分离
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, JSON, BigInteger, Index, Boolean
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
+
+def utc_now_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
 class BacktestRun(Base):
     """回测运行记录表"""
     __tablename__ = 'backtest_runs'
+    __table_args__ = (
+        Index('ix_backtest_runs_mode_created_at', 'execution_mode', 'created_at'),
+        Index('ix_backtest_runs_mode_engine_status_created_at', 'execution_mode', 'engine', 'status', 'created_at'),
+    )
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     symbol = Column(String(20), nullable=False)  # 交易对，如 'BTC/USDT'
     timeframe = Column(String(10), nullable=False)  # 时间周期，如 '1h'
     start_date = Column(DateTime, nullable=False)  # 回测开始日期
     end_date = Column(DateTime, nullable=False)  # 回测结束日期
-    created_at = Column(DateTime, default=datetime.utcnow)  # 创建时间
+    created_at = Column(DateTime, default=utc_now_naive)  # 创建时间
     status = Column(String(20), default='running')  # 状态: running/completed/failed
+    execution_mode = Column(String(20), nullable=False, default='backtest')
+    engine = Column(String(50), nullable=False, default='Freqtrade')
     total_candles = Column(Integer, default=0)  # K线数量
     total_signals = Column(Integer, default=0)  # 信号总数
     buy_signals = Column(Integer, default=0)  # 买入信号数
@@ -123,8 +133,8 @@ class StrategyDefinition(Base):
     category = Column(String(50), nullable=False, default='trend')
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
     versions = relationship("StrategyVersion", back_populates="strategy", cascade="all, delete-orphan")
 
@@ -144,7 +154,7 @@ class StrategyVersion(Base):
     parameter_space = Column(JSON, nullable=True)
     notes = Column(Text, nullable=True)
     is_default = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now_naive)
 
     strategy = relationship("StrategyDefinition", back_populates="versions")
 
@@ -168,8 +178,8 @@ class IndicatorDefinition(Base):
     outputs = Column(JSON, nullable=False)
     params = Column(JSON, nullable=False)
     is_builtin = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
     def __repr__(self):
         return f"<IndicatorDefinition(key={self.key}, engine={self.engine})>"
@@ -187,11 +197,33 @@ class StrategyTemplateDefinition(Base):
     default_config = Column(JSON, nullable=False)
     default_parameter_space = Column(JSON, nullable=True)
     is_builtin = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
     def __repr__(self):
         return f"<StrategyTemplateDefinition(key={self.key}, category={self.category})>"
+
+
+class FundingRate(Base):
+    """合约资金费率历史缓存"""
+    __tablename__ = 'funding_rates'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    exchange = Column(String(20), nullable=False, default='binance')
+    market_type = Column(String(20), nullable=False, default='usdm')
+    symbol = Column(String(30), nullable=False)
+    funding_time = Column(DateTime, nullable=False)
+    funding_rate = Column(Float, nullable=False)
+    mark_price = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
+
+    __table_args__ = (
+        Index('ix_funding_rate_symbol_time', 'exchange', 'market_type', 'symbol', 'funding_time', unique=True),
+        Index('ix_funding_rate_symbol_lookup', 'symbol', 'funding_time'),
+    )
+
+    def __repr__(self):
+        return f"<FundingRate(symbol={self.symbol}, funding_time={self.funding_time}, funding_rate={self.funding_rate})>"
 
 class Kline(Base):
     """K线数据表 (用于缓存)"""
@@ -287,7 +319,7 @@ class FactorDataset(Base):
     cleaning = Column(JSON, nullable=False)
     row_count = Column(Integer, default=0, nullable=False)
     dataset_info = Column(JSON, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
 
     rows = relationship("FactorDatasetRow", back_populates="dataset", cascade="all, delete-orphan")
     research_runs = relationship("FactorResearchRun", back_populates="dataset", cascade="all, delete-orphan")
@@ -337,7 +369,7 @@ class FactorResearchRun(Base):
     details = Column(JSON, nullable=False)
     blend = Column(JSON, nullable=False)
     error = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
 
     dataset = relationship("FactorDataset", back_populates="research_runs")
 

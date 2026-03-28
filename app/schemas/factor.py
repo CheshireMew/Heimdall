@@ -187,7 +187,7 @@ class FactorResearchRunListItemResponse(BaseModel):
     id: int
     dataset_id: int
     status: str
-    request: dict[str, Any]
+    request: FactorResearchRequest
     summary: FactorResearchSummaryResponse
     ranking: list[FactorScorecardResponse]
     blend: FactorBlendResponse

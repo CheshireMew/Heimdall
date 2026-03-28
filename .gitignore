@@ -12,6 +12,12 @@ traceback.log
 /.codex-*.out
 /.uv-*.err
 /.uv-*.out
+/.codex_tmp_frontend_tests/
+/.codex_tmp_pytest/
+/test_tmp_frontend/
+/test_tmp_pytest/
+/frontend/.npm-cache/
+/.pytest_cache/
 
 # Python
 __pycache__/

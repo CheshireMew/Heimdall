@@ -1,22 +1,19 @@
 @echo off
-set API_PORT=8000
-set FRONTEND_PORT=4173
-echo ===================================================
-echo       Heimdall Development Environment
-echo ===================================================
-echo.
-echo 1. Starting Backend (FastAPI :%API_PORT%)...
-start "Heimdall Backend" cmd /k "call venv\Scripts\activate & set HEIMDALL_API_PORT=%API_PORT% & python -m uvicorn app.main:app --reload --reload-dir app --reload-dir config --reload-dir utils --reload-exclude data/* --reload-exclude logs/* --reload-exclude frontend/dist/* --port %API_PORT%"
+setlocal
 
-echo 2. Starting Frontend (Vite :%FRONTEND_PORT%)...
-start "Heimdall Frontend" cmd /k "cd frontend & set HEIMDALL_API_PORT=%API_PORT% & set HEIMDALL_FRONTEND_PORT=%FRONTEND_PORT% & npm run dev"
+set "SCRIPT_DIR=%~dp0"
+set "PS_SCRIPT=%SCRIPT_DIR%dev_start.ps1"
 
-echo.
-echo ===================================================
-echo Services are starting...
-echo Frontend: http://localhost:%FRONTEND_PORT%
-echo Backend:  http://localhost:%API_PORT%/docs
-echo ===================================================
-echo.
-echo Press any key to exit this launcher (services will keep running).
-pause
+if not exist "%PS_SCRIPT%" (
+  echo dev_start.ps1 not found: "%PS_SCRIPT%"
+  exit /b 1
+)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%"
+set "EXIT_CODE=%ERRORLEVEL%"
+
+if not "%EXIT_CODE%"=="0" (
+  echo Launcher failed with exit code %EXIT_CODE%.
+)
+
+exit /b %EXIT_CODE%

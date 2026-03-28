@@ -4,6 +4,15 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.schemas.strategy_contract import (
+    StrategyConditionNodeResponse,
+    StrategyGroupNodeResponse,
+    StrategyIndicatorOutputResponse,
+    StrategyIndicatorParamResponse,
+    StrategyTemplateConfigResponse,
+)
+from app.schemas.backtest_result import BacktestReportResponse, BacktestRunMetadataResponse
+
 
 class BacktestPortfolioRequest(BaseModel):
     symbols: list[str] = Field(default_factory=lambda: ["BTC/USDT", "ETH/USDT"])
@@ -74,6 +83,12 @@ class PaperStopResponse(BaseModel):
     message: str
 
 
+class BacktestDeleteResponse(BaseModel):
+    success: bool
+    run_id: int
+    message: str
+
+
 class BacktestMetricsResponse(BaseModel):
     total_candles: int
     total_signals: int
@@ -125,8 +140,8 @@ class BacktestRunResponse(BaseModel):
     start_date: str | None
     end_date: str | None
     status: str
-    metadata: dict[str, Any] | None = None
-    report: dict[str, Any] | None = None
+    metadata: BacktestRunMetadataResponse | None = None
+    report: BacktestReportResponse | None = None
     created_at: str | None
     metrics: BacktestMetricsResponse
     signals: list[BacktestSignalResponse] | None = None
@@ -152,7 +167,7 @@ class StrategyVersionResponse(BaseModel):
     name: str
     notes: str | None = None
     is_default: bool
-    config: dict[str, Any]
+    config: StrategyTemplateConfigResponse
     parameter_space: dict[str, list[Any]]
 
 
@@ -171,8 +186,8 @@ class StrategyIndicatorRegistryResponse(BaseModel):
     engine: str
     name: str
     description: str | None = None
-    outputs: list[dict[str, str]]
-    params: list[dict[str, Any]]
+    outputs: list[StrategyIndicatorOutputResponse]
+    params: list[StrategyIndicatorParamResponse]
     is_builtin: bool
 
 
@@ -191,8 +206,8 @@ class StrategyIndicatorEngineResponse(BaseModel):
     engine: str
     name: str
     description: str | None = None
-    outputs: list[dict[str, str]]
-    params: list[dict[str, Any]]
+    outputs: list[StrategyIndicatorOutputResponse]
+    params: list[StrategyIndicatorParamResponse]
 
 
 class StrategyTemplateResponse(BaseModel):
@@ -205,16 +220,16 @@ class StrategyTemplateResponse(BaseModel):
     indicator_registry: list[StrategyIndicatorRegistryResponse]
     operators: list[StrategyOperatorResponse]
     group_logics: list[StrategyGroupLogicResponse]
-    default_config: dict[str, Any]
+    default_config: StrategyTemplateConfigResponse
     default_parameter_space: dict[str, list[Any]]
 
 
 class StrategyEditorContractResponse(BaseModel):
     operators: list[StrategyOperatorResponse]
     group_logics: list[StrategyGroupLogicResponse]
-    blank_condition: dict[str, Any]
-    blank_group: dict[str, Any]
-    blank_config: dict[str, Any]
+    blank_condition: StrategyConditionNodeResponse
+    blank_group: StrategyGroupNodeResponse
+    blank_config: StrategyTemplateConfigResponse
 
 
 class StrategyVersionCreateRequest(BaseModel):
@@ -223,7 +238,7 @@ class StrategyVersionCreateRequest(BaseModel):
     template: str
     category: str
     description: str | None = None
-    config: dict[str, Any]
+    config: StrategyTemplateConfigResponse
     parameter_space: dict[str, list[Any]] = Field(default_factory=dict)
     notes: str | None = None
     make_default: bool = True
@@ -234,7 +249,7 @@ class IndicatorDefinitionCreateRequest(BaseModel):
     name: str
     engine_key: str
     description: str | None = None
-    params: list[dict[str, Any]] = Field(default_factory=list)
+    params: list[StrategyIndicatorParamResponse] = Field(default_factory=list)
 
 
 class StrategyTemplateCreateRequest(BaseModel):
@@ -243,5 +258,5 @@ class StrategyTemplateCreateRequest(BaseModel):
     category: str
     description: str | None = None
     indicator_keys: list[str] = Field(default_factory=list)
-    default_config: dict[str, Any]
+    default_config: StrategyTemplateConfigResponse
     default_parameter_space: dict[str, list[Any]] = Field(default_factory=dict)

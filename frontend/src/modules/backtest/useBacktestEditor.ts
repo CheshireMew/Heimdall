@@ -1,5 +1,6 @@
 import { computed, reactive, ref, type ComputedRef, type Ref } from 'vue'
 
+import { isRecord, readBoolean, readString } from '@/composables/pageSnapshot'
 import type { StrategyEditorContract, StrategyTemplateConfig } from '@/types'
 
 import {
@@ -245,6 +246,61 @@ export const useBacktestEditor = ({
     }
   }
 
+  const buildSnapshot = () => ({
+    showVersionEditor: showVersionEditor.value,
+    showIndicatorCreator: showIndicatorCreator.value,
+    showTemplateCreator: showTemplateCreator.value,
+    useGlobalIndicatorCatalog: useGlobalIndicatorCatalog.value,
+    newIndicatorType: newIndicatorType.value,
+    versionDraft: clone(versionDraft),
+    indicatorDraft: clone(indicatorDraft),
+    templateDraft: clone(templateDraft),
+  })
+
+  const restoreSnapshot = (snapshot: unknown) => {
+    if (!isRecord(snapshot)) return
+
+    showVersionEditor.value = readBoolean(snapshot.showVersionEditor, showVersionEditor.value)
+    showIndicatorCreator.value = readBoolean(snapshot.showIndicatorCreator, showIndicatorCreator.value)
+    showTemplateCreator.value = readBoolean(snapshot.showTemplateCreator, showTemplateCreator.value)
+    useGlobalIndicatorCatalog.value = readBoolean(snapshot.useGlobalIndicatorCatalog, useGlobalIndicatorCatalog.value)
+    newIndicatorType.value = readString(snapshot.newIndicatorType, newIndicatorType.value)
+
+    if (isRecord(snapshot.versionDraft)) {
+      Object.assign(versionDraft, clone(snapshot.versionDraft))
+      versionDraft.key = readString(versionDraft.key, 'ema_rsi_macd')
+      versionDraft.name = readString(versionDraft.name, 'Variant')
+      versionDraft.template = typeof versionDraft.template === 'string' ? versionDraft.template : ''
+      versionDraft.category = readString(versionDraft.category, 'custom')
+      versionDraft.description = typeof versionDraft.description === 'string' ? versionDraft.description : ''
+      versionDraft.notes = typeof versionDraft.notes === 'string' ? versionDraft.notes : ''
+      versionDraft.make_default = typeof versionDraft.make_default === 'boolean' ? versionDraft.make_default : true
+      versionDraft.parameterSpaceValues = isRecord(versionDraft.parameterSpaceValues)
+        ? Object.fromEntries(Object.entries(versionDraft.parameterSpaceValues).filter((entry): entry is [string, string] => typeof entry[0] === 'string' && typeof entry[1] === 'string'))
+        : {}
+    }
+
+    if (isRecord(snapshot.indicatorDraft)) {
+      Object.assign(indicatorDraft, clone(snapshot.indicatorDraft))
+      indicatorDraft.key = typeof indicatorDraft.key === 'string' ? indicatorDraft.key : ''
+      indicatorDraft.name = typeof indicatorDraft.name === 'string' ? indicatorDraft.name : ''
+      indicatorDraft.engine_key = readString(indicatorDraft.engine_key, normalizedIndicatorEngines.value[0]?.key || 'ema')
+      indicatorDraft.description = typeof indicatorDraft.description === 'string' ? indicatorDraft.description : ''
+      indicatorDraft.params = Array.isArray(indicatorDraft.params) ? clone(indicatorDraft.params) : clone(normalizedIndicatorEngines.value[0]?.params || [])
+    }
+
+    if (isRecord(snapshot.templateDraft)) {
+      Object.assign(templateDraft, clone(snapshot.templateDraft))
+      templateDraft.key = typeof templateDraft.key === 'string' ? templateDraft.key : ''
+      templateDraft.name = typeof templateDraft.name === 'string' ? templateDraft.name : ''
+      templateDraft.category = readString(templateDraft.category, 'custom')
+      templateDraft.description = typeof templateDraft.description === 'string' ? templateDraft.description : ''
+      templateDraft.indicator_keys = Array.isArray(templateDraft.indicator_keys)
+        ? templateDraft.indicator_keys.filter((item): item is string => typeof item === 'string' && item.length > 0)
+        : []
+    }
+  }
+
   return {
     showVersionEditor,
     showIndicatorCreator,
@@ -278,5 +334,7 @@ export const useBacktestEditor = ({
     startBlankBuilder,
     toggleTemplateIndicator,
     initializeDraftFromContract,
+    buildSnapshot,
+    restoreSnapshot,
   }
 }

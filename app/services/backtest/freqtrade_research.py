@@ -30,7 +30,8 @@ class FreqtradeResearchService:
         optimize_start: datetime,
         optimize_end: datetime,
     ) -> tuple[dict[str, Any], dict[str, Any], IterationResult]:
-        best_score = float("-inf")
+        best_score_value = float("-inf")
+        best_score = None
         best_iteration = None
         trials = []
         for trial_index, candidate in enumerate(
@@ -52,6 +53,7 @@ class FreqtradeResearchService:
                 iteration.execution.report,
                 context.research.optimize_metric,
             )
+            score_value = float("-inf") if score is None else score
             trials.append(
                 {
                     "trial": trial_index,
@@ -60,7 +62,8 @@ class FreqtradeResearchService:
                     "report": self.result_builder.report_snapshot(iteration.execution.report),
                 }
             )
-            if score > best_score:
+            if best_iteration is None or score_value > best_score_value:
+                best_score_value = score_value
                 best_score = score
                 best_iteration = iteration
 

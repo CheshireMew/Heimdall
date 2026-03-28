@@ -17,8 +17,10 @@ class DCAService:
         market_data_service: MarketDataService | None = None,
         sentiment_service: SentimentService | None = None,
     ) -> None:
-        self.market_data_service = market_data_service or MarketDataService()
-        self.sentiment_service = sentiment_service or SentimentService()
+        if market_data_service is None or sentiment_service is None:
+            raise ValueError("DCAService 需要显式注入 market_data_service 和 sentiment_service")
+        self.market_data_service = market_data_service
+        self.sentiment_service = sentiment_service
 
     def calculate_dca(
         self,

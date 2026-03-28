@@ -16,6 +16,9 @@ class IndicatorSummaryResponse(BaseModel):
     rsi: float | None
     macd: MACDResponse | None
     atr: float | None
+    atr_pct: float | None = None
+    realized_volatility_pct: float | None = None
+    annualized_volatility_pct: float | None = None
 
 
 class RealtimeResponse(BaseModel):
@@ -50,6 +53,56 @@ class ApiStatusResponse(BaseModel):
     framework: str
     dependencies: str
     timestamp: str
+
+
+class FundingRateSnapshotResponse(BaseModel):
+    exchange: str
+    market_type: str
+    symbol: str
+    funding_rate: float | None
+    funding_rate_pct: float | None
+    mark_price: float | None = None
+    index_price: float | None = None
+    interest_rate: float | None = None
+    next_funding_time: str | None = None
+    collected_at: str
+
+
+class FundingRateHistoryPointResponse(BaseModel):
+    funding_time: str
+    funding_rate: float
+    funding_rate_pct: float
+    mark_price: float | None = None
+
+
+class FundingRateHistoryResponse(BaseModel):
+    exchange: str
+    market_type: str
+    symbol: str
+    count: int
+    items: list[FundingRateHistoryPointResponse]
+
+
+class FundingRateSyncResponse(BaseModel):
+    exchange: str
+    market_type: str
+    symbol: str
+    fetched: int
+    inserted: int
+    total: int
+    start_date: str
+    end_date: str
+
+
+class TechnicalMetricsResponse(BaseModel):
+    symbol: str
+    timeframe: str
+    sample_size: int
+    current_price: float
+    atr: float | None = None
+    atr_pct: float | None = None
+    realized_volatility_pct: float | None = None
+    annualized_volatility_pct: float | None = None
 
 
 class CryptoIndexConstituentResponse(BaseModel):

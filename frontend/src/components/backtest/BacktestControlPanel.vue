@@ -5,45 +5,45 @@
       <section class="space-y-3">
         <div>
           <label class="label">{{ $t('backtest.strategy') }}</label>
-          <select v-model="page.config.strategy_key" class="input" @change="page.syncStrategyVersion">
-            <option v-for="item in page.strategies" :key="item.key" :value="item.key">{{ item.name }}</option>
+          <select v-model="panel.config.strategy_key" class="input" @change="panel.syncStrategyVersion">
+            <option v-for="item in panel.strategies" :key="item.key" :value="item.key">{{ item.name }}</option>
           </select>
         </div>
         <div>
           <label class="label">{{ $t('backtest.version') }}</label>
-          <select v-model="page.config.strategy_version" class="input">
-            <option v-for="item in page.selectedStrategyVersions" :key="item?.version ?? String(item)" :value="item?.version">
+          <select v-model="panel.config.strategy_version" class="input">
+            <option v-for="item in panel.selectedStrategyVersions" :key="item?.version ?? String(item)" :value="item?.version">
               v{{ item?.version ?? '-' }} · {{ item?.name ?? '-' }}
             </option>
           </select>
         </div>
         <div
-          v-if="page.selectedStrategy"
+          v-if="panel.selectedStrategy"
           class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-3 py-3 text-sm text-gray-600 dark:text-gray-300"
         >
-          <div class="font-semibold text-gray-900 dark:text-white">{{ page.selectedStrategy.name }}</div>
-          <div class="mt-1">{{ page.selectedStrategy.description || '-' }}</div>
+          <div class="font-semibold text-gray-900 dark:text-white">{{ panel.selectedStrategy.name }}</div>
+          <div class="mt-1">{{ panel.selectedStrategy.description || '-' }}</div>
           <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            {{ $t('backtest.selectedVersion') }}: v{{ page.config.strategy_version }} · {{ page.selectedVersion?.name || '-' }}
+            {{ $t('backtest.selectedVersion') }}: v{{ panel.config.strategy_version }} · {{ panel.selectedVersion?.name || '-' }}
           </div>
         </div>
         <div class="flex gap-2">
-          <button class="btn-secondary flex-1" :disabled="!page.selectedVersion" @click="page.openCopyEditor">{{ $t('backtest.fillFromCurrent') }}</button>
-          <button class="btn-secondary flex-1" @click="page.openBlankEditor">{{ $t('backtest.startBlankBuilder') }}</button>
+          <button class="btn-secondary flex-1" :disabled="!panel.selectedVersion" @click="panel.openCopyEditor">{{ $t('backtest.fillFromCurrent') }}</button>
+          <button class="btn-secondary flex-1" @click="panel.openBlankEditor">{{ $t('backtest.startBlankBuilder') }}</button>
         </div>
       </section>
 
-      <BacktestRunForm :page="page" />
+      <BacktestRunForm :panel="panel" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import BacktestRunForm from '@/components/backtest/BacktestRunForm.vue'
-import type { BacktestPageState } from '@/modules/backtest/useBacktestPage'
+import type { BacktestControlPanelView } from '@/modules/backtest/viewTypes'
 
-const props = defineProps<{ page: BacktestPageState }>()
-const page = props.page
+const props = defineProps<{ panel: BacktestControlPanelView }>()
+const panel = props.panel
 </script>
 
 <style scoped>

@@ -13,9 +13,9 @@
       </div>
     </section>
 
-    <div class="grid grid-cols-1 2xl:grid-cols-[420px_minmax(0,1fr)] gap-6">
-      <BacktestControlPanel :page="page" />
-      <BacktestHistoryPanel :page="page" />
+    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] gap-6 items-start">
+      <BacktestControlPanel :panel="page.controlPanel" />
+      <BacktestHistoryPanel :panel="page.historyPanel" />
     </div>
   </div>
 </template>

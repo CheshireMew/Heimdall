@@ -5,7 +5,7 @@ import os
 import logging
 from pathlib import Path
 from contextlib import contextmanager
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 from app.infra.db.schema import Base
 
@@ -40,18 +40,24 @@ engine = create_engine(DB_URL, **_engine_kwargs)
 
 # Session 工厂
 SessionLocal = sessionmaker(bind=engine)
+_initialized = False
 
 def init_db():
     """
     初始化数据库，创建所有表
     """
+    global _initialized
+    if _initialized:
+        return
     Base.metadata.create_all(engine)
+    _ensure_backtest_run_contract_columns()
     try:
-        from app.services.backtest.strategy_library import StrategyLibraryService
+        from app.services.backtest.strategy_defaults_service import StrategyDefaultsService
 
-        StrategyLibraryService().ensure_defaults()
+        StrategyDefaultsService().ensure_defaults()
     except Exception as exc:
         db_logger.warning(f"策略库初始化失败: {exc}")
+    _initialized = True
     db_logger.info(f"数据库初始化完成: {DB_URL}")
 
 def get_session():
@@ -59,6 +65,61 @@ def get_session():
     获取数据库会话
     """
     return SessionLocal()
+
+
+def _ensure_backtest_run_contract_columns() -> None:
+    inspector = inspect(engine)
+    if "backtest_runs" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("backtest_runs")}
+    statements: list[str] = []
+    if "execution_mode" not in existing_columns:
+        statements.append(
+            "ALTER TABLE backtest_runs ADD COLUMN execution_mode VARCHAR(20) NOT NULL DEFAULT 'backtest'"
+        )
+    if "engine" not in existing_columns:
+        statements.append(
+            "ALTER TABLE backtest_runs ADD COLUMN engine VARCHAR(50) NOT NULL DEFAULT 'Freqtrade'"
+        )
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_backtest_runs_mode_created_at "
+                "ON backtest_runs (execution_mode, created_at)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_backtest_runs_mode_engine_status_created_at "
+                "ON backtest_runs (execution_mode, engine, status, created_at)"
+            )
+        )
+
+    from app.infra.db.schema import BacktestRun
+
+    with session_scope() as session:
+        runs = session.query(BacktestRun).all()
+        for run in runs:
+            metadata = dict(run.metadata_info or {})
+            next_execution_mode = str(metadata.get("execution_mode") or run.execution_mode or "backtest")
+            next_engine = str(metadata.get("engine") or run.engine or "Freqtrade")
+            changed = False
+            if run.execution_mode != next_execution_mode:
+                run.execution_mode = next_execution_mode
+                changed = True
+            if run.engine != next_engine:
+                run.engine = next_engine
+                changed = True
+            if metadata.pop("execution_mode", None) is not None:
+                changed = True
+            if metadata.pop("engine", None) is not None:
+                changed = True
+            if changed:
+                run.metadata_info = metadata
 
 @contextmanager
 def session_scope():

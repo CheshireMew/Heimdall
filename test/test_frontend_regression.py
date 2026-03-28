@@ -1,0 +1,120 @@
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+import pytest
+
+import app.main as main_module
+
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = ROOT_DIR / "frontend" / "src"
+
+
+def read_frontend(path: str) -> str:
+    return (FRONTEND_DIR / path).read_text(encoding="utf-8")
+
+
+def extract_backend_routes() -> set[str]:
+    return {
+        route.path
+        for route in main_module.app.routes
+        if hasattr(route, "path")
+    }
+
+
+def normalize_frontend_path(path: str) -> str:
+    if path.startswith("/tools/"):
+        return f"/api/v1{path}"
+    return f"/api/v1{path}"
+
+
+def extract_request_calls(source: str) -> list[tuple[str, str]]:
+    pattern = re.compile(r"(request|longTaskRequest)\.(get|post|delete)\(\s*([`'])(.+?)\3", re.DOTALL)
+    return [(client, path) for client, _, _, path in pattern.findall(source)]
+
+
+def path_template_to_regex(path: str) -> re.Pattern[str]:
+    normalized = re.sub(r"\$\{[^}]+\}", "__PARAM__", path)
+    escaped = re.escape(normalized).replace("__PARAM__", r"[^/]+")
+    return re.compile(f"^{escaped}$")
+
+
+def test_frontend_api_paths_match_fastapi_routes():
+    backend_routes = extract_backend_routes()
+    api_files = [
+        "modules/market/api.ts",
+        "modules/tools/api.ts",
+        "modules/backtest/api.ts",
+        "modules/factors/api.ts",
+    ]
+
+    for file_path in api_files:
+        for _, frontend_path in extract_request_calls(read_frontend(file_path)):
+            route_pattern = path_template_to_regex(normalize_frontend_path(frontend_path))
+            assert any(route_pattern.match(route) for route in backend_routes), f"{file_path} -> {frontend_path} has no backend route"
+
+
+@pytest.mark.parametrize(
+    ("file_path", "endpoint"),
+    [
+        ("modules/backtest/api.ts", "/backtest/start"),
+        ("modules/factors/api.ts", "/factor-research/analyze"),
+        ("modules/factors/api.ts", "/factor-research/runs/${runId}/backtest"),
+        ("modules/factors/api.ts", "/factor-research/runs/${runId}/paper"),
+    ],
+)
+def test_frontend_long_tasks_use_dedicated_client(file_path: str, endpoint: str):
+    source = read_frontend(file_path)
+    assert f"longTaskRequest.post('{endpoint}'" in source or f"longTaskRequest.post(`{endpoint}`" in source
+
+
+def test_page_snapshot_registry_and_helpers_are_stable():
+    source = read_frontend("composables/pageSnapshot.ts")
+
+    assert "const PAGE_SNAPSHOT_PREFIX = 'heimdall_page_snapshot:'" in source
+    for key in ["dca", "compare", "factorResearch", "halving", "cryptoIndex", "backtest", "backtestEditor"]:
+        assert re.search(rf"\b{key}:", source), key
+    assert "readStringArray" in source
+    assert "bindPageSnapshot" in source
+    assert "{ deep: true, immediate: true }" in source
+
+
+def test_market_store_cache_contract_is_stable():
+    source = read_frontend("modules/market/store.ts")
+
+    assert "heimdall_market_cache" in source
+    assert "10000" in source
+    assert "300000" in source
+    assert "60000" in source
+    assert "7 * 24 * 60 * 60 * 1000" in source
+    assert "marketApi.getRealtime" in source
+    assert "marketApi.getIndicators" in source
+    assert "Extreme Greed" in source
+
+
+def test_backtest_and_factor_formatting_entry_points_are_present():
+    backtest_source = read_frontend("modules/backtest/useBacktestRunFormatting.ts")
+    factor_source = read_frontend("modules/factors/useFactorResearchFormatting.ts")
+
+    for token in [
+        "latestRunsByVersion",
+        "versionCompareOptions",
+        "toggleCompareRun",
+        "toggleVersionCompare",
+        "paper_live",
+        "compareRunLabel",
+    ]:
+        assert token in backtest_source
+
+    for token in [
+        "factorChipClass",
+        "categoryChipClass",
+        "scoreClass",
+        "correlationClass",
+        "formatPct",
+        "formatNumber",
+        "formatDate",
+    ]:
+        assert token in factor_source

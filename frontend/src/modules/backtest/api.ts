@@ -1,4 +1,4 @@
-import request from '@/api/request'
+import request, { longTaskRequest } from '@/api/request'
 import type { AxiosResponse } from 'axios'
 import type {
   BacktestDetailResponse,
@@ -25,7 +25,7 @@ export const backtestApi = {
   },
 
   startRun(body: BacktestStartRequest): Promise<AxiosResponse<BacktestStartResponse>> {
-    return request.post('/backtest/start', body)
+    return longTaskRequest.post('/backtest/start', body)
   },
 
   listPaperRuns(): Promise<AxiosResponse<BacktestRun[]>> {
@@ -38,6 +38,14 @@ export const backtestApi = {
 
   stopPaperRun(runId: number): Promise<AxiosResponse<PaperStopResponse>> {
     return request.post(`/paper/${runId}/stop`)
+  },
+
+  deleteRun(backtestId: number): Promise<AxiosResponse<PaperStopResponse>> {
+    return request.delete(`/backtest/${backtestId}`)
+  },
+
+  deletePaperRun(runId: number): Promise<AxiosResponse<PaperStopResponse>> {
+    return request.delete(`/paper/${runId}`)
   },
 
   listStrategies(): Promise<AxiosResponse<StrategyDefinition[]>> {

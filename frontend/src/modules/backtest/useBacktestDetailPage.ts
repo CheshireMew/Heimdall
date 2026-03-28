@@ -121,24 +121,56 @@ export const useBacktestDetailPage = () => {
     }
   })
 
-  const page = reactive({
-    t,
-    theme,
-    strategies,
-    config,
-    isDark,
-    chartColors,
-    selectedStrategy,
-    selectedStrategyVersions,
-    enableHistoryCompare: true,
-    profitColorClass,
-    fetchStrategies,
-    ...runs,
-    openRunDetail,
+  const hero = reactive({
+    selectedRun: runs.selectedRun,
+    isPaperRun: runs.isPaperRun,
     goBackToCenter,
+    portfolioLabel: runs.portfolioLabel,
+    runStatusLabel: runs.runStatusLabel,
   })
 
-  return page
+  const historyPanel = reactive({
+    historyMode: runs.historyMode,
+    enableHistoryCompare: true,
+    visibleHistory: runs.visibleHistory,
+    compareRunIds: runs.compareRunIds,
+    openRunDetail,
+    toggleCompareRun: runs.toggleCompareRun,
+    portfolioLabel: runs.portfolioLabel,
+    runStatusLabel: runs.runStatusLabel,
+    profitColorClass,
+    stopPaperRun: runs.stopPaperRun,
+  })
+
+  const resultPanel = reactive({
+    selectedRun: runs.selectedRun,
+    isPaperRun: runs.isPaperRun,
+    isDark,
+    chartColors,
+    chartData: runs.chartData,
+    pairBreakdown: runs.pairBreakdown,
+    optimizationTrials: runs.optimizationTrials,
+    rollingWindows: runs.rollingWindows,
+    selectedCompareRuns: runs.selectedCompareRuns,
+    recentRunCompare: runs.recentRunCompare,
+    versionCompareOptions: runs.versionCompareOptions,
+    versionCompareSelections: runs.versionCompareSelections,
+    selectedVersionCompareRuns: runs.selectedVersionCompareRuns,
+    versionRunCompare: runs.versionRunCompare,
+    profitColorClass,
+    runStatusLabel: runs.runStatusLabel,
+    portfolioLabel: runs.portfolioLabel,
+    joinSymbols: runs.joinSymbols,
+    configLabel: runs.configLabel,
+    compareRunLabel: runs.compareRunLabel,
+    toggleVersionCompare: runs.toggleVersionCompare,
+  })
+
+  return {
+    hero,
+    historyPanel,
+    resultPanel,
+  }
 }
 
 

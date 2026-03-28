@@ -3,7 +3,15 @@ from __future__ import annotations
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade
 
 
+def serialize_backtest_metadata(run: BacktestRun) -> dict:
+    payload = dict(run.metadata_info or {})
+    payload["execution_mode"] = run.execution_mode
+    payload["engine"] = run.engine
+    return payload
+
+
 def serialize_backtest_run(run: BacktestRun, include_signals: bool = False) -> dict:
+    metadata = serialize_backtest_metadata(run)
     data = {
         "id": run.id,
         "symbol": run.symbol,
@@ -11,8 +19,8 @@ def serialize_backtest_run(run: BacktestRun, include_signals: bool = False) -> d
         "start_date": run.start_date.isoformat() if run.start_date else None,
         "end_date": run.end_date.isoformat() if run.end_date else None,
         "status": run.status,
-        "metadata": run.metadata_info,
-        "report": (run.metadata_info or {}).get("report"),
+        "metadata": metadata,
+        "report": metadata.get("report"),
         "created_at": run.created_at.isoformat() if run.created_at else None,
         "metrics": {
             "total_candles": run.total_candles,

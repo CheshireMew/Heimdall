@@ -12,26 +12,31 @@ from app.services.backtest.contracts import (
     PaperStartCommand,
 )
 from app.services.backtest.paper_manager import PaperRunManager
+from app.services.backtest.run_repository import BacktestRunRepository
 from app.services.backtest.run_service import BacktestRunService
-from app.services.backtest.strategy_library import StrategyLibraryService
-from app.services.market.market_data_service import MarketDataService
+from app.services.backtest.strategy_query_service import StrategyQueryService
+from app.services.backtest.strategy_write_service import StrategyWriteService
 from utils.logger import logger
 
 
 class BacktestCommandService:
     def __init__(
         self,
-        market_data_service: MarketDataService,
-        strategy_library: StrategyLibraryService | None = None,
-        run_service: BacktestRunService | None = None,
-        paper_manager: PaperRunManager | None = None,
+        *,
+        run_service: BacktestRunService,
+        paper_manager: PaperRunManager,
+        run_repository: BacktestRunRepository,
+        strategy_query_service: StrategyQueryService,
+        strategy_write_service: StrategyWriteService,
     ) -> None:
-        self.strategy_library = strategy_library or StrategyLibraryService()
-        self.run_service = run_service or BacktestRunService(market_data_service=market_data_service)
-        self.paper_manager = paper_manager or PaperRunManager(market_data_service=market_data_service)
+        self.strategy_query_service = strategy_query_service
+        self.strategy_write_service = strategy_write_service
+        self.run_service = run_service
+        self.paper_manager = paper_manager
+        self.run_repository = run_repository
 
     async def start_backtest(self, command: BacktestStartCommand) -> dict[str, Any]:
-        strategy = self.strategy_library.get_strategy_version(command.strategy_key, command.strategy_version)
+        strategy = self.strategy_query_service.get_strategy_version(command.strategy_key, command.strategy_version)
         logger.info(
             f"启动 Freqtrade 回测: strategy={command.strategy_key} v{command.strategy_version or 'default'}, "
             f"symbols={','.join(command.portfolio.symbols)}, tf={command.timeframe}, days={command.days}, "
@@ -59,7 +64,7 @@ class BacktestCommandService:
         return {"success": True, "backtest_id": backtest_id, "message": "回测已完成"}
 
     async def start_paper_run(self, command: PaperStartCommand) -> dict[str, Any]:
-        strategy = self.strategy_library.get_strategy_version(command.strategy_key, command.strategy_version)
+        strategy = self.strategy_query_service.get_strategy_version(command.strategy_key, command.strategy_version)
         logger.info(
             f"启动模拟盘: strategy={strategy.strategy_key} v{strategy.version}, "
             f"symbols={','.join(command.portfolio.symbols)}, tf={command.timeframe}, "
@@ -71,11 +76,26 @@ class BacktestCommandService:
         logger.info(f"停止模拟盘: run_id={run_id}")
         return await self.paper_manager.stop_run(run_id)
 
+    async def delete_backtest(self, backtest_id: int) -> dict[str, Any]:
+        logger.info(f"删除回测记录: backtest_id={backtest_id}")
+        loop = asyncio.get_running_loop()
+        deleted = await loop.run_in_executor(
+            None,
+            lambda: self.run_repository.delete_run(backtest_id, "backtest"),
+        )
+        if not deleted:
+            raise ValueError(f"回测记录不存在: {backtest_id}")
+        return {"success": True, "run_id": backtest_id, "message": "回测记录已删除"}
+
+    async def delete_paper_run(self, run_id: int) -> dict[str, Any]:
+        logger.info(f"删除模拟盘记录: run_id={run_id}")
+        return await self.paper_manager.delete_run(run_id)
+
     async def create_template(self, command: CreateStrategyTemplateCommand) -> dict[str, Any]:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
-            lambda: self.strategy_library.create_template(
+            lambda: self.strategy_write_service.create_template(
                 key=command.key,
                 name=command.name,
                 category=command.category,
@@ -90,7 +110,7 @@ class BacktestCommandService:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
-            lambda: self.strategy_library.create_indicator(
+            lambda: self.strategy_write_service.create_indicator(
                 key=command.key,
                 name=command.name,
                 engine_key=command.engine_key,
@@ -103,7 +123,7 @@ class BacktestCommandService:
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(
             None,
-            lambda: self.strategy_library.create_strategy_version(
+            lambda: self.strategy_write_service.create_strategy_version(
                 key=command.key,
                 name=command.name,
                 template=command.template,

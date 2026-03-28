@@ -1,32 +1,39 @@
 import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 
-const service: AxiosInstance = axios.create({
-    baseURL: '/api/v1',
-    timeout: 15000,
-    headers: {
-        'Content-Type': 'application/json'
-    }
-})
+const attachInterceptors = (client: AxiosInstance) => {
+    client.interceptors.request.use(
+        (config: InternalAxiosRequestConfig) => {
+            return config
+        },
+        (error: unknown) => {
+            return Promise.reject(error)
+        }
+    )
 
-// Request Interceptor
-service.interceptors.request.use(
-    (config: InternalAxiosRequestConfig) => {
-        return config
-    },
-    (error: unknown) => {
-        return Promise.reject(error)
-    }
+    client.interceptors.response.use(
+        (response: AxiosResponse) => {
+            return response
+        },
+        (error: unknown) => {
+            console.error('API Request Failed:', error)
+            return Promise.reject(error)
+        }
+    )
+
+    return client
+}
+
+const createClient = (timeout: number): AxiosInstance => attachInterceptors(
+    axios.create({
+        baseURL: '/api/v1',
+        timeout,
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
 )
 
-// Response Interceptor
-service.interceptors.response.use(
-    (response: AxiosResponse) => {
-        return response
-    },
-    (error: unknown) => {
-        console.error('API Request Failed:', error)
-        return Promise.reject(error)
-    }
-)
+const service: AxiosInstance = createClient(15000)
+export const longTaskRequest: AxiosInstance = createClient(0)
 
 export default service

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "sync:contracts": "python ../scripts/generate_frontend_contracts.py",
+    "build": "npm run sync:contracts && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

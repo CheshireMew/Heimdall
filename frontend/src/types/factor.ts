@@ -1,3 +1,6 @@
+// This file is generated from backend Pydantic schemas.
+// Do not edit manually.
+
 export interface FactorCatalogItem {
   factor_id: string
   name: string
@@ -9,22 +12,22 @@ export interface FactorCatalogItem {
 }
 
 export interface FactorCatalogResponse {
-  symbols: string[]
-  timeframes: string[]
-  categories: string[]
-  factors: FactorCatalogItem[]
-  forward_horizons: number[]
-  cleaning: Record<string, unknown>
+  symbols: Array<string>
+  timeframes: Array<string>
+  categories: Array<string>
+  factors: Array<FactorCatalogItem>
+  forward_horizons: Array<number>
+  cleaning: { [key: string]: unknown }
 }
 
 export interface FactorResearchRequest {
-  symbol: string
-  timeframe: '1h' | '4h' | '1d'
-  days: number
-  horizon_bars: number
-  max_lag_bars: number
-  categories: string[]
-  factor_ids: string[]
+  symbol?: string
+  timeframe?: "1h" | "4h" | "1d"
+  days?: number
+  horizon_bars?: number
+  max_lag_bars?: number
+  categories?: Array<string>
+  factor_ids?: Array<string>
 }
 
 export interface FactorForwardMetric {
@@ -40,6 +43,20 @@ export interface FactorForwardMetric {
   ic_t_stat: number
   quantile_spread: number
   hit_rate: number
+}
+
+export interface FactorResearchSummary {
+  symbol: string
+  timeframe: string
+  days: number
+  horizon_bars: number
+  max_lag_bars: number
+  factor_count: number
+  dataset_id: number
+  forward_horizons: Array<number>
+  sample_range: FactorSampleRange
+  target_label: string
+  blend_factor_count: number
 }
 
 export interface FactorScorecard {
@@ -93,10 +110,7 @@ export interface FactorDetail {
   unit?: string | null
   feature_mode: string
   description?: string | null
-  sample_range: {
-    start: string
-    end: string
-  }
+  sample_range: FactorSampleRange
   sample_size: number
   latest_raw_value: number
   latest_feature_value: number
@@ -114,11 +128,11 @@ export interface FactorDetail {
   ic_std: number
   ic_ir: number
   ic_t_stat: number
-  forward_metrics: FactorForwardMetric[]
-  lag_profile: FactorLagPoint[]
-  rolling_correlation: FactorRollingPoint[]
-  quantiles: FactorQuantileBucket[]
-  normalized_series: FactorNormalizedPoint[]
+  forward_metrics: Array<FactorForwardMetric>
+  lag_profile: Array<FactorLagPoint>
+  rolling_correlation: Array<FactorRollingPoint>
+  quantiles: Array<FactorQuantileBucket>
+  normalized_series: Array<FactorNormalizedPoint>
 }
 
 export interface FactorBlendComponent {
@@ -139,41 +153,24 @@ export interface FactorDroppedComponent {
 }
 
 export interface FactorBlend {
-  selected_factors: FactorBlendComponent[]
-  dropped_factors: FactorDroppedComponent[]
-  weights: FactorBlendComponent[]
-  forward_metrics: FactorForwardMetric[]
-  quantiles: FactorQuantileBucket[]
-  normalized_series: FactorNormalizedPoint[]
+  selected_factors: Array<FactorBlendComponent>
+  dropped_factors: Array<FactorDroppedComponent>
+  weights: Array<FactorBlendComponent>
+  forward_metrics: Array<FactorForwardMetric>
+  quantiles: Array<FactorQuantileBucket>
+  normalized_series: Array<FactorNormalizedPoint>
   entry_threshold: number
   exit_threshold: number
   score_std: number
   score_mean: number
 }
 
-export interface FactorResearchSummary {
-  symbol: string
-  timeframe: string
-  days: number
-  horizon_bars: number
-  max_lag_bars: number
-  factor_count: number
-  dataset_id: number
-  forward_horizons: number[]
-  sample_range: {
-    start: string
-    end: string
-  }
-  target_label: string
-  blend_factor_count: number
-}
-
 export interface FactorResearchResponse {
   run_id: number
   dataset_id: number
   summary: FactorResearchSummary
-  ranking: FactorScorecard[]
-  details: FactorDetail[]
+  ranking: Array<FactorScorecard>
+  details: Array<FactorDetail>
   blend: FactorBlend
 }
 
@@ -181,25 +178,25 @@ export interface FactorResearchRun {
   id: number
   dataset_id: number
   status: string
-  request: Record<string, unknown>
+  request: FactorResearchRequest
   summary: FactorResearchSummary
-  ranking: FactorScorecard[]
-  details?: FactorDetail[]
+  ranking: Array<FactorScorecard>
   blend: FactorBlend
   error?: string | null
-  created_at?: string | null
+  created_at: string | null
+  details?: Array<FactorDetail>
 }
 
 export interface FactorExecutionRequest {
-  initial_cash: number
-  fee_rate: number
-  position_size_pct: number
-  stake_mode: 'fixed' | 'unlimited'
+  initial_cash?: number
+  fee_rate?: number
+  position_size_pct?: number
+  stake_mode?: "fixed" | "unlimited"
   entry_threshold?: number | null
   exit_threshold?: number | null
-  stoploss_pct: number
-  takeprofit_pct: number
-  max_hold_bars: number
+  stoploss_pct?: number
+  takeprofit_pct?: number
+  max_hold_bars?: number
 }
 
 export interface FactorExecutionResponse {
@@ -207,3 +204,9 @@ export interface FactorExecutionResponse {
   run_id: number
   message: string
 }
+
+export interface FactorSampleRange {
+  start: string
+  end: string
+}
+

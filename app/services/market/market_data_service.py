@@ -18,8 +18,10 @@ class MarketDataService:
         exchange_gateway: ExchangeGateway | None = None,
         kline_store: KlineStore | None = None,
     ) -> None:
-        self.exchange_gateway = exchange_gateway or ExchangeGateway()
-        self.kline_store = kline_store or KlineStore()
+        if exchange_gateway is None or kline_store is None:
+            raise ValueError("MarketDataService 需要显式注入 exchange_gateway 和 kline_store")
+        self.exchange_gateway = exchange_gateway
+        self.kline_store = kline_store
 
     def get_kline_data(
         self,
@@ -67,6 +69,26 @@ class MarketDataService:
         finally:
             elapsed = time.time() - start_time
             logger.debug(f"[metrics] get_history_data symbol={symbol} tf={timeframe} limit={limit} elapsed={elapsed:.2f}s")
+
+    def get_recent_candles(
+        self,
+        symbol: str,
+        timeframe: str,
+        limit: int = settings.LIMIT,
+    ) -> list[list[float]]:
+        end_ts = int(time.time() * 1000) + 1
+        cached = self.get_history_data(symbol, timeframe, end_ts, limit)
+        if len(cached) >= limit:
+            return cached
+
+        live = self.get_kline_data(symbol, timeframe, limit=limit)
+        if live:
+            try:
+                self.kline_store.save(symbol, timeframe, live)
+            except Exception as exc:
+                logger.warning(f"最近 K 线回写缓存失败: {exc}")
+            return live
+        return cached
 
     def fetch_ohlcv_range(
         self,

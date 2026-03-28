@@ -4,19 +4,16 @@ from datetime import datetime, timezone
 
 from app.services.backtest import FreqtradeBacktestService
 from app.services.backtest.models import PortfolioConfigRecord, ResearchConfigRecord, StrategyVersionRecord
-from app.services.backtest.run_contract import build_backtest_metadata
-from app.services.market.market_data_service import MarketDataService
+from app.services.backtest.run_contract import BACKTEST_EXECUTION_MODE, FREQTRADE_ENGINE, build_backtest_metadata, make_json_safe
 from config import settings
-from app.infra.db.database import init_db, session_scope
+from app.infra.db.database import session_scope
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade
 from utils.logger import logger
 
 
 class BacktestRunService:
-    def __init__(self, market_data_service: MarketDataService | None = None) -> None:
-        self.market_data_service = market_data_service or MarketDataService()
-        self.engine = FreqtradeBacktestService(market_data_service=self.market_data_service)
-        init_db()
+    def __init__(self, engine: FreqtradeBacktestService) -> None:
+        self.engine = engine
 
     def run_backtest(
         self,
@@ -44,6 +41,8 @@ class BacktestRunService:
                 start_date=start_date,
                 end_date=end_date,
                 status="running",
+                execution_mode=BACKTEST_EXECUTION_MODE,
+                engine=FREQTRADE_ENGINE,
                 metadata_info=build_backtest_metadata(
                     strategy=strategy,
                     symbols=symbols,
@@ -136,7 +135,7 @@ class BacktestRunService:
                 merged_metadata["report"] = result.report
 
                 backtest_run.status = "completed"
-                backtest_run.metadata_info = merged_metadata
+                backtest_run.metadata_info = make_json_safe(merged_metadata)
                 backtest_run.total_candles = result.total_candles
                 backtest_run.total_signals = len(result.signals)
                 backtest_run.buy_signals = buy_count
@@ -153,9 +152,9 @@ class BacktestRunService:
                 logger.error(f"Freqtrade 回测执行失败: {exc}", exc_info=True)
                 session.rollback()
                 backtest_run.status = "failed"
-                backtest_run.metadata_info = {
+                backtest_run.metadata_info = make_json_safe({
                     **(backtest_run.metadata_info or {}),
                     "error": str(exc),
-                }
+                })
                 session.commit()
                 return None

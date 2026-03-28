@@ -10,7 +10,16 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, R
 
 from app.dependencies import get_market_app_service, get_market_data_service
 from app.rate_limit import limiter
-from app.schemas.market import ApiStatusResponse, CryptoIndexResponse, MarketIndicatorResponse, RealtimeResponse
+from app.schemas.market import (
+    ApiStatusResponse,
+    CryptoIndexResponse,
+    FundingRateHistoryResponse,
+    FundingRateSnapshotResponse,
+    FundingRateSyncResponse,
+    MarketIndicatorResponse,
+    RealtimeResponse,
+    TechnicalMetricsResponse,
+)
 from app.services.market.app_service import MarketAppService
 from app.services.market.market_data_service import MarketDataService
 from app.services.market.websocket_service import MarketWebSocketService
@@ -151,6 +160,92 @@ async def get_market_indicators(
         return service.get_indicators(category=category, days=days)
     except Exception as exc:
         logger.error(f"API /indicators 错误: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/funding-rate/current", response_model=FundingRateSnapshotResponse)
+@limiter.limit(settings.RATE_LIMIT_HEAVY)
+async def get_current_funding_rate(
+    request: Request,
+    symbol: str = Query(..., description="合约 symbol，例如 BTCUSDT 或 BTC/USDT:USDT"),
+    service: MarketAppService = Depends(get_market_app_service),
+):
+    try:
+        return await service.get_current_funding_rate(symbol)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"API /funding-rate/current 错误: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/funding-rate/sync", response_model=FundingRateSyncResponse)
+@limiter.limit(settings.RATE_LIMIT_HEAVY)
+async def sync_funding_rate_history(
+    request: Request,
+    symbol: str = Query(..., description="合约 symbol，例如 BTCUSDT"),
+    start_date: str = Query("2019-09-01", description="开始日期 YYYY-MM-DD"),
+    end_date: str | None = Query(None, description="结束日期 YYYY-MM-DD，默认当前时间"),
+    service: MarketAppService = Depends(get_market_app_service),
+):
+    try:
+        return await service.sync_funding_rate_history(
+            symbol=symbol,
+            start_date=start_date,
+            end_date=end_date,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"API /funding-rate/sync 错误: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/funding-rate/history", response_model=FundingRateHistoryResponse)
+async def get_funding_rate_history(
+    symbol: str = Query(..., description="合约 symbol，例如 BTCUSDT"),
+    start_date: str | None = Query(None, description="开始日期 YYYY-MM-DD"),
+    end_date: str | None = Query(None, description="结束日期 YYYY-MM-DD"),
+    limit: int | None = Query(None, ge=1, le=20000),
+    service: MarketAppService = Depends(get_market_app_service),
+):
+    try:
+        return await service.get_funding_rate_history(
+            symbol=symbol,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"API /funding-rate/history 错误: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/technical-metrics", response_model=TechnicalMetricsResponse)
+async def get_technical_metrics(
+    symbol: str = Query(..., description="交易对，如 BTC/USDT"),
+    timeframe: str = Query("1d", description="时间周期，如 1d"),
+    limit: int = Query(120, ge=30, le=settings.API_MAX_LIMIT),
+    atr_period: int = Query(14, ge=2, le=200),
+    volatility_period: int = Query(20, ge=2, le=365),
+    market_data_service: MarketDataService = Depends(get_market_data_service),
+    service: MarketAppService = Depends(get_market_app_service),
+):
+    try:
+        return await service.get_technical_metrics(
+            market_data_service=market_data_service,
+            symbol=symbol,
+            timeframe=timeframe,
+            limit=limit,
+            atr_period=atr_period,
+            volatility_period=volatility_period,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"API /technical-metrics 错误: {exc}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

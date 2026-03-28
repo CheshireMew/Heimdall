@@ -5,13 +5,18 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from app.infra.db.database import init_db, session_scope
+from app.infra.db.database import session_scope
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
 from app.services.backtest.models import BacktestEquityPointRecord, BacktestSignalRecord, BacktestTradeRecord, PortfolioConfigRecord, StrategyVersionRecord
-from app.services.backtest.run_contract import build_paper_metadata
+from app.services.backtest.run_contract import FACTOR_BLEND_PAPER_ENGINE, PAPER_LIVE_EXECUTION_MODE, build_paper_metadata, ensure_paper_runtime_state, update_paper_metadata
+from app.services.backtest.run_repository import BacktestRunRepository
 from app.services.factors.service import FactorResearchService
 from utils.logger import logger
+
+
+def utc_now_naive() -> datetime:
+    return datetime.now(datetime.UTC).replace(tzinfo=None)
 
 
 @dataclass(slots=True)
@@ -21,6 +26,8 @@ class FactorPaperPosition:
     amount: float
     stake_amount: float
     entry_score: float
+    highest_price: float
+    last_price: float
 
 
 class FactorPaperRunManager:
@@ -28,12 +35,13 @@ class FactorPaperRunManager:
         self,
         *,
         factor_service: FactorResearchService,
+        run_repository: BacktestRunRepository,
         report_builder: FreqtradeReportBuilder | None = None,
     ) -> None:
         self.factor_service = factor_service
+        self.run_repository = run_repository
         self.report_builder = report_builder or FreqtradeReportBuilder()
         self._tasks: dict[int, asyncio.Task[Any]] = {}
-        init_db()
 
     async def restore_active_runs(self) -> None:
         loop = asyncio.get_running_loop()
@@ -111,7 +119,7 @@ class FactorPaperRunManager:
             if not run:
                 return False
             metadata = dict(run.metadata_info or {})
-            if metadata.get("execution_mode") != "paper_live" or metadata.get("engine") != "FactorBlendPaper":
+            if run.execution_mode != PAPER_LIVE_EXECUTION_MODE or run.engine != FACTOR_BLEND_PAPER_ENGINE:
                 return False
             if run.status != "running":
                 return False
@@ -121,9 +129,11 @@ class FactorPaperRunManager:
             if frame.empty:
                 return True
 
-            timeframe_delta = self.factor_service._timeframe_delta(run.timeframe)
-            now = datetime.utcnow()
-            last_processed = int((metadata.get("runtime_state") or {}).get("last_processed", 0) or 0)
+            timeframe_delta = self.factor_service.timeframe_delta(run.timeframe)
+            now = utc_now_naive()
+            symbol = str((metadata.get("symbols") or [run.symbol])[0])
+            runtime_state = ensure_paper_runtime_state(dict(metadata.get("runtime_state") or {}), symbols=[symbol])
+            last_processed = int((runtime_state.get("last_processed") or {}).get(symbol, 0) or 0)
             closed = frame.loc[frame["timestamp"].apply(lambda ts: ts + timeframe_delta <= now)].copy()
             if last_processed:
                 last_processed_dt = datetime.utcfromtimestamp(last_processed / 1000.0)
@@ -131,8 +141,8 @@ class FactorPaperRunManager:
             if closed.empty:
                 return True
 
-            runtime_state = dict(metadata.get("runtime_state") or {})
-            position = self._deserialize_position(runtime_state.get("position"))
+            positions = dict(runtime_state.get("positions") or {})
+            position = self._deserialize_position(positions.get(symbol))
             cash_balance = float(runtime_state.get("cash_balance", metadata.get("initial_cash", 0.0)))
             fee_ratio = float(metadata.get("fee_rate", 0.0)) / 100.0
             signals: list[BacktestSignalRecord] = []
@@ -144,6 +154,8 @@ class FactorPaperRunManager:
                 score = float(row.get("composite_score") or 0.0)
                 timestamp = row["timestamp"]
                 if position:
+                    position.last_price = price
+                    position.highest_price = max(position.highest_price, price)
                     held_bars = max(int(runtime_state.get("held_bars", 0)) + 1, 1)
                     runtime_state["held_bars"] = held_bars
                     profit_ratio = self._profit_ratio(position, price, fee_ratio)
@@ -187,6 +199,8 @@ class FactorPaperRunManager:
                                 amount=amount,
                                 stake_amount=stake_amount,
                                 entry_score=score,
+                                highest_price=price,
+                                last_price=price,
                             )
                             runtime_state["held_bars"] = 0
                             signals.append(
@@ -211,7 +225,7 @@ class FactorPaperRunManager:
                         drawdown_pct=0.0,
                     )
                 )
-                runtime_state["last_processed"] = int(timestamp.timestamp() * 1000)
+                runtime_state.setdefault("last_processed", {})[symbol] = int(timestamp.timestamp() * 1000)
 
             self._persist_increment(
                 session=session,
@@ -341,20 +355,24 @@ class FactorPaperRunManager:
             start_date=run.start_date,
             end_date=run.end_date or now,
         )
-        metadata["runtime_state"] = {
+        symbol = str((metadata.get("symbols") or [run.symbol])[0])
+        serialized_position = self._serialize_position(position, symbol=symbol)
+        runtime_payload = {
+            **{
+                key: value
+                for key, value in runtime_state.items()
+                if key not in {"cash_balance", "positions", "last_processed"}
+            },
             "cash_balance": cash_balance,
-            "position": self._serialize_position(position),
-            "last_processed": runtime_state.get("last_processed"),
-            "held_bars": runtime_state.get("held_bars", 0),
+            "last_processed": dict(runtime_state.get("last_processed") or {}),
+            "positions": {symbol: serialized_position} if serialized_position else {},
         }
-        metadata["paper_live"] = {
-            "cash_balance": cash_balance,
-            "open_positions": 1 if position else 0,
-            "positions": [self._serialize_position(position)] if position else [],
-            "last_updated": now.isoformat(),
-        }
-        metadata["report"] = report
-        run.metadata_info = metadata
+        run.metadata_info = update_paper_metadata(
+            metadata,
+            runtime_state=runtime_payload,
+            last_updated=now.isoformat(),
+            report=report,
+        )
         session.flush()
 
     def _create_run(
@@ -376,9 +394,9 @@ class FactorPaperRunManager:
             raise ValueError("因子研究记录不存在。")
         request_payload = dict(research_run.get("request") or {})
         blend = dict(research_run.get("blend") or {})
-        now = datetime.utcnow()
+        now = utc_now_naive()
         _, live_frame = self.factor_service.build_live_blend_frame(research_run_id, end_date=now)
-        timeframe_delta = self.factor_service._timeframe_delta(request_payload["timeframe"])
+        timeframe_delta = self.factor_service.timeframe_delta(request_payload["timeframe"])
         closed_frame = live_frame.loc[live_frame["timestamp"].apply(lambda ts: ts + timeframe_delta <= now)] if not live_frame.empty else live_frame
         last_processed = None if closed_frame.empty else int(closed_frame["timestamp"].iloc[-1].timestamp() * 1000)
         strategy = StrategyVersionRecord(
@@ -407,10 +425,14 @@ class FactorPaperRunManager:
             initial_cash=initial_cash,
             fee_rate=fee_rate,
             portfolio=portfolio,
-            runtime_state={"cash_balance": initial_cash, "position": None, "last_processed": last_processed, "held_bars": 0},
+            runtime_state={
+                "cash_balance": initial_cash,
+                "last_processed": {request_payload["symbol"]: last_processed},
+                "positions": {},
+                "held_bars": 0,
+            },
             paper_live={"cash_balance": initial_cash, "open_positions": 0, "positions": [], "last_updated": now.isoformat()},
             report=report,
-            engine="FactorBlendPaper",
         )
         metadata["factor_research"] = {
             "run_id": research_run_id,
@@ -431,6 +453,8 @@ class FactorPaperRunManager:
                 start_date=now,
                 end_date=now,
                 status="running",
+                execution_mode=PAPER_LIVE_EXECUTION_MODE,
+                engine=FACTOR_BLEND_PAPER_ENGINE,
                 metadata_info=metadata,
             )
             session.add(run)
@@ -448,39 +472,41 @@ class FactorPaperRunManager:
             return run.id
 
     def _list_active_run_ids(self) -> list[int]:
-        with session_scope() as session:
-            runs = session.query(BacktestRun).order_by(BacktestRun.created_at.asc()).all()
-            return [
-                run.id
-                for run in runs
-                if run.status == "running"
-                and (run.metadata_info or {}).get("execution_mode") == "paper_live"
-                and (run.metadata_info or {}).get("engine") == "FactorBlendPaper"
-            ]
+        return self.run_repository.list_active_run_ids(
+            execution_mode=PAPER_LIVE_EXECUTION_MODE,
+            engine=FACTOR_BLEND_PAPER_ENGINE,
+        )
 
     def _mark_stopped(self, run_id: int, status: str, reason: str) -> None:
         with session_scope() as session:
             run = session.query(BacktestRun).filter(BacktestRun.id == run_id).first()
             if not run:
                 return
+            if run.execution_mode != PAPER_LIVE_EXECUTION_MODE or run.engine != FACTOR_BLEND_PAPER_ENGINE:
+                return
             metadata = dict(run.metadata_info or {})
             run.status = status
-            metadata["paper_live"] = {
-                **(metadata.get("paper_live") or {}),
-                "last_updated": datetime.utcnow().isoformat(),
-                "stop_reason": reason,
-            }
-            run.metadata_info = metadata
+            symbol = str((metadata.get("symbols") or [run.symbol])[0])
+            run.metadata_info = update_paper_metadata(
+                metadata,
+                runtime_state=ensure_paper_runtime_state(dict(metadata.get("runtime_state") or {}), symbols=[symbol]),
+                last_updated=utc_now_naive().isoformat(),
+                stop_reason=reason,
+            )
             session.flush()
 
-    def _serialize_position(self, position: FactorPaperPosition | None) -> dict[str, Any] | None:
+    def _serialize_position(self, position: FactorPaperPosition | None, *, symbol: str) -> dict[str, Any] | None:
         if not position:
             return None
         return {
+            "symbol": symbol,
             "opened_at": position.opened_at.isoformat(),
             "entry_price": position.entry_price,
-            "amount": position.amount,
-            "stake_amount": position.stake_amount,
+            "remaining_amount": position.amount,
+            "remaining_cost": position.stake_amount,
+            "highest_price": position.highest_price,
+            "last_price": position.last_price,
+            "taken_partial_ids": [],
             "entry_score": position.entry_score,
         }
 
@@ -490,9 +516,11 @@ class FactorPaperRunManager:
         return FactorPaperPosition(
             opened_at=datetime.fromisoformat(payload["opened_at"]),
             entry_price=float(payload["entry_price"]),
-            amount=float(payload["amount"]),
-            stake_amount=float(payload["stake_amount"]),
+            amount=float(payload.get("remaining_amount", payload.get("amount", 0.0))),
+            stake_amount=float(payload.get("remaining_cost", payload.get("stake_amount", 0.0))),
             entry_score=float(payload.get("entry_score", 0.0)),
+            highest_price=float(payload.get("highest_price", payload.get("entry_price", 0.0))),
+            last_price=float(payload.get("last_price", payload.get("entry_price", 0.0))),
         )
 
     def _profit_ratio(self, position: FactorPaperPosition, price: float, fee_ratio: float) -> float:

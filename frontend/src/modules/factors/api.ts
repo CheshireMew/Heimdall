@@ -1,4 +1,4 @@
-import request from '@/api/request'
+import request, { longTaskRequest } from '@/api/request'
 import type { AxiosResponse } from 'axios'
 import type {
   FactorCatalogResponse,
@@ -15,7 +15,7 @@ export const factorApi = {
   },
 
   analyze(body: FactorResearchRequest): Promise<AxiosResponse<FactorResearchResponse>> {
-    return request.post('/factor-research/analyze', body)
+    return longTaskRequest.post('/factor-research/analyze', body)
   },
 
   listRuns(limit: number = 20): Promise<AxiosResponse<FactorResearchRun[]>> {
@@ -27,10 +27,10 @@ export const factorApi = {
   },
 
   startBacktest(runId: number, body: FactorExecutionRequest): Promise<AxiosResponse<FactorExecutionResponse>> {
-    return request.post(`/factor-research/runs/${runId}/backtest`, body)
+    return longTaskRequest.post(`/factor-research/runs/${runId}/backtest`, body)
   },
 
   startPaper(runId: number, body: FactorExecutionRequest): Promise<AxiosResponse<FactorExecutionResponse>> {
-    return request.post(`/factor-research/runs/${runId}/paper`, body)
+    return longTaskRequest.post(`/factor-research/runs/${runId}/paper`, body)
   },
 }

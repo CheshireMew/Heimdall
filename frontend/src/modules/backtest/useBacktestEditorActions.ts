@@ -1,0 +1,108 @@
+import { buildParameterSpaceJson, clone } from './editorContract'
+import { backtestApi } from './api'
+
+
+interface UseBacktestEditorActionsOptions {
+  t: (key: string) => string
+  router: any
+  config: any
+  editor: any
+  fetchStrategies: () => Promise<void>
+  fetchTemplates: () => Promise<void>
+  fetchIndicators: () => Promise<void>
+  syncStrategyVersion: () => void
+}
+
+export const useBacktestEditorActions = ({
+  t,
+  router,
+  config,
+  editor,
+  fetchStrategies,
+  fetchTemplates,
+  fetchIndicators,
+  syncStrategyVersion,
+}: UseBacktestEditorActionsOptions) => {
+  const createIndicator = async () => {
+    try {
+      await backtestApi.createIndicator({
+        key: editor.indicatorDraft.key.trim(),
+        name: editor.indicatorDraft.name.trim(),
+        engine_key: editor.indicatorDraft.engine_key,
+        description: editor.indicatorDraft.description.trim() || null,
+        params: clone(editor.indicatorDraft.params),
+      })
+      await fetchIndicators()
+      editor.resetIndicatorDraft()
+      alert(t('backtest.indicatorSaved'))
+    } catch (error: any) {
+      alert(`${t('backtest.versionSaveFailed')}: ${error.message}`)
+    }
+  }
+
+  const createTemplate = async () => {
+    try {
+      if (!editor.versionDraft.config) throw new Error(t('backtest.templateMissing'))
+      if (!editor.templateDraft.key.trim() || !editor.templateDraft.name.trim()) throw new Error(t('backtest.templateDraftRequired'))
+      const indicatorKeys = Array.from(new Set([
+        ...editor.templateDraft.indicator_keys,
+        ...Object.values(editor.versionDraft.config.indicators).map((item: any) => item.type),
+      ]))
+      const res = await backtestApi.createTemplate({
+        key: editor.templateDraft.key.trim(),
+        name: editor.templateDraft.name.trim(),
+        category: editor.templateDraft.category.trim() || 'custom',
+        description: editor.templateDraft.description.trim() || null,
+        indicator_keys: indicatorKeys,
+        default_config: clone(editor.versionDraft.config),
+        default_parameter_space: buildParameterSpaceJson(editor.optimizableTargets.value, editor.versionDraft.parameterSpaceValues),
+      })
+      await fetchTemplates()
+      editor.applyDraftFromTemplate(res.data.template, res.data.default_config, res.data.default_parameter_space, { description: res.data.description || '' })
+      editor.resetTemplateDraft()
+      alert(t('backtest.templateSaved'))
+    } catch (error: any) {
+      alert(`${t('backtest.versionSaveFailed')}: ${error.message}`)
+    }
+  }
+
+  const createStrategyVersion = async () => {
+    try {
+      if (!editor.versionDraft.key.trim() || !editor.versionDraft.name.trim()) throw new Error(t('backtest.versionDraftRequired'))
+      if (!editor.versionDraft.config) throw new Error(t('backtest.templateMissing'))
+      if (!editor.versionDraft.template || !editor.editorTemplate.value) throw new Error(t('backtest.templateMissing'))
+      const res = await backtestApi.createStrategyVersion({
+        key: editor.versionDraft.key.trim(),
+        name: editor.versionDraft.name.trim(),
+        template: editor.versionDraft.template,
+        category: editor.editorTemplate.value.category || editor.versionDraft.category,
+        description: editor.versionDraft.description.trim() || null,
+        notes: editor.versionDraft.notes.trim() || null,
+        config: clone(editor.versionDraft.config),
+        parameter_space: buildParameterSpaceJson(editor.optimizableTargets.value, editor.versionDraft.parameterSpaceValues),
+        make_default: editor.versionDraft.make_default,
+      })
+      await fetchStrategies()
+      config.strategy_key = editor.versionDraft.key.trim()
+      config.strategy_version = res.data.version
+      syncStrategyVersion()
+      await router.replace({
+        path: '/backtest/editor',
+        query: {
+          mode: 'copy',
+          strategy: config.strategy_key,
+          version: String(config.strategy_version),
+        },
+      })
+      alert(t('backtest.versionSaved'))
+    } catch (error: any) {
+      alert(`${t('backtest.versionSaveFailed')}: ${error.message}`)
+    }
+  }
+
+  return {
+    createIndicator,
+    createTemplate,
+    createStrategyVersion,
+  }
+}

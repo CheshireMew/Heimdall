@@ -3,7 +3,7 @@
     <section class="rounded-[28px] border border-emerald-800/40 bg-[radial-gradient(circle_at_top_right,_rgba(16,185,129,0.18),_transparent_36%),linear-gradient(135deg,_rgba(6,78,59,0.96),_rgba(15,23,42,0.92))] px-6 py-7 text-white shadow-[0_26px_80px_rgba(6,78,59,0.22)]">
       <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <button class="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-emerald-50/90 transition hover:border-emerald-300/60 hover:text-white" @click="page.goBackToCenter">
+          <button class="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-emerald-50/90 transition hover:border-emerald-300/60 hover:text-white" @click="page.seedPanel.goBackToCenter">
             {{ $t('backtest.backToCenter') }}
           </button>
           <div class="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-200/75">{{ $t('backtest.editorEyebrow') }}</div>
@@ -27,35 +27,35 @@
         <div class="space-y-3">
           <div>
             <label class="label">{{ $t('backtest.strategy') }}</label>
-            <select v-model="page.config.strategy_key" class="input" @change="page.syncStrategyVersion">
-              <option v-for="item in page.strategies" :key="item.key" :value="item.key">{{ item.name }}</option>
+            <select v-model="page.seedPanel.config.strategy_key" class="input" @change="page.seedPanel.syncStrategyVersion">
+              <option v-for="item in page.seedPanel.strategies" :key="item.key" :value="item.key">{{ item.name }}</option>
             </select>
           </div>
           <div>
             <label class="label">{{ $t('backtest.version') }}</label>
-            <select v-model="page.config.strategy_version" class="input">
-              <option v-for="item in page.selectedStrategyVersions" :key="item?.version ?? String(item)" :value="item?.version">
+            <select v-model="page.seedPanel.config.strategy_version" class="input">
+              <option v-for="item in page.seedPanel.selectedStrategyVersions" :key="item?.version ?? String(item)" :value="item?.version">
                 v{{ item?.version ?? '-' }} · {{ item?.name ?? '-' }}
               </option>
             </select>
           </div>
         </div>
 
-        <div v-if="page.selectedStrategy" class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-4 text-sm text-gray-600 dark:text-gray-300">
-          <div class="font-semibold text-gray-900 dark:text-white">{{ page.selectedStrategy.name }}</div>
-          <div class="mt-2">{{ page.selectedStrategy.description || '-' }}</div>
+        <div v-if="page.seedPanel.selectedStrategy" class="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-4 text-sm text-gray-600 dark:text-gray-300">
+          <div class="font-semibold text-gray-900 dark:text-white">{{ page.seedPanel.selectedStrategy.name }}</div>
+          <div class="mt-2">{{ page.seedPanel.selectedStrategy.description || '-' }}</div>
           <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-            {{ $t('backtest.selectedVersion') }}: v{{ page.config.strategy_version }} · {{ page.selectedVersion?.name || '-' }}
+            {{ $t('backtest.selectedVersion') }}: v{{ page.seedPanel.config.strategy_version }} · {{ page.seedPanel.selectedVersion?.name || '-' }}
           </div>
         </div>
 
         <div class="space-y-3">
-          <button class="btn-primary w-full" :disabled="!page.selectedVersion" @click="page.openCopySeed">{{ $t('backtest.fillFromCurrent') }}</button>
-          <button class="btn-secondary w-full" @click="page.openBlankSeed">{{ $t('backtest.startBlankBuilder') }}</button>
+          <button class="btn-primary w-full" :disabled="!page.seedPanel.selectedVersion" @click="page.seedPanel.openCopySeed">{{ $t('backtest.fillFromCurrent') }}</button>
+          <button class="btn-secondary w-full" @click="page.seedPanel.openBlankSeed">{{ $t('backtest.startBlankBuilder') }}</button>
         </div>
       </aside>
 
-      <BacktestVersionEditor :page="page" />
+      <BacktestVersionEditor :panel="page.editorPanel" />
     </div>
   </div>
 </template>
