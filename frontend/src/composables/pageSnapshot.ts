@@ -5,6 +5,7 @@ const PAGE_SNAPSHOT_PREFIX = 'heimdall_page_snapshot:'
 export const PAGE_SNAPSHOT_KEYS = {
   dca: 'tools:dca',
   compare: 'tools:compare',
+  portfolioBalance: 'tools:portfolio-balance',
   factorResearch: 'tools:factor-research',
   halving: 'tools:halving',
   cryptoIndex: 'indicators:crypto-index',

@@ -1,5 +1,6 @@
 export interface BacktestControlPanelView {
   config: any
+  today: string
   strategies: any[]
   selectedStrategy: any | null
   selectedStrategyVersions: any[]

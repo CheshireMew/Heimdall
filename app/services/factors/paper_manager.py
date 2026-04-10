@@ -1,53 +1,46 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.infra.db.database import session_scope
-from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade
-from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
-from app.services.backtest.models import BacktestEquityPointRecord, BacktestSignalRecord, BacktestTradeRecord, PortfolioConfigRecord, StrategyVersionRecord
+from app.infra.db.schema import BacktestEquityPoint, BacktestRun
+from app.services.backtest.models import BacktestEquityPointRecord, PortfolioConfigRecord, StrategyVersionRecord
 from app.services.backtest.run_contract import FACTOR_BLEND_PAPER_ENGINE, PAPER_LIVE_EXECUTION_MODE, build_paper_metadata, ensure_paper_runtime_state, update_paper_metadata
 from app.services.backtest.run_repository import BacktestRunRepository
-from app.services.factors.service import FactorResearchService
+from app.services.factors.signal_execution_core import FactorSignalContext, FactorSignalExecutionCore
+from config import settings
+from utils.time_utils import utc_now_naive
 from utils.logger import logger
 
-
-def utc_now_naive() -> datetime:
-    return datetime.now(datetime.UTC).replace(tzinfo=None)
-
-
-@dataclass(slots=True)
-class FactorPaperPosition:
-    opened_at: datetime
-    entry_price: float
-    amount: float
-    stake_amount: float
-    entry_score: float
-    highest_price: float
-    last_price: float
-
+if TYPE_CHECKING:
+    from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
+    from app.services.factors.paper_persistence_service import FactorPaperPersistenceService
+    from app.services.factors.service import FactorResearchService
 
 class FactorPaperRunManager:
     def __init__(
         self,
         *,
-        factor_service: FactorResearchService,
+        factor_service: FactorResearchService | None = None,
         run_repository: BacktestRunRepository,
         report_builder: FreqtradeReportBuilder | None = None,
+        execution_core: FactorSignalExecutionCore,
+        persistence_service: FactorPaperPersistenceService | None = None,
     ) -> None:
         self.factor_service = factor_service
         self.run_repository = run_repository
-        self.report_builder = report_builder or FreqtradeReportBuilder()
+        self.report_builder = report_builder
+        self.execution_core = execution_core
+        self.persistence_service = persistence_service
         self._tasks: dict[int, asyncio.Task[Any]] = {}
 
     async def restore_active_runs(self) -> None:
         loop = asyncio.get_running_loop()
         run_ids = await loop.run_in_executor(None, self._list_active_run_ids)
         for run_id in run_ids:
-            self._ensure_task(run_id)
+            self._ensure_task(run_id, initial_delay=float(settings.WS_UPDATE_INTERVAL))
 
     async def shutdown(self) -> None:
         tasks = list(self._tasks.values())
@@ -90,21 +83,23 @@ class FactorPaperRunManager:
         self._ensure_task(run_id)
         return {"success": True, "run_id": run_id, "message": "因子模拟盘已启动"}
 
-    def _ensure_task(self, run_id: int) -> None:
+    def _ensure_task(self, run_id: int, *, initial_delay: float = 0.0) -> None:
         task = self._tasks.get(run_id)
         if task and not task.done():
             return
-        self._tasks[run_id] = asyncio.create_task(self._run_loop(run_id))
+        self._tasks[run_id] = asyncio.create_task(self._run_loop(run_id, initial_delay=initial_delay))
 
-    async def _run_loop(self, run_id: int) -> None:
+    async def _run_loop(self, run_id: int, *, initial_delay: float = 0.0) -> None:
         try:
+            if initial_delay > 0:
+                await asyncio.sleep(initial_delay)
             while True:
                 loop = asyncio.get_running_loop()
                 should_continue = await loop.run_in_executor(None, lambda: self._tick(run_id))
                 if not should_continue:
                     self._tasks.pop(run_id, None)
                     return
-                await asyncio.sleep(5)
+                await asyncio.sleep(settings.WS_UPDATE_INTERVAL)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -125,11 +120,12 @@ class FactorPaperRunManager:
                 return False
 
             research_meta = dict(metadata.get("factor_research") or {})
-            research_run, frame = self.factor_service.build_live_blend_frame(research_meta["run_id"])
+            factor_service = self._get_factor_service()
+            research_run, frame = factor_service.build_live_blend_frame(research_meta["run_id"])
             if frame.empty:
                 return True
 
-            timeframe_delta = self.factor_service.timeframe_delta(run.timeframe)
+            timeframe_delta = factor_service.timeframe_delta(run.timeframe)
             now = utc_now_naive()
             symbol = str((metadata.get("symbols") or [run.symbol])[0])
             runtime_state = ensure_paper_runtime_state(dict(metadata.get("runtime_state") or {}), symbols=[symbol])
@@ -141,93 +137,38 @@ class FactorPaperRunManager:
             if closed.empty:
                 return True
 
-            positions = dict(runtime_state.get("positions") or {})
-            position = self._deserialize_position(positions.get(symbol))
-            cash_balance = float(runtime_state.get("cash_balance", metadata.get("initial_cash", 0.0)))
-            fee_ratio = float(metadata.get("fee_rate", 0.0)) / 100.0
-            signals: list[BacktestSignalRecord] = []
-            trades: list[BacktestTradeRecord] = []
-            equity_points: list[BacktestEquityPointRecord] = []
+            batch = self.execution_core.run_batch(
+                rows=closed.to_dict("records"),
+                state=self.execution_core.create_state(
+                    float(runtime_state.get("cash_balance", metadata.get("initial_cash", 0.0))),
+                    position=self.execution_core.deserialize_position((runtime_state.get("positions") or {}).get(symbol)),
+                    held_bars=int(runtime_state.get("held_bars", 0) or 0),
+                ),
+                context=FactorSignalContext(
+                    symbol=symbol,
+                    research_run_id=int(research_meta["run_id"]),
+                    initial_cash=float(metadata.get("initial_cash", 0.0)),
+                    fee_rate=float(metadata.get("fee_rate", 0.0)),
+                    position_size_pct=float(research_meta["position_size_pct"]),
+                    stake_mode=str(research_meta.get("stake_mode") or "fixed"),
+                    entry_threshold=float(research_meta["entry_threshold"]),
+                    exit_threshold=float(research_meta["exit_threshold"]),
+                    stoploss_pct=float(research_meta["stoploss_pct"]),
+                    takeprofit_pct=float(research_meta["takeprofit_pct"]),
+                    max_hold_bars=int(research_meta["max_hold_bars"]),
+                ),
+            )
 
-            for bar_index, row in enumerate(closed.to_dict("records"), start=1):
-                price = float(row["close"])
-                score = float(row.get("composite_score") or 0.0)
-                timestamp = row["timestamp"]
-                if position:
-                    position.last_price = price
-                    position.highest_price = max(position.highest_price, price)
-                    held_bars = max(int(runtime_state.get("held_bars", 0)) + 1, 1)
-                    runtime_state["held_bars"] = held_bars
-                    profit_ratio = self._profit_ratio(position, price, fee_ratio)
-                    if (
-                        profit_ratio <= float(research_meta["stoploss_pct"])
-                        or profit_ratio >= float(research_meta["takeprofit_pct"])
-                        or score <= float(research_meta["exit_threshold"])
-                        or held_bars >= int(research_meta["max_hold_bars"])
-                    ):
-                        trade = self._close_position(position, price, timestamp, fee_ratio, run.symbol)
-                        cash_balance += trade.stake_amount + trade.profit_abs
-                        trades.append(trade)
-                        signals.append(
-                            BacktestSignalRecord(
-                                timestamp=timestamp,
-                                price=price,
-                                signal="SELL",
-                                confidence=100.0,
-                                indicators={"composite_score": score, "research_run_id": research_meta["run_id"]},
-                                reasoning="Factor paper exit",
-                            )
-                        )
-                        position = None
-                        runtime_state["held_bars"] = 0
+            position = batch.state.position
+            cash_balance = batch.state.cash_balance
+            signals = batch.signals
+            trades = batch.trades
+            equity_points = batch.equity_points
+            runtime_state["held_bars"] = batch.state.held_bars
+            for row in closed.to_dict("records"):
+                runtime_state.setdefault("last_processed", {})[symbol] = int(row["timestamp"].timestamp() * 1000)
 
-                if position is None and score >= float(research_meta["entry_threshold"]):
-                    stake_amount = min(
-                        cash_balance,
-                        float(metadata.get("initial_cash", 0.0)) * (float(research_meta["position_size_pct"]) / 100.0)
-                        if research_meta.get("stake_mode") == "fixed"
-                        else cash_balance * (float(research_meta["position_size_pct"]) / 100.0),
-                    )
-                    if stake_amount > 0:
-                        notional = stake_amount / (1.0 + fee_ratio) if fee_ratio < 1 else 0.0
-                        amount = notional / price if price > 0 else 0.0
-                        if amount > 0:
-                            cash_balance -= stake_amount
-                            position = FactorPaperPosition(
-                                opened_at=timestamp,
-                                entry_price=price,
-                                amount=amount,
-                                stake_amount=stake_amount,
-                                entry_score=score,
-                                highest_price=price,
-                                last_price=price,
-                            )
-                            runtime_state["held_bars"] = 0
-                            signals.append(
-                                BacktestSignalRecord(
-                                    timestamp=timestamp,
-                                    price=price,
-                                    signal="BUY",
-                                    confidence=100.0,
-                                    indicators={"composite_score": score, "research_run_id": research_meta["run_id"]},
-                                    reasoning="Factor paper entry",
-                                )
-                            )
-
-                equity = cash_balance
-                if position:
-                    equity += position.amount * price * (1.0 - fee_ratio)
-                equity_points.append(
-                    BacktestEquityPointRecord(
-                        timestamp=timestamp,
-                        equity=equity,
-                        pnl_abs=equity - float(metadata.get("initial_cash", 0.0)),
-                        drawdown_pct=0.0,
-                    )
-                )
-                runtime_state.setdefault("last_processed", {})[symbol] = int(timestamp.timestamp() * 1000)
-
-            self._persist_increment(
+            self._get_persistence_service().persist_increment(
                 session=session,
                 run=run,
                 metadata=metadata,
@@ -240,140 +181,6 @@ class FactorPaperRunManager:
                 now=now,
             )
             return True
-
-    def _persist_increment(
-        self,
-        *,
-        session,
-        run: BacktestRun,
-        metadata: dict[str, Any],
-        runtime_state: dict[str, Any],
-        position: FactorPaperPosition | None,
-        cash_balance: float,
-        new_signals: list[BacktestSignalRecord],
-        new_trades: list[BacktestTradeRecord],
-        new_equity_points: list[BacktestEquityPointRecord],
-        now: datetime,
-    ) -> None:
-        if new_signals:
-            session.bulk_save_objects(
-                [
-                    BacktestSignal(
-                        backtest_id=run.id,
-                        timestamp=item.timestamp,
-                        price=item.price,
-                        signal=item.signal,
-                        confidence=item.confidence,
-                        indicators=item.indicators,
-                        reasoning=item.reasoning,
-                    )
-                    for item in new_signals
-                ]
-            )
-        if new_trades:
-            session.bulk_save_objects(
-                [
-                    BacktestTrade(
-                        backtest_id=run.id,
-                        pair=item.pair or run.symbol,
-                        opened_at=item.opened_at,
-                        closed_at=item.closed_at,
-                        entry_price=item.entry_price,
-                        exit_price=item.exit_price,
-                        stake_amount=item.stake_amount,
-                        amount=item.amount,
-                        profit_abs=item.profit_abs,
-                        profit_pct=item.profit_pct,
-                        max_drawdown_pct=item.max_drawdown_pct,
-                        duration_minutes=item.duration_minutes,
-                        entry_tag=item.entry_tag,
-                        exit_reason=item.exit_reason,
-                        leverage=item.leverage,
-                    )
-                    for item in new_trades
-                ]
-            )
-        if new_equity_points:
-            peak = max([point.equity for point in session.query(BacktestEquityPoint).filter(BacktestEquityPoint.backtest_id == run.id).all()], default=float(metadata.get("initial_cash", 0.0)))
-            persisted = []
-            for item in new_equity_points:
-                peak = max(peak, item.equity)
-                drawdown = ((peak - item.equity) / peak * 100.0) if peak else 0.0
-                persisted.append(
-                    BacktestEquityPoint(
-                        backtest_id=run.id,
-                        timestamp=item.timestamp,
-                        equity=item.equity,
-                        pnl_abs=item.pnl_abs,
-                        drawdown_pct=drawdown,
-                    )
-                )
-            session.bulk_save_objects(persisted)
-        session.flush()
-
-        run.total_candles += len(new_equity_points)
-        run.total_signals += len(new_signals)
-        run.buy_signals += sum(1 for item in new_signals if item.signal == "BUY")
-        run.sell_signals += sum(1 for item in new_signals if item.signal == "SELL")
-        run.hold_signals = max(run.total_candles - run.total_signals, 0)
-        run.end_date = max((item.timestamp for item in new_equity_points), default=run.end_date or now)
-
-        trades = session.query(BacktestTrade).filter(BacktestTrade.backtest_id == run.id).order_by(BacktestTrade.opened_at.asc()).all()
-        equity = session.query(BacktestEquityPoint).filter(BacktestEquityPoint.backtest_id == run.id).order_by(BacktestEquityPoint.timestamp.asc()).all()
-        trade_records = [
-            BacktestTradeRecord(
-                opened_at=item.opened_at,
-                closed_at=item.closed_at,
-                entry_price=item.entry_price,
-                exit_price=item.exit_price,
-                stake_amount=item.stake_amount,
-                amount=item.amount,
-                profit_abs=item.profit_abs,
-                profit_pct=item.profit_pct,
-                max_drawdown_pct=item.max_drawdown_pct,
-                duration_minutes=item.duration_minutes,
-                entry_tag=item.entry_tag,
-                exit_reason=item.exit_reason,
-                leverage=item.leverage,
-                pair=item.pair,
-            )
-            for item in trades
-        ]
-        equity_records = [
-            BacktestEquityPointRecord(
-                timestamp=item.timestamp,
-                equity=item.equity,
-                pnl_abs=item.pnl_abs,
-                drawdown_pct=item.drawdown_pct,
-            )
-            for item in equity
-        ]
-        report = self.report_builder.build_report(
-            trades=trade_records,
-            equity_curve=equity_records,
-            initial_cash=float(metadata.get("initial_cash", 0.0)),
-            start_date=run.start_date,
-            end_date=run.end_date or now,
-        )
-        symbol = str((metadata.get("symbols") or [run.symbol])[0])
-        serialized_position = self._serialize_position(position, symbol=symbol)
-        runtime_payload = {
-            **{
-                key: value
-                for key, value in runtime_state.items()
-                if key not in {"cash_balance", "positions", "last_processed"}
-            },
-            "cash_balance": cash_balance,
-            "last_processed": dict(runtime_state.get("last_processed") or {}),
-            "positions": {symbol: serialized_position} if serialized_position else {},
-        }
-        run.metadata_info = update_paper_metadata(
-            metadata,
-            runtime_state=runtime_payload,
-            last_updated=now.isoformat(),
-            report=report,
-        )
-        session.flush()
 
     def _create_run(
         self,
@@ -389,14 +196,15 @@ class FactorPaperRunManager:
         takeprofit_pct: float,
         max_hold_bars: int,
     ) -> int:
-        research_run = self.factor_service.get_run(research_run_id)
+        factor_service = self._get_factor_service()
+        research_run = factor_service.get_run(research_run_id)
         if not research_run:
             raise ValueError("因子研究记录不存在。")
         request_payload = dict(research_run.get("request") or {})
         blend = dict(research_run.get("blend") or {})
         now = utc_now_naive()
-        _, live_frame = self.factor_service.build_live_blend_frame(research_run_id, end_date=now)
-        timeframe_delta = self.factor_service.timeframe_delta(request_payload["timeframe"])
+        _, live_frame = factor_service.build_live_blend_frame(research_run_id, end_date=now)
+        timeframe_delta = factor_service.timeframe_delta(request_payload["timeframe"])
         closed_frame = live_frame.loc[live_frame["timestamp"].apply(lambda ts: ts + timeframe_delta <= now)] if not live_frame.empty else live_frame
         last_processed = None if closed_frame.empty else int(closed_frame["timestamp"].iloc[-1].timestamp() * 1000)
         strategy = StrategyVersionRecord(
@@ -412,7 +220,7 @@ class FactorPaperRunManager:
             position_size_pct=position_size_pct,
             stake_mode=stake_mode,
         )
-        report = self.report_builder.build_report(
+        report = self._get_report_builder().build_report(
             trades=[],
             equity_curve=[BacktestEquityPointRecord(timestamp=now, equity=initial_cash, pnl_abs=0.0, drawdown_pct=0.0)],
             initial_cash=initial_cash,
@@ -495,65 +303,17 @@ class FactorPaperRunManager:
             )
             session.flush()
 
-    def _serialize_position(self, position: FactorPaperPosition | None, *, symbol: str) -> dict[str, Any] | None:
-        if not position:
-            return None
-        return {
-            "symbol": symbol,
-            "opened_at": position.opened_at.isoformat(),
-            "entry_price": position.entry_price,
-            "remaining_amount": position.amount,
-            "remaining_cost": position.stake_amount,
-            "highest_price": position.highest_price,
-            "last_price": position.last_price,
-            "taken_partial_ids": [],
-            "entry_score": position.entry_score,
-        }
+    def _get_factor_service(self) -> FactorResearchService:
+        if self.factor_service is None:
+            raise RuntimeError("FactorPaperRunManager 缺少 factor_service 依赖")
+        return self.factor_service
 
-    def _deserialize_position(self, payload: dict[str, Any] | None) -> FactorPaperPosition | None:
-        if not payload:
-            return None
-        return FactorPaperPosition(
-            opened_at=datetime.fromisoformat(payload["opened_at"]),
-            entry_price=float(payload["entry_price"]),
-            amount=float(payload.get("remaining_amount", payload.get("amount", 0.0))),
-            stake_amount=float(payload.get("remaining_cost", payload.get("stake_amount", 0.0))),
-            entry_score=float(payload.get("entry_score", 0.0)),
-            highest_price=float(payload.get("highest_price", payload.get("entry_price", 0.0))),
-            last_price=float(payload.get("last_price", payload.get("entry_price", 0.0))),
-        )
+    def _get_report_builder(self) -> FreqtradeReportBuilder:
+        if self.report_builder is None:
+            raise RuntimeError("FactorPaperRunManager 缺少 report_builder 依赖")
+        return self.report_builder
 
-    def _profit_ratio(self, position: FactorPaperPosition, price: float, fee_ratio: float) -> float:
-        net_value = position.amount * price * (1.0 - fee_ratio)
-        if position.stake_amount <= 0:
-            return 0.0
-        return (net_value - position.stake_amount) / position.stake_amount
-
-    def _close_position(
-        self,
-        position: FactorPaperPosition,
-        price: float,
-        timestamp: datetime,
-        fee_ratio: float,
-        symbol: str,
-        exit_reason: str = "factor_paper_exit",
-    ) -> BacktestTradeRecord:
-        gross = position.amount * price
-        net = gross * (1.0 - fee_ratio)
-        profit_abs = net - position.stake_amount
-        duration_minutes = max(int((timestamp - position.opened_at).total_seconds() // 60), 0)
-        return BacktestTradeRecord(
-            opened_at=position.opened_at,
-            closed_at=timestamp,
-            entry_price=position.entry_price,
-            exit_price=price,
-            stake_amount=position.stake_amount,
-            amount=position.amount,
-            profit_abs=profit_abs,
-            profit_pct=(profit_abs / position.stake_amount * 100.0) if position.stake_amount else 0.0,
-            duration_minutes=duration_minutes,
-            entry_tag="factor_entry",
-            exit_reason=exit_reason,
-            leverage=1.0,
-            pair=symbol,
-        )
+    def _get_persistence_service(self) -> FactorPaperPersistenceService:
+        if self.persistence_service is None:
+            raise RuntimeError("FactorPaperRunManager 缺少 persistence_service 依赖")
+        return self.persistence_service

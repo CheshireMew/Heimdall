@@ -139,22 +139,23 @@ defineEmits(['remove'])
 
 const encodeSource = (source) => {
   if (!source) return ''
-  if (source.kind === 'price') return `price:${source.field}`
-  if (source.kind === 'indicator') return `indicator:${source.indicator}:${source.output}`
+  const barsAgo = Number(source.bars_ago ?? 0)
+  if (source.kind === 'price') return `price:${source.field}:${barsAgo}`
+  if (source.kind === 'indicator') return `indicator:${source.indicator}:${source.output}:${barsAgo}`
   return ''
 }
 
 const decodeSource = (value) => {
-  const [kind, partA, partB] = String(value || '').split(':')
-  if (kind === 'price') return { kind: 'price', field: partA }
-  if (kind === 'indicator') return { kind: 'indicator', indicator: partA, output: partB || 'value' }
-  return { kind: 'price', field: 'close' }
+  const [kind, partA, partB, partC] = String(value || '').split(':')
+  if (kind === 'price') return { kind: 'price', field: partA, bars_ago: Number(partB || 0) }
+  if (kind === 'indicator') return { kind: 'indicator', indicator: partA, output: partB || 'value', bars_ago: Number(partC || 0) }
+  return { kind: 'price', field: 'close', bars_ago: 0 }
 }
 
-const encodeMultiplierSource = (source) => `indicator:${source?.indicator || ''}:${source?.output || 'value'}`
+const encodeMultiplierSource = (source) => `indicator:${source?.indicator || ''}:${source?.output || 'value'}:${Number(source?.bars_ago ?? 0)}`
 const encodeOffsetSource = (source, side) => {
-  if (side === 'base') return `indicator:${source?.base_indicator || ''}:${source?.base_output || 'value'}`
-  return `indicator:${source?.offset_indicator || ''}:${source?.offset_output || 'value'}`
+  if (side === 'base') return `indicator:${source?.base_indicator || ''}:${source?.base_output || 'value'}:${Number(source?.bars_ago ?? 0)}`
+  return `indicator:${source?.offset_indicator || ''}:${source?.offset_output || 'value'}:${Number(source?.bars_ago ?? 0)}`
 }
 
 const updateRuleSource = (rule, side, value) => {
@@ -167,6 +168,7 @@ const updateMultiplierSource = (rule, value) => {
     kind: 'indicator_multiplier',
     indicator: parsed.indicator,
     output: parsed.output,
+    bars_ago: Number(parsed.bars_ago ?? 0),
     multiplier: Number(rule.right.multiplier ?? 1.5),
   }
 }
@@ -179,14 +181,17 @@ const updateOffsetSource = (rule, side, value) => {
     base_output: rule.right.base_output,
     offset_indicator: rule.right.offset_indicator,
     offset_output: rule.right.offset_output,
+    bars_ago: Number(rule.right.bars_ago ?? 0),
     offset_multiplier: Number(rule.right.offset_multiplier ?? 1),
   }
   if (side === 'base') {
     next.base_indicator = parsed.indicator
     next.base_output = parsed.output
+    next.bars_ago = Number(parsed.bars_ago ?? 0)
   } else {
     next.offset_indicator = parsed.indicator
     next.offset_output = parsed.output
+    next.bars_ago = Number(parsed.bars_ago ?? 0)
   }
   rule.right = next
 }
@@ -203,7 +208,7 @@ const changeRightKind = (rule, kind) => {
   }
   if (kind === 'indicator_multiplier') {
     const parsed = decodeSource(firstIndicator)
-    rule.right = { kind: 'indicator_multiplier', indicator: parsed.indicator, output: parsed.output, multiplier: 1.5 }
+    rule.right = { kind: 'indicator_multiplier', indicator: parsed.indicator, output: parsed.output, bars_ago: Number(parsed.bars_ago ?? 0), multiplier: 1.5 }
     return
   }
   const parsed = decodeSource(firstIndicator)
@@ -213,6 +218,7 @@ const changeRightKind = (rule, kind) => {
     base_output: parsed.output,
     offset_indicator: parsed.indicator,
     offset_output: parsed.output,
+    bars_ago: Number(parsed.bars_ago ?? 0),
     offset_multiplier: 1,
   }
 }

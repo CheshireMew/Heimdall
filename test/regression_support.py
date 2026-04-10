@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from app.services.backtest.run_form_contract import backtest_run_defaults
+
 
 def make_kline_data() -> list[list[float]]:
     return [
@@ -17,44 +19,124 @@ def make_strategy_config() -> dict:
             "ema_fast": {
                 "label": "EMA Fast",
                 "type": "ema",
+                "timeframe": "base",
                 "params": {"period": 12},
             }
         },
-        "entry": {
-            "id": "entry-root",
-            "node_type": "group",
-            "label": "Entry",
-            "logic": "and",
-            "enabled": True,
-            "children": [
-                {
-                    "id": "entry-condition",
-                    "node_type": "condition",
-                    "label": "EMA bullish",
-                    "left": {"kind": "indicator", "indicator": "ema_fast", "output": "value"},
-                    "operator": "gt",
-                    "right": {"kind": "value", "value": 100.0},
-                    "enabled": True,
-                }
-            ],
+        "execution": {
+            "market_type": "spot",
+            "direction": "long_only",
         },
-        "exit": {
-            "id": "exit-root",
-            "node_type": "group",
-            "label": "Exit",
-            "logic": "or",
+        "regime_priority": ["trend", "range"],
+        "trend": {
+            "id": "trend",
+            "label": "Trend",
             "enabled": True,
-            "children": [
-                {
-                    "id": "exit-condition",
-                    "node_type": "condition",
-                    "label": "EMA bearish",
-                    "left": {"kind": "indicator", "indicator": "ema_fast", "output": "value"},
-                    "operator": "lt",
-                    "right": {"kind": "value", "value": 95.0},
-                    "enabled": True,
-                }
-            ],
+            "regime": {
+                "id": "trend-regime",
+                "node_type": "group",
+                "label": "Trend Regime",
+                "logic": "and",
+                "enabled": True,
+                "children": [],
+            },
+            "long_entry": {
+                "id": "trend-long-entry",
+                "node_type": "group",
+                "label": "Trend Long Entry",
+                "logic": "and",
+                "enabled": True,
+                "children": [
+                    {
+                        "id": "entry-condition",
+                        "node_type": "condition",
+                        "label": "EMA bullish",
+                        "left": {"kind": "indicator", "indicator": "ema_fast", "output": "value"},
+                        "operator": "gt",
+                        "right": {"kind": "value", "value": 100.0},
+                        "enabled": True,
+                    }
+                ],
+            },
+            "long_exit": {
+                "id": "trend-long-exit",
+                "node_type": "group",
+                "label": "Trend Long Exit",
+                "logic": "or",
+                "enabled": True,
+                "children": [
+                    {
+                        "id": "exit-condition",
+                        "node_type": "condition",
+                        "label": "EMA bearish",
+                        "left": {"kind": "indicator", "indicator": "ema_fast", "output": "value"},
+                        "operator": "lt",
+                        "right": {"kind": "value", "value": 95.0},
+                        "enabled": True,
+                    }
+                ],
+            },
+            "short_entry": {
+                "id": "trend-short-entry",
+                "node_type": "group",
+                "label": "Trend Short Entry",
+                "logic": "and",
+                "enabled": False,
+                "children": [],
+            },
+            "short_exit": {
+                "id": "trend-short-exit",
+                "node_type": "group",
+                "label": "Trend Short Exit",
+                "logic": "or",
+                "enabled": False,
+                "children": [],
+            },
+        },
+        "range": {
+            "id": "range",
+            "label": "Range",
+            "enabled": False,
+            "regime": {
+                "id": "range-regime",
+                "node_type": "group",
+                "label": "Range Regime",
+                "logic": "and",
+                "enabled": True,
+                "children": [],
+            },
+            "long_entry": {
+                "id": "range-long-entry",
+                "node_type": "group",
+                "label": "Range Long Entry",
+                "logic": "and",
+                "enabled": True,
+                "children": [],
+            },
+            "long_exit": {
+                "id": "range-long-exit",
+                "node_type": "group",
+                "label": "Range Long Exit",
+                "logic": "or",
+                "enabled": True,
+                "children": [],
+            },
+            "short_entry": {
+                "id": "range-short-entry",
+                "node_type": "group",
+                "label": "Range Short Entry",
+                "logic": "and",
+                "enabled": False,
+                "children": [],
+            },
+            "short_exit": {
+                "id": "range-short-exit",
+                "node_type": "group",
+                "label": "Range Short Exit",
+                "logic": "or",
+                "enabled": False,
+                "children": [],
+            },
         },
         "risk": {
             "stoploss": -0.08,
@@ -106,6 +188,14 @@ def make_editor_contract() -> dict:
     return {
         "operators": [{"key": "gt", "label": "Greater Than"}],
         "group_logics": [{"key": "and", "label": "All"}],
+        "timeframe_options": [
+            {"key": "base", "label": "Base"},
+            {"key": "1h", "label": "1 Hour"},
+            {"key": "4h", "label": "4 Hours"},
+            {"key": "1d", "label": "1 Day"},
+        ],
+        "market_type_options": [{"key": "spot", "label": "Spot"}],
+        "direction_options": [{"key": "long_only", "label": "Long Only"}],
         "blank_condition": {
             "id": "blank-condition",
             "node_type": "condition",
@@ -124,6 +214,13 @@ def make_editor_contract() -> dict:
             "children": [],
         },
         "blank_config": make_strategy_config(),
+        "run_defaults": {
+            **backtest_run_defaults(),
+            "optimize_metric_options": [
+                {"key": "sharpe", "label": "Sharpe"},
+                {"key": "profit_pct", "label": "Profit %"},
+            ],
+        },
     }
 
 
@@ -139,7 +236,7 @@ def make_template_response() -> dict:
         "operators": [{"key": "gt", "label": "Greater Than"}],
         "group_logics": [{"key": "and", "label": "All"}],
         "default_config": make_strategy_config(),
-        "default_parameter_space": {"ema_fast.period": [9, 12, 20]},
+        "default_parameter_space": {"indicators.ema_fast.params.period": [9, 12, 20]},
     }
 
 
@@ -151,7 +248,12 @@ def make_strategy_version(version: int = 2, *, is_default: bool = True) -> dict:
         "notes": "Stable release",
         "is_default": is_default,
         "config": make_strategy_config(),
-        "parameter_space": {"ema_fast.period": [9, 12, 20]},
+        "parameter_space": {"indicators.ema_fast.params.period": [9, 12, 20]},
+        "runtime": {
+            "indicator_timeframes": [],
+            "allowed_run_timeframes": ["1h", "4h", "1d"],
+            "preferred_run_timeframe": "1h",
+        },
     }
 
 
@@ -313,11 +415,13 @@ def make_backtest_metadata() -> dict:
             "positions": {
                 "BTC/USDT": {
                     "symbol": "BTC/USDT",
+                    "side": "long",
                     "opened_at": "2025-06-01T00:00:00",
                     "entry_price": 100.0,
                     "remaining_amount": 0.5,
                     "remaining_cost": 50.0,
                     "highest_price": 118.0,
+                    "lowest_price": 96.0,
                     "last_price": 116.0,
                     "taken_partial_ids": ["px-1"],
                 }
@@ -329,11 +433,13 @@ def make_backtest_metadata() -> dict:
             "positions": [
                 {
                     "symbol": "BTC/USDT",
+                    "side": "long",
                     "opened_at": "2025-06-01T00:00:00",
                     "entry_price": 100.0,
                     "remaining_amount": 0.5,
                     "remaining_cost": 50.0,
                     "highest_price": 118.0,
+                    "lowest_price": 96.0,
                     "last_price": 116.0,
                     "taken_partial_ids": ["px-1"],
                 }

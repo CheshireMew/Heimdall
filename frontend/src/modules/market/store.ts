@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { marketApi } from './api'
+import { resolveSentimentBucket } from './sentiment'
 import type { OHLCVRaw, KlineCacheEntry, SentimentCache, SentimentData, IndicatorItem } from '@/types'
 
 interface MarketState {
@@ -75,15 +76,14 @@ export const useMarketStore = defineStore('market', {
 
       const fetchPromise = (async (): Promise<OHLCVRaw[] | null> => {
         try {
-          const res = await marketApi.getRealtime({ symbol, timeframe, limit })
-
-          if (res.data && res.data.kline_data) {
+          const res = await marketApi.getLatestKlines({ symbol, timeframe, limit })
+          if (Array.isArray(res.data) && res.data.length) {
             this.klineCache[key] = {
-              data: res.data.kline_data,
+              data: res.data,
               timestamp: Date.now(),
             }
             this.save()
-            return res.data.kline_data
+            return res.data
           }
         } catch (e) {
           console.error('Background fetch failed', e)
@@ -135,11 +135,14 @@ export const useMarketStore = defineStore('market', {
     },
 
     _getSentimentLabel(value: number): string {
-      if (value <= 25) return 'Extreme Fear'
-      if (value <= 45) return 'Fear'
-      if (value <= 55) return 'Neutral'
-      if (value <= 75) return 'Greed'
-      return 'Extreme Greed'
+      const labels = {
+        extremeFear: 'Extreme Fear',
+        fear: 'Fear',
+        neutral: 'Neutral',
+        greed: 'Greed',
+        extremeGreed: 'Extreme Greed',
+      }
+      return labels[resolveSentimentBucket(value)]
     },
   },
 })

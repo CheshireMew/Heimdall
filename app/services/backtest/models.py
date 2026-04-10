@@ -64,6 +64,7 @@ class BacktestTradeRecord:
     exit_reason: str | None = None
     leverage: float = 1.0
     pair: str | None = None
+    side: str = "long"
 
 
 @dataclass(slots=True)

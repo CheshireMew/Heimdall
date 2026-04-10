@@ -19,10 +19,13 @@ class RedisService:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance.client = None
-            cls._instance.connect()
+            cls._instance._connection_attempted = False
         return cls._instance
 
-    def connect(self) -> None:
+    def connect(self, *, force: bool = False) -> None:
+        if self._connection_attempted and not force:
+            return
+        self._connection_attempted = True
         try:
             pool = redis.ConnectionPool(
                 host=settings.REDIS_HOST,
@@ -38,8 +41,14 @@ class RedisService:
             logger.warning(f"Redis 连接失败 (将降级运行): {exc}")
             self.client = None
 
+    def _ensure_client(self) -> bool:
+        if self.client is not None:
+            return True
+        self.connect()
+        return self.client is not None
+
     def set(self, key: str, value: Any, ttl: int = 300) -> bool:
-        if not self.client:
+        if not self._ensure_client():
             return False
         try:
             payload = json.dumps(value) if isinstance(value, (dict, list)) else value
@@ -49,7 +58,7 @@ class RedisService:
             return False
 
     def get(self, key: str) -> Any | None:
-        if not self.client:
+        if not self._ensure_client():
             return None
         try:
             value = self.client.get(key)
@@ -64,7 +73,7 @@ class RedisService:
             return None
 
     def delete(self, key: str) -> bool:
-        if not self.client:
+        if not self._ensure_client():
             return False
         try:
             return bool(self.client.delete(key))
@@ -74,4 +83,3 @@ class RedisService:
 
 
 redis_service = RedisService()
-

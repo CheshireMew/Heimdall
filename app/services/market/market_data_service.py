@@ -6,6 +6,7 @@ from typing import Callable
 
 from config import settings
 from app.domain.market.constants import KEY_PREFIX_KLINE
+from app.domain.market.symbol_catalog import get_market_symbol_source
 from utils.logger import logger
 
 from .exchange_gateway import ExchangeGateway
@@ -22,6 +23,30 @@ class MarketDataService:
             raise ValueError("MarketDataService 需要显式注入 exchange_gateway 和 kline_store")
         self.exchange_gateway = exchange_gateway
         self.kline_store = kline_store
+        self._exchange_gateways: dict[str, ExchangeGateway] = {
+            self.exchange_gateway.exchange_id: self.exchange_gateway,
+        }
+
+    def _resolve_market_source(self, symbol: str):
+        return get_market_symbol_source(symbol) or get_market_symbol_source(f"{symbol}/USDT")
+
+    def _storage_symbol(self, symbol: str) -> str:
+        source = self._resolve_market_source(symbol)
+        return source.storage_symbol if source else symbol
+
+    def _fetch_symbol(self, symbol: str) -> str:
+        source = self._resolve_market_source(symbol)
+        return source.symbol if source else symbol
+
+    def _gateway_for_symbol(self, symbol: str) -> ExchangeGateway:
+        source = self._resolve_market_source(symbol)
+        exchange_id = source.exchange_id if source else self.exchange_gateway.exchange_id
+        gateway = self._exchange_gateways.get(exchange_id)
+        if gateway:
+            return gateway
+        gateway = ExchangeGateway(exchange_id=exchange_id)
+        self._exchange_gateways[exchange_id] = gateway
+        return gateway
 
     def get_kline_data(
         self,
@@ -35,22 +60,29 @@ class MarketDataService:
         try:
             from app.infra.cache import redis_service
 
-            cache_key = f"{KEY_PREFIX_KLINE}:{symbol}:{timeframe}:{limit}"
+            storage_symbol = self._storage_symbol(symbol)
+            fetch_symbol = self._fetch_symbol(symbol)
+            gateway = self._gateway_for_symbol(symbol)
+            cache_key = f"{KEY_PREFIX_KLINE}:{storage_symbol}:{timeframe}:{limit}"
             cached_data = redis_service.get(cache_key)
             if cached_data:
                 cache_hit = True
                 return cached_data
 
-            data, attempts = self.exchange_gateway.fetch_ohlcv(symbol, timeframe, limit=limit)
+            data, attempts = gateway.fetch_ohlcv(fetch_symbol, timeframe, limit=limit)
             if data:
                 redis_service.set(cache_key, data, ttl=settings.REDIS_KLINE_TTL)
             return data
         except ImportError:
-            data, attempts = self.exchange_gateway.fetch_ohlcv(symbol, timeframe, limit=limit)
+            fetch_symbol = self._fetch_symbol(symbol)
+            gateway = self._gateway_for_symbol(symbol)
+            data, attempts = gateway.fetch_ohlcv(fetch_symbol, timeframe, limit=limit)
             return data
         except Exception as e:
             logger.error(f"K线数据获取错误 (Redis/Exchange): {e}")
-            data, attempts = self.exchange_gateway.fetch_ohlcv(symbol, timeframe, limit=limit)
+            fetch_symbol = self._fetch_symbol(symbol)
+            gateway = self._gateway_for_symbol(symbol)
+            data, attempts = gateway.fetch_ohlcv(fetch_symbol, timeframe, limit=limit)
             return data
         finally:
             elapsed = time.time() - start_time
@@ -62,7 +94,7 @@ class MarketDataService:
     def get_history_data(self, symbol: str, timeframe: str, end_ts: int, limit: int = 500) -> list[list[float]]:
         start_time = time.time()
         try:
-            return self.kline_store.get_before(symbol, timeframe, end_ts, limit)
+            return self.kline_store.get_before(self._storage_symbol(symbol), timeframe, end_ts, limit)
         except Exception as e:
             logger.error(f"历史数据查询失败: {e}")
             return []
@@ -84,7 +116,7 @@ class MarketDataService:
         live = self.get_kline_data(symbol, timeframe, limit=limit)
         if live:
             try:
-                self.kline_store.save(symbol, timeframe, live)
+                self.kline_store.save(self._storage_symbol(symbol), timeframe, live)
             except Exception as exc:
                 logger.warning(f"最近 K 线回写缓存失败: {exc}")
             return live
@@ -103,13 +135,14 @@ class MarketDataService:
         range_start = time.time()
         cached_klines: list[list[float]] = []
         new_data: list[list[float]] = []
+        storage_symbol = self._storage_symbol(symbol)
 
         try:
-            cached_klines = self.kline_store.get_range(symbol, timeframe, start_ts, end_ts)
+            cached_klines = self.kline_store.get_range(storage_symbol, timeframe, start_ts, end_ts)
             min_cached = cached_klines[0][0] if cached_klines else None
             max_cached = cached_klines[-1][0] if cached_klines else None
 
-            logger.info(f"缓存命中: {len(cached_klines)} 条 ({symbol})")
+            logger.info(f"缓存命中: {len(cached_klines)} 条 ({storage_symbol})")
 
             if min_cached is None or start_ts < min_cached:
                 target_end = min_cached if min_cached else end_ts
@@ -121,9 +154,9 @@ class MarketDataService:
             if new_data:
                 logger.info(f"下载新数据: {len(new_data)} 条")
                 if persist_klines:
-                    persist_klines(symbol, timeframe, new_data)
+                    persist_klines(storage_symbol, timeframe, new_data)
                 else:
-                    self.kline_store.save(symbol, timeframe, new_data)
+                    self.kline_store.save(storage_symbol, timeframe, new_data)
 
             merged = {k[0]: k for k in cached_klines}
             for row in new_data:
@@ -171,11 +204,13 @@ class MarketDataService:
         data: list[list[float]] = []
         current_since = since
         task_start = time.time()
+        fetch_symbol = self._fetch_symbol(symbol)
+        gateway = self._gateway_for_symbol(symbol)
 
         while current_since < until:
             limit = settings.EXCHANGE_FETCH_LIMIT
-            batch, _attempts = self.exchange_gateway.fetch_ohlcv(
-                symbol,
+            batch, _attempts = gateway.fetch_ohlcv(
+                fetch_symbol,
                 timeframe,
                 since=current_since,
                 limit=limit,
@@ -194,12 +229,12 @@ class MarketDataService:
                 break
 
             current_since = last_ts + 1
-            self.exchange_gateway.sleep_for_rate_limit()
+            gateway.sleep_for_rate_limit()
 
             if len(batch) < limit:
                 break
 
-            if time.time() - task_start > self.exchange_gateway.max_task_seconds:
+            if time.time() - task_start > gateway.max_task_seconds:
                 logger.warning(f"[_fetch_gap] 超时终止 symbol={symbol} tf={timeframe} since={since} until={until}")
                 break
 

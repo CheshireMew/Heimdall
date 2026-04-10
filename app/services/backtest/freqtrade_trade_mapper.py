@@ -9,7 +9,12 @@ from app.services.backtest.models import BacktestSignalRecord, BacktestTradeReco
 
 
 class FreqtradeTradeMapper:
-    def build_trade_records(self, trades: pd.DataFrame) -> list[BacktestTradeRecord]:
+    def build_trade_records(
+        self,
+        trades: pd.DataFrame,
+        *,
+        pair_aliases: dict[str, str] | None = None,
+    ) -> list[BacktestTradeRecord]:
         if trades.empty:
             return []
         records = []
@@ -17,6 +22,10 @@ class FreqtradeTradeMapper:
             closed_at = None
             if trade.get("close_date") is not None and not pd.isna(trade.get("close_date")):
                 closed_at = self._to_datetime(trade["close_date"])
+            side = "short" if bool(trade.get("is_short")) else "long"
+            pair = trade.get("pair") or ""
+            if pair_aliases and pair in pair_aliases:
+                pair = pair_aliases[pair]
             records.append(
                 BacktestTradeRecord(
                     opened_at=self._to_datetime(trade["open_date"]),
@@ -32,7 +41,8 @@ class FreqtradeTradeMapper:
                     entry_tag=trade.get("enter_tag"),
                     exit_reason=trade.get("exit_reason"),
                     leverage=self._coerce_float(trade.get("leverage")) or 1.0,
-                    pair=trade.get("pair") or "",
+                    pair=pair,
+                    side=side,
                 )
             )
         return records
@@ -56,8 +66,12 @@ class FreqtradeTradeMapper:
                 BacktestTradeRecord(
                     opened_at=trade.opened_at,
                     closed_at=trade.closed_at,
-                    entry_price=max(trade.entry_price * (1.0 + slippage_ratio), 1e-8),
-                    exit_price=max(trade.exit_price * (1.0 - slippage_ratio), 1e-8) if trade.exit_price is not None else None,
+                    entry_price=max(trade.entry_price * (1.0 + slippage_ratio), 1e-8) if trade.side == "long" else max(trade.entry_price * (1.0 - slippage_ratio), 1e-8),
+                    exit_price=(
+                        max(trade.exit_price * (1.0 - slippage_ratio), 1e-8)
+                        if trade.side == "long"
+                        else max(trade.exit_price * (1.0 + slippage_ratio), 1e-8)
+                    ) if trade.exit_price is not None else None,
                     stake_amount=trade.stake_amount,
                     amount=trade.amount,
                     profit_abs=adjusted_profit,
@@ -68,6 +82,7 @@ class FreqtradeTradeMapper:
                     exit_reason=trade.exit_reason,
                     leverage=trade.leverage,
                     pair=trade.pair,
+                    side=trade.side,
                 )
             )
         return adjusted
@@ -75,18 +90,21 @@ class FreqtradeTradeMapper:
     def build_signal_records(self, trades: list[BacktestTradeRecord]) -> list[BacktestSignalRecord]:
         signals = []
         for trade in sorted(trades, key=lambda item: item.opened_at):
+            entry_signal = "BUY" if trade.side == "long" else "SELL"
+            exit_signal = "SELL" if trade.side == "long" else "BUY"
             signals.append(
                 BacktestSignalRecord(
                     timestamp=trade.opened_at,
                     price=trade.entry_price,
-                    signal="BUY",
+                    signal=entry_signal,
                     confidence=100.0,
                     indicators={
                         "pair": trade.pair,
+                        "side": trade.side,
                         "trade_duration": trade.duration_minutes,
                         "profit_ratio": trade.profit_pct / 100.0,
                     },
-                    reasoning=f"Freqtrade entry: {trade.entry_tag or 'entry_signal'}",
+                    reasoning=f"Freqtrade entry: {trade.entry_tag or ('long_entry_signal' if trade.side == 'long' else 'short_entry_signal')}",
                 )
             )
             if trade.closed_at and trade.exit_price is not None:
@@ -95,14 +113,15 @@ class FreqtradeTradeMapper:
                     BacktestSignalRecord(
                         timestamp=close_at,
                         price=trade.exit_price,
-                        signal="SELL",
+                        signal=exit_signal,
                         confidence=100.0,
                         indicators={
                             "pair": trade.pair,
+                            "side": trade.side,
                             "profit_abs": trade.profit_abs,
                             "profit_ratio": trade.profit_pct / 100.0,
                         },
-                        reasoning=f"Freqtrade exit: {trade.exit_reason or 'exit_signal'}",
+                        reasoning=f"Freqtrade exit: {trade.exit_reason or ('long_exit_signal' if trade.side == 'long' else 'short_exit_signal')}",
                     )
                 )
         return signals

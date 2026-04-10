@@ -21,12 +21,12 @@ class FactorResearchService:
         self,
         *,
         market_data_service: MarketDataService,
-        indicator_repository: MarketIndicatorRepository | None = None,
-        repository: FactorResearchRepository | None = None,
+        indicator_repository: MarketIndicatorRepository,
+        repository: FactorResearchRepository,
     ) -> None:
         self.market_data_service = market_data_service
-        self.indicator_repository = indicator_repository or MarketIndicatorRepository()
-        self.repository = repository or FactorResearchRepository()
+        self.indicator_repository = indicator_repository
+        self.repository = repository
         self.math = FactorMath(DEFAULT_CLEANING)
         self.catalog_service = FactorCatalogService(self.indicator_repository)
         self.frame_builder = FactorFrameBuilder(

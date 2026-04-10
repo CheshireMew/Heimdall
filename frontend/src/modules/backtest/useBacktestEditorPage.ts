@@ -220,6 +220,7 @@ export const useBacktestEditorPage = () => {
       operatorOptions: editor.operatorOptions,
       groupLogicOptions: editor.groupLogicOptions,
       optimizableTargets: editor.optimizableTargets,
+      syncExecutionConfig: editor.syncExecutionConfig,
       addIndicator: editor.addIndicator,
       removeIndicator: editor.removeIndicator,
       addRoiTarget: editor.addRoiTarget,

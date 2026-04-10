@@ -4,7 +4,6 @@ from datetime import datetime
 
 from app.services.sentiment_client import SentimentApiClient
 from app.services.sentiment_repository import SentimentRepository
-from config import settings
 from utils.logger import logger
 from utils.time_manager import TimeManager
 
@@ -13,11 +12,11 @@ class SentimentService:
     def __init__(
         self,
         *,
-        client: SentimentApiClient | None = None,
-        repository: SentimentRepository | None = None,
+        client: SentimentApiClient,
+        repository: SentimentRepository,
     ) -> None:
-        self.client = client or SentimentApiClient(settings.SENTIMENT_API_URL)
-        self.repository = repository or SentimentRepository()
+        self.client = client
+        self.repository = repository
 
     def sync_data(self) -> None:
         try:

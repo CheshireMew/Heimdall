@@ -69,35 +69,49 @@ export const useBacktestEditor = ({
   const groupLogicOptions = computed(() => editorTemplate.value?.group_logics || editorContract.value?.group_logics || [])
   const indicatorCards = computed(() => Object.entries(versionDraft.config?.indicators || {}).map(([id, indicator]: any) => {
     const spec = availableIndicators.value.find((item: any) => item?.key === indicator.type) || normalizedIndicators.value.find((item: any) => item?.key === indicator.type)
+    const timeframeLabel = editorContract.value?.timeframe_options?.find((item: any) => item?.key === (indicator.timeframe || 'base'))?.label || indicator.timeframe || 'base'
     return {
       id,
       label: indicator.label || spec?.name || id,
       typeLabel: spec?.name || indicator.type,
+      timeframeLabel,
       params: Array.isArray(spec?.params) ? spec.params.filter((item: any) => item?.key) : [],
     }
   }))
 
   const sourceOptions = computed(() => {
     const base = [
-      { value: 'price:open', label: 'Price · Open' },
-      { value: 'price:high', label: 'Price · High' },
-      { value: 'price:low', label: 'Price · Low' },
-      { value: 'price:close', label: 'Price · Close' },
-      { value: 'price:volume', label: 'Price · Volume' },
+      { value: 'price:open:0', label: `Price · Open · ${t('backtest.currentBar')}` },
+      { value: 'price:high:0', label: `Price · High · ${t('backtest.currentBar')}` },
+      { value: 'price:low:0', label: `Price · Low · ${t('backtest.currentBar')}` },
+      { value: 'price:close:0', label: `Price · Close · ${t('backtest.currentBar')}` },
+      { value: 'price:volume:0', label: `Price · Volume · ${t('backtest.currentBar')}` },
+      { value: 'price:open:1', label: `Price · Open · ${t('backtest.previousBar')}` },
+      { value: 'price:high:1', label: `Price · High · ${t('backtest.previousBar')}` },
+      { value: 'price:low:1', label: `Price · Low · ${t('backtest.previousBar')}` },
+      { value: 'price:close:1', label: `Price · Close · ${t('backtest.previousBar')}` },
+      { value: 'price:volume:1', label: `Price · Volume · ${t('backtest.previousBar')}` },
     ]
     const extra = []
     for (const [indicatorId, indicator] of Object.entries(versionDraft.config?.indicators || {})) {
       const spec = availableIndicators.value.find((item: any) => item?.key === (indicator as any).type) || normalizedIndicators.value.find((item: any) => item?.key === (indicator as any).type)
       for (const output of spec?.outputs || []) {
+        const timeframeLabel = editorContract.value?.timeframe_options?.find((item: any) => item?.key === ((indicator as any).timeframe || 'base'))?.label || ((indicator as any).timeframe || 'base')
         extra.push({
-          value: `indicator:${indicatorId}:${output.key}`,
-          label: `${(indicator as any).label || indicatorId} · ${output.label}`,
+          value: `indicator:${indicatorId}:${output.key}:0`,
+          label: `${(indicator as any).label || indicatorId} · ${output.label} · ${timeframeLabel} · ${t('backtest.currentBar')}`,
+        })
+        extra.push({
+          value: `indicator:${indicatorId}:${output.key}:1`,
+          label: `${(indicator as any).label || indicatorId} · ${output.label} · ${timeframeLabel} · ${t('backtest.previousBar')}`,
         })
       }
     }
     return [...base, ...extra]
   })
   const indicatorSourceOptions = computed(() => sourceOptions.value.filter((item) => item.value.startsWith('indicator:')))
+  const branchKeys = ['trend', 'range'] as const
+  const branchSignalKeys = ['long_entry', 'long_exit', 'short_entry', 'short_exit'] as const
 
   const optimizableTargets = computed(() => {
     const targets: Array<{ path: string; label: string; type: string; fallback: number }> = []
@@ -108,8 +122,14 @@ export const useBacktestEditor = ({
         targets.push({ path: `indicators.${indicatorId}.params.${param.key}`, label: `${(indicator as any).label || indicatorId} · ${param.label}`, type: param.type, fallback: param.default })
       }
     }
-    collectRuleTargets(versionDraft.config?.entry, 'entry', targets, t('backtest.constantValue'), t('backtest.multiplier'))
-    collectRuleTargets(versionDraft.config?.exit, 'exit', targets, t('backtest.constantValue'), t('backtest.multiplier'))
+    for (const branchKey of branchKeys) {
+      const branch = (versionDraft.config as any)?.[branchKey]
+      if (!branch) continue
+      collectRuleTargets(branch.regime, `${branchKey}.regime`, targets, t('backtest.constantValue'), t('backtest.multiplier'))
+      for (const signalKey of branchSignalKeys) {
+        collectRuleTargets(branch[signalKey], `${branchKey}.${signalKey}`, targets, t('backtest.constantValue'), t('backtest.multiplier'))
+      }
+    }
     for (const target of versionDraft.config?.risk?.roi_targets || []) {
       targets.push({ path: `risk.roi_targets.${target.id}.profit`, label: `ROI · ${target.minutes}m`, type: 'float', fallback: target.profit || 0 })
     }
@@ -170,17 +190,30 @@ export const useBacktestEditor = ({
     }
     const params: Record<string, number | boolean> = {}
     for (const param of spec.params || []) params[param.key] = param.default
-    versionDraft.config.indicators[candidateId] = { label: spec.name, type: spec.key, params }
+    versionDraft.config.indicators[candidateId] = { label: spec.name, type: spec.key, timeframe: 'base', params }
   }
 
   const removeIndicator = (indicatorId: string) => {
     if (!versionDraft.config) return
     delete versionDraft.config.indicators[indicatorId]
-    pruneTreeByIndicator(versionDraft.config.entry, indicatorId)
-    pruneTreeByIndicator(versionDraft.config.exit, indicatorId)
+    for (const branchKey of branchKeys) {
+      const branch = (versionDraft.config as any)?.[branchKey]
+      if (!branch) continue
+      pruneTreeByIndicator(branch.regime, indicatorId)
+      for (const signalKey of branchSignalKeys) {
+        pruneTreeByIndicator(branch[signalKey], indicatorId)
+      }
+    }
     Object.keys(versionDraft.parameterSpaceValues).forEach((key) => {
       if (key.startsWith(`indicators.${indicatorId}.`)) delete versionDraft.parameterSpaceValues[key]
     })
+  }
+
+  const syncExecutionConfig = () => {
+    if (!versionDraft.config?.execution) return
+    if (versionDraft.config.execution.market_type === 'spot') {
+      versionDraft.config.execution.direction = 'long_only'
+    }
   }
 
   const addRoiTarget = () => {
@@ -326,6 +359,7 @@ export const useBacktestEditor = ({
     syncVersionDraftTemplate,
     addIndicator,
     removeIndicator,
+    syncExecutionConfig,
     addRoiTarget,
     removeRoiTarget,
     addPartialExit,

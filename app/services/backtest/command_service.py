@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
 from typing import Any
 
 from app.services.backtest.contracts import (
@@ -39,12 +38,11 @@ class BacktestCommandService:
         strategy = self.strategy_query_service.get_strategy_version(command.strategy_key, command.strategy_version)
         logger.info(
             f"启动 Freqtrade 回测: strategy={command.strategy_key} v{command.strategy_version or 'default'}, "
-            f"symbols={','.join(command.portfolio.symbols)}, tf={command.timeframe}, days={command.days}, "
+            f"symbols={','.join(command.portfolio.symbols)}, tf={command.timeframe}, "
+            f"range=({command.start_date} - {command.end_date}), "
             f"本金={command.initial_cash}, 手续费={command.fee_rate}%"
         )
 
-        end = datetime.now()
-        start = end - timedelta(days=command.days)
         loop = asyncio.get_running_loop()
         backtest_id = await loop.run_in_executor(
             None,
@@ -52,8 +50,8 @@ class BacktestCommandService:
                 strategy=strategy,
                 portfolio=command.portfolio,
                 research=command.research,
-                start_date=start,
-                end_date=end,
+                start_date=command.start_date,
+                end_date=command.end_date,
                 timeframe=command.timeframe,
                 initial_cash=command.initial_cash,
                 fee_rate=command.fee_rate,

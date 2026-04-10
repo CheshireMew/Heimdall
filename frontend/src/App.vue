@@ -46,6 +46,9 @@
         <router-link to="/tools/dca" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
           <BanknotesIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.dca') }}
         </router-link>
+        <router-link to="/tools/portfolio-balance" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+          <ArrowsRightLeftIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.portfolioBalance') }}
+        </router-link>
         <router-link to="/tools/halving" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
           <ClockIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.halving') }}
         </router-link>
@@ -97,6 +100,7 @@ import {
   BeakerIcon,
   ScaleIcon,
   BanknotesIcon,
+  ArrowsRightLeftIcon,
   CogIcon,
   ClockIcon,
   MoonIcon,

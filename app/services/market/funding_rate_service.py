@@ -17,8 +17,8 @@ class FundingRateService:
     HISTORY_LIMIT = 1000
     DEFAULT_START_DATE = "2019-09-01"
 
-    def __init__(self, store: FundingRateStore | None = None) -> None:
-        self.store = store or FundingRateStore()
+    def __init__(self, store: FundingRateStore) -> None:
+        self.store = store
 
     def fetch_current_rate(self, symbol: str) -> dict[str, Any]:
         normalized_symbol = self.normalize_symbol(symbol)

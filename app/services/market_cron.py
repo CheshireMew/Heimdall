@@ -5,11 +5,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.infra.db.database import init_db, session_scope
 from app.infra.db.schema import MarketIndicatorMeta, MarketIndicatorData
-from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroProvider
-from app.services.indicators.onchain_provider import OnchainProvider
-from app.services.indicators.sentiment_provider import SentimentProvider
-from app.services.indicators.tech_calculator import TechCalculatorProvider
-from app.services.indicators.crypto_gold_provider import CryptoGoldProvider
 from config import settings
 from app.services.data_retention import cleanup_old_data
 
@@ -47,20 +42,31 @@ class MarketIndicatorCronJob:
     """市场核心指标定时汇聚作业类"""
 
     def __init__(self):
-        self.providers = [
-            MacroProvider(),
-            OnchainProvider(),
-            SentimentProvider(),
-            TechCalculatorProvider(),
-            CryptoGoldProvider(),
-        ]
+        self.providers = None
+
+    def _get_providers(self):
+        if self.providers is None:
+            from app.services.indicators.crypto_gold_provider import CryptoGoldProvider
+            from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroProvider
+            from app.services.indicators.onchain_provider import OnchainProvider
+            from app.services.indicators.sentiment_provider import SentimentProvider
+            from app.services.indicators.tech_calculator import TechCalculatorProvider
+
+            self.providers = [
+                MacroProvider(),
+                OnchainProvider(),
+                SentimentProvider(),
+                TechCalculatorProvider(),
+                CryptoGoldProvider(),
+            ]
+        return self.providers
 
     async def run(self):
         """执行聚合逻辑"""
         logger.info("Starting MarketIndicator Cron Job...")
 
         all_data_points = []
-        for provider in self.providers:
+        for provider in self._get_providers():
             try:
                 points = await provider.fetch_data()
                 all_data_points.extend(points)
@@ -118,18 +124,26 @@ class MarketIndicatorCronJob:
 # 全局单例调度器
 scheduler = AsyncIOScheduler()
 
+def _schedule_deferred_start(callback, *, delay_seconds: float = 1.0) -> None:
+    async def _runner() -> None:
+        await asyncio.sleep(delay_seconds)
+        await callback()
+
+    asyncio.create_task(_runner())
+
+
 def start_scheduler():
     """启动全局异步定时器"""
     job = MarketIndicatorCronJob()
 
-    # 模拟第一次立刻执行
-    asyncio.create_task(job.run())
+    # 避免首轮后台任务与 API 启动争抢导入和网络资源
+    _schedule_deferred_start(job.run)
 
     # 设定每 4 小时执行一次数据汇总汇聚
     scheduler.add_job(job.run, 'interval', hours=settings.MARKET_CRON_INTERVAL_HOURS, id='fetch_market_indicators', replace_existing=True)
 
     # 数据保留清理: 每 24 小时执行一次
-    asyncio.create_task(cleanup_old_data())
+    _schedule_deferred_start(cleanup_old_data)
     scheduler.add_job(cleanup_old_data, 'interval', hours=24, id='data_retention_cleanup', replace_existing=True)
 
     scheduler.start()

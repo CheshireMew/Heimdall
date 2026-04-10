@@ -26,7 +26,8 @@ class FreqtradeResultBuilder:
         self,
         *,
         results_dir: Path,
-        symbols: list[str],
+        data_symbols: list[str],
+        execution_symbols: list[str],
         timeframe: str,
         start_date: datetime,
         end_date: datetime,
@@ -40,8 +41,16 @@ class FreqtradeResultBuilder:
         stats = load_backtest_stats(result_file)
         trades_frame = load_backtest_data(result_file, strategy=self.strategy_class_name)
         strategy_stats = stats.get("strategy", {}).get(self.strategy_class_name, {})
+        pair_aliases = {
+            execution_symbol: data_symbol
+            for data_symbol, execution_symbol in zip(data_symbols, execution_symbols, strict=True)
+        }
 
-        raw_trades = self.trade_mapper.build_trade_records(trades_frame)
+        # Freqtrade writes trades using its execution pair names. When futures mode is backed
+        # by spot candles, those names contain the synthetic futures suffix (for example
+        # BTC/USDT:USDT). We map them back to the original data symbol here so reports,
+        # trade lists and signal records stay aligned with the user's single source dataset.
+        raw_trades = self.trade_mapper.build_trade_records(trades_frame, pair_aliases=pair_aliases)
         trades = self.trade_mapper.apply_execution_adjustments(raw_trades, research, end_date)
         signals = self.trade_mapper.build_signal_records(trades)
         equity_curve = self.report_builder.build_equity_curve(
@@ -57,16 +66,18 @@ class FreqtradeResultBuilder:
             start_date=start_date,
             end_date=end_date,
         )
-        report["symbols"] = list(symbols)
+        report["symbols"] = list(data_symbols)
         report["timeframe"] = timeframe
         metadata = {
             "engine": "Freqtrade",
             "exchange": settings.EXCHANGE_ID,
-            "stake_currency": self.report_builder.quote_currency(symbols[0]),
+            "stake_currency": self.report_builder.quote_currency(data_symbols[0]),
             "initial_cash": initial_cash,
             "fee_rate": fee_rate,
             "fee_ratio": fee_ratio,
-            "symbols": list(symbols),
+            "symbols": list(data_symbols),
+            "execution_symbols": list(execution_symbols),
+            "price_source": "spot_ohlcv",
             "timeframe": timeframe,
             "raw_stats": self.report_snapshot(strategy_stats),
         }

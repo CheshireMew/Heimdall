@@ -3,6 +3,8 @@
 """
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.dependencies import get_backtest_command_service, get_backtest_query_service
@@ -26,18 +28,12 @@ from app.schemas.backtest import (
     PaperStartResponse,
     PaperStopResponse,
 )
-from app.services.backtest.command_service import BacktestCommandService
-from app.services.backtest.contracts import (
-    BacktestStartCommand,
-    CreateIndicatorDefinitionCommand,
-    CreateStrategyTemplateCommand,
-    CreateStrategyVersionCommand,
-    PaperStartCommand,
-)
-from app.services.backtest.models import PortfolioConfigRecord, ResearchConfigRecord
-from app.services.backtest.query_service import BacktestQueryService
 from config import settings
 from utils.logger import logger
+
+if TYPE_CHECKING:
+    from app.services.backtest.command_service import BacktestCommandService
+    from app.services.backtest.query_service import BacktestQueryService
 
 
 router = APIRouter()
@@ -51,30 +47,9 @@ async def start_backtest(
     service: BacktestCommandService = Depends(get_backtest_command_service),
 ):
     try:
-        return await service.start_backtest(
-            BacktestStartCommand(
-                strategy_key=body.strategy_key,
-                strategy_version=body.strategy_version,
-                timeframe=body.timeframe,
-                days=body.days,
-                initial_cash=body.initial_cash,
-                fee_rate=body.fee_rate,
-                portfolio=PortfolioConfigRecord(
-                    symbols=list(body.portfolio.symbols),
-                    max_open_trades=body.portfolio.max_open_trades,
-                    position_size_pct=body.portfolio.position_size_pct,
-                    stake_mode=body.portfolio.stake_mode,
-                ),
-                research=ResearchConfigRecord(
-                    slippage_bps=body.research.slippage_bps,
-                    funding_rate_daily=body.research.funding_rate_daily,
-                    in_sample_ratio=body.research.in_sample_ratio,
-                    optimize_metric=body.research.optimize_metric,
-                    optimize_trials=body.research.optimize_trials,
-                    rolling_windows=body.research.rolling_windows,
-                ),
-            )
-        )
+        return await service.start_backtest(body.to_command())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except HTTPException:
         raise
     except Exception as exc:
@@ -90,21 +65,9 @@ async def start_paper_run(
     service: BacktestCommandService = Depends(get_backtest_command_service),
 ):
     try:
-        return await service.start_paper_run(
-            PaperStartCommand(
-                strategy_key=body.strategy_key,
-                strategy_version=body.strategy_version,
-                timeframe=body.timeframe,
-                initial_cash=body.initial_cash,
-                fee_rate=body.fee_rate,
-                portfolio=PortfolioConfigRecord(
-                    symbols=list(body.portfolio.symbols),
-                    max_open_trades=body.portfolio.max_open_trades,
-                    position_size_pct=body.portfolio.position_size_pct,
-                    stake_mode=body.portfolio.stake_mode,
-                ),
-            )
-        )
+        return await service.start_paper_run(body.to_command())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except HTTPException:
         raise
     except Exception as exc:
@@ -185,17 +148,7 @@ async def create_strategy_template(
     service: BacktestCommandService = Depends(get_backtest_command_service),
 ):
     try:
-        return await service.create_template(
-            CreateStrategyTemplateCommand(
-                key=body.key,
-                name=body.name,
-                category=body.category,
-                description=body.description,
-                indicator_keys=list(body.indicator_keys),
-                default_config=body.default_config,
-                default_parameter_space=body.default_parameter_space,
-            )
-        )
+        return await service.create_template(body.to_command())
     except Exception as exc:
         logger.error(f"API /backtest/templates 创建错误: {exc}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -225,15 +178,7 @@ async def create_indicator(
     service: BacktestCommandService = Depends(get_backtest_command_service),
 ):
     try:
-        return await service.create_indicator(
-            CreateIndicatorDefinitionCommand(
-                key=body.key,
-                name=body.name,
-                engine_key=body.engine_key,
-                description=body.description,
-                params=list(body.params),
-            )
-        )
+        return await service.create_indicator(body.to_command())
     except Exception as exc:
         logger.error(f"API /backtest/indicators 创建错误: {exc}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -245,19 +190,7 @@ async def create_strategy_version(
     service: BacktestCommandService = Depends(get_backtest_command_service),
 ):
     try:
-        return await service.create_strategy_version(
-            CreateStrategyVersionCommand(
-                key=body.key,
-                name=body.name,
-                template=body.template,
-                category=body.category,
-                description=body.description,
-                config=body.config,
-                parameter_space=body.parameter_space,
-                notes=body.notes,
-                make_default=body.make_default,
-            )
-        )
+        return await service.create_strategy_version(body.to_command())
     except Exception as exc:
         logger.error(f"API /backtest/strategies 创建错误: {exc}")
         raise HTTPException(status_code=500, detail="Internal server error")

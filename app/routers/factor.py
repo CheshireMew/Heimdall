@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.dependencies import get_factor_execution_service, get_factor_paper_run_manager, get_factor_research_service
@@ -12,10 +14,12 @@ from app.schemas.factor import (
     FactorResearchRunDetailResponse,
     FactorResearchRunListItemResponse,
 )
-from app.services.factors.execution import FactorExecutionService
-from app.services.factors.paper_manager import FactorPaperRunManager
-from app.services.factors.service import FactorResearchService
 from utils.logger import logger
+
+if TYPE_CHECKING:
+    from app.services.factors.execution import FactorExecutionService
+    from app.services.factors.paper_manager import FactorPaperRunManager
+    from app.services.factors.service import FactorResearchService
 
 
 router = APIRouter(tags=["Factor Research"])

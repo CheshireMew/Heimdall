@@ -5,6 +5,7 @@ from functools import lru_cache
 from typing import Any, Callable
 
 from app.infra.llm_client import LLMClient
+from app.domain.market.symbol_catalog import get_supported_market_symbols
 from app.services.market.crypto_index_app_service import CryptoIndexAppService
 from app.services.market.funding_rate_service import FundingRateService
 from app.services.market.history_service import HistoryService
@@ -30,7 +31,7 @@ class MarketAppService:
         self.indicator_service = indicator_service
         self.history_service = history_service
         self.funding_rate_service = funding_rate_service
-        self.valid_symbols = settings.SYMBOLS
+        self.valid_symbols = get_supported_market_symbols()
         self.valid_timeframes = [item.value for item in Timeframe]
 
     @lru_cache(maxsize=1)
@@ -139,6 +140,17 @@ class MarketAppService:
         self.validate_market_request(symbol, timeframe)
         return self.history_service.get_history(market_data_service, symbol, timeframe, end_ts, limit)
 
+    def get_recent_klines(
+        self,
+        *,
+        market_data_service: MarketDataService,
+        symbol: str,
+        timeframe: str,
+        limit: int,
+    ) -> list[list[float]]:
+        self.validate_market_request(symbol, timeframe)
+        return self.history_service.get_recent_klines(market_data_service, symbol, timeframe, limit)
+
     async def get_full_history(
         self,
         *,
@@ -152,6 +164,32 @@ class MarketAppService:
         return await self.history_service.get_full_history(
             market_data_service=market_data_service,
             symbol=symbol,
+            timeframe=timeframe,
+            start_date=start_date,
+            persist_klines=persist_klines,
+        )
+
+    async def get_full_history_batch(
+        self,
+        *,
+        market_data_service: MarketDataService,
+        symbols: list[str],
+        timeframe: str,
+        start_date: str,
+        persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
+    ) -> dict[str, list[list[float]]]:
+        normalized_symbols: list[str] = []
+        seen_symbols: set[str] = set()
+        for symbol in symbols:
+            self.validate_market_request(symbol, timeframe)
+            if symbol in seen_symbols:
+                continue
+            seen_symbols.add(symbol)
+            normalized_symbols.append(symbol)
+
+        return await self.history_service.get_full_history_batch(
+            market_data_service=market_data_service,
+            symbols=normalized_symbols,
             timeframe=timeframe,
             start_date=start_date,
             persist_klines=persist_klines,

@@ -231,13 +231,18 @@ def _normalize_paper_position_payload(payload: Any, *, symbol_hint: str) -> dict
         raise ValueError(f"paper position {symbol_hint} 缺少字段: {', '.join(missing_keys)}")
 
     entry_price = float(payload.get("entry_price", 0.0) or 0.0)
+    side = str(payload.get("side") or "long").strip().lower()
+    if side not in {"long", "short"}:
+        side = "long"
     normalized = {
         "symbol": str(payload.get("symbol") or symbol_hint),
+        "side": side,
         "opened_at": payload["opened_at"],
         "entry_price": entry_price,
         "remaining_amount": float(payload["remaining_amount"]),
         "remaining_cost": float(payload["remaining_cost"]),
         "highest_price": float(payload.get("highest_price", entry_price) or entry_price),
+        "lowest_price": float(payload.get("lowest_price", entry_price) or entry_price),
         "last_price": float(payload.get("last_price", entry_price) or entry_price),
         "taken_partial_ids": list(payload.get("taken_partial_ids") or []),
     }

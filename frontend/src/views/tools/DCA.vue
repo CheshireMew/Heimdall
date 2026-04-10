@@ -13,8 +13,12 @@
           <input v-model="config.symbol" type="text" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white outline-none transition-colors" />
         </div>
         <div>
-          <label class="block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1">{{ $t('dca.startDate') }}</label>
-          <input v-model="config.start_date" type="date" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white outline-none transition-colors" />
+          <AppDateField
+            v-model="config.start_date"
+            :label="$t('dca.startDate')"
+            input-class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white outline-none transition-colors"
+            label-class="block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1"
+          />
         </div>
         <div>
           <label class="block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1">{{ $t('dca.investTime') }}</label>
@@ -200,6 +204,7 @@
 
 <script setup>
 import { BanknotesIcon, ChartBarIcon, WalletIcon } from '@heroicons/vue/24/outline'
+import AppDateField from '@/components/AppDateField.vue'
 import { useDcaPage } from '@/modules/tools'
 
 const {

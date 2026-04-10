@@ -1,35 +1,31 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.infra.db.database import session_scope
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun
 from app.services.backtest.contracts import PaperStartCommand
-from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
 from app.services.backtest.models import BacktestEquityPointRecord, BacktestSignalRecord, BacktestTradeRecord
-from app.services.backtest.paper_persistence_service import PaperPersistenceService
 from app.services.backtest.run_repository import BacktestRunRepository
-from app.services.backtest.paper_position_service import PaperPosition, PaperPositionService
-from app.services.backtest.paper_runtime_service import PaperRuntimeService
 from app.services.backtest.run_contract import PAPER_LIVE_ENGINE, PAPER_LIVE_EXECUTION_MODE, build_paper_metadata, update_paper_metadata
-from app.services.backtest.strategy_query_service import StrategyQueryService
-from app.services.backtest.strategy_runtime import StrategyRuntime
-from app.services.market.market_data_service import MarketDataService
 from config import settings
+from utils.time_utils import utc_now_naive
 from utils.logger import logger
 
-
-def utc_now_naive() -> datetime:
-    return datetime.now(datetime.UTC).replace(tzinfo=None)
+if TYPE_CHECKING:
+    from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
+    from app.services.backtest.paper_persistence_service import PaperPersistenceService
+    from app.services.backtest.paper_position_service import PaperPosition, PaperPositionService
+    from app.services.backtest.paper_runtime_service import PaperRuntimeService
+    from app.services.backtest.strategy_query_service import StrategyQueryService
+    from app.services.backtest.strategy_runtime import StrategyRuntime
 
 
 class PaperRunManager:
     def __init__(
         self,
         *,
-        market_data_service: MarketDataService,
         strategy_query_service: StrategyQueryService | None = None,
         runtime: StrategyRuntime | None = None,
         report_builder: FreqtradeReportBuilder | None = None,
@@ -38,16 +34,12 @@ class PaperRunManager:
         runtime_service: PaperRuntimeService | None = None,
         run_repository: BacktestRunRepository,
     ) -> None:
-        self.market_data_service = market_data_service
-        self.strategy_query_service = strategy_query_service or StrategyQueryService()
-        self.runtime = runtime or StrategyRuntime()
-        self.report_builder = report_builder or FreqtradeReportBuilder()
-        self.position_service = position_service or PaperPositionService()
-        self.runtime_service = runtime_service or PaperRuntimeService(self.market_data_service, self.runtime)
-        self.persistence_service = persistence_service or PaperPersistenceService(
-            report_builder=self.report_builder,
-            position_service=self.position_service,
-        )
+        self.strategy_query_service = strategy_query_service
+        self.runtime = runtime
+        self.report_builder = report_builder
+        self.position_service = position_service
+        self.runtime_service = runtime_service
+        self.persistence_service = persistence_service
         self.run_repository = run_repository
         self._tasks: dict[int, asyncio.Task[Any]] = {}
 
@@ -55,7 +47,7 @@ class PaperRunManager:
         loop = asyncio.get_running_loop()
         run_ids = await loop.run_in_executor(None, self._list_active_run_ids)
         for run_id in run_ids:
-            self._ensure_task(run_id)
+            self._ensure_task(run_id, initial_delay=float(settings.WS_UPDATE_INTERVAL))
 
     async def shutdown(self) -> None:
         tasks = list(self._tasks.values())
@@ -96,14 +88,16 @@ class PaperRunManager:
             raise ValueError(f"模拟盘记录不存在: {run_id}")
         return {"success": True, "run_id": run_id, "message": "模拟盘记录已删除"}
 
-    def _ensure_task(self, run_id: int) -> None:
+    def _ensure_task(self, run_id: int, *, initial_delay: float = 0.0) -> None:
         task = self._tasks.get(run_id)
         if task and not task.done():
             return
-        self._tasks[run_id] = asyncio.create_task(self._run_loop(run_id))
+        self._tasks[run_id] = asyncio.create_task(self._run_loop(run_id, initial_delay=initial_delay))
 
-    async def _run_loop(self, run_id: int) -> None:
+    async def _run_loop(self, run_id: int, *, initial_delay: float = 0.0) -> None:
         try:
+            if initial_delay > 0:
+                await asyncio.sleep(initial_delay)
             while True:
                 loop = asyncio.get_running_loop()
                 should_continue = await loop.run_in_executor(None, lambda: self._tick(run_id))
@@ -128,18 +122,20 @@ class PaperRunManager:
             if run.execution_mode != PAPER_LIVE_EXECUTION_MODE or run.engine != PAPER_LIVE_ENGINE or run.status != "running":
                 return False
 
-            strategy = self.strategy_query_service.get_strategy_version(metadata["strategy_key"], metadata.get("strategy_version"))
-            runtime_state = self.runtime_service.load_runtime_state(metadata)
+            strategy = self._get_strategy_query_service().get_strategy_version(metadata["strategy_key"], metadata.get("strategy_version"))
+            runtime_service = self._get_runtime_service()
+            runtime_state = runtime_service.load_runtime_state(metadata)
             symbols = list(metadata.get("symbols") or [])
             now = utc_now_naive()
             fee_ratio = float(metadata.get("fee_rate", 0.0)) / 100.0
-            pending = self.runtime_service.build_pending_snapshots(
+            runtime = self._get_runtime()
+            pending = runtime_service.build_pending_snapshots(
                 strategy=strategy,
                 symbols=symbols,
                 timeframe=run.timeframe,
                 runtime_state=runtime_state,
                 now=now,
-                warmup_bars=self.runtime.warmup_bars(strategy.template, strategy.config),
+                warmup_bars=runtime.warmup_bars(strategy.template, strategy.config, run.timeframe),
             )
             if not pending:
                 return True
@@ -147,7 +143,8 @@ class PaperRunManager:
             new_signals: list[BacktestSignalRecord] = []
             new_trades: list[BacktestTradeRecord] = []
             new_equity_points: list[BacktestEquityPointRecord] = []
-            positions = self.position_service.deserialize_positions(runtime_state.get("positions") or {})
+            position_service = self._get_position_service()
+            positions = position_service.deserialize_positions(runtime_state.get("positions") or {})
             cash_balance = float(runtime_state.get("cash_balance", metadata.get("initial_cash", 0.0)))
             portfolio = metadata.get("portfolio") or {}
             risk = strategy.config.get("risk") or {}
@@ -157,7 +154,7 @@ class PaperRunManager:
                 run.total_candles += 1
                 position = positions.get(symbol)
                 if position:
-                    signals, trades = self.position_service.process_open_position(
+                    signals, trades = position_service.process_open_position(
                         position=position,
                         snapshot=snapshot,
                         fee_ratio=fee_ratio,
@@ -169,10 +166,12 @@ class PaperRunManager:
                         cash_balance += trade.stake_amount + trade.profit_abs
                     if position.remaining_amount <= 1e-12 or position.remaining_cost <= 1e-8:
                         positions.pop(symbol, None)
-                if symbol not in positions and snapshot.entry_signal and len(positions) < int(portfolio.get("max_open_trades", 1)):
-                    created_position, entry_signal, cash_spent = self.position_service.try_open_position(
+                entry_side = position_service.entry_side(snapshot)
+                if symbol not in positions and entry_side and len(positions) < int(portfolio.get("max_open_trades", 1)):
+                    created_position, entry_signal, cash_spent = position_service.try_open_position(
                         symbol=symbol,
                         snapshot=snapshot,
+                        side=entry_side,
                         cash_balance=cash_balance,
                         fee_ratio=fee_ratio,
                         portfolio=portfolio,
@@ -184,7 +183,7 @@ class PaperRunManager:
                         cash_balance -= cash_spent
 
                 runtime_state.setdefault("last_processed", {})[symbol] = int(snapshot.timestamp.timestamp() * 1000)
-                equity = self.position_service.current_equity(cash_balance, positions, snapshot.price, symbol, fee_ratio)
+                equity = position_service.current_equity(cash_balance, positions, snapshot.price, symbol, fee_ratio)
                 new_equity_points.append(
                     BacktestEquityPointRecord(
                         timestamp=snapshot.timestamp,
@@ -194,7 +193,7 @@ class PaperRunManager:
                     )
                 )
 
-            self.persistence_service.persist_increment(
+            self._get_persistence_service().persist_increment(
                 session=session,
                 run=run,
                 metadata=metadata,
@@ -209,15 +208,17 @@ class PaperRunManager:
             return True
 
     def _create_run(self, command: PaperStartCommand) -> int:
-        strategy = self.strategy_query_service.get_strategy_version(command.strategy_key, command.strategy_version)
+        strategy = self._get_strategy_query_service().get_strategy_version(command.strategy_key, command.strategy_version)
         now = utc_now_naive()
         symbols = list(command.portfolio.symbols)
-        timeframe_delta = self.runtime_service.timeframe_delta(command.timeframe)
+        runtime_service = self._get_runtime_service()
+        timeframe_delta = runtime_service.timeframe_delta(command.timeframe)
         baseline_last_processed = {
-            symbol: self.runtime_service.latest_closed_timestamp(symbol, command.timeframe, now, timeframe_delta)
+            symbol: runtime_service.latest_closed_timestamp(symbol, command.timeframe, now, timeframe_delta)
             for symbol in symbols
         }
-        initial_report = self.report_builder.build_report(
+        report_builder = self._get_report_builder()
+        initial_report = report_builder.build_report(
             trades=[],
             equity_curve=[BacktestEquityPointRecord(timestamp=now, equity=command.initial_cash, pnl_abs=0.0, drawdown_pct=0.0)],
             initial_cash=command.initial_cash,
@@ -235,7 +236,7 @@ class PaperRunManager:
             "max_open_trades": command.portfolio.max_open_trades,
             "position_size_pct": command.portfolio.position_size_pct,
             "stake_mode": command.portfolio.stake_mode,
-            "stake_currency": self.report_builder.quote_currency(symbols[0]),
+            "stake_currency": report_builder.quote_currency(symbols[0]),
         }
         with session_scope() as session:
             run = BacktestRun(
@@ -285,3 +286,33 @@ class PaperRunManager:
             execution_mode=PAPER_LIVE_EXECUTION_MODE,
             engine=PAPER_LIVE_ENGINE,
         )
+
+    def _get_strategy_query_service(self) -> StrategyQueryService:
+        if self.strategy_query_service is None:
+            raise RuntimeError("PaperRunManager 缺少 strategy_query_service 依赖")
+        return self.strategy_query_service
+
+    def _get_runtime(self) -> StrategyRuntime:
+        if self.runtime is None:
+            raise RuntimeError("PaperRunManager 缺少 runtime 依赖")
+        return self.runtime
+
+    def _get_report_builder(self) -> FreqtradeReportBuilder:
+        if self.report_builder is None:
+            raise RuntimeError("PaperRunManager 缺少 report_builder 依赖")
+        return self.report_builder
+
+    def _get_position_service(self) -> PaperPositionService:
+        if self.position_service is None:
+            raise RuntimeError("PaperRunManager 缺少 position_service 依赖")
+        return self.position_service
+
+    def _get_runtime_service(self) -> PaperRuntimeService:
+        if self.runtime_service is None:
+            raise RuntimeError("PaperRunManager 缺少 runtime_service 依赖")
+        return self.runtime_service
+
+    def _get_persistence_service(self) -> PaperPersistenceService:
+        if self.persistence_service is None:
+            raise RuntimeError("PaperRunManager 缺少 persistence_service 依赖")
+        return self.persistence_service

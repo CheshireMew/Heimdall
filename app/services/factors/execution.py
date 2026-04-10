@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -17,15 +16,7 @@ from app.services.backtest.models import (
 )
 from app.services.backtest.run_contract import BACKTEST_EXECUTION_MODE, FACTOR_BLEND_ENGINE, build_backtest_metadata
 from app.services.factors.service import FactorResearchService
-
-
-@dataclass(slots=True)
-class FactorBacktestPosition:
-    opened_at: datetime
-    entry_price: float
-    amount: float
-    stake_amount: float
-    entry_score: float
+from app.services.factors.signal_execution_core import FactorSignalContext, FactorSignalExecutionCore
 
 
 class FactorExecutionService:
@@ -33,10 +24,12 @@ class FactorExecutionService:
         self,
         *,
         factor_service: FactorResearchService,
-        report_builder: FreqtradeReportBuilder | None = None,
+        report_builder: FreqtradeReportBuilder,
+        execution_core: FactorSignalExecutionCore,
     ) -> None:
         self.factor_service = factor_service
-        self.report_builder = report_builder or FreqtradeReportBuilder()
+        self.report_builder = report_builder
+        self.execution_core = execution_core
 
     def run_backtest(
         self,
@@ -63,119 +56,38 @@ class FactorExecutionService:
         entry_threshold = float(blend.get("entry_threshold", 0.0) if entry_threshold is None else entry_threshold)
         exit_threshold = float(blend.get("exit_threshold", 0.0) if exit_threshold is None else exit_threshold)
 
-        cash_balance = float(initial_cash)
-        position: FactorBacktestPosition | None = None
-        signals: list[BacktestSignalRecord] = []
-        trades: list[BacktestTradeRecord] = []
-        equity_curve: list[BacktestEquityPointRecord] = []
-        fee_ratio = fee_rate / 100.0
-
-        for bar_index, row in enumerate(frame.itertuples(index=False), start=1):
-            price = float(row.close)
-            score = float(row.composite_score or 0.0)
-            label_column = f"label::{request_payload['horizon_bars']}"
-            future_return = float(getattr(row, label_column.replace("::", "__"), 0.0) or 0.0)
-            timestamp = row.timestamp
-
-            if position:
-                held_bars = max(bar_index - self._opened_bar_index(equity_curve, position.opened_at), 0)
-                profit_ratio = self._profit_ratio(position, price, fee_ratio)
-                should_exit = (
-                    profit_ratio <= stoploss_pct
-                    or profit_ratio >= takeprofit_pct
-                    or score <= exit_threshold
-                    or held_bars >= max_hold_bars
-                )
-                if should_exit:
-                    trade = self._close_position(position, price, timestamp, fee_ratio, symbol)
-                    cash_balance += trade.stake_amount + trade.profit_abs
-                    trades.append(trade)
-                    signals.append(
-                        BacktestSignalRecord(
-                            timestamp=timestamp,
-                            price=price,
-                            signal="SELL",
-                            confidence=100.0,
-                            indicators={
-                                "composite_score": score,
-                                "future_return": future_return,
-                                "research_run_id": research_run_id,
-                            },
-                            reasoning="Factor blend exit",
-                        )
-                    )
-                    position = None
-
-            if position is None and score >= entry_threshold:
-                stake_amount = min(
-                    cash_balance,
-                    initial_cash * (position_size_pct / 100.0) if stake_mode == "fixed" else cash_balance * (position_size_pct / 100.0),
-                )
-                if stake_amount > 0:
-                    notional = stake_amount / (1.0 + fee_ratio) if fee_ratio < 1 else 0.0
-                    amount = notional / price if price > 0 else 0.0
-                    if amount > 0:
-                        cash_balance -= stake_amount
-                        position = FactorBacktestPosition(
-                            opened_at=timestamp,
-                            entry_price=price,
-                            amount=amount,
-                            stake_amount=stake_amount,
-                            entry_score=score,
-                        )
-                        signals.append(
-                            BacktestSignalRecord(
-                                timestamp=timestamp,
-                                price=price,
-                                signal="BUY",
-                                confidence=100.0,
-                                indicators={
-                                    "composite_score": score,
-                                    "future_return": future_return,
-                                    "research_run_id": research_run_id,
-                                },
-                                reasoning="Factor blend entry",
-                            )
-                        )
-
-            equity = cash_balance
-            if position:
-                equity += position.amount * price * (1.0 - fee_ratio)
-            equity_curve.append(
-                BacktestEquityPointRecord(
-                    timestamp=timestamp,
-                    equity=equity,
-                    pnl_abs=equity - initial_cash,
-                    drawdown_pct=0.0,
-                )
-            )
-
-        if position and equity_curve:
-            last_row = frame.iloc[-1]
-            trade = self._close_position(position, float(last_row["close"]), last_row["timestamp"], fee_ratio, symbol, exit_reason="force_close")
-            cash_balance += trade.stake_amount + trade.profit_abs
-            trades.append(trade)
-            signals.append(
-                BacktestSignalRecord(
-                    timestamp=last_row["timestamp"],
-                    price=float(last_row["close"]),
-                    signal="SELL",
-                    confidence=100.0,
-                    indicators={
-                        "composite_score": float(last_row["composite_score"] or 0.0),
-                        "research_run_id": research_run_id,
-                    },
-                    reasoning="Factor blend force close",
-                )
-            )
-            equity_curve[-1] = BacktestEquityPointRecord(
-                timestamp=last_row["timestamp"],
-                equity=cash_balance,
-                pnl_abs=cash_balance - initial_cash,
-                drawdown_pct=0.0,
-            )
-
-        equity_curve = self._decorate_drawdowns(equity_curve)
+        label_column = f"label::{request_payload['horizon_bars']}".replace("::", "__")
+        rows = [
+            {
+                "timestamp": row.timestamp,
+                "close": float(row.close),
+                "composite_score": float(row.composite_score or 0.0),
+                "future_return": float(getattr(row, label_column, 0.0) or 0.0),
+            }
+            for row in frame.itertuples(index=False)
+        ]
+        context = FactorSignalContext(
+            symbol=symbol,
+            research_run_id=research_run_id,
+            initial_cash=float(initial_cash),
+            fee_rate=float(fee_rate),
+            position_size_pct=float(position_size_pct),
+            stake_mode=stake_mode,
+            entry_threshold=entry_threshold,
+            exit_threshold=exit_threshold,
+            stoploss_pct=stoploss_pct,
+            takeprofit_pct=takeprofit_pct,
+            max_hold_bars=max_hold_bars,
+        )
+        batch = self.execution_core.run_batch(
+            rows=rows,
+            state=self.execution_core.create_state(initial_cash),
+            context=context,
+            force_close=True,
+        )
+        signals = batch.signals
+        trades = batch.trades
+        equity_curve = self._decorate_drawdowns(batch.equity_points)
         report = self.report_builder.build_report(
             trades=trades,
             equity_curve=equity_curve,
@@ -310,47 +222,6 @@ class FactorExecutionService:
                 )
             session.flush()
             return run.id
-
-    def _opened_bar_index(self, equity_curve: list[BacktestEquityPointRecord], opened_at: datetime) -> int:
-        for index, point in enumerate(equity_curve, start=1):
-            if point.timestamp >= opened_at:
-                return index
-        return len(equity_curve) + 1
-
-    def _profit_ratio(self, position: FactorBacktestPosition, price: float, fee_ratio: float) -> float:
-        net_value = position.amount * price * (1.0 - fee_ratio)
-        if position.stake_amount <= 0:
-            return 0.0
-        return (net_value - position.stake_amount) / position.stake_amount
-
-    def _close_position(
-        self,
-        position: FactorBacktestPosition,
-        price: float,
-        timestamp: datetime,
-        fee_ratio: float,
-        symbol: str,
-        exit_reason: str = "factor_exit",
-    ) -> BacktestTradeRecord:
-        gross = position.amount * price
-        net = gross * (1.0 - fee_ratio)
-        profit_abs = net - position.stake_amount
-        duration_minutes = max(int((timestamp - position.opened_at).total_seconds() // 60), 0)
-        return BacktestTradeRecord(
-            opened_at=position.opened_at,
-            closed_at=timestamp,
-            entry_price=position.entry_price,
-            exit_price=price,
-            stake_amount=position.stake_amount,
-            amount=position.amount,
-            profit_abs=profit_abs,
-            profit_pct=(profit_abs / position.stake_amount * 100.0) if position.stake_amount else 0.0,
-            duration_minutes=duration_minutes,
-            entry_tag="factor_entry",
-            exit_reason=exit_reason,
-            leverage=1.0,
-            pair=symbol,
-        )
 
     def _decorate_drawdowns(self, equity_curve: list[BacktestEquityPointRecord]) -> list[BacktestEquityPointRecord]:
         peak = 0.0

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from app.services.backtest.models import PortfolioConfigRecord, ResearchConfigRecord
@@ -11,7 +12,8 @@ class BacktestStartCommand:
     strategy_key: str
     strategy_version: int | None
     timeframe: str
-    days: int
+    start_date: datetime
+    end_date: datetime
     initial_cash: float
     fee_rate: float
     portfolio: PortfolioConfigRecord

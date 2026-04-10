@@ -89,7 +89,7 @@ def test_market_store_cache_contract_is_stable():
     assert "300000" in source
     assert "60000" in source
     assert "7 * 24 * 60 * 60 * 1000" in source
-    assert "marketApi.getRealtime" in source
+    assert "marketApi.getLatestKlines" in source
     assert "marketApi.getIndicators" in source
     assert "Extreme Greed" in source
 

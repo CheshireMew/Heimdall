@@ -7,8 +7,8 @@ from app.services.market.indicator_repository import MarketIndicatorRepository
 
 
 class IndicatorService:
-    def __init__(self, repository: MarketIndicatorRepository | None = None) -> None:
-        self.repository = repository or MarketIndicatorRepository()
+    def __init__(self, repository: MarketIndicatorRepository) -> None:
+        self.repository = repository
 
     def get_indicators(self, category: str | None, days: int) -> list[dict[str, Any]]:
         cutoff_date = datetime.now() - timedelta(days=days)

@@ -2,15 +2,12 @@
 数据库 Schema 定义
 仅定义表结构数据模型，与业务逻辑分离
 """
-from datetime import datetime, timezone
+from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, JSON, BigInteger, Index, Boolean
 from sqlalchemy.orm import declarative_base, relationship
+from utils.time_utils import utc_now_naive
 
 Base = declarative_base()
-
-
-def utc_now_naive() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 class BacktestRun(Base):
     """回测运行记录表"""

@@ -51,6 +51,7 @@ export interface BacktestStrategyBuilderPanel {
   operatorOptions: any[]
   groupLogicOptions: any[]
   optimizableTargets: Array<{ path: string; label: string }>
+  syncExecutionConfig: () => void
   addIndicator: () => void
   removeIndicator: (indicatorId: string) => void
   addRoiTarget: () => void

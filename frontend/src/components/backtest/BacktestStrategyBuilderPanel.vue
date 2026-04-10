@@ -2,6 +2,29 @@
   <div v-if="panel.editorContract && panel.versionDraft.config && (panel.editorTemplate || panel.useGlobalIndicatorCatalog)" class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
     <div class="space-y-4">
       <div class="editor-section">
+        <div class="section-title">{{ $t('backtest.executionConfig') }}</div>
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div>
+            <label class="label">{{ $t('backtest.marketType') }}</label>
+            <select v-model="panel.versionDraft.config.execution.market_type" class="input" @change="panel.syncExecutionConfig">
+              <option v-for="item in panel.editorContract.market_type_options" :key="item.key" :value="item.key">
+                {{ item.label }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="label">{{ $t('backtest.positionDirection') }}</label>
+            <select v-model="panel.versionDraft.config.execution.direction" class="input" :disabled="panel.versionDraft.config.execution.market_type === 'spot'">
+              <option v-for="item in panel.editorContract.direction_options" :key="item.key" :value="item.key">
+                {{ item.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $t('backtest.executionConfigHint') }}</p>
+      </div>
+
+      <div class="editor-section">
         <div class="flex items-center justify-between gap-3">
           <div class="section-title">{{ $t('backtest.indicatorConfig') }}</div>
           <div class="flex gap-2">
@@ -17,9 +40,17 @@
           <div class="flex items-center justify-between gap-3">
             <div>
               <div class="font-semibold text-gray-900 dark:text-white">{{ indicator.label }}</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400">{{ indicator.typeLabel }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ indicator.typeLabel }} · {{ indicator.timeframeLabel }}</div>
             </div>
             <button class="btn-danger" @click="panel.removeIndicator(indicator.id)">{{ $t('backtest.remove') }}</button>
+          </div>
+          <div>
+            <label class="label">{{ $t('backtest.indicatorTimeframe') }}</label>
+            <select v-model="panel.versionDraft.config.indicators[indicator.id].timeframe" class="input">
+              <option v-for="item in panel.editorContract.timeframe_options" :key="item.key" :value="item.key">
+                {{ item.label }}
+              </option>
+            </select>
           </div>
           <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div v-for="param in indicator.params" :key="param?.key ?? String(param)">
@@ -60,24 +91,129 @@
     </div>
 
     <div class="space-y-4">
-      <RuleTreeEditor
-        :editor-contract="panel.editorContract"
-        :node="panel.versionDraft.config.entry"
-        :title="$t('backtest.entryRules')"
-        :source-options="panel.sourceOptions"
-        :indicator-source-options="panel.indicatorSourceOptions"
-        :operator-options="panel.operatorOptions"
-        :group-logic-options="panel.groupLogicOptions"
-      />
-      <RuleTreeEditor
-        :editor-contract="panel.editorContract"
-        :node="panel.versionDraft.config.exit"
-        :title="$t('backtest.exitRules')"
-        :source-options="panel.sourceOptions"
-        :indicator-source-options="panel.indicatorSourceOptions"
-        :operator-options="panel.operatorOptions"
-        :group-logic-options="panel.groupLogicOptions"
-      />
+      <div class="editor-section space-y-4">
+        <div class="section-title">{{ $t('backtest.regimeBuilder') }}</div>
+
+        <div class="editor-card space-y-3">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <div class="font-semibold text-gray-900 dark:text-white">{{ panel.versionDraft.config.trend.label || $t('backtest.trendBranch') }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('backtest.trendBranchHint') }}</div>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+              <input v-model="panel.versionDraft.config.trend.enabled" type="checkbox" />
+              <span>{{ $t('backtest.enabled') }}</span>
+            </label>
+          </div>
+          <RuleTreeEditor
+            :editor-contract="panel.editorContract"
+            :node="panel.versionDraft.config.trend.regime"
+            :title="$t('backtest.regimeRules')"
+            :source-options="panel.sourceOptions"
+            :indicator-source-options="panel.indicatorSourceOptions"
+            :operator-options="panel.operatorOptions"
+            :group-logic-options="panel.groupLogicOptions"
+          />
+          <RuleTreeEditor
+            :editor-contract="panel.editorContract"
+            :node="panel.versionDraft.config.trend.long_entry"
+            :title="$t('backtest.longEntryRules')"
+            :source-options="panel.sourceOptions"
+            :indicator-source-options="panel.indicatorSourceOptions"
+            :operator-options="panel.operatorOptions"
+            :group-logic-options="panel.groupLogicOptions"
+          />
+          <RuleTreeEditor
+            :editor-contract="panel.editorContract"
+            :node="panel.versionDraft.config.trend.long_exit"
+            :title="$t('backtest.longExitRules')"
+            :source-options="panel.sourceOptions"
+            :indicator-source-options="panel.indicatorSourceOptions"
+            :operator-options="panel.operatorOptions"
+            :group-logic-options="panel.groupLogicOptions"
+          />
+          <RuleTreeEditor
+            v-if="panel.versionDraft.config.execution.direction === 'long_short'"
+            :editor-contract="panel.editorContract"
+            :node="panel.versionDraft.config.trend.short_entry"
+            :title="$t('backtest.shortEntryRules')"
+            :source-options="panel.sourceOptions"
+            :indicator-source-options="panel.indicatorSourceOptions"
+            :operator-options="panel.operatorOptions"
+            :group-logic-options="panel.groupLogicOptions"
+          />
+          <RuleTreeEditor
+            v-if="panel.versionDraft.config.execution.direction === 'long_short'"
+            :editor-contract="panel.editorContract"
+            :node="panel.versionDraft.config.trend.short_exit"
+            :title="$t('backtest.shortExitRules')"
+            :source-options="panel.sourceOptions"
+            :indicator-source-options="panel.indicatorSourceOptions"
+            :operator-options="panel.operatorOptions"
+            :group-logic-options="panel.groupLogicOptions"
+          />
+        </div>
+
+        <div class="editor-card space-y-3">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <div class="font-semibold text-gray-900 dark:text-white">{{ panel.versionDraft.config.range.label || $t('backtest.rangeBranch') }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('backtest.rangeBranchHint') }}</div>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+              <input v-model="panel.versionDraft.config.range.enabled" type="checkbox" />
+              <span>{{ $t('backtest.enabled') }}</span>
+            </label>
+          </div>
+          <RuleTreeEditor
+            :editor-contract="panel.editorContract"
+            :node="panel.versionDraft.config.range.regime"
+            :title="$t('backtest.regimeRules')"
+            :source-options="panel.sourceOptions"
+            :indicator-source-options="panel.indicatorSourceOptions"
+            :operator-options="panel.operatorOptions"
+            :group-logic-options="panel.groupLogicOptions"
+          />
+          <RuleTreeEditor
+            :editor-contract="panel.editorContract"
+            :node="panel.versionDraft.config.range.long_entry"
+            :title="$t('backtest.longEntryRules')"
+            :source-options="panel.sourceOptions"
+            :indicator-source-options="panel.indicatorSourceOptions"
+            :operator-options="panel.operatorOptions"
+            :group-logic-options="panel.groupLogicOptions"
+          />
+          <RuleTreeEditor
+            :editor-contract="panel.editorContract"
+            :node="panel.versionDraft.config.range.long_exit"
+            :title="$t('backtest.longExitRules')"
+            :source-options="panel.sourceOptions"
+            :indicator-source-options="panel.indicatorSourceOptions"
+            :operator-options="panel.operatorOptions"
+            :group-logic-options="panel.groupLogicOptions"
+          />
+          <RuleTreeEditor
+            v-if="panel.versionDraft.config.execution.direction === 'long_short'"
+            :editor-contract="panel.editorContract"
+            :node="panel.versionDraft.config.range.short_entry"
+            :title="$t('backtest.shortEntryRules')"
+            :source-options="panel.sourceOptions"
+            :indicator-source-options="panel.indicatorSourceOptions"
+            :operator-options="panel.operatorOptions"
+            :group-logic-options="panel.groupLogicOptions"
+          />
+          <RuleTreeEditor
+            v-if="panel.versionDraft.config.execution.direction === 'long_short'"
+            :editor-contract="panel.editorContract"
+            :node="panel.versionDraft.config.range.short_exit"
+            :title="$t('backtest.shortExitRules')"
+            :source-options="panel.sourceOptions"
+            :indicator-source-options="panel.indicatorSourceOptions"
+            :operator-options="panel.operatorOptions"
+            :group-logic-options="panel.groupLogicOptions"
+          />
+        </div>
+      </div>
       <div class="editor-section">
         <div class="section-title">{{ $t('backtest.riskPanel') }}</div>
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">

@@ -10,11 +10,13 @@ from app.services.backtest.models import BacktestSignalRecord, BacktestTradeReco
 @dataclass(slots=True)
 class PaperPosition:
     symbol: str
+    side: str
     opened_at: datetime
     entry_price: float
     remaining_amount: float
     remaining_cost: float
     highest_price: float
+    lowest_price: float
     last_price: float
     taken_partial_ids: list[str] = field(default_factory=list)
 
@@ -25,6 +27,7 @@ class PaperPositionService:
         *,
         symbol: str,
         snapshot,
+        side: str,
         cash_balance: float,
         fee_ratio: float,
         portfolio: dict[str, Any],
@@ -41,23 +44,28 @@ class PaperPositionService:
         amount = notional / snapshot.price if snapshot.price > 0 else 0.0
         if amount <= 0:
             return None, None, 0.0
+        side = side if side in {"long", "short"} else "long"
+        signal = "BUY" if side == "long" else "SELL"
+        reason = "long_entry_signal" if side == "long" else "short_entry_signal"
         return (
             PaperPosition(
                 symbol=symbol,
+                side=side,
                 opened_at=snapshot.timestamp,
                 entry_price=snapshot.price,
                 remaining_amount=amount,
                 remaining_cost=stake,
                 highest_price=snapshot.price,
+                lowest_price=snapshot.price,
                 last_price=snapshot.price,
             ),
             BacktestSignalRecord(
                 timestamp=snapshot.timestamp,
                 price=snapshot.price,
-                signal="BUY",
+                signal=signal,
                 confidence=100.0,
-                indicators={"pair": symbol, **snapshot.indicators},
-                reasoning="Paper entry: entry_signal",
+                indicators={"pair": symbol, "side": side, **snapshot.indicators},
+                reasoning=f"Paper entry: {reason}",
             ),
             stake,
         )
@@ -72,6 +80,7 @@ class PaperPositionService:
     ) -> tuple[list[BacktestSignalRecord], list[BacktestTradeRecord]]:
         position.last_price = snapshot.price
         position.highest_price = max(position.highest_price, snapshot.price)
+        position.lowest_price = min(position.lowest_price, snapshot.price)
         signals: list[BacktestSignalRecord] = []
         trades: list[BacktestTradeRecord] = []
 
@@ -95,9 +104,9 @@ class PaperPositionService:
                 BacktestSignalRecord(
                     timestamp=snapshot.timestamp,
                     price=snapshot.price,
-                    signal="SELL",
+                    signal=self.close_signal(position.side),
                     confidence=100.0,
-                    indicators={"pair": position.symbol, "profit_ratio": trade.profit_pct / 100.0, **snapshot.indicators},
+                    indicators={"pair": position.symbol, "side": position.side, "profit_ratio": trade.profit_pct / 100.0, **snapshot.indicators},
                     reasoning=f"Paper exit: {partial_id}",
                 )
             )
@@ -105,7 +114,7 @@ class PaperPositionService:
         if position.remaining_amount <= 1e-12:
             return signals, trades
 
-        exit_reason = self.resolve_exit_reason(position, snapshot.price, snapshot.timestamp, snapshot.exit_signal, risk, fee_ratio)
+        exit_reason = self.resolve_exit_reason(position, snapshot.price, snapshot.timestamp, self.exit_signal_for_position(position, snapshot), risk, fee_ratio)
         if not exit_reason:
             return signals, trades
         trade = self.close_trade_slice(position, position.remaining_amount, snapshot.price, snapshot.timestamp, exit_reason, fee_ratio)
@@ -116,9 +125,9 @@ class PaperPositionService:
             BacktestSignalRecord(
                 timestamp=snapshot.timestamp,
                 price=snapshot.price,
-                signal="SELL",
+                signal=self.close_signal(position.side),
                 confidence=100.0,
-                indicators={"pair": position.symbol, "profit_ratio": trade.profit_pct / 100.0, **snapshot.indicators},
+                indicators={"pair": position.symbol, "side": position.side, "profit_ratio": trade.profit_pct / 100.0, **snapshot.indicators},
                 reasoning=f"Paper exit: {exit_reason}",
             )
         )
@@ -152,7 +161,8 @@ class PaperPositionService:
             return None
         positive = float(trailing.get("positive", 0.0))
         offset = float(trailing.get("offset", positive))
-        max_profit_ratio = self.profit_ratio(position, position.highest_price, fee_ratio)
+        best_price = position.highest_price if position.side == "long" else position.lowest_price
+        max_profit_ratio = self.profit_ratio(position, best_price, fee_ratio)
         current_profit_ratio = self.profit_ratio(position, price, fee_ratio)
         threshold = offset if trailing.get("only_offset_reached", True) else positive
         if max_profit_ratio < threshold:
@@ -184,8 +194,14 @@ class PaperPositionService:
             return None
         sold_amount = min(sold_amount, position.remaining_amount)
         cost_share = position.remaining_cost * (sold_amount / position.remaining_amount)
-        net_proceeds = (sold_amount * price) * (1.0 - fee_ratio)
-        profit_abs = net_proceeds - cost_share
+        if position.side == "long":
+            exit_value = (sold_amount * price) * (1.0 - fee_ratio)
+            profit_abs = exit_value - cost_share
+        else:
+            entry_notional = cost_share / (1.0 + fee_ratio) if fee_ratio < 1.0 else 0.0
+            open_fee = cost_share - entry_notional
+            buyback_cost = (sold_amount * price) * (1.0 + fee_ratio)
+            profit_abs = entry_notional - buyback_cost - open_fee
         position.remaining_amount -= sold_amount
         position.remaining_cost -= cost_share
         return BacktestTradeRecord(
@@ -199,21 +215,24 @@ class PaperPositionService:
             profit_pct=(profit_abs / cost_share * 100.0) if cost_share else 0.0,
             max_drawdown_pct=None,
             duration_minutes=max(int((closed_at - position.opened_at).total_seconds() // 60), 0),
-            entry_tag="entry_signal",
+            entry_tag="long_entry_signal" if position.side == "long" else "short_entry_signal",
             exit_reason=exit_reason,
             leverage=1.0,
             pair=position.symbol,
+            side=position.side,
         )
 
     def serialize_positions(self, positions: dict[str, PaperPosition]) -> dict[str, dict[str, Any]]:
         return {
             symbol: {
                 "symbol": item.symbol,
+                "side": item.side,
                 "opened_at": item.opened_at.isoformat(),
                 "entry_price": item.entry_price,
                 "remaining_amount": item.remaining_amount,
                 "remaining_cost": item.remaining_cost,
                 "highest_price": item.highest_price,
+                "lowest_price": item.lowest_price,
                 "last_price": item.last_price,
                 "taken_partial_ids": list(item.taken_partial_ids),
             }
@@ -224,11 +243,13 @@ class PaperPositionService:
         return {
             symbol: PaperPosition(
                 symbol=item.get("symbol") or symbol,
+                side=str(item.get("side") or "long"),
                 opened_at=datetime.fromisoformat(item["opened_at"]),
                 entry_price=float(item.get("entry_price", 0.0)),
                 remaining_amount=float(item.get("remaining_amount", 0.0)),
                 remaining_cost=float(item.get("remaining_cost", 0.0)),
                 highest_price=float(item.get("highest_price", item.get("entry_price", 0.0))),
+                lowest_price=float(item.get("lowest_price", item.get("entry_price", 0.0))),
                 last_price=float(item.get("last_price", item.get("entry_price", 0.0))),
                 taken_partial_ids=list(item.get("taken_partial_ids") or []),
             )
@@ -238,8 +259,13 @@ class PaperPositionService:
     def profit_ratio(self, position: PaperPosition, price: float, fee_ratio: float) -> float:
         if position.remaining_cost <= 0:
             return 0.0
-        liquidation_value = position.remaining_amount * price * (1.0 - fee_ratio)
-        return (liquidation_value - position.remaining_cost) / position.remaining_cost
+        if position.side == "long":
+            liquidation_value = position.remaining_amount * price * (1.0 - fee_ratio)
+            return (liquidation_value - position.remaining_cost) / position.remaining_cost
+        entry_notional = position.remaining_cost / (1.0 + fee_ratio) if fee_ratio < 1.0 else 0.0
+        open_fee = position.remaining_cost - entry_notional
+        buyback_cost = position.remaining_amount * price * (1.0 + fee_ratio)
+        return (entry_notional - buyback_cost - open_fee) / position.remaining_cost
 
     def current_equity(
         self,
@@ -252,5 +278,21 @@ class PaperPositionService:
         equity = cash_balance
         for symbol, position in positions.items():
             mark_price = current_price if symbol == current_symbol else position.last_price
-            equity += position.remaining_amount * mark_price * (1.0 - fee_ratio)
+            if position.side == "long":
+                equity += position.remaining_amount * mark_price * (1.0 - fee_ratio)
+            else:
+                equity += position.remaining_cost + (self.profit_ratio(position, mark_price, fee_ratio) * position.remaining_cost)
         return equity
+
+    def entry_side(self, snapshot) -> str | None:
+        if snapshot.long_entry_signal and not snapshot.short_entry_signal:
+            return "long"
+        if snapshot.short_entry_signal and not snapshot.long_entry_signal:
+            return "short"
+        return None
+
+    def exit_signal_for_position(self, position: PaperPosition, snapshot) -> bool:
+        return bool(snapshot.long_exit_signal) if position.side == "long" else bool(snapshot.short_exit_signal)
+
+    def close_signal(self, side: str) -> str:
+        return "SELL" if side == "long" else "BUY"

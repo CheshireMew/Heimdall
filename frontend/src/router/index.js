@@ -55,6 +55,12 @@ const routes = [
         meta: { title: 'DCA模拟' }
     },
     {
+        path: '/tools/portfolio-balance',
+        name: 'PortfolioBalance',
+        component: () => import('@/views/tools/PortfolioBalance.vue'),
+        meta: { title: '组合平衡' }
+    },
+    {
         path: '/tools/halving',
         name: 'Halving',
         component: () => import('@/views/tools/Halving.vue'),

@@ -10,14 +10,17 @@ from app.services.backtest.strategy_catalog import (
     get_indicator_engine_catalog,
     get_template_catalog,
 )
-from app.services.backtest.strategy_contract import editor_contract
+from app.services.backtest.run_form_contract import backtest_run_defaults
+from app.services.backtest.strategy_contract import editor_contract, strategy_runtime_profile
 
 from .strategy_support import normalize_strategy_version_payload
 
 
 class StrategyQueryService:
     def get_editor_contract(self) -> dict[str, Any]:
-        return editor_contract()
+        contract = editor_contract()
+        contract["run_defaults"] = backtest_run_defaults()
+        return contract
 
     def list_templates(self) -> list[dict[str, Any]]:
         return get_template_catalog()
@@ -43,6 +46,25 @@ class StrategyQueryService:
                     .order_by(StrategyVersion.version.desc())
                     .all()
                 )
+                normalized_versions = []
+                for version in versions:
+                    normalized_config, normalized_parameter_space = normalize_strategy_version_payload(
+                        definition.template,
+                        version.config or {},
+                        version.parameter_space or {},
+                    )
+                    normalized_versions.append(
+                        {
+                            "id": version.id,
+                            "version": version.version,
+                            "name": version.name,
+                            "notes": version.notes,
+                            "is_default": version.is_default,
+                            "config": normalized_config,
+                            "parameter_space": normalized_parameter_space,
+                            "runtime": strategy_runtime_profile(normalized_config),
+                        }
+                    )
                 result.append(
                     {
                         "key": definition.key,
@@ -51,18 +73,7 @@ class StrategyQueryService:
                         "category": definition.category,
                         "description": definition.description,
                         "is_active": definition.is_active,
-                        "versions": [
-                            {
-                                "id": version.id,
-                                "version": version.version,
-                                "name": version.name,
-                                "notes": version.notes,
-                                "is_default": version.is_default,
-                                "config": version.config,
-                                "parameter_space": version.parameter_space or {},
-                            }
-                            for version in versions
-                        ],
+                        "versions": normalized_versions,
                     }
                 )
             return result

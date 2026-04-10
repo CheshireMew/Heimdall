@@ -43,8 +43,20 @@ export interface HistoryParams {
   limit?: number
 }
 
+export interface LatestKlineParams {
+  symbol: string
+  timeframe: string
+  limit?: number
+}
+
 export interface FullHistoryParams {
   symbol: string
+  timeframe?: string
+  start_date?: string
+}
+
+export interface BatchFullHistoryParams {
+  symbols: string[]
   timeframe?: string
   start_date?: string
 }
@@ -58,6 +70,8 @@ export interface CryptoIndexParams {
   top_n?: number
   days?: number
 }
+
+export type BatchFullHistoryResponse = Record<string, OHLCVRaw[]>
 
 // ==========================================
 // API Response Types

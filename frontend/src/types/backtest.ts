@@ -5,7 +5,8 @@ export interface BacktestStartRequest {
   strategy_key?: string
   strategy_version?: number | null
   timeframe?: string
-  days?: number
+  start_date?: string
+  end_date?: string
   initial_cash?: number
   fee_rate?: number
   portfolio?: BacktestPortfolioConfig
@@ -126,12 +127,16 @@ export interface BacktestRunMetadata {
   execution_mode?: string | null
   engine?: string | null
   exchange?: string | null
+  market_type?: string | null
+  direction?: string | null
   strategy_key?: string | null
   strategy_name?: string | null
   strategy_version?: number | null
   strategy_template?: string | null
   strategy_notes?: string | null
   symbols?: Array<string>
+  execution_symbols?: Array<string>
+  price_source?: string | null
   portfolio_label?: string | null
   initial_cash?: number | null
   fee_rate?: number | null
@@ -284,11 +289,13 @@ export interface BacktestSampleRanges {
 
 export interface BacktestPaperPosition {
   symbol: string
+  side?: string
   opened_at: string
   entry_price: number
   remaining_amount: number
   remaining_cost: number
   highest_price: number
+  lowest_price: number
   last_price: number
   taken_partial_ids?: Array<string>
 }
@@ -331,6 +338,7 @@ export interface StrategyVersion {
   is_default: boolean
   config: StrategyTemplateConfig
   parameter_space: { [key: string]: Array<unknown> }
+  runtime: StrategyRunProfile
 }
 
 export interface StrategyDefinition {
@@ -389,9 +397,13 @@ export interface StrategyTemplate {
 export interface StrategyEditorContract {
   operators: Array<StrategyOperator>
   group_logics: Array<StrategyGroupLogic>
+  timeframe_options: Array<StrategyOperator>
+  market_type_options: Array<StrategyOperator>
+  direction_options: Array<StrategyOperator>
   blank_condition: StrategyConditionNode
   blank_group: StrategyGroupNode
   blank_config: StrategyTemplateConfig
+  run_defaults: BacktestRunDefaults
 }
 
 export interface StrategyVersionCreateRequest {
@@ -429,6 +441,7 @@ export interface StrategyRuleSource {
   field?: string | null
   indicator?: string | null
   output?: string | null
+  bars_ago?: number | null
   value?: number | null
   multiplier?: number | null
   base_indicator?: string | null
@@ -438,10 +451,27 @@ export interface StrategyRuleSource {
   offset_multiplier?: number | null
 }
 
+export interface StrategyStateBranch {
+  id: string
+  label: string
+  enabled?: boolean
+  regime: StrategyGroupNode
+  long_entry: StrategyGroupNode
+  long_exit: StrategyGroupNode
+  short_entry: StrategyGroupNode
+  short_exit: StrategyGroupNode
+}
+
 export interface StrategyIndicatorConfig {
   label: string
   type: string
+  timeframe?: string
   params?: { [key: string]: number | boolean }
+}
+
+export interface StrategyExecutionConfig {
+  market_type?: "spot" | "futures"
+  direction?: "long_only" | "long_short"
 }
 
 export interface StrategyRoiTarget {
@@ -474,9 +504,24 @@ export interface StrategyRiskConfig {
 
 export interface StrategyTemplateConfig {
   indicators?: { [key: string]: StrategyIndicatorConfig }
-  entry: StrategyGroupNode
-  exit: StrategyGroupNode
+  execution: StrategyExecutionConfig
+  regime_priority?: Array<"trend" | "range">
+  trend: StrategyStateBranch
+  range: StrategyStateBranch
   risk: StrategyRiskConfig
+}
+
+export interface BacktestRunDefaults {
+  strategy_key?: string
+  timeframe?: string
+  start_date?: string
+  end_date?: string
+  initial_cash?: number
+  fee_rate?: number
+  portfolio?: BacktestPortfolioConfig
+  research?: BacktestResearchConfig
+  history_mode?: "backtest" | "paper"
+  optimize_metric_options?: Array<StrategyOperator>
 }
 
 export interface StrategyIndicatorOutput {
@@ -492,6 +537,12 @@ export interface StrategyIndicatorParam {
   min?: number | null
   max?: number | null
   step?: number | null
+}
+
+export interface StrategyRunProfile {
+  indicator_timeframes?: Array<string>
+  allowed_run_timeframes?: Array<string>
+  preferred_run_timeframe: string
 }
 
 export interface StrategyConditionNode {

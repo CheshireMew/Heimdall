@@ -139,11 +139,13 @@ class BacktestSampleRangesResponse(BaseModel):
 
 class BacktestPaperPositionResponse(BaseModel):
     symbol: str
+    side: str = "long"
     opened_at: str
     entry_price: float
     remaining_amount: float
     remaining_cost: float
     highest_price: float
+    lowest_price: float
     last_price: float
     taken_partial_ids: list[str] = Field(default_factory=list)
 
@@ -167,12 +169,16 @@ class BacktestRunMetadataResponse(BaseModel):
     execution_mode: str | None = None
     engine: str | None = None
     exchange: str | None = None
+    market_type: str | None = None
+    direction: str | None = None
     strategy_key: str | None = None
     strategy_name: str | None = None
     strategy_version: int | None = None
     strategy_template: str | None = None
     strategy_notes: str | None = None
     symbols: list[str] = Field(default_factory=list)
+    execution_symbols: list[str] = Field(default_factory=list)
+    price_source: str | None = None
     portfolio_label: str | None = None
     initial_cash: float | None = None
     fee_rate: float | None = None

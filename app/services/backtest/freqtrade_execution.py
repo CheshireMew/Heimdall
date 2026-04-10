@@ -34,7 +34,10 @@ class FreqtradeExecutionContext:
     fee_rate: float
     fee_ratio: float
     stake_currency: str
-    symbols: list[str]
+    data_symbols: list[str]
+    execution_symbols: list[str]
+    market_type: str
+    direction: str
 
 
 @dataclass(slots=True)
@@ -62,6 +65,8 @@ class FreqtradeIterationExecutor:
         self.market_data_service = market_data_service
         self.strategy_builder = strategy_builder
         self.result_builder = result_builder
+        self.shared_data_dir = self.workspace_root / "_shared_data" / settings.EXCHANGE_ID
+        self.shared_manifest_path = self.workspace_root / "_shared_data" / "coverage.json"
 
     def run_iteration(
         self,
@@ -72,10 +77,9 @@ class FreqtradeIterationExecutor:
         start_date: datetime,
         end_date: datetime,
     ) -> IterationResult:
-        run_key = self._build_run_key(context.symbols, context.timeframe, start_date, end_date, label)
+        run_key = self._build_run_key(context.execution_symbols, context.timeframe, start_date, end_date, label)
         run_root = self.workspace_root / run_key
         user_data_dir = run_root / "user_data"
-        data_dir = user_data_dir / "data" / settings.EXCHANGE_ID
         strategies_dir = user_data_dir / "strategies"
         results_dir = user_data_dir / "backtest_results"
         config_path = run_root / "config.json"
@@ -85,15 +89,16 @@ class FreqtradeIterationExecutor:
             shutil.rmtree(run_root)
         results_dir.mkdir(parents=True, exist_ok=True)
         strategies_dir.mkdir(parents=True, exist_ok=True)
-        data_dir.mkdir(parents=True, exist_ok=True)
+        self.shared_data_dir.mkdir(parents=True, exist_ok=True)
 
         total_candles = self._export_history(
-            symbols=context.symbols,
+            data_symbols=context.data_symbols,
+            execution_symbols=context.execution_symbols,
             timeframe=context.timeframe,
             start_date=start_date,
             end_date=end_date,
-            data_dir=data_dir,
-            warmup_bars=self.strategy_builder.warmup_bars(context.strategy.template, strategy_config),
+            warmup_bars=self.strategy_builder.warmup_bars(context.strategy.template, strategy_config, context.timeframe),
+            market_type=context.market_type,
         )
         strategy_path.write_text(
             self.strategy_builder.build_code(context.strategy.template, context.timeframe, strategy_config),
@@ -102,11 +107,13 @@ class FreqtradeIterationExecutor:
         config_path.write_text(
             json.dumps(
                 self._build_config(
-                    symbols=context.symbols,
+                    symbols=context.execution_symbols,
                     timeframe=context.timeframe,
                     initial_cash=context.initial_cash,
                     portfolio=context.portfolio,
                     stake_currency=context.stake_currency,
+                    market_type=context.market_type,
+                    trade_settings=self.strategy_builder.trade_settings(context.strategy.template, strategy_config),
                 ),
                 ensure_ascii=False,
                 indent=2,
@@ -128,7 +135,7 @@ class FreqtradeIterationExecutor:
             "--strategy",
             self.strategy_class_name,
             "--datadir",
-            str(data_dir),
+            str(self.shared_data_dir),
             "--timeframe",
             context.timeframe,
             "--timerange",
@@ -144,11 +151,11 @@ class FreqtradeIterationExecutor:
             "--fee",
             str(context.fee_ratio),
             "--pairs",
-            *context.symbols,
+            *context.execution_symbols,
             "--no-color",
         ]
         logger.info(
-            f"启动 Freqtrade 回测: label={label}, pairs={','.join(context.symbols)}, tf={context.timeframe}, "
+            f"启动 Freqtrade 回测: label={label}, pairs={','.join(context.execution_symbols)}, tf={context.timeframe}, "
             f"range={start_date.isoformat()}->{end_date.isoformat()}"
         )
         try:
@@ -174,7 +181,8 @@ class FreqtradeIterationExecutor:
 
         execution = self.result_builder.build_execution_result(
             results_dir=results_dir,
-            symbols=context.symbols,
+            data_symbols=context.data_symbols,
+            execution_symbols=context.execution_symbols,
             timeframe=context.timeframe,
             start_date=start_date,
             end_date=end_date,
@@ -195,28 +203,110 @@ class FreqtradeIterationExecutor:
     def _export_history(
         self,
         *,
-        symbols: list[str],
+        data_symbols: list[str],
+        execution_symbols: list[str],
         timeframe: str,
         start_date: datetime,
         end_date: datetime,
-        data_dir: Path,
         warmup_bars: int,
+        market_type: str,
     ) -> int:
         total_candles = 0
-        handler = JsonDataHandler(data_dir)
+        handler = JsonDataHandler(self.shared_data_dir)
+        manifest = self._load_shared_coverage()
+        manifest_changed = False
         warmup_start = start_date - (self._timeframe_delta(timeframe) * warmup_bars)
         start_ms = int(start_date.timestamp() * 1000)
         end_ms = int(end_date.timestamp() * 1000)
-        for symbol in symbols:
-            rows = self.market_data_service.fetch_ohlcv_range(symbol, timeframe, warmup_start, end_date)
-            if not rows:
-                raise RuntimeError(f"没有可用于 Freqtrade 回测的历史数据: {symbol} {timeframe}")
-            frame = pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close", "volume"])
-            frame["date"] = pd.to_datetime(frame["timestamp"], unit="ms", utc=True)
-            frame = frame.loc[:, ["date", "open", "high", "low", "close", "volume"]]
-            handler.ohlcv_store(symbol, timeframe, frame, CandleType.SPOT)
+        request_start_ms = int(warmup_start.timestamp() * 1000)
+        for data_symbol, execution_symbol in zip(data_symbols, execution_symbols, strict=True):
+            # Data and execution are intentionally decoupled here:
+            # - data_symbol is the only source we query from our own database/cache
+            # - execution_symbol is the pair name Freqtrade expects under the selected trading_mode
+            # This lets futures backtests reuse spot OHLCV as synthetic mark/last prices
+            # without maintaining a second futures kline dataset.
+            candle_type = CandleType.FUTURES if market_type == "futures" else CandleType.SPOT
+            manifest_key = self._shared_coverage_key(
+                execution_symbol=execution_symbol,
+                timeframe=timeframe,
+                candle_type=candle_type,
+            )
+            coverage = manifest.get(manifest_key) or {}
+            if self._needs_history_refresh(
+                coverage=coverage,
+                data_symbol=data_symbol,
+                start_ms=request_start_ms,
+                end_ms=end_ms,
+            ):
+                rows = self.market_data_service.fetch_ohlcv_range(data_symbol, timeframe, warmup_start, end_date)
+                if not rows:
+                    raise RuntimeError(f"没有可用于 Freqtrade 回测的历史数据: {data_symbol} {timeframe}")
+                frame = pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close", "volume"])
+                frame["date"] = pd.to_datetime(frame["timestamp"], unit="ms", utc=True)
+                frame = frame.loc[:, ["date", "open", "high", "low", "close", "volume"]]
+                handler.ohlcv_store(execution_symbol, timeframe, frame, candle_type)
+                manifest[manifest_key] = {
+                    "data_symbol": data_symbol,
+                    "start_ms": int(frame["date"].iloc[0].value // 1_000_000),
+                    "end_ms": int(frame["date"].iloc[-1].value // 1_000_000),
+                }
+                manifest_changed = True
+            frame = handler._ohlcv_load(execution_symbol, timeframe, None, candle_type)
+            if frame.empty:
+                raise RuntimeError(f"共享回测数据不可用: {execution_symbol} {timeframe}")
             total_candles += int(frame["date"].astype("int64").floordiv(1_000_000).between(start_ms, end_ms).sum())
+        if manifest_changed:
+            self._save_shared_coverage(manifest)
         return total_candles
+
+    def _shared_coverage_key(
+        self,
+        *,
+        execution_symbol: str,
+        timeframe: str,
+        candle_type: CandleType,
+    ) -> str:
+        return f"{execution_symbol}|{timeframe}|{candle_type.value}"
+
+    def _needs_history_refresh(
+        self,
+        *,
+        coverage: dict[str, Any],
+        data_symbol: str,
+        start_ms: int,
+        end_ms: int,
+    ) -> bool:
+        if not coverage:
+            return True
+        if str(coverage.get("data_symbol") or "") != data_symbol:
+            return True
+        if int(coverage.get("start_ms") or start_ms + 1) > start_ms:
+            return True
+        if int(coverage.get("end_ms") or end_ms - 1) < end_ms:
+            return True
+        return False
+
+    def _load_shared_coverage(self) -> dict[str, dict[str, Any]]:
+        if not self.shared_manifest_path.exists():
+            return {}
+        try:
+            payload = json.loads(self.shared_manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+        if not isinstance(payload, dict):
+            return {}
+        return {
+            str(key): value
+            for key, value in payload.items()
+            if isinstance(value, dict)
+        }
+
+    def _save_shared_coverage(self, coverage: dict[str, dict[str, Any]]) -> None:
+        self.shared_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        self.shared_manifest_path.write_text(
+            json.dumps(coverage, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
     def _build_config(
         self,
@@ -226,6 +316,8 @@ class FreqtradeIterationExecutor:
         initial_cash: float,
         portfolio: PortfolioConfigRecord,
         stake_currency: str,
+        market_type: str,
+        trade_settings: dict[str, Any],
     ) -> dict[str, Any]:
         if portfolio.stake_mode == "fixed":
             stake_amount: str | float = round(initial_cash * portfolio.position_size_pct / 100.0, 8)
@@ -233,7 +325,7 @@ class FreqtradeIterationExecutor:
         else:
             stake_amount = "unlimited"
             tradable_balance_ratio = min((portfolio.max_open_trades * portfolio.position_size_pct) / 100.0, 0.99)
-        return {
+        config = {
             "$schema": "https://schema.freqtrade.io/schema.json",
             "max_open_trades": portfolio.max_open_trades,
             "stake_currency": stake_currency,
@@ -242,22 +334,13 @@ class FreqtradeIterationExecutor:
             "dry_run": True,
             "dry_run_wallet": initial_cash,
             "cancel_open_orders_on_exit": False,
-            "trading_mode": "spot",
+            "trading_mode": "futures" if market_type == "futures" else "spot",
             "timeframe": timeframe,
             "dataformat_ohlcv": "json",
             "dataformat_trades": "json",
-            "entry_pricing": {
-                "price_side": "other",
-                "use_order_book": False,
-                "order_book_top": 1,
-                "price_last_balance": 0.0,
-                "check_depth_of_market": {"enabled": False, "bids_to_ask_delta": 1},
-            },
-            "exit_pricing": {
-                "price_side": "other",
-                "use_order_book": False,
-                "order_book_top": 1,
-            },
+            "order_types": dict(trade_settings["order_types"]),
+            "entry_pricing": dict(trade_settings["entry_pricing"]),
+            "exit_pricing": dict(trade_settings["exit_pricing"]),
             "exchange": {
                 "name": settings.EXCHANGE_ID,
                 "key": "",
@@ -272,6 +355,9 @@ class FreqtradeIterationExecutor:
             "bot_name": "heimdall-backtest",
             "internals": {"process_throttle_secs": 5},
         }
+        if market_type == "futures":
+            config["margin_mode"] = "isolated"
+        return config
 
     def _build_run_key(
         self,

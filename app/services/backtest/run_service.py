@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from app.services.backtest import FreqtradeBacktestService
+from app.services.backtest.freqtrade_service import FreqtradeBacktestService
 from app.services.backtest.models import PortfolioConfigRecord, ResearchConfigRecord, StrategyVersionRecord
 from app.services.backtest.run_contract import BACKTEST_EXECUTION_MODE, FREQTRADE_ENGINE, build_backtest_metadata, make_json_safe
 from config import settings

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 
@@ -20,11 +21,13 @@ from app.schemas.market import (
     RealtimeResponse,
     TechnicalMetricsResponse,
 )
-from app.services.market.app_service import MarketAppService
-from app.services.market.market_data_service import MarketDataService
 from app.services.market.websocket_service import MarketWebSocketService
 from config import settings
 from utils.logger import logger
+
+if TYPE_CHECKING:
+    from app.services.market.app_service import MarketAppService
+    from app.services.market.market_data_service import MarketDataService
 
 
 router = APIRouter(tags=["Market Data"])
@@ -118,6 +121,28 @@ async def get_market_history(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get("/klines/latest", response_model=list[list[float]])
+async def get_latest_klines(
+    symbol: str = Query(..., description="Symbol eg BTC/USDT"),
+    timeframe: str = Query(..., description="Timeframe eg 5m"),
+    limit: int = Query(settings.LIMIT, description="Limit", ge=1, le=settings.API_MAX_LIMIT),
+    market_data_service: MarketDataService = Depends(get_market_data_service),
+    service: MarketAppService = Depends(get_market_app_service),
+):
+    try:
+        return service.get_recent_klines(
+            market_data_service=market_data_service,
+            symbol=symbol,
+            timeframe=timeframe,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"Latest klines API Error: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.get("/full_history", response_model=list[list[float]])
 @limiter.limit(settings.RATE_LIMIT_HEAVY)
 async def get_market_full_history(
@@ -147,6 +172,38 @@ async def get_market_full_history(
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         logger.error(f"Full History API Error: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/full_history/batch", response_model=dict[str, list[list[float]]])
+@limiter.limit(settings.RATE_LIMIT_HEAVY)
+async def get_market_full_history_batch(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    symbols: list[str] = Query(..., description="交易对列表，如 BTC/USDT"),
+    timeframe: str = Query("1d", description="Timeframe eg 1d"),
+    start_date: str = Query("2010-01-01", description="Start Date YYYY-MM-DD"),
+    market_data_service: MarketDataService = Depends(get_market_data_service),
+    service: MarketAppService = Depends(get_market_app_service),
+):
+    try:
+        persist_klines = lambda save_symbol, save_timeframe, klines: background_tasks.add_task(
+            market_data_service.save_klines_background,
+            save_symbol,
+            save_timeframe,
+            klines,
+        )
+        return await service.get_full_history_batch(
+            market_data_service=market_data_service,
+            symbols=symbols,
+            timeframe=timeframe,
+            start_date=start_date,
+            persist_klines=persist_klines,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"Batch Full History API Error: {exc}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

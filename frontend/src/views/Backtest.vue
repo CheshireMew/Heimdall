@@ -13,7 +13,7 @@
       </div>
     </section>
 
-    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] gap-6 items-start">
+    <div v-if="page.ready" class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-6 items-start">
       <BacktestControlPanel :panel="page.controlPanel" />
       <BacktestHistoryPanel :panel="page.historyPanel" />
     </div>

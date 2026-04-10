@@ -30,7 +30,7 @@ class PaperRuntimeService:
             start_at = datetime.utcfromtimestamp(last_processed_ms / 1000.0) - (timeframe_delta * warmup_bars) if last_processed_ms else now - (timeframe_delta * (warmup_bars + 2))
             candles = self.market_data_service.fetch_live_ohlcv_range(symbol, timeframe, start_at, now)
             closed_candles = [row for row in candles if row[0] + timeframe_ms <= int(now.timestamp() * 1000)]
-            snapshots = self.runtime.build_signal_snapshots(strategy.template, strategy.config, closed_candles, after_timestamp_ms=last_processed_ms)
+            snapshots = self.runtime.build_signal_snapshots(strategy.template, strategy.config, closed_candles, timeframe, after_timestamp_ms=last_processed_ms)
             pending.extend((symbol, snapshot) for snapshot in snapshots)
         pending.sort(key=lambda item: (item[1].timestamp, item[0]))
         return pending

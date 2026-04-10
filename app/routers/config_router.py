@@ -3,6 +3,7 @@
 """
 from fastapi import APIRouter, HTTPException
 
+from app.domain.market.symbol_catalog import get_supported_market_symbols
 from config import settings
 from utils.logger import logger
 
@@ -14,7 +15,7 @@ async def get_config():
     try:
         return {
             'exchange': settings.EXCHANGE_ID,
-            'symbols': settings.SYMBOLS,
+            'symbols': get_supported_market_symbols(),
             'timeframe': settings.TIMEFRAME,
             'indicators': {
                 'ema_period': settings.EMA_PERIOD,

@@ -8,6 +8,15 @@ from app.services.market.market_data_service import MarketDataService
 
 
 class HistoryService:
+    def get_recent_klines(
+        self,
+        market_data_service: MarketDataService,
+        symbol: str,
+        timeframe: str,
+        limit: int,
+    ) -> list[list[float]]:
+        return market_data_service.get_recent_candles(symbol, timeframe, limit)
+
     def get_history(
         self,
         market_data_service: MarketDataService,
@@ -43,3 +52,28 @@ class HistoryService:
                 persist_klines=persist_klines,
             ),
         )
+
+    async def get_full_history_batch(
+        self,
+        market_data_service: MarketDataService,
+        symbols: list[str],
+        timeframe: str,
+        start_date: str,
+        persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
+    ) -> dict[str, list[list[float]]]:
+        results = await asyncio.gather(
+            *[
+                self.get_full_history(
+                    market_data_service=market_data_service,
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    start_date=start_date,
+                    persist_klines=persist_klines,
+                )
+                for symbol in symbols
+            ],
+        )
+        return {
+            symbol: data
+            for symbol, data in zip(symbols, results, strict=False)
+        }

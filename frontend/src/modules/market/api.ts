@@ -4,7 +4,10 @@ import type {
   RealtimeParams,
   RealtimeResponse,
   HistoryParams,
+  LatestKlineParams,
   FullHistoryParams,
+  BatchFullHistoryParams,
+  BatchFullHistoryResponse,
   IndicatorParams,
   IndicatorItem,
   OHLCVRaw,
@@ -25,8 +28,22 @@ export const marketApi = {
     return request.get('/history', { params })
   },
 
+  getLatestKlines(params: LatestKlineParams): Promise<AxiosResponse<OHLCVRaw[]>> {
+    return request.get('/klines/latest', { params })
+  },
+
   getFullHistory(params: FullHistoryParams): Promise<AxiosResponse<OHLCVRaw[]>> {
     return request.get('/full_history', { params })
+  },
+
+  getBatchFullHistory(params: BatchFullHistoryParams): Promise<AxiosResponse<BatchFullHistoryResponse>> {
+    const query = new URLSearchParams()
+    params.symbols.forEach((symbol) => {
+      query.append('symbols', symbol)
+    })
+    if (params.timeframe) query.set('timeframe', params.timeframe)
+    if (params.start_date) query.set('start_date', params.start_date)
+    return request.get(`/full_history/batch?${query.toString()}`)
   },
 
   getCryptoIndex(params: CryptoIndexParams): Promise<AxiosResponse<CryptoIndexResponse>> {

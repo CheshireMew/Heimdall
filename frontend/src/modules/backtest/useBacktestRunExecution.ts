@@ -31,7 +31,8 @@ export const useBacktestRunExecution = ({
     strategy_key: config.strategy_key,
     strategy_version: config.strategy_version,
     timeframe: config.timeframe,
-    days: config.days,
+    start_date: config.start_date,
+    end_date: config.end_date,
     initial_cash: config.initial_cash,
     fee_rate: config.fee_rate,
     portfolio: {
@@ -66,6 +67,10 @@ export const useBacktestRunExecution = ({
 
   const startBacktest = async () => {
     if (isBusy()) return null
+    if (!config.start_date || !config.end_date) {
+      alert(t('backtest.rangeRequired'))
+      return null
+    }
     backtestLoading.value = true
     try {
       const res = await backtestApi.startRun(buildPayload())

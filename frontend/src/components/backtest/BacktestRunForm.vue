@@ -12,10 +12,23 @@
             <option v-for="tf in panel.timeframes" :key="tf" :value="tf">{{ $t(`compare.tf.${tf}`) }}</option>
           </select>
         </div>
-        <div>
-          <label class="label">{{ $t('backtest.days') }}</label>
-          <input v-model.number="panel.config.days" class="input" type="number" min="7" />
-        </div>
+        <AppDateField
+          v-model="panel.config.start_date"
+          :label="$t('backtest.startDate')"
+          :max="panel.config.end_date || panel.today"
+          label-class="label"
+          input-class="input"
+        />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <AppDateField
+          v-model="panel.config.end_date"
+          :label="$t('backtest.endDate')"
+          :min="panel.config.start_date"
+          :max="panel.today"
+          label-class="label"
+          input-class="input"
+        />
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
@@ -104,6 +117,7 @@
 </template>
 
 <script setup lang="ts">
+import AppDateField from '@/components/AppDateField.vue'
 import type { BacktestControlPanelView } from '@/modules/backtest/viewTypes'
 
 const props = defineProps<{ panel: BacktestControlPanelView }>()

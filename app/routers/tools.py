@@ -3,15 +3,19 @@
 """
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.dependencies import get_tools_app_service
 from app.rate_limit import limiter
 from app.schemas.tools import DCARequestSchema, DynamicToolResponse, PairCompareRequestSchema
-from app.services.tools.app_service import ToolsAppService
 from app.services.tools.contracts import ComparePairsCommand, SimulateDcaCommand
 from config import settings
 from utils.logger import logger
+
+if TYPE_CHECKING:
+    from app.services.tools.app_service import ToolsAppService
 
 
 router = APIRouter()

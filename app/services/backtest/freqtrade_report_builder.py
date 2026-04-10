@@ -125,7 +125,7 @@ class FreqtradeReportBuilder:
         parts = symbol.split("/")
         if len(parts) != 2:
             raise ValueError(f"无效交易对: {symbol}")
-        return parts[1]
+        return parts[1].split(":")[0]
 
     def _pair_breakdown(self, trades: list[BacktestTradeRecord], initial_cash: float) -> list[dict[str, Any]]:
         grouped: dict[str, list[BacktestTradeRecord]] = {}

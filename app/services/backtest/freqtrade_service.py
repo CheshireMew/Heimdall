@@ -50,10 +50,19 @@ class FreqtradeBacktestService:
         self._validate_timeframe(timeframe)
         start_date = self._ensure_utc(start_date)
         end_date = self._ensure_utc(end_date)
-        symbols = self._normalize_symbols(portfolio.symbols)
-        stake_currency = self._validate_stake_currency(symbols)
+        data_symbols = self._normalize_symbols(portfolio.symbols)
         fee_ratio = self._fee_ratio(fee_rate)
         selected_config = dict(strategy.config or {})
+        execution = dict(selected_config.get("execution") or {})
+        market_type = str(execution.get("market_type") or "spot")
+        direction = str(execution.get("direction") or "long_only")
+        self.strategy_builder.runtime.validate_timeframe_compatibility(
+            strategy.template,
+            selected_config,
+            timeframe,
+        )
+        execution_symbols = self._build_execution_symbols(data_symbols, market_type)
+        stake_currency = self._validate_stake_currency(execution_symbols)
         context = FreqtradeExecutionContext(
             strategy=strategy,
             portfolio=portfolio,
@@ -63,7 +72,10 @@ class FreqtradeBacktestService:
             fee_rate=fee_rate,
             fee_ratio=fee_ratio,
             stake_currency=stake_currency,
-            symbols=symbols,
+            data_symbols=data_symbols,
+            execution_symbols=execution_symbols,
+            market_type=market_type,
+            direction=direction,
         )
 
         train_start, train_end, test_start, test_end = self.research_service.split_sample_range(
@@ -144,7 +156,7 @@ class FreqtradeBacktestService:
             "template": strategy.template,
         }
         report["portfolio"] = {
-            "symbols": symbols,
+            "symbols": data_symbols,
             "max_open_trades": portfolio.max_open_trades,
             "position_size_pct": portfolio.position_size_pct,
             "stake_mode": portfolio.stake_mode,
@@ -162,13 +174,17 @@ class FreqtradeBacktestService:
                 "strategy_template": strategy.template,
                 "strategy_notes": strategy.notes,
                 "selected_config": dict(selected_config),
-                "symbols": symbols,
-                "portfolio_label": self._portfolio_label(symbols),
+                "symbols": data_symbols,
+                "execution_symbols": execution_symbols,
+                "price_source": "spot_ohlcv",
+                "portfolio_label": self._portfolio_label(data_symbols),
                 "stake_currency": stake_currency,
                 "initial_cash": initial_cash,
                 "fee_rate": fee_rate,
                 "fee_ratio": fee_ratio,
                 "timeframe": timeframe,
+                "market_type": market_type,
+                "direction": direction,
                 "research": research_report,
                 "sample_ranges": {
                     "requested": self._range_payload(start_date, end_date),
@@ -214,11 +230,31 @@ class FreqtradeBacktestService:
     def _portfolio_label(self, symbols: list[str]) -> str:
         return symbols[0] if len(symbols) == 1 else f"{len(symbols)} symbols"
 
+    def _build_execution_symbols(self, data_symbols: list[str], market_type: str) -> list[str]:
+        if market_type != "futures":
+            return list(data_symbols)
+        execution_symbols: list[str] = []
+        for symbol in data_symbols:
+            base, quote = self._split_symbol(symbol)
+            # Futures backtests reuse spot OHLCV as the pricing source, but Freqtrade still
+            # needs a futures-style pair name once trading_mode=futures. We synthesize that
+            # execution symbol here so the user can keep working with a single spot dataset.
+            # Example:
+            # - stored data symbol: BTC/USDT
+            # - execution symbol:   BTC/USDT:USDT
+            # The execution symbol only exists inside the backtest workspace and result files.
+            execution_symbols.append(f"{base}/{quote}:{quote}")
+        return execution_symbols
+
     def _quote_currency(self, symbol: str) -> str:
+        _, quote = self._split_symbol(symbol)
+        return quote
+
+    def _split_symbol(self, symbol: str) -> tuple[str, str]:
         parts = symbol.split("/")
         if len(parts) != 2:
             raise ValueError(f"无效交易对: {symbol}")
-        return parts[1]
+        return parts[0], parts[1].split(":")[0]
 
     def _fee_ratio(self, fee_rate: float) -> float:
         return fee_rate / 100.0
