@@ -66,6 +66,7 @@ class AppSettings(BaseSettings):
 
     RATE_LIMIT_DEFAULT: str = "60/minute"
     RATE_LIMIT_HEAVY: str = "10/minute"
+    RATE_LIMIT_HISTORY: str = "60/minute"
 
     EXCHANGE_MAX_RETRIES: int = 3
     EXCHANGE_RETRY_DELAY: int = 2
@@ -117,6 +118,23 @@ class AppSettings(BaseSettings):
     COINGECKO_REQUEST_GAP: float = 1.0
     COINGECKO_CACHE_TTL: int = 900
 
+    BINANCE_PUBLIC_BASE_URL: str = "https://api.binance.com"
+    BINANCE_FUTURES_USDM_BASE_URL: str = "https://fapi.binance.com"
+    BINANCE_FUTURES_COINM_BASE_URL: str = "https://dapi.binance.com"
+    BINANCE_WEB3_BASE_URL: str = "https://web3.binance.com"
+    BINANCE_WWW_BASE_URL: str = "https://www.binance.com"
+    BINANCE_PUBLIC_TIMEOUT: float = 20.0
+    BINANCE_PUBLIC_CACHE_TTL: int = 120
+    BINANCE_PUBLIC_MAX_RETRIES: int = 2
+    BINANCE_PUBLIC_RETRY_DELAY: float = 1.0
+
+    CURRENCY_RATES_URL: str = "https://open.er-api.com/v6/latest/USD"
+    CURRENCY_RATES_TIMEOUT: float = 5.0
+    CURRENCY_RATES_TTL: int = 3600
+    DISPLAY_CURRENCIES: list[str] = Field(
+        default_factory=lambda: ["USD", "CNY", "EUR", "GBP", "JPY", "HKD", "SGD", "AUD"]
+    )
+
     MINING_ELECTRICITY_COST_KWH: float = 0.08
     BTC_BLOCK_REWARD: float = 3.125
     BTC_BLOCKS_PER_DAY: int = 144
@@ -146,6 +164,13 @@ class AppSettings(BaseSettings):
     def parse_symbols(cls, value: Any) -> list[str]:
         if isinstance(value, str):
             return [symbol.strip() for symbol in value.split(",") if symbol.strip()]
+        return value
+
+    @field_validator("DISPLAY_CURRENCIES", mode="before")
+    @classmethod
+    def parse_display_currencies(cls, value: Any) -> list[str]:
+        if isinstance(value, str):
+            return [currency.strip().upper() for currency in value.split(",") if currency.strip()]
         return value
 
 

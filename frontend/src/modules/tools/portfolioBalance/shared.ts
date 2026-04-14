@@ -3,7 +3,16 @@ import type { PortfolioReviewFrequency } from '@/types'
 export const PERCENT_BASE = 100
 export const DEFAULT_REVIEW_FREQUENCY: PortfolioReviewFrequency = 'weekly'
 export const PORTFOLIO_SYNTHETIC_PRICE_BY_SYMBOL: Record<string, number> = {
+  USD: 1,
   USDT: 1,
+  USDC: 1,
+  FDUSD: 1,
+  BUSD: 1,
+  DAI: 1,
+  TUSD: 1,
+  USDP: 1,
+  PYUSD: 1,
+  USDS: 1,
 }
 
 export const round = (value: number, digits = 2) => {

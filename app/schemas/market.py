@@ -32,6 +32,30 @@ class RealtimeResponse(BaseModel):
     type: str | None = None
 
 
+class TradeSetupResponseItem(BaseModel):
+    side: str
+    entry: float
+    target: float
+    stop: float
+    risk_reward: float
+    confidence: int
+    risk_amount: float
+    entry_time: int
+    style: str
+    strategy: str
+    source: str
+
+
+class TradeSetupResponse(BaseModel):
+    symbol: str
+    timeframe: str
+    timestamp: str
+    current_price: float | None
+    setup: TradeSetupResponseItem | None
+    reason: str
+    source: str
+
+
 class IndicatorHistoryPoint(BaseModel):
     date: str
     value: float
@@ -53,6 +77,63 @@ class ApiStatusResponse(BaseModel):
     framework: str
     dependencies: str
     timestamp: str
+
+
+class DisplayCurrencyResponse(BaseModel):
+    code: str
+    name: str
+    symbol: str
+    locale: str
+    fraction_digits: int
+
+
+class CurrencyRatesResponse(BaseModel):
+    base: str
+    rates: dict[str, float]
+    supported: list[DisplayCurrencyResponse]
+    updated_at: str
+    source: str
+    is_fallback: bool = False
+
+
+class MarketIndexResponse(BaseModel):
+    symbol: str
+    name: str
+    market: str
+    currency: str
+    pricing_symbol: str | None = None
+    pricing_name: str | None = None
+    pricing_currency: str | None = None
+
+
+class MarketSymbolSearchResponse(BaseModel):
+    symbol: str
+    name: str
+    asset_class: str
+    market: str
+    currency: str
+    exchange: str | None = None
+    aliases: list[str] = Field(default_factory=list)
+    pricing_symbol: str | None = None
+    pricing_name: str | None = None
+    pricing_currency: str | None = None
+
+
+class MarketIndexHistoryResponse(BaseModel):
+    symbol: str
+    name: str
+    market: str
+    currency: str
+    native_currency: str | None = None
+    timeframe: str
+    source: str
+    price_basis: str = "index"
+    pricing_symbol: str | None = None
+    pricing_name: str | None = None
+    pricing_currency: str | None = None
+    is_close_only: bool = False
+    count: int
+    data: list[list[float]]
 
 
 class FundingRateSnapshotResponse(BaseModel):

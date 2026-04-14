@@ -634,6 +634,30 @@ def make_technical_metrics_response() -> dict:
     }
 
 
+def make_trade_setup_response() -> dict:
+    return {
+        "symbol": "BTC/USDT",
+        "timeframe": "1h",
+        "timestamp": "2025-06-01T12:00:00",
+        "current_price": 116.0,
+        "setup": {
+            "side": "long",
+            "entry": 116.0,
+            "target": 126.6,
+            "stop": 110.7,
+            "risk_reward": 2.0,
+            "confidence": 85,
+            "risk_amount": 10.0,
+            "entry_time": 1710007200000,
+            "style": "Scalping",
+            "strategy": "最大收益",
+            "source": "rules",
+        },
+        "reason": "做多：价格站上EMA，MACD 偏强，RSI 61.2",
+        "source": "rules",
+    }
+
+
 def make_crypto_index_response() -> dict:
     return {
         "top_n": 20,
@@ -855,6 +879,7 @@ class StubMarketDataService:
 class StubMarketAppService:
     valid_symbols = ["BTC/USDT", "ETH/USDT"]
     valid_timeframes = ["1h", "4h", "1d"]
+    full_history_used_external_persist_callback = False
 
     async def get_realtime(self, **kwargs):
         return make_market_realtime_response()
@@ -862,9 +887,11 @@ class StubMarketAppService:
     def get_history(self, **kwargs):
         return make_kline_data()
 
-    async def get_full_history(self, *, persist_klines, **kwargs):
+    async def get_full_history(self, *, persist_klines=None, **kwargs):
         klines = make_kline_data()
-        persist_klines(kwargs["symbol"], kwargs["timeframe"], klines)
+        self.full_history_used_external_persist_callback = persist_klines is not None
+        if persist_klines:
+            persist_klines(kwargs["symbol"], kwargs["timeframe"], klines)
         return klines
 
     def get_indicators(self, **kwargs):
@@ -881,6 +908,9 @@ class StubMarketAppService:
 
     async def get_technical_metrics(self, **kwargs):
         return make_technical_metrics_response()
+
+    async def get_trade_setup(self, **kwargs):
+        return make_trade_setup_response()
 
     async def get_crypto_index(self, **kwargs):
         return make_crypto_index_response()

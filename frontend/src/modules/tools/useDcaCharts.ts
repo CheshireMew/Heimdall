@@ -1,6 +1,7 @@
 import { nextTick, onBeforeUnmount, ref, type Ref } from 'vue'
 import { Chart, registerables } from 'chart.js'
 
+import { useMoney } from '@/composables/useMoney'
 import type { DCASimulationResponse } from '@/types'
 
 
@@ -17,6 +18,7 @@ export const useDcaCharts = ({
   t,
   result,
 }: UseDcaChartsOptions) => {
+  const { displayCurrency, toDisplayAmount, formatMoney } = useMoney()
   const roiChartCanvas = ref<HTMLCanvasElement | null>(null)
   const priceChartCanvas = ref<HTMLCanvasElement | null>(null)
   const investmentChartCanvas = ref<HTMLCanvasElement | null>(null)
@@ -38,6 +40,7 @@ export const useDcaCharts = ({
     if (!result.value?.history) return
 
     const history = result.value.history
+    const sourceCurrency = result.value.pricing_currency || 'USDT'
     const labels = history.map((item) => item.date)
     const isDark = theme.value === 'dark'
     const textColor = isDark ? '#9ca3af' : '#6b7280'
@@ -111,7 +114,7 @@ export const useDcaCharts = ({
               datasets: [
                 {
                   label: t('dca.btcPrice'),
-                  data: history.map((item) => item.price),
+                  data: history.map((item) => toDisplayAmount(item.price, sourceCurrency) ?? 0),
                   borderColor: 'rgb(59, 130, 246)',
                   backgroundColor: 'rgba(59, 130, 246, 0.1)',
                   tension: 0.4,
@@ -120,7 +123,7 @@ export const useDcaCharts = ({
                 },
                 {
                   label: t('dca.averageCost'),
-                  data: history.map((item) => item.avg_cost),
+                  data: history.map((item) => toDisplayAmount(item.avg_cost, sourceCurrency) ?? 0),
                   borderColor: 'rgb(251, 191, 36)',
                   backgroundColor: 'rgba(251, 191, 36, 0.1)',
                   tension: 0.4,
@@ -144,6 +147,9 @@ export const useDcaCharts = ({
                   bodyColor: isDark ? '#fff' : '#000',
                   borderColor: gridColor,
                   borderWidth: 1,
+                  callbacks: {
+                    label: (context) => `${context.dataset.label}: ${formatMoney(context.parsed.y, displayCurrency.value)}`,
+                  },
                 },
               },
               scales: {
@@ -174,7 +180,7 @@ export const useDcaCharts = ({
               labels,
               datasets: [{
                 label: t('dca.investAmount'),
-                data: history.map((item, index) => item.invested - (history[index - 1]?.invested || 0)),
+                data: history.map((item, index) => toDisplayAmount(item.invested - (history[index - 1]?.invested || 0), sourceCurrency) ?? 0),
                 backgroundColor: 'rgba(167, 139, 250, 0.6)',
                 borderColor: 'rgb(167, 139, 250)',
                 borderWidth: 0,
@@ -187,7 +193,7 @@ export const useDcaCharts = ({
                 legend: { display: false },
                 tooltip: {
                   callbacks: {
-                    label: (context) => `${t('dca.invested')}: $${context.parsed.y.toFixed(2)}`,
+                    label: (context) => `${t('dca.invested')}: ${formatMoney(context.parsed.y, displayCurrency.value)}`,
                   },
                   backgroundColor: isDark ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
                   titleColor: isDark ? '#fff' : '#000',

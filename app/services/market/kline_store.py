@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from functools import lru_cache
+from sqlalchemy.exc import SQLAlchemyError
 from typing import List
 
 from config import settings
@@ -98,6 +99,8 @@ class KlineStore:
             self._save_with_session(session, symbol, timeframe, klines)
 
     def _save_with_session(self, session, symbol: str, timeframe: str, klines: list[list[float]]) -> None:
+        if not klines:
+            return
         try:
             values = [
                 {
@@ -138,5 +141,23 @@ class KlineStore:
                         session.flush()
                     except SAIntegrityError:
                         session.rollback()
-        except Exception as e:
-            logger.error(f"保存数据失败: {e}")
+        except SQLAlchemyError as exc:
+            session.rollback()
+            logger.error(
+                "保存 K 线缓存失败: "
+                f"symbol={symbol} timeframe={timeframe} rows={len(klines)} reason={self._safe_db_error(exc)}"
+            )
+        except Exception as exc:
+            session.rollback()
+            logger.error(
+                "保存 K 线缓存失败: "
+                f"symbol={symbol} timeframe={timeframe} rows={len(klines)} reason={self._safe_db_error(exc)}"
+            )
+
+    @staticmethod
+    def _safe_db_error(exc: Exception) -> str:
+        original = getattr(exc, "orig", None)
+        message = str(original or exc).splitlines()[0]
+        if len(message) > 240:
+            return f"{message[:240]}..."
+        return message

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from app.services.market.market_data_service import MarketDataService
+from app.services.market.index_data_service import IndexDataService
 from app.services.sentiment_service import SentimentService
 from app.services.tools.dca_calculator import prepare_dca_dataset, simulate_dca_schedule
 from config import settings
@@ -16,11 +17,13 @@ class DCAService:
         self,
         market_data_service: MarketDataService | None = None,
         sentiment_service: SentimentService | None = None,
+        index_data_service: IndexDataService | None = None,
     ) -> None:
-        if market_data_service is None or sentiment_service is None:
-            raise ValueError("DCAService 需要显式注入 market_data_service 和 sentiment_service")
+        if market_data_service is None or sentiment_service is None or index_data_service is None:
+            raise ValueError("DCAService 需要显式注入 market_data_service、sentiment_service 和 index_data_service")
         self.market_data_service = market_data_service
         self.sentiment_service = sentiment_service
+        self.index_data_service = index_data_service
 
     def calculate_dca(
         self,
@@ -55,7 +58,19 @@ class DCAService:
             buffer_days = settings.DCA_INDICATOR_BUFFER_DAYS
             fetch_start_utc = TimeManager.convert_to_utc(start_dt_local - timedelta(days=buffer_days + 1), timezone)
             fetch_end_utc = TimeManager.convert_to_utc(end_dt_local + timedelta(days=1), timezone)
-            klines = self.market_data_service.fetch_ohlcv_range(symbol, "1h", fetch_start_utc, fetch_end_utc)
+            is_index = self.index_data_service.get_instrument(symbol) is not None
+            if is_index and strategy in {"ahr999", "fear_greed"}:
+                return {"error": "指数定投不支持 AHR999 或恐惧贪婪策略"}
+            if is_index:
+                index_pricing = self.index_data_service.get_pricing_history(
+                    symbol=symbol,
+                    timeframe="1d",
+                    start_date=fetch_start_utc.strftime("%Y-%m-%d"),
+                    end_date=fetch_end_utc.strftime("%Y-%m-%d"),
+                )
+                klines = index_pricing.get("data") or []
+            else:
+                klines = self.market_data_service.fetch_ohlcv_range(symbol, "1h", fetch_start_utc, fetch_end_utc)
             if not klines:
                 return {"error": "该时间段无数据"}
 
@@ -63,7 +78,7 @@ class DCAService:
                 klines,
                 timezone=timezone,
                 start_dt_local=start_dt_local,
-                target_hour=target_h,
+                target_hour=None if is_index else target_h,
             )
 
             sentiment_map: dict[str, int] = {}
@@ -81,18 +96,26 @@ class DCAService:
             if not history:
                 return {"error": "无符合时间的数据点 (可能数据太短)"}
 
-            try:
-                latest_kline = self.market_data_service.get_kline_data(symbol, "1m", limit=1)
-                current_price = latest_kline[-1][4] if latest_kline and len(latest_kline[-1]) > 4 else history[-1]["price"]
-            except Exception as exc:
-                logger.warning(f"无法获取实时价格，降级使用最后一次定投价格: {exc}")
-                current_price = history[-1]["price"]
+            if is_index:
+                current_price = klines[-1][4]
+            else:
+                try:
+                    latest_kline = self.market_data_service.get_kline_data(symbol, "1m", limit=1)
+                    current_price = latest_kline[-1][4] if latest_kline and len(latest_kline[-1]) > 4 else history[-1]["price"]
+                except Exception as exc:
+                    logger.warning(f"无法获取实时价格，降级使用最后一次定投价格: {exc}")
+                    current_price = history[-1]["price"]
 
             final_value = total_coins * current_price
             profit_loss = final_value - total_invested
             roi_percent = (profit_loss / total_invested) * 100 if total_invested > 0 else 0
             return {
                 "symbol": symbol,
+                "asset_class": "index" if is_index else "crypto",
+                "price_basis": "proxy_etf" if is_index else "spot",
+                "pricing_symbol": index_pricing.get("pricing_symbol") if is_index else symbol,
+                "pricing_name": index_pricing.get("pricing_name") if is_index else symbol,
+                "pricing_currency": index_pricing.get("pricing_currency") if is_index else "USDT",
                 "start_date": start_date_str,
                 "end_date": end_dt_local.strftime("%Y-%m-%d"),
                 "target_time": target_time_str,

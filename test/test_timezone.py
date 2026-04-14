@@ -24,7 +24,9 @@ class TestTimezoneLogic(unittest.TestCase):
         calc = DCACalculator(
             market_data_service=MagicMock(),
             sentiment_service=MagicMock(),
+            index_data_service=MagicMock(),
         )
+        calc.index_data_service.get_instrument.return_value = None
         
         # Scenario: User wants to buy at 08:00 Beijing Time.
         # 08:00 Beijing = 00:00 UTC.

@@ -49,10 +49,10 @@ export const createBlankTemplateDraft = () => ({
 })
 
 export const createBlankVersionDraft = (contract: StrategyEditorContract) => ({
-  key: 'ema_rsi_macd',
+  key: contract.run_defaults?.strategy_key || '',
   name: 'Variant',
-  template: 'ema_rsi_macd',
-  category: 'trend',
+  template: '',
+  category: 'custom',
   description: '',
   notes: '',
   config: createBlankConfig(contract),

@@ -1,12 +1,49 @@
 <template>
   <div class="relative w-full h-full" ref="chartContainer">
-    <!-- Overlay/Loading/Tooltip could go here -->
+    <div
+      v-if="tradeOverlay"
+      class="pointer-events-none absolute inset-0 z-10 text-xs font-semibold"
+    >
+      <div
+        class="absolute rounded border border-emerald-400/50 bg-emerald-400/20"
+        :style="tradeOverlay.rewardBox"
+      />
+      <div
+        class="absolute rounded border border-rose-400/50 bg-rose-400/20"
+        :style="tradeOverlay.riskBox"
+      />
+      <div
+        class="absolute rounded bg-gray-900 px-2 py-1 text-white shadow dark:bg-white dark:text-gray-900"
+        :style="tradeOverlay.entryLabel"
+      >
+        开仓 {{ formatPrice(tradeSetup.entry) }}
+      </div>
+      <div
+        class="absolute rounded bg-emerald-600 px-2 py-1 text-white shadow"
+        :style="tradeOverlay.targetLabel"
+      >
+        目标 {{ formatPrice(tradeSetup.target) }}
+      </div>
+      <div
+        class="absolute rounded bg-rose-600 px-2 py-1 text-white shadow"
+        :style="tradeOverlay.stopLabel"
+      >
+        止损 {{ formatPrice(tradeSetup.stop) }}
+      </div>
+      <div
+        class="absolute rounded bg-gray-900 px-2 py-1 text-white shadow dark:bg-white dark:text-gray-900"
+        :style="tradeOverlay.ratioLabel"
+      >
+        盈亏比 {{ tradeSetup.risk_reward.toFixed(2) }}
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { createChart, CandlestickSeries, AreaSeries, HistogramSeries } from 'lightweight-charts'
+import { createChart, CandlestickSeries, AreaSeries, HistogramSeries, LineStyle } from 'lightweight-charts'
+import { useMoney } from '@/composables/useMoney'
 
 const props = defineProps({
   data: {
@@ -34,13 +71,118 @@ const props = defineProps({
       text: '#9ca3af', // gray-400
       grid: '#374151'  // gray-700
     })
+  },
+  tradeSetup: {
+    type: Object,
+    default: null
   }
 })
 
 const chartContainer = ref(null)
+const { displayCurrency, formatMoney } = useMoney()
+const tradeOverlay = ref(null)
 let chart = null
 let mainSeries = null
 let volumeSeries = null
+let tradePriceLines = []
+let overlayFrame = 0
+
+const formatPrice = (value) => {
+    if (!Number.isFinite(value)) return '-'
+    if (value >= 1000) return formatMoney(value, 'USDT', { maximumFractionDigits: 1 })
+    if (value >= 1) return formatMoney(value, 'USDT', { maximumFractionDigits: 3 })
+    return formatMoney(value, 'USDT', { maximumSignificantDigits: 4 })
+}
+
+const clearTradePriceLines = () => {
+    if (!mainSeries) return
+    tradePriceLines.forEach(line => mainSeries.removePriceLine(line))
+    tradePriceLines = []
+}
+
+const syncTradeSetup = () => {
+    clearTradePriceLines()
+    if (!mainSeries || !props.tradeSetup) {
+        tradeOverlay.value = null
+        return
+    }
+
+    const setup = props.tradeSetup
+    const lineConfig = [
+        { price: setup.entry, title: '开仓', color: '#111827', style: LineStyle.Dashed },
+        { price: setup.target, title: '目标', color: '#059669', style: LineStyle.Solid },
+        { price: setup.stop, title: '止损', color: '#e11d48', style: LineStyle.Solid },
+    ]
+    tradePriceLines = lineConfig.map(item => mainSeries.createPriceLine({
+        price: item.price,
+        color: item.color,
+        lineWidth: 2,
+        lineStyle: item.style,
+        axisLabelVisible: true,
+        title: `${item.title} ${formatPrice(item.price)}`,
+    }))
+    scheduleOverlayUpdate()
+}
+
+const scheduleOverlayUpdate = () => {
+    if (overlayFrame) cancelAnimationFrame(overlayFrame)
+    overlayFrame = requestAnimationFrame(updateTradeOverlay)
+}
+
+const updateTradeOverlay = () => {
+    overlayFrame = 0
+    if (!chart || !mainSeries || !chartContainer.value || !props.tradeSetup) {
+        tradeOverlay.value = null
+        return
+    }
+
+    const setup = props.tradeSetup
+    const width = chartContainer.value.clientWidth
+    const entryY = mainSeries.priceToCoordinate(setup.entry)
+    const targetY = mainSeries.priceToCoordinate(setup.target)
+    const stopY = mainSeries.priceToCoordinate(setup.stop)
+    if (entryY === null || targetY === null || stopY === null) {
+        tradeOverlay.value = null
+        return
+    }
+
+    const entryTime = Math.floor(setup.entry_time / 1000)
+    const timeX = chart.timeScale().timeToCoordinate(entryTime)
+    const left = Math.max(12, Math.min(width - 180, (timeX ?? width * 0.58) + 10))
+    const boxWidth = Math.max(120, Math.min(260, width - left - 70))
+    const labelLeft = Math.min(width - 150, left + boxWidth + 8)
+
+    tradeOverlay.value = {
+        rewardBox: {
+            left: `${left}px`,
+            top: `${Math.min(entryY, targetY)}px`,
+            width: `${boxWidth}px`,
+            height: `${Math.max(6, Math.abs(targetY - entryY))}px`,
+        },
+        riskBox: {
+            left: `${left}px`,
+            top: `${Math.min(entryY, stopY)}px`,
+            width: `${boxWidth}px`,
+            height: `${Math.max(6, Math.abs(stopY - entryY))}px`,
+        },
+        entryLabel: {
+            left: `${labelLeft}px`,
+            top: `${entryY - 12}px`,
+        },
+        targetLabel: {
+            left: `${labelLeft}px`,
+            top: `${targetY - 12}px`,
+        },
+        stopLabel: {
+            left: `${labelLeft}px`,
+            top: `${stopY - 12}px`,
+        },
+        ratioLabel: {
+            left: `${left}px`,
+            top: `${Math.min(entryY, targetY, stopY) - 30}px`,
+        },
+    }
+}
 
 const syncVolumeSeries = () => {
     if (!chart) return
@@ -101,12 +243,14 @@ const initChart = () => {
     }
 
     updateData()
+    syncTradeSetup()
 }
 
 const updateData = () => {
     syncVolumeSeries()
     if (mainSeries && props.data.length > 0) mainSeries.setData(props.data)
     if (volumeSeries && props.volumeData.length > 0) volumeSeries.setData(props.volumeData)
+    scheduleOverlayUpdate()
 }
 
 // Resize Observer
@@ -120,6 +264,7 @@ onMounted(() => {
             if (entries.length === 0 || entries[0].target !== chartContainer.value) { return }
             const newRect = entries[0].contentRect
             chart.applyOptions({ width: newRect.width, height: newRect.height })
+            scheduleOverlayUpdate()
         })
         resizeObserver.observe(chartContainer.value)
     }
@@ -133,6 +278,7 @@ onMounted(() => {
         // Actually, logic is: pass event to parent, parent decides if need to load.
         // We just emit the range.
         const logicalRange = chart.timeScale().getVisibleLogicalRange();
+        scheduleOverlayUpdate()
         if (logicalRange !== null && logicalRange.from < 10) {
              emit('load-more')
         }
@@ -142,7 +288,9 @@ onMounted(() => {
 const emit = defineEmits(['load-more'])
 
 onUnmounted(() => {
+    if (overlayFrame) cancelAnimationFrame(overlayFrame)
     if (chart) {
+        clearTradePriceLines()
         chart.remove()
         chart = null
     }
@@ -153,6 +301,8 @@ onUnmounted(() => {
 
 watch(() => props.data, updateData, { deep: true })
 watch(() => props.volumeData, updateData, { deep: true })
+watch(() => props.tradeSetup, syncTradeSetup, { deep: true })
+watch(displayCurrency, syncTradeSetup)
 
 watch(() => props.colors, (newColors) => {
     if (!chart) return
@@ -182,6 +332,7 @@ watch(() => props.colors, (newColors) => {
             wickDownColor: newColors.downColor,
         })
     }
+    syncTradeSetup()
 }, { deep: true })
 
 defineExpose({

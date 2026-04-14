@@ -289,30 +289,42 @@ class PaperRunManager:
 
     def _get_strategy_query_service(self) -> StrategyQueryService:
         if self.strategy_query_service is None:
-            raise RuntimeError("PaperRunManager 缺少 strategy_query_service 依赖")
+            from app.dependencies import get_strategy_query_service
+
+            self.strategy_query_service = get_strategy_query_service()
         return self.strategy_query_service
 
     def _get_runtime(self) -> StrategyRuntime:
         if self.runtime is None:
-            raise RuntimeError("PaperRunManager 缺少 runtime 依赖")
+            from app.dependencies import get_strategy_runtime
+
+            self.runtime = get_strategy_runtime()
         return self.runtime
 
     def _get_report_builder(self) -> FreqtradeReportBuilder:
         if self.report_builder is None:
-            raise RuntimeError("PaperRunManager 缺少 report_builder 依赖")
+            from app.dependencies import get_freqtrade_report_builder
+
+            self.report_builder = get_freqtrade_report_builder()
         return self.report_builder
 
     def _get_position_service(self) -> PaperPositionService:
         if self.position_service is None:
-            raise RuntimeError("PaperRunManager 缺少 position_service 依赖")
+            from app.dependencies import get_paper_position_service
+
+            self.position_service = get_paper_position_service()
         return self.position_service
 
     def _get_runtime_service(self) -> PaperRuntimeService:
         if self.runtime_service is None:
-            raise RuntimeError("PaperRunManager 缺少 runtime_service 依赖")
+            from app.dependencies import get_paper_runtime_service
+
+            self.runtime_service = get_paper_runtime_service()
         return self.runtime_service
 
     def _get_persistence_service(self) -> PaperPersistenceService:
         if self.persistence_service is None:
-            raise RuntimeError("PaperRunManager 缺少 persistence_service 依赖")
+            from app.dependencies import get_paper_persistence_service
+
+            self.persistence_service = get_paper_persistence_service()
         return self.persistence_service

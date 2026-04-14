@@ -2,6 +2,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
+import { useMoney } from '@/composables/useMoney'
 import { marketApi } from './api'
 
 interface CryptoIndexSnapshot {
@@ -26,6 +27,7 @@ const normalizeSnapshot = (value: unknown): CryptoIndexSnapshot => {
 
 export function useCryptoIndexPage() {
   const { theme } = useTheme()
+  const { formatMoney, formatCompactMoney } = useMoney()
   const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.cryptoIndex, normalizeSnapshot, createDefaultSnapshot())
   const restoredSnapshot = pageSnapshot.load()
 
@@ -60,23 +62,14 @@ export function useCryptoIndexPage() {
     if (value === null || value === undefined) {
       return '--'
     }
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: value >= 1000 ? 0 : 2,
-    }).format(value)
+    return formatMoney(value, 'USD', { maximumFractionDigits: value >= 1000 ? 0 : 2 })
   }
 
   const formatCompactCurrency = (value: number | null | undefined) => {
     if (value === null || value === undefined) {
       return '--'
     }
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      notation: 'compact',
-      maximumFractionDigits: 2,
-    }).format(value)
+    return formatCompactMoney(value, 'USD')
   }
 
   const formatPercent = (value: number | null | undefined) => {

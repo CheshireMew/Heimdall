@@ -6,6 +6,7 @@ import 'chartjs-adapter-date-fns'
 
 import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readBoolean, readString } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
+import { useMoney } from '@/composables/useMoney'
 import { marketApi } from './api'
 
 
@@ -35,6 +36,7 @@ const normalizeSnapshot = (value: unknown): HalvingPageSnapshot => {
 export function useHalvingPage() {
   const { t } = useI18n()
   const { theme } = useTheme()
+  const { displayCurrency, toDisplayAmount, formatMoney } = useMoney()
   const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.halving, normalizeSnapshot, createDefaultSnapshot())
   const restoredSnapshot = pageSnapshot.load()
 
@@ -64,7 +66,7 @@ export function useHalvingPage() {
     return Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100).toFixed(1)
   })
 
-  const formatPrice = (price: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(price)
+  const formatPrice = (price: number) => formatMoney(price, 'USDT', { maximumFractionDigits: 2 })
 
   const calculatePhaseAnnotations = (isDark: boolean) => {
     if (!showPhases.value) {
@@ -120,7 +122,7 @@ export function useHalvingPage() {
     const textColor = isDark ? '#9CA3AF' : '#6B7280'
     const datasets = [{
       label: t('halving.btcPrice'),
-      data: historyData.value.map((row) => ({ x: row[0], y: row[4] })),
+      data: historyData.value.map((row) => ({ x: row[0], y: toDisplayAmount(row[4], 'USDT') ?? 0 })),
       borderColor: isDark ? '#FCD34D' : '#F59E0B',
       borderWidth: 1.5,
       pointRadius: 0,
@@ -218,7 +220,7 @@ export function useHalvingPage() {
             ticks: {
               color: textColor,
               callback(value) {
-                return `$${value.toLocaleString()}`
+                return formatMoney(value, displayCurrency.value, { maximumFractionDigits: 0 })
               },
             },
           },
@@ -266,6 +268,10 @@ export function useHalvingPage() {
   })
 
   watch(theme, () => {
+    renderChart()
+  })
+
+  watch(displayCurrency, () => {
     renderChart()
   })
 

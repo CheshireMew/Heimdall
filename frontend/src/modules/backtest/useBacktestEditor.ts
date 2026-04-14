@@ -42,14 +42,14 @@ export const useBacktestEditor = ({
   const showIndicatorCreator = ref(false)
   const showTemplateCreator = ref(false)
   const useGlobalIndicatorCatalog = ref(false)
-  const newIndicatorType = ref('ema')
+  const newIndicatorType = ref('')
   const editorReady = computed(() => Boolean(editorContract.value))
 
   const versionDraft = reactive({
-    key: 'ema_rsi_macd',
+    key: '',
     name: 'Variant',
-    template: 'ema_rsi_macd',
-    category: 'trend',
+    template: '',
+    category: 'custom',
     description: '',
     notes: '',
     config: null as StrategyTemplateConfig | null,
@@ -112,6 +112,22 @@ export const useBacktestEditor = ({
   const indicatorSourceOptions = computed(() => sourceOptions.value.filter((item) => item.value.startsWith('indicator:')))
   const branchKeys = ['trend', 'range'] as const
   const branchSignalKeys = ['long_entry', 'long_exit', 'short_entry', 'short_exit'] as const
+
+  const resolveDraftSeed = () => {
+    const strategy = selectedStrategy.value
+    const preferredKey = strategy?.key || editorContract.value?.run_defaults?.strategy_key || ''
+    const templateSpec = normalizedTemplates.value.find((item) => item.template === strategy?.template)
+      || normalizedTemplates.value.find((item) => item.template === versionDraft.template)
+      || normalizedTemplates.value[0]
+      || null
+
+    return {
+      key: preferredKey || templateSpec?.template || '',
+      template: templateSpec?.template || '',
+      category: templateSpec?.category || 'custom',
+      description: strategy?.description || templateSpec?.description || '',
+    }
+  }
 
   const optimizableTargets = computed(() => {
     const targets: Array<{ path: string; label: string; type: string; fallback: number }> = []
@@ -274,8 +290,20 @@ export const useBacktestEditor = ({
   }
 
   const initializeDraftFromContract = () => {
-    if (!versionDraft.config && editorContract.value) {
-      Object.assign(versionDraft, createBlankVersionDraft(editorContract.value))
+    if (versionDraft.config || !editorContract.value) return
+
+    const seed = resolveDraftSeed()
+    Object.assign(versionDraft, createBlankVersionDraft(editorContract.value))
+    versionDraft.key = seed.key || versionDraft.key
+    versionDraft.template = seed.template
+    versionDraft.category = seed.category
+    versionDraft.description = seed.description
+
+    if (seed.template) {
+      applyDraftFromTemplate(seed.template, {}, {}, { description: seed.description })
+    }
+    if (!newIndicatorType.value) {
+      newIndicatorType.value = normalizedIndicators.value[0]?.key || 'ema'
     }
   }
 
@@ -300,17 +328,21 @@ export const useBacktestEditor = ({
     newIndicatorType.value = readString(snapshot.newIndicatorType, newIndicatorType.value)
 
     if (isRecord(snapshot.versionDraft)) {
+      const seed = resolveDraftSeed()
       Object.assign(versionDraft, clone(snapshot.versionDraft))
-      versionDraft.key = readString(versionDraft.key, 'ema_rsi_macd')
+      versionDraft.key = readString(versionDraft.key, seed.key)
       versionDraft.name = readString(versionDraft.name, 'Variant')
-      versionDraft.template = typeof versionDraft.template === 'string' ? versionDraft.template : ''
-      versionDraft.category = readString(versionDraft.category, 'custom')
-      versionDraft.description = typeof versionDraft.description === 'string' ? versionDraft.description : ''
+      versionDraft.template = readString(versionDraft.template, seed.template)
+      versionDraft.category = readString(versionDraft.category, seed.category)
+      versionDraft.description = readString(versionDraft.description, seed.description)
       versionDraft.notes = typeof versionDraft.notes === 'string' ? versionDraft.notes : ''
       versionDraft.make_default = typeof versionDraft.make_default === 'boolean' ? versionDraft.make_default : true
       versionDraft.parameterSpaceValues = isRecord(versionDraft.parameterSpaceValues)
         ? Object.fromEntries(Object.entries(versionDraft.parameterSpaceValues).filter((entry): entry is [string, string] => typeof entry[0] === 'string' && typeof entry[1] === 'string'))
         : {}
+      if (!versionDraft.config && editorContract.value) {
+        versionDraft.config = createBlankConfig(editorContract.value)
+      }
     }
 
     if (isRecord(snapshot.indicatorDraft)) {

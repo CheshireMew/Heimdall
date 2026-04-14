@@ -91,6 +91,8 @@ def make_factor_execution_payload() -> dict[str, Any]:
         ("get", "/health", {}, lambda data: data["status"] == "healthy"),
         ("get", "/api/v1/status", {}, lambda data: data["framework"] == "FastAPI"),
         ("get", "/api/v1/config", {}, lambda data: "exchange" in data),
+        ("get", "/api/v1/currencies", {}, lambda data: data["rates"]["CNY"] == 7.2 and data["supported"][0]["code"] == "USD"),
+        ("get", "/api/v1/llm-config", {}, lambda data: "deepseek" in [item["id"] for item in data["presets"]]),
         ("get", "/api/v1/realtime", {"params": {"symbol": "BTC/USDT"}}, lambda data: data["symbol"] == "BTC/USDT"),
         ("get", "/api/v1/history", {"params": {"symbol": "BTC/USDT", "timeframe": "1h", "end_ts": 1710007200000}}, lambda data: len(data) == 3),
         ("get", "/api/v1/full_history", {"params": {"symbol": "BTC/USDT", "timeframe": "1d", "start_date": "2025-01-01"}}, lambda data: len(data) == 3),
@@ -99,6 +101,7 @@ def make_factor_execution_payload() -> dict[str, Any]:
         ("post", "/api/v1/funding-rate/sync", {"params": {"symbol": "BTCUSDT", "start_date": "2025-01-01"}}, lambda data: data["inserted"] == 50),
         ("get", "/api/v1/funding-rate/history", {"params": {"symbol": "BTCUSDT"}}, lambda data: data["count"] == 1),
         ("get", "/api/v1/technical-metrics", {"params": {"symbol": "BTC/USDT"}}, lambda data: data["sample_size"] == 120),
+        ("get", "/api/v1/trade-setup", {"params": {"symbol": "BTC/USDT", "timeframe": "1h"}}, lambda data: data["setup"]["side"] == "long"),
         ("get", "/api/v1/crypto_index", {}, lambda data: data["constituents"][0]["symbol"] == "BTC"),
         ("post", "/api/v1/tools/dca_simulate", {"json": {"symbol": "BTC/USDT", "amount": 100}}, lambda data: data["profit_pct"] == 23.33),
         ("post", "/api/v1/tools/compare_pairs", {"json": {"symbol_a": "BTC", "symbol_b": "ETH", "days": 30, "timeframe": "1d"}}, lambda data: data["relative_strength"] == 1.12),
@@ -124,16 +127,15 @@ def test_read_api_contracts(api_harness, method, path, kwargs, expected):
     assert expected(response.json())
 
 
-def test_full_history_persists_background_klines(api_harness):
+def test_full_history_uses_service_level_cache_write(api_harness):
     response = api_harness["client"].get(
         "/api/v1/full_history",
         params={"symbol": "BTC/USDT", "timeframe": "1d", "start_date": "2025-01-01"},
     )
 
     assert response.status_code == 200
-    assert api_harness["market_data"].saved_klines == [
-        ("BTC/USDT", "1d", response.json())
-    ]
+    assert api_harness["market_data"].saved_klines == []
+    assert api_harness["market_app"].full_history_used_external_persist_callback is False
 
 
 def test_backtest_mutation_routes_normalize_contracts(api_harness):

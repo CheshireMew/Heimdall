@@ -4,9 +4,7 @@
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-wrap items-end gap-4 transition-colors">
       <div class="flex-1 min-w-[200px]">
         <label class="block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1">{{ $t('compare.symbolA') }}</label>
-        <div class="relative">
-          <input v-model="config.symbolA" type="text" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors" placeholder="e.g. BTC" />
-        </div>
+        <SymbolSearchBox v-model="config.symbolA" output-mode="base" placeholder="Search symbol" @select="handleSymbolSelect" />
       </div>
 
       <div class="flex items-center justify-center p-2">
@@ -15,7 +13,7 @@
 
       <div class="flex-1 min-w-[200px]">
         <label class="block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1">{{ $t('compare.symbolB') }}</label>
-        <input v-model="config.symbolB" type="text" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors" placeholder="e.g. ETH" />
+        <SymbolSearchBox v-model="config.symbolB" output-mode="base" placeholder="Search symbol" @select="handleSymbolSelect" />
       </div>
 
       <div class="w-32">
@@ -48,7 +46,7 @@
       <!-- Chart A -->
       <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col relative transition-colors">
         <div class="absolute top-2 left-2 z-10 bg-white/90 dark:bg-gray-900/80 px-2 py-1 rounded text-sm font-bold text-blue-600 dark:text-blue-400 border border-blue-500/30">
-          {{ config.symbolA }}/USDT
+          {{ symbolLabel(config.symbolA) }}
         </div>
         <TradingViewChart
           ref="chartARef"
@@ -60,7 +58,7 @@
       <!-- Chart B -->
       <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col relative transition-colors">
         <div class="absolute top-2 left-2 z-10 bg-white/90 dark:bg-gray-900/80 px-2 py-1 rounded text-sm font-bold text-purple-600 dark:text-purple-400 border border-purple-500/30">
-          {{ config.symbolB }}/USDT
+          {{ symbolLabel(config.symbolB) }}
         </div>
         <TradingViewChart
           ref="chartBRef"
@@ -88,6 +86,7 @@
 
 <script setup>
 import TradingViewChart from '@/components/TradingViewChart.vue'
+import SymbolSearchBox from '@/components/SymbolSearchBox.vue'
 import { useComparePage } from '@/modules/tools'
 
 const {
@@ -101,5 +100,7 @@ const {
   chartBRef,
   chartRatioRef,
   fetchComparisonData,
+  handleSymbolSelect,
+  symbolLabel,
 } = useComparePage()
 </script>

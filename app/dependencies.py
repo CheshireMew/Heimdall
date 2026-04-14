@@ -24,7 +24,10 @@ if TYPE_CHECKING:
     from app.services.factors.repository import FactorResearchRepository
     from app.services.factors.signal_execution_core import FactorSignalExecutionCore
     from app.services.factors.service import FactorResearchService
+    from app.services.currency_service import CurrencyRateService
     from app.services.market.app_service import MarketAppService
+    from app.services.market.binance_market_intel_service import BinanceMarketIntelService
+    from app.services.market.binance_web3_service import BinanceWeb3Service
     from app.services.market.crypto_index_app_service import CryptoIndexAppService
     from app.services.market.exchange_gateway import ExchangeGateway
     from app.services.market.funding_rate_service import FundingRateService
@@ -32,6 +35,7 @@ if TYPE_CHECKING:
     from app.services.market.history_service import HistoryService
     from app.services.market.indicator_service import IndicatorService
     from app.services.market.indicator_repository import MarketIndicatorRepository
+    from app.services.market.index_data_service import IndexDataService
     from app.services.market.kline_store import KlineStore
     from app.services.market.market_data_service import MarketDataService
     from app.services.market.realtime_service import RealtimeService
@@ -99,6 +103,13 @@ def get_history_service() -> HistoryService:
 
 
 @lru_cache(maxsize=1)
+def get_index_data_service() -> IndexDataService:
+    from app.services.market.index_data_service import IndexDataService
+
+    return IndexDataService(kline_store=get_kline_store())
+
+
+@lru_cache(maxsize=1)
 def get_funding_rate_service() -> FundingRateService:
     from app.services.market.funding_rate_service import FundingRateService
 
@@ -106,10 +117,26 @@ def get_funding_rate_service() -> FundingRateService:
 
 
 @lru_cache(maxsize=1)
+def get_binance_market_intel_service() -> BinanceMarketIntelService:
+    from app.services.market.binance_market_intel_service import BinanceMarketIntelService
+
+    return BinanceMarketIntelService()
+
+
+@lru_cache(maxsize=1)
+def get_binance_web3_service() -> BinanceWeb3Service:
+    from app.services.market.binance_web3_service import BinanceWeb3Service
+
+    return BinanceWeb3Service()
+
+
+@lru_cache(maxsize=1)
 def get_market_app_service() -> MarketAppService:
     from app.services.market.app_service import MarketAppService
 
     return MarketAppService(
+        binance_market_intel_service=get_binance_market_intel_service(),
+        binance_web3_service=get_binance_web3_service(),
         crypto_index_service=get_crypto_index_service(),
         realtime_service=get_realtime_service(),
         indicator_service=get_indicator_service(),
@@ -222,12 +249,6 @@ def get_paper_run_manager() -> PaperRunManager:
     from app.services.backtest.paper_manager import PaperRunManager
 
     return PaperRunManager(
-        strategy_query_service=get_strategy_query_service(),
-        runtime=get_strategy_runtime(),
-        report_builder=get_freqtrade_report_builder(),
-        position_service=get_paper_position_service(),
-        persistence_service=get_paper_persistence_service(),
-        runtime_service=get_paper_runtime_service(),
         run_repository=get_backtest_run_repository(),
     )
 
@@ -249,6 +270,7 @@ def get_dca_service() -> DCAService:
     return DCAService(
         market_data_service=get_market_data_service(),
         sentiment_service=get_sentiment_service(),
+        index_data_service=get_index_data_service(),
     )
 
 
@@ -256,7 +278,10 @@ def get_dca_service() -> DCAService:
 def get_pair_compare_service() -> PairCompareService:
     from app.services.tools.pair_compare_service import PairCompareService
 
-    return PairCompareService(market_data_service=get_market_data_service())
+    return PairCompareService(
+        market_data_service=get_market_data_service(),
+        index_data_service=get_index_data_service(),
+    )
 
 
 @lru_cache(maxsize=1)
@@ -348,10 +373,6 @@ def get_factor_paper_run_manager() -> FactorPaperRunManager:
     from app.services.factors.paper_manager import FactorPaperRunManager
 
     return FactorPaperRunManager(
-        factor_service=get_factor_research_service(),
-        report_builder=get_freqtrade_report_builder(),
-        execution_core=get_factor_signal_execution_core(),
-        persistence_service=get_factor_paper_persistence_service(),
         run_repository=get_backtest_run_repository(),
     )
 
@@ -362,3 +383,10 @@ def get_settings():
     Useful for overriding settings in tests.
     """
     return settings
+
+
+@lru_cache(maxsize=1)
+def get_currency_rate_service() -> CurrencyRateService:
+    from app.services.currency_service import CurrencyRateService
+
+    return CurrencyRateService()

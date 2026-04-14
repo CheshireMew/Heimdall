@@ -23,6 +23,11 @@ export interface DCAHistoryPoint {
 
 export interface DCASimulationResponse {
   symbol: string
+  asset_class?: string
+  price_basis?: string
+  pricing_symbol?: string
+  pricing_name?: string
+  pricing_currency?: string
   start_date: string
   end_date: string
   target_time: string

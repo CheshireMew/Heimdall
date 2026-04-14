@@ -1,8 +1,10 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 
 import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
+import { isIndexSymbol } from '@/modules/market'
 import { useTheme } from '@/composables/useTheme'
 import { toolsApi } from './api'
+import type { MarketSymbolSearchItem } from '@/types'
 
 interface ComparePageSnapshot {
   config: {
@@ -98,6 +100,9 @@ export function useComparePage() {
   const fetchComparisonData = async () => {
     loading.value = true
     try {
+      if (isIndexSymbol(config.symbolA) || isIndexSymbol(config.symbolB)) {
+        config.timeframe = '1d'
+      }
       const response = await toolsApi.comparePairs({
         symbol_a: config.symbolA,
         symbol_b: config.symbolB,
@@ -119,6 +124,12 @@ export function useComparePage() {
       loading.value = false
     }
   }
+
+  const handleSymbolSelect = (item: MarketSymbolSearchItem) => {
+    if (item.asset_class === 'index') config.timeframe = '1d'
+  }
+
+  const symbolLabel = (symbol: string) => isIndexSymbol(symbol) ? symbol : `${symbol}/USDT`
 
   onMounted(() => {
     fetchComparisonData()
@@ -153,5 +164,7 @@ export function useComparePage() {
     chartBRef,
     chartRatioRef,
     fetchComparisonData,
+    handleSymbolSelect,
+    symbolLabel,
   }
 }

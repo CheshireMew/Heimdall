@@ -91,7 +91,6 @@ export const useBacktestEditorCatalog = ({
     try {
       const res = await backtestApi.getEditorContract()
       editorContract.value = res.data
-      editor.initializeDraftFromContract()
     } catch (error) {
       console.error(error)
     }

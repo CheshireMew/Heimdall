@@ -10,6 +10,7 @@ import type {
   PortfolioBalanceTrackingConfig,
 } from '@/types'
 import { isRecord, readNumber, readString } from '@/composables/pageSnapshot'
+import { isIndexSymbol } from '@/modules/market'
 
 import {
   clamp,
@@ -59,6 +60,7 @@ export const createPortfolioBalanceAsset = (
 export const toPortfolioMarketSymbol = (value: string) => {
   const symbol = normalizePortfolioAssetSymbol(value)
   if (!symbol || readPortfolioSyntheticPrice(symbol) !== null) return ''
+  if (isIndexSymbol(symbol)) return symbol
   return `${symbol}/USDT`
 }
 
@@ -234,6 +236,33 @@ export const createPortfolioBalancePortfolio = (
     updatedAt: readString(overrides.updatedAt, timestamp),
   }
 }
+
+export const copyPortfolioBalancePortfolio = (
+  source: PortfolioBalancePortfolio,
+  overrides: Pick<Partial<PortfolioBalancePortfolio>, 'name'> = {},
+): PortfolioBalancePortfolio => createPortfolioBalancePortfolio({
+  name: readString(overrides.name, source.name),
+  assets: source.assets.map((asset) => ({
+    symbol: asset.symbol,
+    targetWeight: asset.targetWeight,
+    units: asset.units,
+    currentPrice: asset.currentPrice,
+    seedValue: asset.seedValue,
+  })),
+  strategy: { ...source.strategy },
+  tracking: { ...source.tracking },
+  backtest: { ...source.backtest },
+  lastBacktestResult: source.lastBacktestResult
+    ? {
+        ...source.lastBacktestResult,
+        equityCurve: source.lastBacktestResult.equityCurve.map((point) => ({ ...point })),
+      }
+    : null,
+  holdingsInitializedAt: source.holdingsInitializedAt,
+  lastPriceUpdatedAt: source.lastPriceUpdatedAt,
+  seedCapital: source.seedCapital,
+  holdingsSource: source.holdingsSource,
+})
 
 export const createDefaultPortfolioCollection = (): PortfolioBalancePortfolio[] => ([
   createPortfolioBalancePortfolio({

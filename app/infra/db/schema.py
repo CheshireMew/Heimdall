@@ -5,6 +5,8 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, JSON, BigInteger, Index, Boolean
 from sqlalchemy.orm import declarative_base, relationship
+
+from app.domain.market.constants import KLINE_SYMBOL_MAX_LENGTH
 from utils.time_utils import utc_now_naive
 
 Base = declarative_base()
@@ -227,7 +229,7 @@ class Kline(Base):
     __tablename__ = 'klines'
     
     # 复合主键: symbol + timeframe + timestamp
-    symbol = Column(String(20), primary_key=True, nullable=False)
+    symbol = Column(String(KLINE_SYMBOL_MAX_LENGTH), primary_key=True, nullable=False)
     timeframe = Column(String(10), primary_key=True, nullable=False)
     timestamp = Column(BigInteger, primary_key=True, nullable=False) # 毫秒时间戳
     

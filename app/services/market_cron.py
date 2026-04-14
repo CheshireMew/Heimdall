@@ -137,13 +137,13 @@ def start_scheduler():
     job = MarketIndicatorCronJob()
 
     # 避免首轮后台任务与 API 启动争抢导入和网络资源
-    _schedule_deferred_start(job.run)
+    _schedule_deferred_start(job.run, delay_seconds=15.0)
 
     # 设定每 4 小时执行一次数据汇总汇聚
     scheduler.add_job(job.run, 'interval', hours=settings.MARKET_CRON_INTERVAL_HOURS, id='fetch_market_indicators', replace_existing=True)
 
     # 数据保留清理: 每 24 小时执行一次
-    _schedule_deferred_start(cleanup_old_data)
+    _schedule_deferred_start(cleanup_old_data, delay_seconds=30.0)
     scheduler.add_job(cleanup_old_data, 'interval', hours=24, id='data_retention_cleanup', replace_existing=True)
 
     scheduler.start()

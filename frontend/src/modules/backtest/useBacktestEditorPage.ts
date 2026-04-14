@@ -1,4 +1,4 @@
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, type WatchStopHandle } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -20,8 +20,8 @@ interface BacktestEditorPageSnapshot {
 
 const createDefaultSnapshot = (): BacktestEditorPageSnapshot => ({
   config: {
-    strategy_key: 'ema_rsi_macd',
-    strategy_version: 1,
+    strategy_key: '',
+    strategy_version: 0,
   },
   editor: null,
 })
@@ -52,6 +52,7 @@ export const useBacktestEditorPage = () => {
   const indicators = ref<any[]>([])
   const indicatorEngines = ref<any[]>([])
   const config = reactive(restoredSnapshot.config)
+  let snapshotStopHandle: WatchStopHandle | null = null
 
   const selectedStrategy = computed(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
   const selectedStrategyVersions = computed(() => {
@@ -111,6 +112,31 @@ export const useBacktestEditorPage = () => {
     || typeof route.query.version === 'string'
   )
 
+  const startSnapshotSync = () => {
+    snapshotStopHandle?.()
+    snapshotStopHandle = bindPageSnapshot(
+      [
+        config,
+        editor.showVersionEditor,
+        editor.showIndicatorCreator,
+        editor.showTemplateCreator,
+        editor.useGlobalIndicatorCatalog,
+        editor.newIndicatorType,
+        editor.versionDraft,
+        editor.indicatorDraft,
+        editor.templateDraft,
+      ],
+      () => ({
+        config: {
+          strategy_key: readString(config.strategy_key, ''),
+          strategy_version: readNumber(config.strategy_version, 0),
+        },
+        editor: editor.buildSnapshot(),
+      }),
+      pageSnapshot.save,
+    )
+  }
+
   onMounted(async () => {
     await catalog.fetchEditorContract()
     await Promise.all([catalog.fetchStrategies(), catalog.fetchTemplates(), catalog.fetchIndicators()])
@@ -118,15 +144,13 @@ export const useBacktestEditorPage = () => {
 
     if (hasExplicitSeed()) {
       seeds.applyRouteSeed()
-      return
-    }
-
-    if (restoredSnapshot.editor) {
+    } else if (restoredSnapshot.editor) {
       editor.restoreSnapshot(restoredSnapshot.editor)
-      return
+    } else {
+      seeds.applyRouteSeed()
     }
 
-    seeds.applyRouteSeed()
+    startSnapshotSync()
   })
 
   watch(
@@ -137,27 +161,9 @@ export const useBacktestEditorPage = () => {
     },
   )
 
-  bindPageSnapshot(
-    [
-      config,
-      editor.showVersionEditor,
-      editor.showIndicatorCreator,
-      editor.showTemplateCreator,
-      editor.useGlobalIndicatorCatalog,
-      editor.newIndicatorType,
-      editor.versionDraft,
-      editor.indicatorDraft,
-      editor.templateDraft,
-    ],
-    () => ({
-      config: {
-        strategy_key: readString(config.strategy_key, 'ema_rsi_macd'),
-        strategy_version: readNumber(config.strategy_version, 1),
-      },
-      editor: editor.buildSnapshot(),
-    }),
-    pageSnapshot.save,
-  )
+  onBeforeUnmount(() => {
+    snapshotStopHandle?.()
+  })
 
   const toggleIndicatorCreator = () => {
     editor.showIndicatorCreator.value = !editor.showIndicatorCreator.value

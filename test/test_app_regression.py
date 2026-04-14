@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 
 import app.main as main_module
+from app.infra.db.database import _build_kline_symbol_contract_statements
 
 
 @pytest.mark.asyncio
@@ -30,25 +32,36 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
     paper_manager = FakeManager()
     factor_manager = FakeManager()
 
-    monkeypatch.setattr(main_module, "init_db", lambda: events.append("init_db"))
-    monkeypatch.setattr(main_module, "start_scheduler", lambda: events.append("start_scheduler"))
-    monkeypatch.setattr(main_module, "get_paper_run_manager", lambda: paper_manager)
-    monkeypatch.setattr(main_module, "get_factor_paper_run_manager", lambda: factor_manager)
-    monkeypatch.setattr(main_module, "scheduler", FakeScheduler())
+    monkeypatch.setattr(
+        main_module,
+        "_import_runtime_route_modules",
+        lambda: events.append("import_routes") or {},
+    )
+    monkeypatch.setattr(main_module, "_register_runtime_routes", lambda _app, _modules=None: events.append("register_routes"))
+    monkeypatch.setattr(main_module, "_init_db", lambda: events.append("init_db"))
+    monkeypatch.setattr(main_module, "_get_paper_run_manager", lambda: paper_manager)
+    monkeypatch.setattr(main_module, "_get_factor_paper_run_manager", lambda: factor_manager)
+    monkeypatch.setattr(
+        main_module,
+        "_import_market_cron_module",
+        lambda: SimpleNamespace(
+            start_scheduler=lambda: events.append("start_scheduler"),
+            scheduler=FakeScheduler(),
+        ),
+    )
 
     async with main_module.lifespan(main_module.app):
         events.append("inside")
+        main_module._ensure_startup_tasks(main_module.app)
+        await main_module.app.state.runtime_routes_task
+        await main_module.app.state.background_services_task
 
-    assert events == [
-        "init_db",
-        "start_scheduler",
-        "restore",
-        "restore",
-        "inside",
-        "shutdown",
-        "shutdown",
-        "scheduler_shutdown",
-    ]
+    assert events[0] == "inside"
+    assert "import_routes" in events
+    assert events.index("import_routes") < events.index("register_routes")
+    assert events.index("init_db") < events.index("start_scheduler")
+    assert events.count("restore") == 2
+    assert events[-3:] == ["shutdown", "shutdown", "scheduler_shutdown"]
 
 
 def test_root_returns_frontend_boot_payload_when_build_missing(api_harness, monkeypatch):
@@ -60,6 +73,13 @@ def test_root_returns_frontend_boot_payload_when_build_missing(api_harness, monk
     assert response.status_code == 200
     assert response.json()["message"] == "Heimdall API is running"
     assert response.json()["docs"] == "/docs"
+
+
+def test_kline_symbol_contract_migrates_short_postgres_column():
+    assert _build_kline_symbol_contract_statements("postgresql", 20) == [
+        "ALTER TABLE klines ALTER COLUMN symbol TYPE VARCHAR(80)"
+    ]
+    assert _build_kline_symbol_contract_statements("postgresql", 80) == []
 
 
 def test_root_and_spa_fallback_serve_built_frontend(api_harness, monkeypatch):

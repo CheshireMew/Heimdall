@@ -15,7 +15,7 @@ def prepare_dca_dataset(
     *,
     timezone: str,
     start_dt_local: datetime,
-    target_hour: int,
+    target_hour: int | None,
 ) -> pd.DataFrame:
     all_df = pd.DataFrame(klines, columns=["timestamp", "open", "high", "low", "close", "volume"])
     all_df["datetime"] = pd.to_datetime(all_df["timestamp"], unit="ms", utc=True)
@@ -38,6 +38,10 @@ def prepare_dca_dataset(
     daily_df["ahr999"] = (daily_df["close"] / daily_df["ma200"]) * (daily_df["close"] / daily_df["exp_price"])
 
     daily_df["date_str"] = daily_df.index.strftime("%Y-%m-%d")
+    if target_hour is None:
+        daily_df["datetime"] = daily_df.index
+        return daily_df[daily_df.index.tz_localize(None) >= start_dt_local].copy()
+
     all_df["date_str"] = all_df["datetime"].dt.strftime("%Y-%m-%d")
     dataset = pd.merge(all_df, daily_df[["date_str", "ema20", "rsi", "ahr999"]], on="date_str", how="left")
     filtered = dataset[dataset["local_dt"] >= start_dt_local.replace(tzinfo=tz_obj)].copy()

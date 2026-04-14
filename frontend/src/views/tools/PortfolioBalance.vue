@@ -36,6 +36,15 @@
                 </button>
                 <button
                   type="button"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-transparent text-slate-400 transition hover:border-sky-200 hover:text-sky-600 dark:hover:border-sky-800 dark:hover:text-sky-300"
+                  :aria-label="$t('portfolioBalance.copyPortfolio')"
+                  :title="$t('portfolioBalance.copyPortfolio')"
+                  @click.stop="copyPortfolio(portfolio.id)"
+                >
+                  <DocumentDuplicateIcon class="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
                   class="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-transparent text-slate-400 transition hover:border-rose-200 hover:text-rose-600 dark:hover:border-rose-800 dark:hover:text-rose-300"
                   @click.stop="deletePortfolio(portfolio.id)"
                 >
@@ -90,22 +99,22 @@
             <div class="grid grid-cols-2 gap-3">
               <div class="rounded-2xl border border-white/70 bg-white/80 p-4 backdrop-blur dark:border-white/10 dark:bg-slate-900/70">
                 <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.totalValue') }}</div>
-                <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{{ formatMoney(plan.totalValue) }}</div>
+                <div class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{{ displayTotalValue }}</div>
               </div>
               <div class="rounded-2xl border border-white/70 bg-white/80 p-4 backdrop-blur dark:border-white/10 dark:bg-slate-900/70">
                 <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.outOfBand') }}</div>
-                <div class="mt-2 text-2xl font-semibold text-amber-600 dark:text-amber-300">{{ plan.outOfBandCount }}</div>
+                <div class="mt-2 text-2xl font-semibold text-amber-600 dark:text-amber-300">{{ displayOutOfBand }}</div>
               </div>
               <div class="rounded-2xl border border-white/70 bg-white/80 p-4 backdrop-blur dark:border-white/10 dark:bg-slate-900/70">
                 <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.maxDrift') }}</div>
-                <div class="mt-2 text-2xl font-semibold text-rose-600 dark:text-rose-300">{{ formatPercent(plan.maxDriftWeight) }}</div>
+                <div class="mt-2 text-2xl font-semibold text-rose-600 dark:text-rose-300">{{ displayMaxDrift }}</div>
               </div>
               <div class="rounded-2xl border border-white/70 bg-white/80 p-4 backdrop-blur dark:border-white/10 dark:bg-slate-900/70">
                 <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  {{ activePortfolio.holdingsSource === 'paper' ? $t('portfolioBalance.holdingsModePaper') : $t('portfolioBalance.virtualCapital') }}
+                  {{ activePortfolio.holdingsSource === 'paper' ? $t('portfolioBalance.holdingsModePaper') : $t('portfolioBalance.virtualCapital', { currency: displayCurrency }) }}
                 </div>
                 <div class="mt-2 text-2xl font-semibold text-emerald-600 dark:text-emerald-300">
-                  {{ activePortfolio.holdingsSource === 'paper' ? $t('portfolioBalance.holdingsModePaperValue') : formatMoney(plan.trackingCapital) }}
+                  {{ activePortfolio.holdingsSource === 'paper' ? $t('portfolioBalance.holdingsModePaperValue') : displayTrackingCapital }}
                 </div>
               </div>
             </div>
@@ -170,16 +179,16 @@
               </select>
             </label>
             <label class="block">
-              <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.virtualCapital') }}</span>
-              <input v-model.number="tracking.virtualCapital" type="number" min="0" step="1000" class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+              <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.virtualCapital', { currency: displayCurrency }) }}</span>
+              <input v-model.number="displayTrackingCapitalInput" type="number" min="0" step="1000" class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
             </label>
             <label class="block">
               <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.rebalanceBand') }}</span>
               <input v-model.number="strategy.rebalanceBand" type="number" min="0" max="100" step="0.5" class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
             </label>
             <label class="block">
-              <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.minTradeAmount') }}</span>
-              <input v-model.number="strategy.minTradeAmount" type="number" min="0" step="100" class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+              <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.minTradeAmount', { currency: displayCurrency }) }}</span>
+              <input v-model.number="displayMinTradeAmountInput" type="number" min="0" step="100" class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
             </label>
           </div>
         </section>
@@ -196,22 +205,24 @@
                         {{ $t('portfolioBalance.targetWeight') }} ({{ formatWeightSum(plan.targetWeightInputSum) }})
                       </span>
                     </th>
-                    <th class="px-4 py-3">{{ $t('portfolioBalance.price') }}</th>
+                    <th class="px-4 py-3">{{ $t('portfolioBalance.price', { currency: displayCurrency }) }}</th>
                     <th class="px-4 py-3">{{ $t('portfolioBalance.unitsHeld') }}</th>
-                    <th class="px-4 py-3">{{ $t('portfolioBalance.currentValue') }}</th>
-                    <th class="px-4 py-3">{{ $t('portfolioBalance.trackingDiffValue') }}</th>
+                    <th class="px-4 py-3">{{ $t('portfolioBalance.currentValue', { currency: displayCurrency }) }}</th>
+                    <th class="px-4 py-3">{{ $t('portfolioBalance.trackingDiffValue', { currency: displayCurrency }) }}</th>
                     <th class="px-4 py-3">{{ $t('portfolioBalance.remove') }}</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-800">
                   <tr v-for="asset in assets" :key="asset.id">
                     <td class="px-4 py-3">
-                      <input
-                        :value="asset.symbol"
-                        type="text"
+                      <SymbolSearchBox
+                        :model-value="asset.symbol"
+                        output-mode="base"
+                        :allowed-classes="['crypto', 'index', 'cash']"
                         :placeholder="$t('portfolioBalance.emptySymbol')"
-                        class="w-28 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-slate-900 outline-none transition focus:border-sky-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
-                        @change="updateAssetSymbol(asset.id, readInputValue($event))"
+                        trigger-class="!w-32 !rounded-xl !bg-slate-50 dark:!bg-slate-900"
+                        disabled-label="Unavailable"
+                        @update:model-value="updateAssetSymbol(asset.id, String($event))"
                       />
                     </td>
                     <td class="px-4 py-3">
@@ -225,16 +236,16 @@
                       />
                     </td>
                     <td class="px-4 py-3 text-slate-600 dark:text-slate-300">
-                      {{ asset.currentPrice ? formatMoney(asset.currentPrice) : '--' }}
+                      {{ asset.currentPrice ? formatAssetPrice(asset) : '--' }}
                     </td>
                     <td class="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {{ asset.units ? asset.units.toFixed(8) : '--' }}
                     </td>
                     <td class="px-4 py-3 text-slate-600 dark:text-slate-300">
-                      {{ asset.currentPrice && asset.units ? formatMoney(holdingValue(asset)) : '--' }}
+                      {{ asset.currentPrice && asset.units ? formatAssetMoney(asset, holdingValue(asset)) : '--' }}
                     </td>
                     <td class="px-4 py-3" :class="returnClass(readPlanAsset(asset.id)?.trackingDiffValue || 0)">
-                      {{ asset.currentPrice && asset.units ? signedMoney(readPlanAsset(asset.id)?.trackingDiffValue || 0) : '--' }}
+                      {{ asset.currentPrice && asset.units ? signedAssetMoney(asset, readPlanAsset(asset.id)?.trackingDiffValue || 0) : '--' }}
                     </td>
                     <td class="px-4 py-3">
                       <button
@@ -274,8 +285,8 @@
                 :max="today"
               />
               <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.backtestInitialCapital') }}</span>
-                <input v-model.number="backtest.initialCapital" type="number" min="0" step="1000" class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.backtestInitialCapital', { currency: displayCurrency }) }}</span>
+                <input v-model.number="displayBacktestInitialCapitalInput" type="number" min="0" step="1000" class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
               </label>
             </div>
           </div>
@@ -332,12 +343,16 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { ArrowDownTrayIcon, ArrowPathIcon, PlusIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { computed, onMounted } from 'vue'
+import { ArrowDownTrayIcon, ArrowPathIcon, DocumentDuplicateIcon, PlusIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import AppDateField from '@/components/AppDateField.vue'
 import BacktestEquityChart from '@/components/BacktestEquityChart.vue'
+import SymbolSearchBox from '@/components/SymbolSearchBox.vue'
 import { usePortfolioBalancePage } from '@/modules/tools'
 import { computePortfolioAssetHoldingValue } from '@/modules/tools/portfolioBalance'
+import { findSymbolCatalogItem, useSymbolCatalog } from '@/modules/market'
+import { useMoney } from '@/composables/useMoney'
+import { useDateTime } from '@/composables/useDateTime'
 
 const {
   portfolios,
@@ -358,6 +373,7 @@ const {
   backtestResult,
   selectPortfolio,
   createPortfolio,
+  copyPortfolio,
   deletePortfolio,
   addAsset,
   removeAsset,
@@ -367,10 +383,18 @@ const {
   refreshMarketPrices,
   runBacktest,
 } = usePortfolioBalancePage()
+const { loadSymbols } = useSymbolCatalog()
+const { displayCurrency, formatMoney, formatSignedMoney, formatDisplayNumber, fromDisplayAmount } = useMoney()
+const dateTime = useDateTime()
 
 const today = new Date().toISOString().slice(0, 10)
-const formatMoney = (value) => `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-const signedMoney = (value) => `${value >= 0 ? '+' : '-'}$${Math.abs(Number(value || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const formatQuoteMoney = (value) => formatMoney(value, 'USDT')
+const signedQuoteMoney = (value) => formatSignedMoney(value, 'USDT')
+const assetMeta = (asset) => findSymbolCatalogItem(asset?.symbol || '')
+const assetCurrency = (asset) => assetMeta(asset)?.pricing_currency || assetMeta(asset)?.currency || 'USDT'
+const formatAssetPrice = (asset) => formatMoney(asset.currentPrice, assetCurrency(asset))
+const formatAssetMoney = (asset, value) => formatMoney(value, assetCurrency(asset))
+const signedAssetMoney = (asset, value) => formatSignedMoney(value, assetCurrency(asset))
 const formatPercent = (value) => `${Number(value || 0).toFixed(2)}%`
 const formatWeightSum = (value) => `${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`
 const signedPercent = (value) => `${value >= 0 ? '+' : ''}${Number(value || 0).toFixed(2)}%`
@@ -378,6 +402,28 @@ const holdingValue = (asset) => computePortfolioAssetHoldingValue(asset)
 const readInputValue = (event) => event?.target?.value || ''
 const hasExactTargetWeightSum = computed(() => Math.abs(Number(plan.value?.targetWeightInputSum || 0) - 100) < 0.005)
 const readPlanAsset = (assetId) => plan.value.assets.find((item) => item.id === assetId) || null
+const displayTotalValue = computed(() => formatQuoteMoney(plan.value?.totalValue || 0))
+const displayTrackingCapital = computed(() => formatQuoteMoney(plan.value?.trackingCapital || 0))
+const displayMaxDrift = computed(() => formatPercent(plan.value?.maxDriftWeight || 0))
+const displayOutOfBand = computed(() => String(plan.value?.outOfBandCount || 0))
+const displayTrackingCapitalInput = computed({
+  get: () => formatDisplayNumber(tracking.value.virtualCapital, 'USDT', 2),
+  set: (value) => {
+    tracking.value.virtualCapital = fromDisplayAmount(value, 'USDT') ?? tracking.value.virtualCapital
+  },
+})
+const displayMinTradeAmountInput = computed({
+  get: () => formatDisplayNumber(strategy.value.minTradeAmount, 'USDT', 2),
+  set: (value) => {
+    strategy.value.minTradeAmount = fromDisplayAmount(value, 'USDT') ?? strategy.value.minTradeAmount
+  },
+})
+const displayBacktestInitialCapitalInput = computed({
+  get: () => formatDisplayNumber(backtest.value.initialCapital, 'USDT', 2),
+  set: (value) => {
+    backtest.value.initialCapital = fromDisplayAmount(value, 'USDT') ?? backtest.value.initialCapital
+  },
+})
 
 const formatDate = (value) => {
   if (!value) return '--'
@@ -386,9 +432,7 @@ const formatDate = (value) => {
 
 const formatDateTime = (value) => {
   if (!value) return '--'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '--'
-  return date.toLocaleString()
+  return dateTime.formatDateTime(value, { hour12: false })
 }
 
 const strategyCardClass = (action) => {
@@ -402,4 +446,8 @@ const returnClass = (value) => {
   if (value < 0) return 'text-rose-600 dark:text-rose-300'
   return 'text-slate-600 dark:text-slate-300'
 }
+
+onMounted(() => {
+  loadSymbols()
+})
 </script>

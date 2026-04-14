@@ -18,6 +18,7 @@ import app.main as main_module
 from app.dependencies import (
     get_backtest_command_service,
     get_backtest_query_service,
+    get_currency_rate_service,
     get_factor_execution_service,
     get_factor_paper_run_manager,
     get_factor_research_service,
@@ -36,6 +37,21 @@ from test.regression_support import (
     StubMarketDataService,
     StubToolsAppService,
 )
+
+
+class StubCurrencyRateService:
+    async def get_rates(self):
+        return {
+            "base": "USD",
+            "rates": {"USD": 1.0, "CNY": 7.2},
+            "supported": [
+                {"code": "USD", "name": "US Dollar", "symbol": "$", "locale": "en-US", "fraction_digits": 2},
+                {"code": "CNY", "name": "人民币", "symbol": "¥", "locale": "zh-CN", "fraction_digits": 2},
+            ],
+            "updated_at": "2026-04-14T00:00:00+00:00",
+            "source": "test",
+            "is_fallback": False,
+        }
 
 
 @pytest.fixture(scope="session")
@@ -83,11 +99,16 @@ def api_harness():
         "backtest_command": StubBacktestCommandService(),
         "backtest_query": StubBacktestQueryService(),
         "tools_app": StubToolsAppService(),
+        "currency_rate": StubCurrencyRateService(),
         "factor_research": StubFactorResearchService(),
         "factor_execution": StubFactorExecutionService(),
         "factor_paper": StubFactorPaperRunManager(),
     }
     app = main_module.app
+    main_module._register_runtime_routes(app)
+    app.state.startup_tasks_started = True
+    app.state.runtime_routes_error = None
+    app.state.database_error = None
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = noop_lifespan
     app.dependency_overrides = {
@@ -96,6 +117,7 @@ def api_harness():
         get_backtest_command_service: lambda: services["backtest_command"],
         get_backtest_query_service: lambda: services["backtest_query"],
         get_tools_app_service: lambda: services["tools_app"],
+        get_currency_rate_service: lambda: services["currency_rate"],
         get_factor_research_service: lambda: services["factor_research"],
         get_factor_execution_service: lambda: services["factor_execution"],
         get_factor_paper_run_manager: lambda: services["factor_paper"],

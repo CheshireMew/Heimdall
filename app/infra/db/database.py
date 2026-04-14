@@ -7,6 +7,7 @@ from pathlib import Path
 from contextlib import contextmanager
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
+from app.domain.market.constants import KLINE_SYMBOL_MAX_LENGTH
 from app.infra.db.schema import Base
 
 db_logger = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ def init_db():
         return
     Base.metadata.create_all(engine)
     _ensure_backtest_run_contract_columns()
+    _ensure_kline_symbol_contract()
     try:
         from app.services.backtest.strategy_defaults_service import StrategyDefaultsService
 
@@ -120,6 +122,35 @@ def _ensure_backtest_run_contract_columns() -> None:
                 changed = True
             if changed:
                 run.metadata_info = metadata
+
+
+def _ensure_kline_symbol_contract() -> None:
+    inspector = inspect(engine)
+    if "klines" not in inspector.get_table_names():
+        return
+
+    symbol_column = next(
+        (column for column in inspector.get_columns("klines") if column["name"] == "symbol"),
+        None,
+    )
+    existing_length = getattr(symbol_column.get("type"), "length", None) if symbol_column else None
+    statements = _build_kline_symbol_contract_statements(engine.dialect.name, existing_length)
+    if not statements:
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+
+
+def _build_kline_symbol_contract_statements(dialect_name: str, existing_length: int | None) -> list[str]:
+    if existing_length is not None and existing_length >= KLINE_SYMBOL_MAX_LENGTH:
+        return []
+    if dialect_name == "postgresql":
+        return [f"ALTER TABLE klines ALTER COLUMN symbol TYPE VARCHAR({KLINE_SYMBOL_MAX_LENGTH})"]
+    if dialect_name == "mysql":
+        return [f"ALTER TABLE klines MODIFY symbol VARCHAR({KLINE_SYMBOL_MAX_LENGTH}) NOT NULL"]
+    return []
 
 @contextmanager
 def session_scope():

@@ -1,3 +1,9 @@
+import { useMoney } from '@/composables/useMoney'
+import { useDateTime } from '@/composables/useDateTime'
+
+const money = useMoney()
+const dateTime = useDateTime()
+
 export const asNumber = (value: unknown) => {
   const numeric = Number(value)
   return Number.isFinite(numeric) ? numeric : null
@@ -15,12 +21,12 @@ export const formatPercent = (value: unknown) => {
 
 export const formatMoney = (value: unknown) => {
   const numeric = asNumber(value)
-  return numeric === null ? '-' : numeric.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  return numeric === null ? '-' : money.formatMoney(numeric, 'USDT', { maximumFractionDigits: 2 })
 }
 
 export const formatPrice = (value: unknown) => {
   const numeric = asNumber(value)
-  return numeric === null ? '-' : numeric.toLocaleString(undefined, { maximumFractionDigits: 4 })
+  return numeric === null ? '-' : money.formatMoney(numeric, 'USDT', { maximumFractionDigits: 4 })
 }
 
 export const formatNumber = (value: unknown) => {
@@ -28,7 +34,7 @@ export const formatNumber = (value: unknown) => {
   return numeric === null ? '-' : numeric.toLocaleString()
 }
 
-export const formatDateTime = (value: string | null | undefined) => (value ? new Date(value).toLocaleString() : '-')
+export const formatDateTime = (value: string | null | undefined) => (value ? dateTime.formatDateTime(value, { hour12: false }) : '-')
 
 export const formatDuration = (minutes: unknown) => {
   const numeric = asNumber(minutes)
@@ -40,5 +46,5 @@ export const formatDuration = (minutes: unknown) => {
 
 export const formatRange = (value: { start?: string; end?: string } | null | undefined) => {
   if (!value?.start || !value?.end) return '-'
-  return `${new Date(value.start).toLocaleDateString()} ~ ${new Date(value.end).toLocaleDateString()}`
+  return dateTime.formatDateRange(value)
 }

@@ -2,7 +2,10 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
+import { isIndexSymbol } from '@/modules/market'
 import { useTheme } from '@/composables/useTheme'
+import { useMoney } from '@/composables/useMoney'
+import { useUserPreferences } from '@/composables/useUserPreferences'
 import type { DCASimulationConfig, DCASimulationResponse } from '@/types'
 import { toolsApi } from './api'
 import { createEmptyMarketData, normalizeMarketData, useDcaMarketContext, type DcaMarketState } from './useDcaMarketContext'
@@ -64,6 +67,8 @@ const normalizeSnapshot = (value: unknown): DcaPageSnapshot => {
 export function useDcaPage() {
   const { theme } = useTheme()
   const { t } = useI18n()
+  const { timezone, setTimezone } = useUserPreferences()
+  const { displayCurrency, fromDisplayAmount, formatDisplayNumber, formatMoney } = useMoney()
   const pageSnapshot = createPageSnapshot(
     PAGE_SNAPSHOT_KEYS.dca,
     normalizeSnapshot,
@@ -73,10 +78,10 @@ export function useDcaPage() {
       marketData: createEmptyMarketData(),
     },
   )
-  const hasSavedSnapshot = pageSnapshot.exists()
   const restoredSnapshot = pageSnapshot.load()
 
   const config = reactive(normalizeConfig(restoredSnapshot?.config))
+  config.timezone = timezone.value
 
   const loading = ref(false)
   const result = ref<DCASimulationResponse | null>(restoredSnapshot?.result ?? null)
@@ -125,7 +130,37 @@ export function useDcaPage() {
     }
   })
 
+  watch(timezone, (nextTimezone) => {
+    config.timezone = nextTimezone
+  })
+
+  watch(() => config.timezone, (nextTimezone) => {
+    if (nextTimezone && nextTimezone !== timezone.value) {
+      setTimezone(nextTimezone)
+    }
+  })
+
+  const displayAmount = computed({
+    get: () => formatDisplayNumber(config.amount, 'USDT', 2),
+    set: (value: number | string) => {
+      const converted = fromDisplayAmount(value, 'USDT')
+      config.amount = converted ?? config.amount
+    },
+  })
+
+  watch(() => config.symbol, () => {
+    if (isIndexSymbol(config.symbol) && ['ahr999', 'fear_greed'].includes(config.strategy)) {
+      config.strategy = 'standard'
+    }
+  })
+
   watch(theme, () => {
+    if (result.value) {
+      renderCharts()
+    }
+  })
+
+  watch(displayCurrency, () => {
     if (result.value) {
       renderCharts()
     }
@@ -142,16 +177,6 @@ export function useDcaPage() {
   )
 
   onMounted(() => {
-    if (!hasSavedSnapshot) {
-      try {
-        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-        if (userTimezone) {
-          config.timezone = userTimezone
-        }
-      } catch (error) {
-        console.warn('Timezone detection failed:', error)
-      }
-    }
     fetchMarketIndicators()
     if (result.value) {
       renderCharts()
@@ -159,12 +184,14 @@ export function useDcaPage() {
   })
 
   const isPositiveRoi = computed(() => (result.value?.roi || 0) >= 0)
+  const isIndexSelected = computed(() => isIndexSymbol(config.symbol))
   const sentimentClass = computed(() => ((marketData.sentiment || 0) >= 50
     ? 'text-green-600 dark:text-green-400'
     : 'text-red-500 dark:text-red-400'))
 
   return {
     config,
+    displayAmount,
     loading,
     result,
     marketData,
@@ -173,6 +200,9 @@ export function useDcaPage() {
     investmentChartCanvas,
     runSimulation,
     isPositiveRoi,
+    isIndexSelected,
     sentimentClass,
+    displayCurrency,
+    formatMoney,
   }
 }

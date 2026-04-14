@@ -3,6 +3,7 @@ export { applyLatestMarketPrices, buildPortfolioAssetsFromPaperRun, clearPortfol
 export {
   collectPortfolioMarketTargets,
   computePortfolioAssetHoldingValue,
+  copyPortfolioBalancePortfolio,
   createDefaultPortfolioCollection,
   createPortfolioBalanceAsset,
   createPortfolioBalancePortfolio,

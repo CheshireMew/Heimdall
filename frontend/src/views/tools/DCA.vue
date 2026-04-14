@@ -10,7 +10,7 @@
       <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
         <div>
           <label class="block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1">{{ $t('dca.pair') }}</label>
-          <input v-model="config.symbol" type="text" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white outline-none transition-colors" />
+          <SymbolSearchBox v-model="config.symbol" placeholder="Search symbol" />
         </div>
         <div>
           <AppDateField
@@ -46,28 +46,22 @@
              <option value="standard">{{ $t('dca.strategies.standard') }}</option>
              <option value="ema_deviation">{{ $t('dca.strategies.ema20') }}</option>
              <option value="rsi_dynamic">{{ $t('dca.strategies.rsi') }}</option>
-             <option value="ahr999">{{ $t('dca.strategies.ahr999') }}</option>
-             <option value="fear_greed">{{ $t('dca.strategies.fg') }}</option>
+             <option v-if="!isIndexSelected" value="ahr999">{{ $t('dca.strategies.ahr999') }}</option>
+             <option v-if="!isIndexSelected" value="fear_greed">{{ $t('dca.strategies.fg') }}</option>
              <option value="value_averaging">{{ $t('dca.strategies.va') }}</option>
            </select>
         </div>
 
         <div>
            <label class="block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1">{{ $t('dca.timezone') }}</label>
-           <select v-model="config.timezone" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white outline-none transition-colors">
-             <option value="UTC">UTC</option>
-             <option value="Asia/Shanghai">Asia/Shanghai (北京)</option>
-             <option value="America/New_York">America/New_York</option>
-             <option value="Europe/London">Europe/London</option>
-             <option value="Asia/Tokyo">Asia/Tokyo</option>
-           </select>
+           <AppTimezoneSelect />
         </div>
 
         <div>
           <label class="block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1">
-              {{ config.strategy === 'value_averaging' ? $t('dca.dailyTarget') : $t('dca.dailyBase') }}
+              {{ config.strategy === 'value_averaging' ? $t('dca.dailyTarget', { currency: displayCurrency }) : $t('dca.dailyBase', { currency: displayCurrency }) }}
           </label>
-          <input v-model.number="config.amount" type="number" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white outline-none transition-colors" />
+          <input v-model.number="displayAmount" type="number" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white outline-none transition-colors" />
         </div>
 
         <!-- Strategy Params (Conditional) -->
@@ -104,7 +98,8 @@
           <!-- 当前币价 -->
           <div class="text-center">
              <div class="text-gray-500 dark:text-gray-400 text-xs uppercase mb-1">{{ $t('dca.currentPrice') }}</div>
-             <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">${{ result ? (result.current_price || 0).toFixed(2) : '--' }}</div>
+             <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ result ? formatMoney(result.current_price, result.pricing_currency || 'USDT') : '--' }}</div>
+             <div v-if="result?.pricing_symbol" class="text-xs text-gray-500 mt-0.5">{{ result.pricing_symbol }}</div>
           </div>
           
           <!-- RSI -->
@@ -135,7 +130,7 @@
           <!-- 1. 平均成本 -->
           <div class="text-center">
              <div class="text-gray-500 dark:text-gray-400 text-xs uppercase mb-1">{{ $t('dca.avgCost') }}</div>
-             <div class="text-xl font-bold text-yellow-600 dark:text-yellow-400">${{ result ? (result.average_cost || 0).toFixed(2) : '--' }}</div>
+             <div class="text-xl font-bold text-yellow-600 dark:text-yellow-400">{{ result ? formatMoney(result.average_cost, result.pricing_currency || 'USDT') : '--' }}</div>
           </div>
           
           <!-- 2. ROI -->
@@ -149,13 +144,13 @@
           <!-- 3. 总投入 -->
           <div class="text-center">
              <div class="text-gray-500 dark:text-gray-400 text-xs uppercase mb-1">{{ $t('dca.totalInvested') }}</div>
-             <div class="text-xl font-bold text-gray-900 dark:text-white">${{ result ? (result.total_invested || 0).toFixed(2) : '--' }}</div>
+             <div class="text-xl font-bold text-gray-900 dark:text-white">{{ result ? formatMoney(result.total_invested, result.pricing_currency || 'USDT') : '--' }}</div>
           </div>
           
           <!-- 4. 当前价值 -->
           <div class="text-center">
              <div class="text-gray-500 dark:text-gray-400 text-xs uppercase mb-1">{{ $t('dca.currentValue') }}</div>
-             <div class="text-xl font-bold text-gray-900 dark:text-white">${{ result ? (result.final_value || 0).toFixed(2) : '--' }}</div>
+             <div class="text-xl font-bold text-gray-900 dark:text-white">{{ result ? formatMoney(result.final_value, result.pricing_currency || 'USDT') : '--' }}</div>
           </div>
           
           <!-- 5. 持仓数量 -->
@@ -205,10 +200,13 @@
 <script setup>
 import { BanknotesIcon, ChartBarIcon, WalletIcon } from '@heroicons/vue/24/outline'
 import AppDateField from '@/components/AppDateField.vue'
+import AppTimezoneSelect from '@/components/AppTimezoneSelect.vue'
+import SymbolSearchBox from '@/components/SymbolSearchBox.vue'
 import { useDcaPage } from '@/modules/tools'
 
 const {
   config,
+  displayAmount,
   loading,
   result,
   marketData,
@@ -217,6 +215,9 @@ const {
   investmentChartCanvas,
   runSimulation,
   isPositiveRoi,
+  isIndexSelected,
   sentimentClass,
+  displayCurrency,
+  formatMoney,
 } = useDcaPage()
 </script>

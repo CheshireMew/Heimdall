@@ -3,49 +3,82 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from app.services.market.market_data_service import MarketDataService
+from app.services.market.index_data_service import IndexDataService
 from config import settings
 from utils.logger import logger
 
 
 class PairCompareService:
-    def __init__(self, market_data_service: MarketDataService | None = None) -> None:
-        if market_data_service is None:
-            raise ValueError("PairCompareService 需要显式注入 market_data_service")
+    def __init__(
+        self,
+        market_data_service: MarketDataService | None = None,
+        index_data_service: IndexDataService | None = None,
+    ) -> None:
+        if market_data_service is None or index_data_service is None:
+            raise ValueError("PairCompareService 需要显式注入 market_data_service 和 index_data_service")
         self.market_data_service = market_data_service
+        self.index_data_service = index_data_service
 
     def compare_pairs(self, symbol_a: str, symbol_b: str, days: int = 7, timeframe: str = "1h") -> dict:
         try:
-            full_symbol_a = f"{symbol_a}/USDT"
-            full_symbol_b = f"{symbol_b}/USDT"
-            logger.info(f"开始对比: {full_symbol_a} vs {full_symbol_b}, {days}天, 显示周期{timeframe}")
+            resolved_a = self._resolve_symbol(symbol_a)
+            resolved_b = self._resolve_symbol(symbol_b)
+            resolved_timeframe = "1d" if resolved_a["asset_class"] == "index" or resolved_b["asset_class"] == "index" else timeframe
+            logger.info(f"开始对比: {resolved_a['symbol']} vs {resolved_b['symbol']}, {days}天, 显示周期{resolved_timeframe}")
 
             end_date = datetime.now()
             start_date = end_date - timedelta(days=days)
             base_timeframe = settings.PAIR_COMPARE_BASE_TIMEFRAME
-            klines_a = self.market_data_service.fetch_ohlcv_range(full_symbol_a, base_timeframe, start_date, end_date)
-            klines_b = self.market_data_service.fetch_ohlcv_range(full_symbol_b, base_timeframe, start_date, end_date)
+            klines_a = self._fetch_history(resolved_a, start_date, end_date, base_timeframe)
+            klines_b = self._fetch_history(resolved_b, start_date, end_date, base_timeframe)
             if not klines_a or not klines_b:
                 return {"error": "获取数据失败"}
 
-            if timeframe != base_timeframe:
-                klines_a = self._aggregate_klines(klines_a, timeframe)
-                klines_b = self._aggregate_klines(klines_b, timeframe)
+            if resolved_timeframe != base_timeframe:
+                klines_a = self._aggregate_klines(klines_a, resolved_timeframe)
+                klines_b = self._aggregate_klines(klines_b, resolved_timeframe)
 
             aligned = self._align_timestamps(klines_a, klines_b)
             if not aligned["timestamps"]:
                 return {"error": "数据时间戳无法对齐"}
 
             return {
-                "symbol_a": full_symbol_a,
-                "symbol_b": full_symbol_b,
+                "symbol_a": resolved_a["symbol"],
+                "symbol_b": resolved_b["symbol"],
                 "data_a": self._format_for_chart(aligned["data_a"]),
                 "data_b": self._format_for_chart(aligned["data_b"]),
                 "ratio_ohlc": self._calculate_ratio_ohlc(aligned["data_a"], aligned["data_b"]),
-                "ratio_symbol": f"{symbol_a}/{symbol_b}",
+                "ratio_symbol": f"{resolved_a['symbol']}/{resolved_b['symbol']}",
+                "timeframe": resolved_timeframe,
             }
         except Exception as exc:
             logger.error(f"币种对比失败: {exc}")
             return {"error": str(exc)}
+
+    def _resolve_symbol(self, symbol: str) -> dict[str, str]:
+        value = str(symbol or "").strip().upper()
+        if self.index_data_service.get_instrument(value):
+            return {"symbol": value, "asset_class": "index"}
+        if "/" in value:
+            return {"symbol": value, "asset_class": "crypto"}
+        return {"symbol": f"{value}/USDT", "asset_class": "crypto"}
+
+    def _fetch_history(
+        self,
+        resolved: dict[str, str],
+        start_date: datetime,
+        end_date: datetime,
+        base_timeframe: str,
+    ) -> list[list[float]]:
+        if resolved["asset_class"] == "index":
+            result = self.index_data_service.get_history(
+                symbol=resolved["symbol"],
+                timeframe="1d",
+                start_date=start_date.strftime("%Y-%m-%d"),
+                end_date=end_date.strftime("%Y-%m-%d"),
+            )
+            return result.get("data") or []
+        return self.market_data_service.fetch_ohlcv_range(resolved["symbol"], base_timeframe, start_date, end_date)
 
     def _aggregate_klines(self, klines: list[list[float]], target_timeframe: str) -> list[list[float]]:
         timeframe_minutes = {

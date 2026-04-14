@@ -26,7 +26,7 @@ class FactorPaperRunManager:
         factor_service: FactorResearchService | None = None,
         run_repository: BacktestRunRepository,
         report_builder: FreqtradeReportBuilder | None = None,
-        execution_core: FactorSignalExecutionCore,
+        execution_core: FactorSignalExecutionCore | None = None,
         persistence_service: FactorPaperPersistenceService | None = None,
     ) -> None:
         self.factor_service = factor_service
@@ -137,11 +137,12 @@ class FactorPaperRunManager:
             if closed.empty:
                 return True
 
-            batch = self.execution_core.run_batch(
+            execution_core = self._get_execution_core()
+            batch = execution_core.run_batch(
                 rows=closed.to_dict("records"),
-                state=self.execution_core.create_state(
+                state=execution_core.create_state(
                     float(runtime_state.get("cash_balance", metadata.get("initial_cash", 0.0))),
-                    position=self.execution_core.deserialize_position((runtime_state.get("positions") or {}).get(symbol)),
+                    position=execution_core.deserialize_position((runtime_state.get("positions") or {}).get(symbol)),
                     held_bars=int(runtime_state.get("held_bars", 0) or 0),
                 ),
                 context=FactorSignalContext(
@@ -305,15 +306,28 @@ class FactorPaperRunManager:
 
     def _get_factor_service(self) -> FactorResearchService:
         if self.factor_service is None:
-            raise RuntimeError("FactorPaperRunManager 缺少 factor_service 依赖")
+            from app.dependencies import get_factor_research_service
+
+            self.factor_service = get_factor_research_service()
         return self.factor_service
 
     def _get_report_builder(self) -> FreqtradeReportBuilder:
         if self.report_builder is None:
-            raise RuntimeError("FactorPaperRunManager 缺少 report_builder 依赖")
+            from app.dependencies import get_freqtrade_report_builder
+
+            self.report_builder = get_freqtrade_report_builder()
         return self.report_builder
+
+    def _get_execution_core(self) -> FactorSignalExecutionCore:
+        if self.execution_core is None:
+            from app.dependencies import get_factor_signal_execution_core
+
+            self.execution_core = get_factor_signal_execution_core()
+        return self.execution_core
 
     def _get_persistence_service(self) -> FactorPaperPersistenceService:
         if self.persistence_service is None:
-            raise RuntimeError("FactorPaperRunManager 缺少 persistence_service 依赖")
+            from app.dependencies import get_factor_paper_persistence_service
+
+            self.persistence_service = get_factor_paper_persistence_service()
         return self.persistence_service

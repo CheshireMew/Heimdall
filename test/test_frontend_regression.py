@@ -17,6 +17,7 @@ def read_frontend(path: str) -> str:
 
 
 def extract_backend_routes() -> set[str]:
+    main_module._register_runtime_routes(main_module.app)
     return {
         route.path
         for route in main_module.app.routes
@@ -92,6 +93,41 @@ def test_market_store_cache_contract_is_stable():
     assert "marketApi.getLatestKlines" in source
     assert "marketApi.getIndicators" in source
     assert "Extreme Greed" in source
+
+
+def test_symbol_search_supports_usd_equivalent_cash_assets():
+    catalog_source = read_frontend("modules/market/symbolCatalog.ts")
+    portfolio_source = read_frontend("views/tools/PortfolioBalance.vue")
+    shared_source = read_frontend("modules/tools/portfolioBalance/shared.ts")
+
+    for symbol in ["USD", "USDT", "USDC"]:
+        assert symbol in catalog_source
+        assert symbol in shared_source
+
+    assert "asset_class: 'cash'" in catalog_source
+    assert "['crypto', 'index', 'cash']" in portfolio_source
+
+
+def test_portfolio_backtest_history_uses_page_cache():
+    source = read_frontend("modules/tools/portfolioBalance/data.ts")
+
+    assert "portfolioHistoryCache" in source
+    assert "portfolioHistoryMapCache" in source
+    assert "loadIndexHistory(item.marketSymbol, startText)" in source
+    assert "loadCryptoHistoryMap(" in source
+
+
+def test_market_history_api_requests_are_memoized():
+    source = read_frontend("modules/market/api.ts")
+
+    assert "historyResponseCache" in source
+    for endpoint in [
+        "full_history",
+        "full_history_batch",
+        "indexes_history",
+        "indexes_pricing_history",
+    ]:
+        assert endpoint in source
 
 
 def test_backtest_and_factor_formatting_entry_points_are_present():

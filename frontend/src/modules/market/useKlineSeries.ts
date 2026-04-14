@@ -1,6 +1,7 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import { marketApi } from './api'
 import { useMarketStore } from './store'
+import { isIndexSymbol } from './symbolCatalog'
 import type { OHLCVRaw } from '@/types'
 
 export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>) {
@@ -31,6 +32,19 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>) {
 
   const fetchLatest = async () => {
     noMoreHistory.value = false
+    if (isIndexSymbol(symbol.value)) {
+      const end = new Date()
+      const start = new Date()
+      start.setFullYear(end.getFullYear() - 1)
+      const res = await marketApi.getIndexHistory({
+        symbol: symbol.value,
+        timeframe: '1d',
+        start_date: start.toISOString().slice(0, 10),
+        end_date: end.toISOString().slice(0, 10),
+      })
+      klineData.value = res.data.data || []
+      return
+    }
     const data = await marketStore.getKlineData(symbol.value, timeframe.value)
     if (data) {
       klineData.value = data
@@ -43,6 +57,25 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>) {
     loadingMore.value = true
     try {
       const oldest = klineData.value[0]
+      if (isIndexSymbol(symbol.value)) {
+        const end = new Date(oldest[0] - 24 * 60 * 60 * 1000)
+        const start = new Date(end)
+        start.setFullYear(end.getFullYear() - 1)
+        const res = await marketApi.getIndexHistory({
+          symbol: symbol.value,
+          timeframe: '1d',
+          start_date: start.toISOString().slice(0, 10),
+          end_date: end.toISOString().slice(0, 10),
+        })
+        const newKlines = res.data.data || []
+        if (newKlines.length === 0) {
+          noMoreHistory.value = true
+          return
+        }
+        klineData.value = [...newKlines, ...klineData.value]
+        return
+      }
+
       const res = await marketApi.getHistory({
         symbol: symbol.value,
         timeframe: timeframe.value,
@@ -74,6 +107,10 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>) {
   )
 
   watch(timeframe, () => {
+    fetchLatest()
+  })
+
+  watch(symbol, () => {
     fetchLatest()
   })
 

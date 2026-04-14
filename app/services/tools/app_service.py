@@ -10,6 +10,7 @@ from app.infra.cache import redis_service
 from app.services.tools.contracts import ComparePairsCommand, SimulateDcaCommand
 from app.services.tools.dca_service import DCAService
 from app.services.tools.pair_compare_service import PairCompareService
+from app.domain.market.symbol_catalog import get_supported_market_symbols
 from config import settings
 from utils.logger import logger
 
@@ -31,21 +32,25 @@ class ToolsAppService:
         return f"dca:{hashlib.md5(raw.encode()).hexdigest()}"
 
     def _validate_dca(self, command: SimulateDcaCommand) -> None:
-        if command.symbol not in settings.SYMBOLS:
-            raise ValueError(f"无效交易对。可选: {settings.SYMBOLS}")
+        if (
+            command.symbol not in get_supported_market_symbols()
+            and self.dca_service.index_data_service.get_instrument(command.symbol) is None
+        ):
+            raise ValueError("无效标的")
         if command.strategy not in VALID_STRATEGIES:
             raise ValueError(f"无效策略。可选: {VALID_STRATEGIES}")
 
     def _validate_compare(self, command: ComparePairsCommand) -> tuple[str, str]:
         symbol_a = command.symbol_a.upper()
         symbol_b = command.symbol_b.upper()
-        valid_bases = {symbol.split("/")[0] for symbol in settings.SYMBOLS}
-        if symbol_a not in valid_bases:
-            raise ValueError(f"无效币种 {symbol_a}。可选: {sorted(valid_bases)}")
-        if symbol_b not in valid_bases:
-            raise ValueError(f"无效币种 {symbol_b}。可选: {sorted(valid_bases)}")
+        valid_symbols = set(get_supported_market_symbols())
+        valid_bases = {symbol.split("/")[0] for symbol in valid_symbols}
+        if symbol_a not in valid_bases and symbol_a not in valid_symbols and self.pair_compare_service.index_data_service.get_instrument(symbol_a) is None:
+            raise ValueError(f"无效标的 {symbol_a}")
+        if symbol_b not in valid_bases and symbol_b not in valid_symbols and self.pair_compare_service.index_data_service.get_instrument(symbol_b) is None:
+            raise ValueError(f"无效标的 {symbol_b}")
         if symbol_a == symbol_b:
-            raise ValueError("两个币种不能相同")
+            raise ValueError("两个标的不能相同")
         return symbol_a, symbol_b
 
     async def simulate_dca(self, command: SimulateDcaCommand) -> dict[str, Any]:
@@ -77,7 +82,7 @@ class ToolsAppService:
 
     async def compare_pairs(self, command: ComparePairsCommand) -> dict[str, Any]:
         symbol_a, symbol_b = self._validate_compare(command)
-        logger.info(f"币种对比请求: {symbol_a} vs {symbol_b}, {command.days}天, {command.timeframe}")
+        logger.info(f"标的对比请求: {symbol_a} vs {symbol_b}, {command.days}天, {command.timeframe}")
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(
             None,

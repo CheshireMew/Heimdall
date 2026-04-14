@@ -9,6 +9,8 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useTheme } from '@/composables/useTheme'
+import { useMoney } from '@/composables/useMoney'
+import { useDateTime } from '@/composables/useDateTime'
 import { useI18n } from 'vue-i18n'
 
 echarts.use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
@@ -22,14 +24,10 @@ const props = defineProps({
 
 const chartContainer = ref(null)
 const { theme } = useTheme()
+const { displayCurrency, toDisplayAmount, formatMoney } = useMoney()
+const { timezone, formatDateTime } = useDateTime()
 const { t, locale } = useI18n()
 let chartInstance = null
-
-const formatTimestamp = (value) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '--'
-  return date.toLocaleString(locale.value)
-}
 
 const getOption = () => {
   const isDark = theme.value === 'dark'
@@ -54,9 +52,9 @@ const getOption = () => {
         const point = data[params[0]?.dataIndex ?? 0]
         if (!point) return ''
         return [
-          formatTimestamp(point.timestamp),
-          `${equityLabel}: ${point.equity.toFixed(2)}`,
-          `${t('backtest.pnlAbs')}: ${point.pnl_abs.toFixed(2)}`,
+          formatDateTime(point.timestamp, { hour12: false }),
+          `${equityLabel}: ${formatMoney(point.equity, 'USDT')}`,
+          `${t('backtest.pnlAbs')}: ${formatMoney(point.pnl_abs, 'USDT')}`,
           `${drawdownLabel}: ${point.drawdown_pct.toFixed(2)}%`,
         ].join('<br/>')
       },
@@ -76,7 +74,7 @@ const getOption = () => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: data.map((item) => formatTimestamp(item.timestamp)),
+      data: data.map((item) => formatDateTime(item.timestamp, { hour12: false })),
       axisLabel: { color: axisColor },
       axisLine: { lineStyle: { color: splitLineColor } },
     },
@@ -84,7 +82,7 @@ const getOption = () => {
       {
         type: 'value',
         scale: true,
-        axisLabel: { color: axisColor },
+        axisLabel: { color: axisColor, formatter: (value) => formatMoney(value, displayCurrency.value, { maximumFractionDigits: 0 }) },
         splitLine: {
           lineStyle: {
             color: splitLineColor,
@@ -106,7 +104,7 @@ const getOption = () => {
         type: 'line',
         smooth: true,
         symbol: 'none',
-        data: data.map((item) => item.equity),
+        data: data.map((item) => toDisplayAmount(item.equity, 'USDT') ?? 0),
         lineStyle: { color: equityColor, width: 2 },
         itemStyle: { color: equityColor },
         areaStyle: {
@@ -156,6 +154,14 @@ watch(theme, () => {
 })
 
 watch(locale, () => {
+  renderChart()
+})
+
+watch(timezone, () => {
+  renderChart()
+})
+
+watch(displayCurrency, () => {
   renderChart()
 })
 

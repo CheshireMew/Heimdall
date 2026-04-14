@@ -37,6 +37,30 @@ const routes = [
         meta: { title: '加密指数' }
     },
     {
+        path: '/indicators/binance-market',
+        name: 'BinanceMarket',
+        component: () => import('@/views/indicators/BinanceMarket.vue'),
+        meta: { title: '币安市场' }
+    },
+    {
+        path: '/indicators/web3-rank',
+        name: 'Web3MarketRank',
+        component: () => import('@/views/indicators/Web3MarketRank.vue'),
+        meta: { title: 'Web3 榜单' }
+    },
+    {
+        path: '/indicators/tokenized-securities',
+        name: 'TokenizedSecurities',
+        component: () => import('@/views/indicators/TokenizedSecurities.vue'),
+        meta: { title: '代币化美股' }
+    },
+    {
+        path: '/indicators/token-research',
+        name: 'BinanceTokenResearch',
+        component: () => import('@/views/indicators/BinanceTokenResearch.vue'),
+        meta: { title: 'Token 研究占位' }
+    },
+    {
         path: '/tools/compare',
         name: 'Compare',
         component: () => import('@/views/tools/Compare.vue'),

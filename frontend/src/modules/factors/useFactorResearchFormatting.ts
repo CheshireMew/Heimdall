@@ -1,7 +1,10 @@
 import type { FactorResearchState } from './state'
+import { useDateTime } from '@/composables/useDateTime'
 
 
 export const useFactorResearchFormatting = (state: FactorResearchState) => {
+  const dateTime = useDateTime()
+
   const factorChipClass = (factorId: string) => {
     const active = state.useAllFactors.value || state.selectedFactorLookup.value.has(factorId)
     return active
@@ -39,7 +42,7 @@ export const useFactorResearchFormatting = (state: FactorResearchState) => {
 
   const formatDate = (value: string | null | undefined) => {
     if (!value) return '--'
-    return new Date(value).toLocaleDateString()
+    return dateTime.formatDate(value)
   }
 
   return {

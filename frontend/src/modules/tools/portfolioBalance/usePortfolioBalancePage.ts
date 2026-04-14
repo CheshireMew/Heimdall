@@ -16,6 +16,7 @@ import {
   selectLatestPaperRunForPortfolio,
 } from './holdings'
 import {
+  copyPortfolioBalancePortfolio,
   createDefaultPortfolioCollection,
   createPortfolioBalanceAsset,
   createPortfolioBalancePortfolio,
@@ -72,6 +73,18 @@ export function usePortfolioBalancePage() {
     sourceError.value = ''
   }
 
+  const toUserError = (error: any, fallback: string) => {
+    const message = String(error?.response?.data?.detail || error?.message || '').trim()
+    if (!message) return fallback
+    if (message.includes('Background on this error at:') || message.includes('sqlalche.me/e/')) {
+      return '历史数据处理失败，请稍后重试。'
+    }
+    if (message.length > 240) {
+      return `${message.slice(0, 240)}...`
+    }
+    return message
+  }
+
   const updateActivePortfolio = (updater: (portfolio: PortfolioBalancePortfolio) => void) => {
     const portfolio = activePortfolio.value
     if (!portfolio) return
@@ -95,7 +108,6 @@ export function usePortfolioBalancePage() {
           || portfolio.assets.some((asset) => normalizePortfolioAssetSymbol(asset.symbol) && asset.units <= 0)
         )
       )
-
       if (needsSeed) {
         seedPortfolioHoldingsFromMarket(portfolio, priceBySymbol)
         sourceMessage.value = failedSymbols.length
@@ -109,7 +121,7 @@ export function usePortfolioBalancePage() {
       }
       touchPortfolio(portfolio)
     } catch (error: any) {
-      sourceError.value = error?.message || '刷新市场价格失败'
+      sourceError.value = toUserError(error, '刷新市场价格失败')
     } finally {
       marketLoading.value = false
     }
@@ -138,6 +150,33 @@ export function usePortfolioBalancePage() {
     portfolios.unshift(nextPortfolio)
     activePortfolioId.value = nextPortfolio.id
     sourceMessage.value = '已创建新组合'
+    sourceError.value = ''
+  }
+
+  const buildCopiedPortfolioName = (sourceName: string) => {
+    const baseName = sourceName.trim() || '组合'
+    const copyName = `${baseName} 副本`
+    const existingNames = new Set(portfolios.map((portfolio) => portfolio.name))
+    if (!existingNames.has(copyName)) return copyName
+
+    let sequence = 2
+    while (existingNames.has(`${copyName} ${sequence}`)) {
+      sequence += 1
+    }
+    return `${copyName} ${sequence}`
+  }
+
+  const copyPortfolio = (portfolioId: string) => {
+    const index = portfolios.findIndex((portfolio) => portfolio.id === portfolioId)
+    if (index < 0) return
+
+    const sourcePortfolio = portfolios[index]
+    const nextPortfolio = copyPortfolioBalancePortfolio(sourcePortfolio, {
+      name: buildCopiedPortfolioName(sourcePortfolio.name),
+    })
+    portfolios.splice(index + 1, 0, nextPortfolio)
+    activePortfolioId.value = nextPortfolio.id
+    sourceMessage.value = '组合已复制'
     sourceError.value = ''
   }
 
@@ -247,7 +286,7 @@ export function usePortfolioBalancePage() {
       lastImportedRun.value = targetRun
       sourceMessage.value = `已导入模拟盘 #${targetRun.id}`
     } catch (error: any) {
-      sourceError.value = error?.message || '导入模拟盘持仓失败'
+      sourceError.value = toUserError(error, '导入模拟盘持仓失败')
     } finally {
       importLoading.value = false
     }
@@ -259,6 +298,9 @@ export function usePortfolioBalancePage() {
 
     backtestLoading.value = true
     resetFeedback()
+    updateActivePortfolio((currentPortfolio) => {
+      currentPortfolio.lastBacktestResult = null
+    })
     try {
       const startText = portfolio.backtest.backtestStartDate
       if (!startText) throw new Error('请先选择回测开始日期')
@@ -278,7 +320,7 @@ export function usePortfolioBalancePage() {
       })
       sourceMessage.value = `已生成 ${nextResult.startDate} 到 ${nextResult.endDate} 的回测结果`
     } catch (error: any) {
-      sourceError.value = error?.message || '组合回测失败'
+      sourceError.value = toUserError(error, '组合回测失败')
     } finally {
       backtestLoading.value = false
     }
@@ -349,6 +391,7 @@ export function usePortfolioBalancePage() {
     backtestResult,
     selectPortfolio,
     createPortfolio,
+    copyPortfolio,
     deletePortfolio,
     addAsset,
     removeAsset,

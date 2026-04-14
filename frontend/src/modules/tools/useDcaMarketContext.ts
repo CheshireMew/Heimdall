@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 
-import { marketApi } from '@/modules/market'
+import { isIndexSymbol, marketApi } from '@/modules/market'
 import { resolveSentimentBucket } from '@/modules/market/sentiment'
 
 export interface DcaMarketState {
@@ -45,12 +45,21 @@ export const useDcaMarketContext = ({
 
   const fetchMarketIndicators = async () => {
     try {
-      const [realtimeRes, indicatorsRes] = await Promise.all([
-        marketApi.getRealtime({ symbol: symbol(), timeframe: '1d', limit: 100 }),
+      const currentSymbol = symbol()
+      const [marketRes, indicatorsRes] = await Promise.all([
+        isIndexSymbol(currentSymbol)
+          ? marketApi.getIndexPricingHistory({
+              symbol: currentSymbol,
+              timeframe: '1d',
+              start_date: new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10),
+            })
+          : marketApi.getRealtime({ symbol: currentSymbol, timeframe: '1d', limit: 100 }),
         marketApi.getIndicators({ days: 7 }),
       ])
 
-      marketData.rsi = realtimeRes.data?.indicators?.rsi?.toFixed(2) || '--'
+      marketData.rsi = isIndexSymbol(currentSymbol)
+        ? '--'
+        : marketRes.data?.indicators?.rsi?.toFixed(2) || '--'
       const fearGreed = (indicatorsRes.data || []).find((item) => item.indicator_id === 'FEAR_GREED')
       if (!fearGreed || fearGreed.current_value === null) {
         return

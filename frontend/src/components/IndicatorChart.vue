@@ -9,6 +9,7 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useTheme } from '@/composables/useTheme'
+import { useDateTime } from '@/composables/useDateTime'
 
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
@@ -26,6 +27,7 @@ const props = defineProps({
 const chartContainer = ref(null)
 let chartInstance = null
 const { theme } = useTheme()
+const { timezone, formatDate } = useDateTime()
 
 const getChartOption = (indicator, isDark) => {
   const textColor = isDark ? '#9ca3af' : '#4b5563'
@@ -33,7 +35,7 @@ const getChartOption = (indicator, isDark) => {
   const areaColor = isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(37, 99, 235, 0.2)'
   const splitLineColor = isDark ? '#374151' : '#e5e7eb'
 
-  const dataDates = indicator.history.map(item => new Date(item.date).toLocaleDateString())
+  const dataDates = indicator.history.map(item => formatDate(item.date))
   const dataValues = indicator.history.map(item => item.value)
 
   return {
@@ -115,6 +117,12 @@ watch(() => props.indicator, () => {
 watch(theme, () => {
   if (chartInstance) {
     // Re-render entirely with new colors on theme change
+    renderChart()
+  }
+})
+
+watch(timezone, () => {
+  if (chartInstance) {
     renderChart()
   }
 })

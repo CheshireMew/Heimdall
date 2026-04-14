@@ -11,6 +11,19 @@ EXTRA_MARKET_SYMBOL_EXCHANGES: dict[str, str] = {
     "OKB/USDT": "okx",
 }
 
+USD_EQUIVALENT_SYMBOLS = (
+    "USD",
+    "USDT",
+    "USDC",
+    "FDUSD",
+    "BUSD",
+    "DAI",
+    "TUSD",
+    "USDP",
+    "PYUSD",
+    "USDS",
+)
+
 
 @dataclass(frozen=True)
 class MarketSymbolSource:
@@ -63,11 +76,16 @@ def get_supported_market_symbols() -> list[str]:
     return list(MARKET_SYMBOL_CATALOG.keys())
 
 
+def get_usd_equivalent_symbols() -> list[str]:
+    return list(USD_EQUIVALENT_SYMBOLS)
+
+
 __all__ = [
     "MarketSymbolSource",
     "MARKET_SYMBOL_CATALOG",
     "build_market_symbol_catalog",
     "get_market_symbol_source",
     "get_supported_market_symbols",
+    "get_usd_equivalent_symbols",
     "normalize_market_symbol",
 ]

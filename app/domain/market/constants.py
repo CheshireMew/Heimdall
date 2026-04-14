@@ -12,6 +12,9 @@ DEFAULT_LIMIT = 1000
 KEY_PREFIX_KLINE = "kline"
 KEY_PREFIX_SENTIMENT = "sentiment"
 
+# Database field contracts
+KLINE_SYMBOL_MAX_LENGTH = 80
+
 class Timeframe(str, Enum):
     M1 = '1m'
     M5 = '5m'

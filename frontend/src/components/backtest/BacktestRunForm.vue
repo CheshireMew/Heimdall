@@ -3,7 +3,14 @@
     <section class="space-y-3">
       <div>
         <label class="label">{{ $t('backtest.symbols') }}</label>
-        <input v-model="panel.symbolsText" class="input" type="text" />
+        <SymbolSearchBox
+          v-model="selectedSymbols"
+          multiple
+          :allowed-classes="['crypto']"
+          placeholder="Search crypto"
+          trigger-class="!bg-white dark:!bg-gray-900"
+          disabled-label="Chart only"
+        />
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
@@ -32,8 +39,8 @@
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="label">{{ $t('backtest.initialCash') }}</label>
-          <input v-model.number="panel.config.initial_cash" class="input" type="number" min="1" step="1000" />
+          <label class="label">{{ $t('backtest.initialCash') }} ({{ displayCurrency }})</label>
+          <input v-model.number="displayInitialCash" class="input" type="number" min="1" step="1000" />
         </div>
         <div>
           <label class="label">{{ $t('backtest.feeRate') }}</label>
@@ -117,11 +124,27 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import AppDateField from '@/components/AppDateField.vue'
+import SymbolSearchBox from '@/components/SymbolSearchBox.vue'
+import { useMoney } from '@/composables/useMoney'
 import type { BacktestControlPanelView } from '@/modules/backtest/viewTypes'
 
 const props = defineProps<{ panel: BacktestControlPanelView }>()
 const panel = props.panel
+const { displayCurrency, formatDisplayNumber, fromDisplayAmount } = useMoney()
+const selectedSymbols = computed({
+  get: () => panel.symbolsText.split(',').map((item) => item.trim()).filter(Boolean),
+  set: (value: string[]) => {
+    panel.symbolsText = value.join(', ')
+  },
+})
+const displayInitialCash = computed({
+  get: () => formatDisplayNumber(panel.config.initial_cash, 'USDT', 2),
+  set: (value: number | string) => {
+    panel.config.initial_cash = fromDisplayAmount(value, 'USDT') ?? panel.config.initial_cash
+  },
+})
 </script>
 
 <style scoped>

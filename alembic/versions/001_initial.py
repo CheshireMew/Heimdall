@@ -53,7 +53,7 @@ def upgrade() -> None:
     # Kline
     op.create_table(
         'klines',
-        sa.Column('symbol', sa.String(20), nullable=False),
+        sa.Column('symbol', sa.String(80), nullable=False),
         sa.Column('timeframe', sa.String(10), nullable=False),
         sa.Column('timestamp', sa.BigInteger(), nullable=False),
         sa.Column('open', sa.Float(), nullable=False),
