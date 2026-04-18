@@ -87,6 +87,39 @@ let volumeSeries = null
 let tradePriceLines = []
 let overlayFrame = 0
 
+const buildAutoscaleInfoProvider = () => (baseImplementation) => {
+    const baseInfo = baseImplementation()
+    const setup = props.tradeSetup
+    if (!setup) return baseInfo
+
+    const setupPrices = [setup.entry, setup.target, setup.stop].filter(Number.isFinite)
+    if (!setupPrices.length) return baseInfo
+
+    const setupMin = Math.min(...setupPrices)
+    const setupMax = Math.max(...setupPrices)
+    const baseMin = baseInfo?.priceRange?.minValue ?? setupMin
+    const baseMax = baseInfo?.priceRange?.maxValue ?? setupMax
+    const mergedMin = Math.min(baseMin, setupMin)
+    const mergedMax = Math.max(baseMax, setupMax)
+    const span = Math.max(mergedMax - mergedMin, mergedMax * 0.01, 1)
+    const padding = span * 0.08
+
+    return {
+        ...baseInfo,
+        priceRange: {
+            minValue: mergedMin - padding,
+            maxValue: mergedMax + padding,
+        },
+    }
+}
+
+const syncAutoscale = () => {
+    if (!mainSeries) return
+    mainSeries.applyOptions({
+        autoscaleInfoProvider: buildAutoscaleInfoProvider(),
+    })
+}
+
 const formatPrice = (value) => {
     if (!Number.isFinite(value)) return '-'
     if (value >= 1000) return formatMoney(value, 'USDT', { maximumFractionDigits: 1 })
@@ -103,6 +136,7 @@ const clearTradePriceLines = () => {
 const syncTradeSetup = () => {
     clearTradePriceLines()
     if (!mainSeries || !props.tradeSetup) {
+        syncAutoscale()
         tradeOverlay.value = null
         return
     }
@@ -121,6 +155,7 @@ const syncTradeSetup = () => {
         axisLabelVisible: true,
         title: `${item.title} ${formatPrice(item.price)}`,
     }))
+    syncAutoscale()
     scheduleOverlayUpdate()
 }
 
@@ -242,6 +277,7 @@ const initChart = () => {
         })
     }
 
+    syncAutoscale()
     updateData()
     syncTradeSetup()
 }
@@ -250,6 +286,7 @@ const updateData = () => {
     syncVolumeSeries()
     if (mainSeries && props.data.length > 0) mainSeries.setData(props.data)
     if (volumeSeries && props.volumeData.length > 0) volumeSeries.setData(props.volumeData)
+    syncAutoscale()
     scheduleOverlayUpdate()
 }
 

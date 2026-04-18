@@ -99,6 +99,14 @@ export const useBacktestDetailPage = () => {
     router.push('/backtest')
   }
 
+  const deleteRun = async (runId: number, mode: BacktestRunMode) => {
+    const deletingCurrentRun = currentTarget.value?.id === runId && currentTarget.value?.mode === mode
+    await runs.deleteRun(runId, mode)
+    if (deletingCurrentRun && runs.selectedRun.value === null) {
+      goBackToCenter()
+    }
+  }
+
   onMounted(async () => {
     await Promise.all([fetchStrategies(), runs.fetchHistory(), runs.fetchPaperHistory()])
     await loadCurrentTarget()
@@ -140,6 +148,7 @@ export const useBacktestDetailPage = () => {
     runStatusLabel: runs.runStatusLabel,
     profitColorClass,
     stopPaperRun: runs.stopPaperRun,
+    deleteRun,
   })
 
   const resultPanel = reactive({

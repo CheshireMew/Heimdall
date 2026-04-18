@@ -92,6 +92,7 @@ def read_llm_config() -> dict[str, Any]:
         "provider": provider,
         "apiKey": "",
         "apiKeySet": bool(api_key),
+        "apiKeyPreview": _mask_api_key(api_key),
         "baseUrl": base_url,
         "modelId": model_id,
         "reasoningEnabled": reasoning_enabled if provider == "deepseek" else False,
@@ -165,3 +166,12 @@ def _read_raw_config() -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         return {}
     return data if isinstance(data, dict) else {}
+
+
+def _mask_api_key(api_key: str) -> str:
+    key = str(api_key or "").strip()
+    if not key:
+        return ""
+    if len(key) <= 8:
+        return key[:2] + "*" * max(len(key) - 4, 1) + key[-2:]
+    return f"{key[:4]}{'*' * 8}{key[-4:]}"

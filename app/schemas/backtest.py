@@ -246,6 +246,17 @@ class StrategyVersionResponse(BaseModel):
     runtime: "StrategyRunProfileResponse"
 
 
+class StrategyTemplateCapabilitiesResponse(BaseModel):
+    signal_runtime: bool = True
+    paper: bool = True
+    version_editing: bool = True
+
+
+class StrategyTemplateRuntimeResponse(BaseModel):
+    builder_kind: str = "rules"
+    capabilities: StrategyTemplateCapabilitiesResponse = Field(default_factory=StrategyTemplateCapabilitiesResponse)
+
+
 class StrategyDefinitionResponse(BaseModel):
     key: str
     name: str
@@ -253,6 +264,7 @@ class StrategyDefinitionResponse(BaseModel):
     category: str
     description: str | None = None
     is_active: bool
+    template_runtime: StrategyTemplateRuntimeResponse = Field(default_factory=StrategyTemplateRuntimeResponse)
     versions: list[StrategyVersionResponse]
 
 
@@ -297,6 +309,7 @@ class StrategyTemplateResponse(BaseModel):
     category: str
     description: str | None = None
     is_builtin: bool = False
+    template_runtime: StrategyTemplateRuntimeResponse = Field(default_factory=StrategyTemplateRuntimeResponse)
     indicator_keys: list[str] = Field(default_factory=list)
     indicator_registry: list[StrategyIndicatorRegistryResponse]
     operators: list[StrategyOperatorResponse]

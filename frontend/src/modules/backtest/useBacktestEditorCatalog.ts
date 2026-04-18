@@ -63,7 +63,9 @@ export const useBacktestEditorCatalog = ({
       const res = await backtestApi.listTemplates()
       templates.value = res.data
       if (!templates.value.length) return
-      const matchedTemplate = templates.value.find((item) => item.template === editor.versionDraft.template) || templates.value[0]
+      const editableTemplates = Array.isArray(editor.editableTemplates?.value) ? editor.editableTemplates.value : templates.value
+      const matchedTemplate = editableTemplates.find((item: any) => item.template === editor.versionDraft.template) || editableTemplates[0]
+      if (!matchedTemplate) return
       if (!editor.versionDraft.template) return
       if (!Object.keys(editor.versionDraft.config?.indicators || {}).length) {
         editor.applyDraftFromTemplate(matchedTemplate.template)

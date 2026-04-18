@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from app.domain.market.symbol_catalog import resolve_market_asset
 from app.services.market.market_data_service import MarketDataService
 from app.services.market.index_data_service import IndexDataService
 from config import settings
@@ -56,12 +57,12 @@ class PairCompareService:
             return {"error": str(exc)}
 
     def _resolve_symbol(self, symbol: str) -> dict[str, str]:
-        value = str(symbol or "").strip().upper()
-        if self.index_data_service.get_instrument(value):
-            return {"symbol": value, "asset_class": "index"}
-        if "/" in value:
-            return {"symbol": value, "asset_class": "crypto"}
-        return {"symbol": f"{value}/USDT", "asset_class": "crypto"}
+        resolved = resolve_market_asset(symbol)
+        if not resolved:
+            raise ValueError(f"无效标的 {symbol}")
+        if resolved["asset_class"] == "cash":
+            raise ValueError(f"标的不支持对比 {symbol}")
+        return resolved
 
     def _fetch_history(
         self,

@@ -88,6 +88,16 @@ You MUST output raw JSON only, no markdown formatting.
             dif, dea, hist = macd_val
             macd_payload = {"dif": dif, "dea": dea, "histogram": hist}
 
+        recent_window = market_data[-20:]
+        recent_swing_high = max(item[2] for item in recent_window) if recent_window else None
+        recent_swing_low = min(item[3] for item in recent_window) if recent_window else None
+        distance_to_ema_pct = None
+        if ema_val:
+            try:
+                distance_to_ema_pct = ((close_price - ema_val) / ema_val) * 100
+            except ZeroDivisionError:
+                distance_to_ema_pct = None
+
         context = {
             "symbol": symbol,
             "timeframe": timeframe,
@@ -101,20 +111,26 @@ You MUST output raw JSON only, no markdown formatting.
                 "macd": macd_payload,
                 "atr": atr_val,
             },
+            "market_structure": {
+                "recent_swing_high": recent_swing_high,
+                "recent_swing_low": recent_swing_low,
+                "distance_to_ema_pct": distance_to_ema_pct,
+            },
             "recent_candles": recent_candles,
         }
 
         return f"""
-你是加密货币交易分析助手。请只基于下面给出的K线和指标，生成一个可画在K线图上的多空方案。
+你是加密货币交易分析助手。请只基于下面给出的K线、指标和市场结构数据，生成一个可画在K线图上的多空方案。
 
 要求：
-1. 如果没有清晰方案，side 输出 HOLD，entry/target/stop 输出 null。
-2. 如果做多，必须满足 stop < entry < target。
-3. 如果做空，必须满足 target < entry < stop。
-4. entry 应接近当前价，除非你明确判断要挂单等待。
+1. 你的目标是优先给出可执行的交易计划，不要因为轻微分歧或单一指标偏高偏低就直接选择 HOLD。
+2. 当一侧方向明显更占优时，直接输出该方向的交易计划；entry 可以使用当前价、回踩价或突破后回踩价。
+3. entry、target、stop 的相对位置必须与方案方向自洽。
+4. target 和 stop 需要贴近当前结构，形成合理且可执行的风险收益关系。
 5. confidence 是 0 到 100 的整数。
 6. reason 用一句中文说明最主要原因。
 7. 只输出原始 JSON，不要 markdown，不要代码块。
+8. 只有在多空两侧都缺乏依据、结构混乱、或者无法给出合理的 entry、target、stop 时，side 才输出 HOLD，entry/target/stop 输出 null。
 
 输入数据：
 {json.dumps(context, ensure_ascii=False)}

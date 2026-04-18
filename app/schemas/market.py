@@ -32,6 +32,21 @@ class RealtimeResponse(BaseModel):
     type: str | None = None
 
 
+class KlineTailResponse(BaseModel):
+    symbol: str
+    timeframe: str
+    timestamp: str
+    current_price: float | None
+    kline_data: list[list[float]]
+
+
+class CurrentPriceResponse(BaseModel):
+    symbol: str
+    timeframe: str
+    timestamp: str
+    current_price: float | None
+
+
 class TradeSetupResponseItem(BaseModel):
     side: str
     entry: float

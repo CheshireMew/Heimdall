@@ -23,11 +23,11 @@ class FactorPaperRunManager:
     def __init__(
         self,
         *,
-        factor_service: FactorResearchService | None = None,
+        factor_service: FactorResearchService,
         run_repository: BacktestRunRepository,
-        report_builder: FreqtradeReportBuilder | None = None,
-        execution_core: FactorSignalExecutionCore | None = None,
-        persistence_service: FactorPaperPersistenceService | None = None,
+        report_builder: FreqtradeReportBuilder,
+        execution_core: FactorSignalExecutionCore,
+        persistence_service: FactorPaperPersistenceService,
     ) -> None:
         self.factor_service = factor_service
         self.run_repository = run_repository
@@ -120,7 +120,7 @@ class FactorPaperRunManager:
                 return False
 
             research_meta = dict(metadata.get("factor_research") or {})
-            factor_service = self._get_factor_service()
+            factor_service = self.factor_service
             research_run, frame = factor_service.build_live_blend_frame(research_meta["run_id"])
             if frame.empty:
                 return True
@@ -137,7 +137,7 @@ class FactorPaperRunManager:
             if closed.empty:
                 return True
 
-            execution_core = self._get_execution_core()
+            execution_core = self.execution_core
             batch = execution_core.run_batch(
                 rows=closed.to_dict("records"),
                 state=execution_core.create_state(
@@ -169,7 +169,7 @@ class FactorPaperRunManager:
             for row in closed.to_dict("records"):
                 runtime_state.setdefault("last_processed", {})[symbol] = int(row["timestamp"].timestamp() * 1000)
 
-            self._get_persistence_service().persist_increment(
+            self.persistence_service.persist_increment(
                 session=session,
                 run=run,
                 metadata=metadata,
@@ -197,7 +197,7 @@ class FactorPaperRunManager:
         takeprofit_pct: float,
         max_hold_bars: int,
     ) -> int:
-        factor_service = self._get_factor_service()
+        factor_service = self.factor_service
         research_run = factor_service.get_run(research_run_id)
         if not research_run:
             raise ValueError("因子研究记录不存在。")
@@ -221,7 +221,7 @@ class FactorPaperRunManager:
             position_size_pct=position_size_pct,
             stake_mode=stake_mode,
         )
-        report = self._get_report_builder().build_report(
+        report = self.report_builder.build_report(
             trades=[],
             equity_curve=[BacktestEquityPointRecord(timestamp=now, equity=initial_cash, pnl_abs=0.0, drawdown_pct=0.0)],
             initial_cash=initial_cash,
@@ -303,31 +303,3 @@ class FactorPaperRunManager:
                 stop_reason=reason,
             )
             session.flush()
-
-    def _get_factor_service(self) -> FactorResearchService:
-        if self.factor_service is None:
-            from app.dependencies import get_factor_research_service
-
-            self.factor_service = get_factor_research_service()
-        return self.factor_service
-
-    def _get_report_builder(self) -> FreqtradeReportBuilder:
-        if self.report_builder is None:
-            from app.dependencies import get_freqtrade_report_builder
-
-            self.report_builder = get_freqtrade_report_builder()
-        return self.report_builder
-
-    def _get_execution_core(self) -> FactorSignalExecutionCore:
-        if self.execution_core is None:
-            from app.dependencies import get_factor_signal_execution_core
-
-            self.execution_core = get_factor_signal_execution_core()
-        return self.execution_core
-
-    def _get_persistence_service(self) -> FactorPaperPersistenceService:
-        if self.persistence_service is None:
-            from app.dependencies import get_factor_paper_persistence_service
-
-            self.persistence_service = get_factor_paper_persistence_service()
-        return self.persistence_service

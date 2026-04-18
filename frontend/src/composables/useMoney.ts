@@ -123,11 +123,14 @@ export function useMoney() {
     const maximumFractionDigits = usesSignificantDigits
       ? undefined
       : options.maximumFractionDigits ?? (absolute >= 1000 ? meta.fraction_digits : Math.max(meta.fraction_digits, 4))
+    const minimumFractionDigits = usesSignificantDigits
+      ? undefined
+      : Math.min(options.minimumFractionDigits ?? meta.fraction_digits, maximumFractionDigits)
     return new Intl.NumberFormat(meta.locale, {
       ...options,
       style: 'currency',
       currency: meta.code,
-      minimumFractionDigits: usesSignificantDigits ? undefined : options.minimumFractionDigits ?? meta.fraction_digits,
+      minimumFractionDigits,
       maximumFractionDigits,
     }).format(converted)
   }

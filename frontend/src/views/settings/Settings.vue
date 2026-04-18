@@ -52,7 +52,7 @@
               class="input"
               type="password"
               autocomplete="off"
-              :placeholder="form.apiKeySet ? '已保存，留空则保留' : '请输入 API Key'"
+              :placeholder="form.apiKeyPreview || '请输入 API Key'"
             />
           </label>
 
@@ -133,6 +133,7 @@ const error = ref('')
 const form = reactive({
   provider: 'deepseek',
   apiKeySet: false,
+  apiKeyPreview: '',
   baseUrl: '',
   modelId: '',
   reasoningEnabled: false,
@@ -151,6 +152,7 @@ const applyConfig = (config) => {
   presets.value = config.presets || []
   form.provider = config.provider || 'deepseek'
   form.apiKeySet = Boolean(config.apiKeySet)
+  form.apiKeyPreview = config.apiKeyPreview || ''
   form.baseUrl = config.baseUrl || ''
   form.modelId = config.modelId || ''
   form.reasoningEnabled = Boolean(config.reasoningEnabled)
@@ -172,6 +174,7 @@ const applyProviderPreset = () => {
 
 const handleProviderChange = () => {
   form.apiKeySet = false
+  form.apiKeyPreview = ''
   apiKeyDraft.value = ''
   applyProviderPreset()
 }

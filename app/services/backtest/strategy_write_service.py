@@ -5,7 +5,8 @@ from typing import Any
 from app.infra.db.database import session_scope
 from app.infra.db.schema import StrategyDefinition, StrategyVersion
 from app.services.backtest.models import StrategyVersionRecord
-from app.services.backtest.strategy_catalog import create_indicator_definition, create_template_definition
+from app.services.backtest.scripted_template_runtime import template_supports_version_editing
+from app.services.backtest.strategy_catalog import create_indicator_definition, create_template_definition, get_template_runtime_contract
 
 from .strategy_support import normalize_strategy_version_payload
 
@@ -62,6 +63,9 @@ class StrategyWriteService:
         notes: str | None,
         make_default: bool,
     ) -> StrategyVersionRecord:
+        runtime_contract = get_template_runtime_contract(template)
+        if not template_supports_version_editing(runtime_contract):
+            raise ValueError("该内置脚本策略当前只提供固定版本，不支持复制编辑")
         normalized_config, normalized_parameter_space = normalize_strategy_version_payload(template, config, parameter_space)
         with session_scope() as session:
             definition = session.query(StrategyDefinition).filter_by(key=key).first()

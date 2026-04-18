@@ -10,6 +10,7 @@ from app.domain.market.symbol_catalog import get_market_symbol_source
 from utils.logger import logger
 
 from .exchange_gateway import ExchangeGateway
+from .history_ranges import collect_missing_ranges, is_recent_cache_usable
 from .kline_store import KlineStore
 
 
@@ -91,6 +92,43 @@ class MarketDataService:
                 f"cache_hit={cache_hit} attempts={attempts} elapsed={elapsed:.2f}s"
             )
 
+    def get_live_kline_data(
+        self,
+        symbol: str,
+        timeframe: str = settings.TIMEFRAME,
+        limit: int = settings.LIMIT,
+    ) -> list[list[float]]:
+        start_time = time.time()
+        attempts = 0
+        try:
+            from app.infra.cache import redis_service
+
+            storage_symbol = self._storage_symbol(symbol)
+            fetch_symbol = self._fetch_symbol(symbol)
+            gateway = self._gateway_for_symbol(symbol)
+            cache_key = f"{KEY_PREFIX_KLINE}:{storage_symbol}:{timeframe}:{limit}"
+            data, attempts = gateway.fetch_ohlcv(fetch_symbol, timeframe, limit=limit)
+            if data:
+                redis_service.set(cache_key, data, ttl=settings.REDIS_KLINE_TTL)
+            return data
+        except ImportError:
+            fetch_symbol = self._fetch_symbol(symbol)
+            gateway = self._gateway_for_symbol(symbol)
+            data, attempts = gateway.fetch_ohlcv(fetch_symbol, timeframe, limit=limit)
+            return data
+        except Exception as e:
+            logger.error(f"实时K线获取错误 (Exchange): {e}")
+            fetch_symbol = self._fetch_symbol(symbol)
+            gateway = self._gateway_for_symbol(symbol)
+            data, attempts = gateway.fetch_ohlcv(fetch_symbol, timeframe, limit=limit)
+            return data
+        finally:
+            elapsed = time.time() - start_time
+            logger.debug(
+                f"[metrics] get_live_kline_data symbol={symbol} tf={timeframe} limit={limit} "
+                f"attempts={attempts} elapsed={elapsed:.2f}s"
+            )
+
     def get_history_data(self, symbol: str, timeframe: str, end_ts: int, limit: int = 500) -> list[list[float]]:
         start_time = time.time()
         try:
@@ -107,20 +145,37 @@ class MarketDataService:
         symbol: str,
         timeframe: str,
         limit: int = settings.LIMIT,
+        *,
+        allow_cached_response: bool = False,
     ) -> list[list[float]]:
         end_ts = int(time.time() * 1000) + 1
         cached = self.get_history_data(symbol, timeframe, end_ts, limit)
-        if len(cached) >= limit:
-            return cached
+        if allow_cached_response and is_recent_cache_usable(
+            cached=cached,
+            timeframe=timeframe,
+            limit=limit,
+            now_ms=end_ts,
+        ):
+            return cached[-limit:]
 
-        live = self.get_kline_data(symbol, timeframe, limit=limit)
+        live = self.get_live_kline_data(symbol, timeframe, limit=limit)
         if live:
+            merged = self._merge_klines(cached, live)
             try:
                 self.kline_store.save(self._storage_symbol(symbol), timeframe, live)
             except Exception as exc:
                 logger.warning(f"最近 K 线回写缓存失败: {exc}")
-            return live
-        return cached
+            return merged[-limit:]
+        return cached[-limit:]
+
+    def get_latest_price(self, symbol: str, timeframe: str = "1m") -> float | None:
+        recent = self.get_recent_candles(symbol, timeframe, limit=1)
+        if not recent or len(recent[-1]) <= 4:
+            return None
+        try:
+            return float(recent[-1][4])
+        except (TypeError, ValueError):
+            return None
 
     def fetch_ohlcv_range(
         self,
@@ -132,24 +187,26 @@ class MarketDataService:
     ) -> list[list[float]]:
         start_ts = int(start_date.timestamp() * 1000)
         end_ts = int(end_date.timestamp() * 1000)
+        end_ts_exclusive = end_ts + 1
         range_start = time.time()
         cached_klines: list[list[float]] = []
         new_data: list[list[float]] = []
+        missing_ranges: list[tuple[int, int]] = []
         storage_symbol = self._storage_symbol(symbol)
 
         try:
             cached_klines = self.kline_store.get_range(storage_symbol, timeframe, start_ts, end_ts)
-            min_cached = cached_klines[0][0] if cached_klines else None
-            max_cached = cached_klines[-1][0] if cached_klines else None
 
             logger.info(f"缓存命中: {len(cached_klines)} 条 ({storage_symbol})")
 
-            if min_cached is None or start_ts < min_cached:
-                target_end = min_cached if min_cached else end_ts
-                new_data.extend(self._fetch_gap(symbol, timeframe, start_ts, target_end))
-
-            if max_cached is not None and end_ts > max_cached:
-                new_data.extend(self._fetch_gap(symbol, timeframe, max_cached + 1, end_ts))
+            missing_ranges = collect_missing_ranges(
+                cached_klines=cached_klines,
+                timeframe=timeframe,
+                start_ts=start_ts,
+                end_ts_exclusive=end_ts_exclusive,
+            )
+            for gap_start, gap_end in missing_ranges:
+                new_data.extend(self._fetch_gap(symbol, timeframe, gap_start, gap_end))
 
             if new_data:
                 logger.info(f"下载新数据: {len(new_data)} 条")
@@ -171,7 +228,26 @@ class MarketDataService:
             elapsed = time.time() - range_start
             logger.debug(
                 f"[metrics] fetch_ohlcv_range symbol={symbol} tf={timeframe} "
-                f"cached={len(cached_klines)} new={len(new_data)} elapsed={elapsed:.2f}s"
+                f"cached={len(cached_klines)} new={len(new_data)} gaps={len(missing_ranges)} elapsed={elapsed:.2f}s"
+            )
+
+    def get_cached_ohlcv_range(
+        self,
+        symbol: str,
+        timeframe: str,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> list[list[float]]:
+        start_ts = int(start_date.timestamp() * 1000)
+        end_ts = int(end_date.timestamp() * 1000)
+        range_start = time.time()
+        try:
+            return self.kline_store.get_range(self._storage_symbol(symbol), timeframe, start_ts, end_ts)
+        finally:
+            elapsed = time.time() - range_start
+            logger.debug(
+                f"[metrics] get_cached_ohlcv_range symbol={symbol} tf={timeframe} "
+                f"elapsed={elapsed:.2f}s"
             )
 
     def fetch_live_ohlcv_range(
@@ -239,3 +315,11 @@ class MarketDataService:
                 break
 
         return data
+
+    def _merge_klines(self, *batches: list[list[float]]) -> list[list[float]]:
+        merged: dict[float, list[float]] = {}
+        for batch in batches:
+            for row in batch:
+                if row:
+                    merged[row[0]] = row
+        return sorted(merged.values(), key=lambda item: item[0])

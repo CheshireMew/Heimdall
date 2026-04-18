@@ -1,21 +1,35 @@
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import Chart from 'chart.js/auto'
-import annotationPlugin from 'chartjs-plugin-annotation'
-import 'chartjs-adapter-date-fns'
+import type { Chart, ChartConfiguration, ChartDataset } from 'chart.js'
 
 import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readBoolean, readString } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
 import { marketApi } from './api'
 
-
-Chart.register(annotationPlugin)
-
 interface HalvingPageSnapshot {
   showPhases: boolean
   scaleType: 'logarithmic' | 'linear'
 }
+
+interface HalvingChartRuntime {
+  Chart: typeof import('chart.js').Chart
+}
+
+type HalvingAnnotationMap = Record<string, any>
+
+const HALVING_DATES = [
+  { date: '2012-11-28', label: 'H1' },
+  { date: '2016-07-09', label: 'H2' },
+  { date: '2020-05-11', label: 'H3' },
+  { date: '2024-04-20', label: 'H4' },
+  { date: '2028-04-17', label: 'H5 (Est)', future: true },
+] as const
+
+const LAST_HALVING_DATE = new Date('2024-04-20')
+const NEXT_HALVING_ESTIMATE = new Date('2028-04-17')
+const ONE_DAY = 24 * 60 * 60 * 1000
+const CURRENT_PRICE_REFRESH_INTERVAL_MS = 15_000
 
 const createDefaultSnapshot = (): HalvingPageSnapshot => ({
   showPhases: true,
@@ -32,6 +46,36 @@ const normalizeSnapshot = (value: unknown): HalvingPageSnapshot => {
   }
 }
 
+const nextAnimationFrame = () => new Promise<void>((resolve) => {
+  requestAnimationFrame(() => resolve())
+})
+
+let halvingChartRuntimePromise: Promise<HalvingChartRuntime> | null = null
+
+const loadHalvingChartRuntime = async (): Promise<HalvingChartRuntime> => {
+  if (!halvingChartRuntimePromise) {
+    halvingChartRuntimePromise = Promise.all([
+      import('chart.js'),
+      import('chartjs-plugin-annotation'),
+      import('chartjs-adapter-date-fns'),
+    ]).then(([chartJs, annotationPlugin]) => {
+      chartJs.Chart.register(
+        chartJs.LineController,
+        chartJs.LineElement,
+        chartJs.PointElement,
+        chartJs.LinearScale,
+        chartJs.LogarithmicScale,
+        chartJs.TimeScale,
+        chartJs.Tooltip,
+        chartJs.Legend,
+        chartJs.Decimation,
+        annotationPlugin.default,
+      )
+      return { Chart: chartJs.Chart }
+    })
+  }
+  return halvingChartRuntimePromise
+}
 
 export function useHalvingPage() {
   const { t } = useI18n()
@@ -46,129 +90,115 @@ export function useHalvingPage() {
   const currentPrice = ref(0)
   const showPhases = ref(restoredSnapshot.showPhases)
   const scaleType = ref<'logarithmic' | 'linear'>(restoredSnapshot.scaleType)
-  const lastHalvingDate = new Date('2024-04-20')
-  const nextHalvingEst = new Date('2028-04-17')
-  const halvingDates = [
-    { date: '2012-11-28', label: 'H1' },
-    { date: '2016-07-09', label: 'H2' },
-    { date: '2020-05-11', label: 'H3' },
-    { date: '2024-04-20', label: 'H4' },
-    { date: '2028-04-17', label: 'H5 (Est)', future: true },
-  ]
 
   let chartInstance: Chart | null = null
+  let renderToken = 0
+  let priceRefreshTimer: number | null = null
+  let priceRefreshPending = false
 
-  const nextHalvingDate = computed(() => nextHalvingEst.toISOString().split('T')[0])
-  const daysToHalving = computed(() => Math.ceil((nextHalvingEst.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+  const nextHalvingDate = computed(() => NEXT_HALVING_ESTIMATE.toISOString().split('T')[0])
+  const daysToHalving = computed(() => Math.ceil((NEXT_HALVING_ESTIMATE.getTime() - Date.now()) / ONE_DAY))
   const cycleProgress = computed(() => {
-    const totalDuration = nextHalvingEst.getTime() - lastHalvingDate.getTime()
-    const elapsed = Date.now() - lastHalvingDate.getTime()
+    const totalDuration = NEXT_HALVING_ESTIMATE.getTime() - LAST_HALVING_DATE.getTime()
+    const elapsed = Date.now() - LAST_HALVING_DATE.getTime()
     return Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100).toFixed(1)
   })
 
+  const seriesData = computed(() =>
+    historyData.value.map((row) => ({
+      x: row[0],
+      y: toDisplayAmount(row[4], 'USDT') ?? 0,
+    })),
+  )
+
   const formatPrice = (price: number) => formatMoney(price, 'USDT', { maximumFractionDigits: 2 })
 
-  const calculatePhaseAnnotations = (isDark: boolean) => {
-    if (!showPhases.value) {
-      return {}
-    }
+  const buildPhaseAnnotations = (isDark: boolean): HalvingAnnotationMap => {
+    if (!showPhases.value) return {}
 
-    const annotations = {}
-    const oneDay = 24 * 60 * 60 * 1000
-    halvingDates.forEach((halving, index) => {
-      const halvingTime = new Date(halving.date).getTime()
-      annotations[`acc_${index}`] = {
-        type: 'box',
-        xMin: halvingTime - (500 * oneDay),
-        xMax: halvingTime,
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-        borderWidth: 0,
-        label: {
-          display: true,
-          content: t('halving.accumulation'),
-          color: isDark ? 'rgba(34, 197, 94, 0.8)' : 'rgba(21, 128, 61, 0.8)',
-          font: { size: 10 },
-          position: 'start',
-          yAdjust: -20,
-        },
-      }
-      annotations[`exp_${index}`] = {
-        type: 'box',
-        xMin: halvingTime,
-        xMax: halvingTime + (540 * oneDay),
-        backgroundColor: 'rgba(249, 115, 22, 0.1)',
-        borderWidth: 0,
-        label: {
-          display: true,
-          content: t('halving.bullRun'),
-          color: isDark ? 'rgba(249, 115, 22, 0.8)' : 'rgba(194, 65, 12, 0.8)',
-          font: { size: 10 },
-          position: 'start',
-          yAdjust: -20,
-        },
-      }
-    })
-    return annotations
+    return Object.fromEntries(
+      HALVING_DATES.flatMap((halving, index) => {
+        const halvingTime = new Date(halving.date).getTime()
+        return [
+          [`acc_${index}`, {
+            type: 'box',
+            xMin: halvingTime - (500 * ONE_DAY),
+            xMax: halvingTime,
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            borderWidth: 0,
+            label: {
+              display: true,
+              content: t('halving.accumulation'),
+              color: isDark ? 'rgba(34, 197, 94, 0.8)' : 'rgba(21, 128, 61, 0.8)',
+              font: { size: 10 },
+              position: 'start',
+              yAdjust: -20,
+            },
+          }],
+          [`exp_${index}`, {
+            type: 'box',
+            xMin: halvingTime,
+            xMax: halvingTime + (540 * ONE_DAY),
+            backgroundColor: 'rgba(249, 115, 22, 0.1)',
+            borderWidth: 0,
+            label: {
+              display: true,
+              content: t('halving.bullRun'),
+              color: isDark ? 'rgba(249, 115, 22, 0.8)' : 'rgba(194, 65, 12, 0.8)',
+              font: { size: 10 },
+              position: 'start',
+              yAdjust: -20,
+            },
+          }],
+        ]
+      }),
+    )
   }
 
-  const renderChart = () => {
-    chartInstance?.destroy()
-    if (!chartCanvas.value) {
-      return
-    }
-
-    const isDark = theme.value === 'dark'
-    const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'
-    const textColor = isDark ? '#9CA3AF' : '#6B7280'
-    const datasets = [{
-      label: t('halving.btcPrice'),
-      data: historyData.value.map((row) => ({ x: row[0], y: toDisplayAmount(row[4], 'USDT') ?? 0 })),
-      borderColor: isDark ? '#FCD34D' : '#F59E0B',
-      borderWidth: 1.5,
-      pointRadius: 0,
-      tension: 0.1,
-    }]
-
-    let annotations = {}
-    halvingDates.forEach((halving, index) => {
-      annotations[`halving_${index}`] = {
-        type: 'line',
-        scaleID: 'x',
-        value: new Date(halving.date).getTime(),
-        borderColor: isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0,0,0,0.3)',
-        borderWidth: 2,
-        borderDash: [6, 6],
-        label: {
-          display: true,
-          content: halving.label,
-          position: 'start',
-          backgroundColor: isDark ? 'rgba(30, 41, 59, 1)' : 'rgba(255, 255, 255, 1)',
-          color: isDark ? '#fff' : '#000',
-          font: { size: 11, weight: 'bold' },
-          yAdjust: 0,
+  const buildChartAnnotations = (isDark: boolean): HalvingAnnotationMap => {
+    const annotations: HalvingAnnotationMap = Object.fromEntries(
+      HALVING_DATES.map((halving, index) => [
+        `halving_${index}`,
+        {
+          type: 'line',
+          scaleID: 'x',
+          value: new Date(halving.date).getTime(),
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0,0,0,0.3)',
+          borderWidth: 2,
+          borderDash: [6, 6],
+          label: {
+            display: true,
+            content: halving.label,
+            position: 'start',
+            backgroundColor: isDark ? 'rgba(30, 41, 59, 1)' : 'rgba(255, 255, 255, 1)',
+            color: isDark ? '#fff' : '#000',
+            font: { size: 11, weight: 'bold' },
+            yAdjust: 0,
+          },
         },
-      }
-    })
-    annotations = { ...annotations, ...calculatePhaseAnnotations(isDark) }
+      ]),
+    )
+
+    Object.assign(annotations, buildPhaseAnnotations(isDark))
 
     const now = Date.now()
-    const oneDay = 24 * 60 * 60 * 1000
-    const h4 = new Date(halvingDates[3].date).getTime()
-    const h5 = new Date(halvingDates[4].date).getTime()
-    const bullEnd = h4 + (540 * oneDay)
-    const accStart = h5 - (500 * oneDay)
+    const h4 = new Date(HALVING_DATES[3].date).getTime()
+    const h5 = new Date(HALVING_DATES[4].date).getTime()
+    const bullEnd = h4 + (540 * ONE_DAY)
+    const accStart = h5 - (500 * ONE_DAY)
+
     let nextPhaseLabel = ''
     let nextPhaseDays = 0
 
     if (now < bullEnd) {
       nextPhaseLabel = t('halving.bullRunEnds')
-      nextPhaseDays = Math.ceil((bullEnd - now) / oneDay)
+      nextPhaseDays = Math.ceil((bullEnd - now) / ONE_DAY)
     } else if (now < accStart) {
       nextPhaseLabel = t('halving.accStarts')
-      nextPhaseDays = Math.ceil((accStart - now) / oneDay)
+      nextPhaseDays = Math.ceil((accStart - now) / ONE_DAY)
     } else {
       nextPhaseLabel = t('halving.nextHalvingPhase')
-      nextPhaseDays = Math.ceil((h5 - now) / oneDay)
+      nextPhaseDays = Math.ceil((h5 - now) / ONE_DAY)
     }
 
     if (now > h4) {
@@ -191,14 +221,30 @@ export function useHalvingPage() {
       }
     }
 
-    const context = chartCanvas.value.getContext('2d')
-    if (!context) {
-      return
-    }
-    chartInstance = new Chart(context, {
+    return annotations
+  }
+
+  const buildChartConfig = (): ChartConfiguration<'line'> => {
+    const isDark = theme.value === 'dark'
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'
+    const textColor = isDark ? '#9CA3AF' : '#6B7280'
+    const datasets: ChartDataset<'line'>[] = [{
+      label: t('halving.btcPrice'),
+      data: seriesData.value,
+      borderColor: isDark ? '#FCD34D' : '#F59E0B',
+      borderWidth: 1.5,
+      pointRadius: 0,
+      pointHitRadius: 10,
+      tension: 0,
+      parsing: false,
+      normalized: true,
+    }]
+
+    return {
       type: 'line',
       data: { datasets },
       options: {
+        animation: false,
         responsive: true,
         maintainAspectRatio: false,
         interaction: {
@@ -220,13 +266,18 @@ export function useHalvingPage() {
             ticks: {
               color: textColor,
               callback(value) {
-                return formatMoney(value, displayCurrency.value, { maximumFractionDigits: 0 })
+                return formatMoney(Number(value), displayCurrency.value, { maximumFractionDigits: 0 })
               },
             },
           },
         },
         plugins: {
-          annotation: { annotations },
+          annotation: { annotations: buildChartAnnotations(isDark) },
+          decimation: {
+            enabled: true,
+            algorithm: 'lttb',
+            samples: 600,
+          },
           legend: { display: false },
           tooltip: {
             enabled: true,
@@ -238,45 +289,109 @@ export function useHalvingPage() {
           },
         },
       },
-    })
-  }
-
-  const fetchData = async () => {
-    loading.value = true
-    try {
-      const response = await marketApi.getFullHistory({
-        symbol: 'BTC/USDT',
-        start_date: '2010-07-01',
-        timeframe: '1d',
-      })
-      if (Array.isArray(response.data)) {
-        historyData.value = response.data.filter((row) => row[4] > 0)
-        if (response.data.length > 0) {
-          currentPrice.value = response.data[response.data.length - 1][4]
-        }
-      }
-    } catch (error) {
-      console.error('Fetch halving data failed', error)
-    } finally {
-      loading.value = false
-      renderChart()
     }
   }
 
+  const syncChart = async () => {
+    if (!chartCanvas.value || !seriesData.value.length) return
+
+    const token = ++renderToken
+    await nextTick()
+    await nextAnimationFrame()
+    if (token !== renderToken || !chartCanvas.value) return
+
+    const runtime = await loadHalvingChartRuntime()
+    if (token !== renderToken || !chartCanvas.value) return
+
+    const context = chartCanvas.value.getContext('2d')
+    if (!context) return
+
+    const config = buildChartConfig()
+    if (!chartInstance) {
+      chartInstance = new runtime.Chart(context, config)
+      return
+    }
+
+    chartInstance.data = config.data
+    chartInstance.options = config.options ?? {}
+    chartInstance.update('none')
+  }
+
+  const refreshCurrentPrice = async () => {
+    try {
+      const response = await marketApi.getCurrentPrice({
+        symbol: 'BTC/USDT',
+        timeframe: '1d',
+      })
+      const livePrice = Number(response.data?.current_price)
+      if (Number.isFinite(livePrice) && livePrice > 0) {
+        currentPrice.value = livePrice
+      }
+    } catch (error) {
+      console.error('Refresh halving current price failed', error)
+    }
+  }
+
+  const fetchHistoryData = async () => {
+    loading.value = true
+    try {
+      const response = await marketApi.getPriceHistory({
+        symbol: 'BTC/USDT',
+        start_date: '2010-07-01',
+        timeframe: '1d',
+        fetch_policy: 'cache_only',
+      })
+      if (Array.isArray(response.data)) {
+        historyData.value = response.data.filter((row) => row[4] > 0)
+        if (currentPrice.value <= 0 && historyData.value.length > 0) {
+          currentPrice.value = Number(historyData.value[historyData.value.length - 1][4]) || 0
+        }
+      }
+    } catch (error) {
+      console.error('Fetch halving history failed', error)
+    } finally {
+      loading.value = false
+      void syncChart()
+    }
+  }
+
+  const stopPriceRefresh = () => {
+    if (priceRefreshTimer !== null) {
+      window.clearInterval(priceRefreshTimer)
+      priceRefreshTimer = null
+    }
+  }
+
+  const startPriceRefresh = () => {
+    stopPriceRefresh()
+    priceRefreshTimer = window.setInterval(() => {
+      if (priceRefreshPending) return
+      priceRefreshPending = true
+      refreshCurrentPrice().finally(() => {
+        priceRefreshPending = false
+      })
+    }, CURRENT_PRICE_REFRESH_INTERVAL_MS)
+  }
+
   watch([showPhases, scaleType], () => {
-    renderChart()
+    void syncChart()
   })
 
   watch(theme, () => {
-    renderChart()
+    void syncChart()
   })
 
   watch(displayCurrency, () => {
-    renderChart()
+    void syncChart()
   })
 
   onMounted(() => {
-    fetchData()
+    void Promise.all([
+      loadHalvingChartRuntime(),
+      fetchHistoryData(),
+      refreshCurrentPrice(),
+    ])
+    startPriceRefresh()
   })
 
   bindPageSnapshot(
@@ -289,6 +404,8 @@ export function useHalvingPage() {
   )
 
   onBeforeUnmount(() => {
+    renderToken += 1
+    stopPriceRefresh()
     chartInstance?.destroy()
     chartInstance = null
   })

@@ -9,6 +9,7 @@ import { useBacktestEditor } from './useBacktestEditor'
 import { useBacktestEditorActions } from './useBacktestEditorActions'
 import { useBacktestEditorCatalog } from './useBacktestEditorCatalog'
 import { useBacktestEditorSeeds } from './useBacktestEditorSeeds'
+import { supportsPaperTrading, supportsVersionEditing } from './templateRuntime'
 
 interface BacktestEditorPageSnapshot {
   config: {
@@ -61,6 +62,17 @@ export const useBacktestEditorPage = () => {
     return versions.filter(Boolean)
   })
   const selectedVersion = computed(() => selectedStrategyVersions.value.find((item: any) => item.version === config.strategy_version) || null)
+  const canCopyCurrentStrategy = computed(() => Boolean(selectedVersion.value) && supportsVersionEditing(selectedStrategy.value))
+  const strategyCapabilityHint = computed(() => {
+    if (!selectedStrategy.value) return ''
+    if (!supportsVersionEditing(selectedStrategy.value) && !supportsPaperTrading(selectedStrategy.value)) {
+      return t('backtest.scriptedReadonlyHint')
+    }
+    if (!supportsVersionEditing(selectedStrategy.value)) {
+      return t('backtest.readonlyStrategyHint')
+    }
+    return ''
+  })
 
   const editor = useBacktestEditor({
     t,
@@ -179,6 +191,8 @@ export const useBacktestEditorPage = () => {
     selectedStrategy,
     selectedStrategyVersions,
     selectedVersion,
+    canCopyCurrentStrategy,
+    strategyCapabilityHint,
     syncStrategyVersion: catalog.syncStrategyVersion,
     openCopySeed: seeds.openCopySeed,
     openBlankSeed: seeds.openBlankSeed,
@@ -190,7 +204,7 @@ export const useBacktestEditorPage = () => {
     versionDraft: editor.versionDraft,
     metaPanel: {
       versionDraft: editor.versionDraft,
-      templates,
+      templates: editor.editableTemplates,
       categoryLabel: catalog.categoryLabel,
       syncVersionDraftTemplate: editor.syncVersionDraftTemplate,
       startBlankBuilder: editor.startBlankBuilder,

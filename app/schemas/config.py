@@ -15,6 +15,7 @@ class LlmProviderConfigResponse(BaseModel):
     provider: str
     apiKey: str = ""
     apiKeySet: bool = False
+    apiKeyPreview: str = ""
     baseUrl: str
     modelId: str
     reasoningEnabled: bool = False

@@ -1,4 +1,4 @@
-import request from '@/api/request'
+import request, { longTaskRequest } from '@/api/request'
 import type { AxiosResponse } from 'axios'
 import type {
   BinanceExchangeInfoResponse,
@@ -17,11 +17,15 @@ import type {
   BinanceWeb3SmartMoneyInflowResponse,
   BinanceWeb3SocialHypeResponse,
   BinanceWeb3UnifiedTokenRankResponse,
+  CurrentPriceParams,
+  CurrentPriceResponse,
   RealtimeParams,
   RealtimeResponse,
+  KlineTailResponse,
   TradeSetupResponse,
   HistoryParams,
   LatestKlineParams,
+  TailKlineParams,
   FullHistoryParams,
   BatchFullHistoryParams,
   BatchFullHistoryResponse,
@@ -42,26 +46,57 @@ const serializeBatchFullHistoryParams = (params: BatchFullHistoryParams) => {
   })
   if (params.timeframe) query.set('timeframe', params.timeframe)
   if (params.start_date) query.set('start_date', params.start_date)
+  if (params.fetch_policy) query.set('fetch_policy', params.fetch_policy)
   return query.toString()
 }
 
+const normalizePriceHistoryParams = <T extends FullHistoryParams | BatchFullHistoryParams>(params: T): T => ({
+  ...params,
+  fetch_policy: params.fetch_policy ?? 'cache_only',
+})
+
 const HISTORY_RESPONSE_CACHE_LIMIT = 120
-const historyResponseCache = new Map<string, Promise<AxiosResponse<any>>>()
+const HISTORY_CACHE_TTL_MS = 30_000
+const historyResponseCache = new Map<string, {
+  createdAt: number
+  promise: Promise<AxiosResponse<any>>
+}>()
 
 const rememberHistoryResponse = <T>(key: string, loader: () => Promise<AxiosResponse<T>>): Promise<AxiosResponse<T>> => {
-  let promise = historyResponseCache.get(key) as Promise<AxiosResponse<T>> | undefined
-  if (!promise) {
-    promise = loader()
-    historyResponseCache.set(key, promise)
-    promise.catch(() => {
-      if (historyResponseCache.get(key) === promise) historyResponseCache.delete(key)
-    })
-    if (historyResponseCache.size > HISTORY_RESPONSE_CACHE_LIMIT) {
-      const oldestKey = historyResponseCache.keys().next().value
-      if (oldestKey) historyResponseCache.delete(oldestKey)
-    }
+  const now = Date.now()
+  const cached = historyResponseCache.get(key) as { createdAt: number; promise: Promise<AxiosResponse<T>> } | undefined
+  if (cached && now - cached.createdAt < HISTORY_CACHE_TTL_MS) {
+    return cached.promise
+  }
+
+  const promise = loader()
+  historyResponseCache.set(key, {
+    createdAt: now,
+    promise,
+  })
+  promise.catch(() => {
+    const current = historyResponseCache.get(key)
+    if (current?.promise === promise) historyResponseCache.delete(key)
+  })
+  if (historyResponseCache.size > HISTORY_RESPONSE_CACHE_LIMIT) {
+    const oldestKey = historyResponseCache.keys().next().value
+    if (oldestKey) historyResponseCache.delete(oldestKey)
   }
   return promise
+}
+
+const loadHistoryResponse = <T>(
+  key: string,
+  loader: () => Promise<AxiosResponse<T>>,
+  useCache: boolean,
+): Promise<AxiosResponse<T>> => {
+  if (!useCache) {
+    return loader().catch((error) => {
+      historyResponseCache.delete(key)
+      throw error
+    })
+  }
+  return rememberHistoryResponse(key, loader)
 }
 
 const historyKey = (scope: string, params: Record<string, unknown>) => {
@@ -111,15 +146,22 @@ export const marketApi = {
     style?: string
     strategy?: string
     mode?: string
+    signal?: AbortSignal
   }): Promise<AxiosResponse<TradeSetupResponse>> {
-    return request.get('/trade-setup', { params })
+    const client = params.mode === 'ai' ? longTaskRequest : request
+    const { signal, ...query } = params
+    return client.get('/trade-setup', {
+      params: query,
+      signal,
+      timeout: params.mode === 'ai' ? 180000 : 15000,
+    })
   },
 
   getIndicators(params: IndicatorParams): Promise<AxiosResponse<IndicatorItem[]>> {
     return request.get('/indicators', { params })
   },
 
-  getHistory(params: HistoryParams): Promise<AxiosResponse<OHLCVRaw[]>> {
+  getPriceSeriesWindow(params: HistoryParams): Promise<AxiosResponse<OHLCVRaw[]>> {
     return request.get('/history', { params })
   },
 
@@ -127,20 +169,34 @@ export const marketApi = {
     return request.get('/klines/latest', { params })
   },
 
-  getFullHistory(params: FullHistoryParams): Promise<AxiosResponse<OHLCVRaw[]>> {
-    return rememberHistoryResponse(
-      historyKey('full_history', params as Record<string, unknown>),
-      () => request.get('/full_history', { params }),
+  getPriceSeriesTail(params: TailKlineParams): Promise<AxiosResponse<KlineTailResponse>> {
+    return request.get('/klines/tail', { params })
+  },
+
+  getCurrentPrice(params: CurrentPriceParams): Promise<AxiosResponse<CurrentPriceResponse>> {
+    return request.get('/price/current', { params })
+  },
+
+  getPriceHistory(params: FullHistoryParams): Promise<AxiosResponse<OHLCVRaw[]>> {
+    const query = normalizePriceHistoryParams(params)
+    const key = historyKey('full_history', query as Record<string, unknown>)
+    return loadHistoryResponse(
+      key,
+      () => request.get('/full_history', { params: query }),
+      query.fetch_policy === 'cache_only',
     )
   },
 
-  getBatchFullHistory(params: BatchFullHistoryParams): Promise<AxiosResponse<BatchFullHistoryResponse>> {
-    return rememberHistoryResponse(
-      historyKey('full_history_batch', { ...params, symbols: params.symbols }),
+  getBatchPriceHistory(params: BatchFullHistoryParams): Promise<AxiosResponse<BatchFullHistoryResponse>> {
+    const query = normalizePriceHistoryParams(params)
+    const key = historyKey('full_history_batch', { ...query, symbols: query.symbols })
+    return loadHistoryResponse(
+      key,
       () => request.get('/full_history/batch', {
-        params,
-        paramsSerializer: () => serializeBatchFullHistoryParams(params),
+        params: query,
+        paramsSerializer: () => serializeBatchFullHistoryParams(query),
       }),
+      query.fetch_policy === 'cache_only',
     )
   },
 
@@ -149,16 +205,20 @@ export const marketApi = {
   },
 
   getIndexHistory(params: IndexHistoryParams): Promise<AxiosResponse<MarketIndexHistoryResponse>> {
-    return rememberHistoryResponse(
-      historyKey('indexes_history', params as Record<string, unknown>),
+    const key = historyKey('indexes_history', params as Record<string, unknown>)
+    return loadHistoryResponse(
+      key,
       () => request.get('/indexes/history', { params }),
+      true,
     )
   },
 
   getIndexPricingHistory(params: IndexHistoryParams): Promise<AxiosResponse<MarketIndexHistoryResponse>> {
-    return rememberHistoryResponse(
-      historyKey('indexes_pricing_history', params as Record<string, unknown>),
+    const key = historyKey('indexes_pricing_history', params as Record<string, unknown>)
+    return loadHistoryResponse(
+      key,
       () => request.get('/indexes/pricing/history', { params }),
+      true,
     )
   },
 

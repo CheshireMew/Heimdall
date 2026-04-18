@@ -153,6 +153,7 @@ class BacktestPaperPositionResponse(BaseModel):
 class BacktestRuntimeStateResponse(BaseModel):
     cash_balance: float
     last_processed: dict[str, int | None] = Field(default_factory=dict)
+    last_synced_end: int | None = None
     positions: dict[str, BacktestPaperPositionResponse] = Field(default_factory=dict)
 
 
@@ -167,6 +168,7 @@ class BacktestPaperLiveResponse(BaseModel):
 class BacktestRunMetadataResponse(BaseModel):
     schema_version: int | None = None
     execution_mode: str | None = None
+    execution_model: str | None = None
     engine: str | None = None
     exchange: str | None = None
     market_type: str | None = None

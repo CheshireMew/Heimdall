@@ -17,7 +17,6 @@ def read_frontend(path: str) -> str:
 
 
 def extract_backend_routes() -> set[str]:
-    main_module._register_runtime_routes(main_module.app)
     return {
         route.path
         for route in main_module.app.routes
@@ -86,6 +85,9 @@ def test_market_store_cache_contract_is_stable():
     source = read_frontend("modules/market/store.ts")
 
     assert "heimdall_market_cache" in source
+    assert "_readKlineSlice" in source
+    assert "cachedData.length >= limit" in source
+    assert "return this._readKlineSlice(cachedData, limit)" in source
     assert "10000" in source
     assert "300000" in source
     assert "60000" in source
@@ -97,14 +99,16 @@ def test_market_store_cache_contract_is_stable():
 
 def test_symbol_search_supports_usd_equivalent_cash_assets():
     catalog_source = read_frontend("modules/market/symbolCatalog.ts")
+    generated_catalog_source = read_frontend("modules/market/generatedSymbolCatalog.ts")
     portfolio_source = read_frontend("views/tools/PortfolioBalance.vue")
     shared_source = read_frontend("modules/tools/portfolioBalance/shared.ts")
 
+    assert "generatedSymbolCatalog" in catalog_source
     for symbol in ["USD", "USDT", "USDC"]:
-        assert symbol in catalog_source
-        assert symbol in shared_source
+        assert symbol in generated_catalog_source
 
-    assert "asset_class: 'cash'" in catalog_source
+    assert '"asset_class": "cash"' in generated_catalog_source
+    assert "USD_EQUIVALENT_SYMBOLS" in shared_source
     assert "['crypto', 'index', 'cash']" in portfolio_source
 
 
@@ -154,3 +158,11 @@ def test_backtest_and_factor_formatting_entry_points_are_present():
         "formatDate",
     ]:
         assert token in factor_source
+
+
+def test_backtest_detail_history_panel_exposes_delete_action():
+    source = read_frontend("modules/backtest/useBacktestDetailPage.ts")
+
+    assert "const deleteRun = async (runId: number, mode: BacktestRunMode) => {" in source
+    assert "await runs.deleteRun(runId, mode)" in source
+    assert "deleteRun," in source

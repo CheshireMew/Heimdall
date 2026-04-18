@@ -6,12 +6,12 @@ from typing import Any
 from app.services.backtest.models import PortfolioConfigRecord, ResearchConfigRecord, StrategyVersionRecord
 
 
-CURRENT_BACKTEST_RUN_SCHEMA_VERSION = 3
+CURRENT_BACKTEST_RUN_SCHEMA_VERSION = 4
 
 BACKTEST_EXECUTION_MODE = "backtest"
 PAPER_LIVE_EXECUTION_MODE = "paper_live"
 FREQTRADE_ENGINE = "Freqtrade"
-PAPER_LIVE_ENGINE = "PaperLive"
+PAPER_LIVE_ENGINE = "FreqtradePaper"
 FACTOR_BLEND_ENGINE = "FactorBlend"
 FACTOR_BLEND_PAPER_ENGINE = "FactorBlendPaper"
 
@@ -127,11 +127,12 @@ def ensure_paper_runtime_state(runtime_state: dict[str, Any], *, symbols: list[s
     normalized = {
         key: value
         for key, value in runtime_state.items()
-        if key not in {"cash_balance", "last_processed", "positions"}
+        if key not in {"cash_balance", "last_processed", "last_synced_end", "positions"}
     }
 
     normalized["cash_balance"] = float(runtime_state.get("cash_balance", 0.0) or 0.0)
     normalized["last_processed"] = _normalize_last_processed_map(runtime_state.get("last_processed"), symbols=symbols)
+    normalized["last_synced_end"] = _normalize_optional_timestamp_ms(runtime_state.get("last_synced_end"))
     normalized["positions"] = _normalize_paper_positions(runtime_state.get("positions"), symbols=symbols)
     return normalized
 

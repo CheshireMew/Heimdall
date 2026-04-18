@@ -130,12 +130,13 @@ import {
 } from '@heroicons/vue/24/outline'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
-import { useMarketStore } from '@/modules/market'
+import { useMarketStore, useSymbolCatalog } from '@/modules/market'
 
 const { locale } = useI18n()
 const { theme, toggleTheme } = useTheme()
 const { loadCurrencyRates } = useMoney()
 const marketStore = useMarketStore()
+const { loadSymbols } = useSymbolCatalog()
 
 // 临时隐藏还没进入主流程的 Binance Web3 / RWA / Token 研究入口；路由和接口保留，后续确认需要时再打开。
 const showBinanceExperimentalPages = false
@@ -147,6 +148,7 @@ const toggleLocale = () => {
 
 onMounted(() => {
     marketStore.init()
+    loadSymbols()
     loadCurrencyRates()
 })
 </script>

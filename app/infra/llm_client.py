@@ -23,6 +23,7 @@ class LLMClient:
         self.api_key = llm_config["apiKey"]
         self.base_url = llm_config["baseUrl"]
         self.model = llm_config["modelId"]
+        self.request_timeout = self._request_timeout_seconds()
 
         if not self.api_key or len(self.api_key) < 10 or "sk-your-key" in self.api_key:
             logger.warning("[Security] LLM API Key 未配置或无效。AI 分析功能将不可用。")
@@ -36,11 +37,12 @@ class LLMClient:
 
         payload = self._payload(prompt)
         url = self._endpoint()
+        logger.info(f"[LLM][Request] provider={self.provider} model={self.model} url={url}\n{prompt}")
 
         last_error: Exception | None = None
         for attempt in range(MAX_RETRIES):
             try:
-                async with httpx.AsyncClient(timeout=settings.LLM_REQUEST_TIMEOUT) as client:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=self.request_timeout, connect=min(self.request_timeout, 10.0))) as client:
                     response = await client.post(url, headers=self.headers, json=payload)
                     if response.status_code in RETRYABLE_STATUS_CODES:
                         delay = BASE_DELAY * (2 ** attempt)
@@ -60,17 +62,21 @@ class LLMClient:
                     data = response.json()
 
                 content = self._content_from_response(data)
+                logger.info(f"[LLM][Response] provider={self.provider} model={self.model}\n{content}")
                 try:
                     return json.loads(content.replace("```json", "").replace("```", "").strip())
                 except json.JSONDecodeError:
                     logger.error("AI 返回的内容不是有效的 JSON")
-                    logger.debug(f"Raw content: {content}")
                     return None
             except httpx.RequestError as exc:
                 last_error = exc
                 if attempt < MAX_RETRIES - 1:
                     delay = BASE_DELAY * (2 ** attempt)
-                    logger.warning(f"LLM API connection error: {exc}, retrying in {delay:.1f}s")
+                    error_text = str(exc) or repr(exc)
+                    logger.warning(
+                        f"LLM API connection error ({exc.__class__.__name__}): {error_text}, "
+                        f"retrying in {delay:.1f}s"
+                    )
                     await asyncio.sleep(delay)
                     continue
             except httpx.HTTPStatusError as exc:
@@ -126,3 +132,9 @@ class LLMClient:
                     return item["text"]
             return ""
         return data["choices"][0]["message"]["content"]
+
+    def _request_timeout_seconds(self) -> float:
+        timeout = max(float(settings.LLM_REQUEST_TIMEOUT), 1.0)
+        if self.provider == "deepseek" and self.model == "deepseek-reasoner":
+            return max(timeout, 120.0)
+        return timeout

@@ -7,6 +7,7 @@ from typing import Any
 import pandas as pd
 import talib.abstract as ta
 
+from app.services.backtest.scripted_template_runtime import get_template_runtime, template_supports_signal_runtime
 from app.services.backtest.strategy_catalog import get_indicator_registry_map, get_template_spec
 from app.services.backtest.strategy_contract import (
     allowed_run_timeframes,
@@ -97,6 +98,9 @@ class StrategyRuntime:
         *,
         after_timestamp_ms: int | None = None,
     ) -> list[StrategySignalSnapshot]:
+        runtime_contract = get_template_runtime(template)
+        if not template_supports_signal_runtime(runtime_contract):
+            raise ValueError("该内置脚本策略当前只支持回测编译，不支持规则快照和模拟盘")
         frame = self.build_frame(template, config, candles, timeframe)
         if frame.empty:
             return []
@@ -128,6 +132,9 @@ class StrategyRuntime:
         candles: list[list[float]],
         timeframe: str,
     ) -> pd.DataFrame:
+        runtime_contract = get_template_runtime(template)
+        if not template_supports_signal_runtime(runtime_contract):
+            raise ValueError("该内置脚本策略当前只支持回测编译，不支持规则帧构建")
         frame = self._base_frame(candles)
         if frame.empty:
             return frame

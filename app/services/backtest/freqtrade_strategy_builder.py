@@ -5,6 +5,13 @@ from copy import deepcopy
 from itertools import islice, product
 from typing import Any
 
+from app.services.backtest.scripted_template_runtime import (
+    build_scripted_strategy_code,
+    get_template_runtime,
+    scripted_trade_settings,
+    scripted_warmup_bars,
+    template_builder_kind,
+)
 from app.services.backtest.strategy_catalog import get_indicator_registry_map
 from app.services.backtest.strategy_contract import set_by_path
 from app.services.backtest.strategy_runtime import StrategyRuntime
@@ -16,24 +23,42 @@ class FreqtradeStrategyBuilder:
         self.runtime = StrategyRuntime()
 
     def build_code(self, template: str, timeframe: str, config: dict[str, Any]) -> str:
+        runtime_contract = get_template_runtime(template)
+        if template_builder_kind(runtime_contract) == "scripted":
+            return build_scripted_strategy_code(
+                template=template,
+                strategy_class_name=self.strategy_class_name,
+                timeframe=timeframe,
+            )
         normalized_config = self.runtime.normalized_config(template, config)
         trade_settings = self.trade_settings(template, normalized_config)
         indicator_registry = get_indicator_registry_map()
         risk = normalized_config.get("risk") or {}
+        trade_plan = risk.get("trade_plan") or {}
+        uses_trade_plan = bool(trade_plan.get("enabled"))
         execution = normalized_config.get("execution") or {}
         can_short = execution.get("direction") == "long_short"
         indicator_script = self._build_indicator_script(normalized_config, indicator_registry, timeframe)
         regime_priority = normalized_config.get("regime_priority") or ["trend", "range"]
         branch_masks = self._build_branch_masks(normalized_config, regime_priority)
         entry_assignments = self._build_signal_assignments(normalized_config, regime_priority, branch_masks, signal_kind="entry", can_short=can_short)
-        exit_assignments = self._build_signal_assignments(normalized_config, regime_priority, branch_masks, signal_kind="exit", can_short=can_short)
+        exit_assignments = self._build_exit_assignments(
+            normalized_config,
+            regime_priority,
+            branch_masks,
+            can_short=can_short,
+            uses_trade_plan=uses_trade_plan,
+        )
         roi_targets = {
             str(int(item.get("minutes", 0))): float(item.get("profit", 0))
             for item in sorted([item for item in risk.get("roi_targets") or [] if item.get("enabled", True)], key=lambda item: int(item.get("minutes", 0)), reverse=True)
         }
+        if uses_trade_plan:
+            roi_targets = {"0": 99.0}
         trailing = risk.get("trailing") or {}
         partial_exits = [item for item in risk.get("partial_exits") or [] if item.get("enabled", True)]
         partial_exit_block = self._build_partial_exit_block(partial_exits)
+        trade_plan_block = self._build_trade_plan_block(trade_plan) if uses_trade_plan else ""
         warmup_bars = self.warmup_bars(template, normalized_config, timeframe)
         return f"""import pandas as pd
 import talib.abstract as ta
@@ -98,12 +123,19 @@ class {self.strategy_class_name}(IStrategy):
 {exit_assignments}
         return dataframe
 {partial_exit_block}
+{trade_plan_block}
 """
 
     def warmup_bars(self, template: str, config: dict[str, Any], timeframe: str) -> int:
+        runtime_contract = get_template_runtime(template)
+        if template_builder_kind(runtime_contract) == "scripted":
+            return scripted_warmup_bars(template, config, timeframe)
         return self.runtime.warmup_bars(template, config, timeframe)
 
     def trade_settings(self, template: str, config: dict[str, Any]) -> dict[str, Any]:
+        runtime_contract = get_template_runtime(template)
+        if template_builder_kind(runtime_contract) == "scripted":
+            return scripted_trade_settings(template, config)
         normalized_config = self.runtime.normalized_config(template, config)
         partial_exits = [item for item in (normalized_config.get("risk") or {}).get("partial_exits") or [] if item.get("enabled", True)]
         order_types = {
@@ -352,6 +384,88 @@ class {self.strategy_class_name}(IStrategy):
             else:
                 lines = ['        dataframe["exit_short"] = 0', '        dataframe["exit_short_tag"] = None', *lines[2:]]
         return "\n".join(lines) if lines else "        pass"
+
+    def _build_exit_assignments(
+        self,
+        normalized_config: dict[str, Any],
+        regime_priority: list[str],
+        branch_masks: dict[str, str],
+        *,
+        can_short: bool,
+        uses_trade_plan: bool,
+    ) -> str:
+        if not uses_trade_plan:
+            return self._build_signal_assignments(
+                normalized_config,
+                regime_priority,
+                branch_masks,
+                signal_kind="exit",
+                can_short=can_short,
+            )
+        lines = [
+            '        dataframe["exit_short"] = 0',
+            '        dataframe["exit_short_tag"] = None',
+        ]
+        return "\n".join(lines)
+
+    def _build_trade_plan_block(self, trade_plan: dict[str, Any]) -> str:
+        atr_indicator = str(trade_plan.get("atr_indicator") or "").strip()
+        support_indicator = str(trade_plan.get("support_indicator") or "").strip()
+        resistance_indicator = str(trade_plan.get("resistance_indicator") or "").strip()
+        if not atr_indicator or not support_indicator or not resistance_indicator:
+            raise ValueError("trade_plan 已启用，但缺少 ATR / 支撑 / 阻力指标")
+        stop_multiplier = float(trade_plan.get("stop_multiplier") or 1.0)
+        min_stop_pct = float(trade_plan.get("min_stop_pct") or 0.01)
+        reward_multiplier = float(trade_plan.get("reward_multiplier") or 2.0)
+        return f"""
+    def _resolve_trade_plan(self, pair, trade):
+        dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
+        if dataframe is None or dataframe.empty:
+            return None
+        open_time = pd.Timestamp(trade.open_date_utc)
+        entry_frame = dataframe.loc[dataframe["date"] <= open_time]
+        if entry_frame.empty:
+            return None
+        entry_candle = entry_frame.iloc[-1]
+        entry_price = float(trade.open_rate)
+        atr_value = float(entry_candle.get("{atr_indicator}__value") or 0.0)
+        stop_distance = max(atr_value * {stop_multiplier}, entry_price * {min_stop_pct})
+        if trade.is_short:
+            structure = float(entry_candle.get("{resistance_indicator}__value") or (entry_price + stop_distance))
+            stop_price = max(entry_price + stop_distance, structure)
+            target_price = entry_price - abs(entry_price - stop_price) * {reward_multiplier}
+        else:
+            structure = float(entry_candle.get("{support_indicator}__value") or (entry_price - stop_distance))
+            stop_price = min(entry_price - stop_distance, structure)
+            target_price = entry_price + abs(entry_price - stop_price) * {reward_multiplier}
+        return {{"target": float(target_price), "stop": float(stop_price)}}
+
+    def custom_exit(self, pair, trade, current_time, current_rate, current_profit, **kwargs):
+        dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
+        if dataframe is None or dataframe.empty:
+            return None
+        now = pd.Timestamp(current_time)
+        current_frame = dataframe.loc[dataframe["date"] <= now]
+        if current_frame.empty:
+            return None
+        current_candle = current_frame.iloc[-1]
+        trade_plan = self._resolve_trade_plan(pair, trade)
+        if not trade_plan:
+            return None
+        current_high = float(current_candle["high"])
+        current_low = float(current_candle["low"])
+        if trade.is_short:
+            if current_high >= trade_plan["stop"]:
+                return "trade_plan_stop"
+            if current_low <= trade_plan["target"]:
+                return "trade_plan_target"
+            return None
+        if current_low <= trade_plan["stop"]:
+            return "trade_plan_stop"
+        if current_high >= trade_plan["target"]:
+            return "trade_plan_target"
+        return None
+"""
 
     def _build_partial_exit_block(self, partial_exits: list[dict[str, Any]]) -> str:
         if not partial_exits:

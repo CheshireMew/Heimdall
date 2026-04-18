@@ -32,15 +32,9 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
     paper_manager = FakeManager()
     factor_manager = FakeManager()
 
-    monkeypatch.setattr(
-        main_module,
-        "_import_runtime_route_modules",
-        lambda: events.append("import_routes") or {},
-    )
-    monkeypatch.setattr(main_module, "_register_runtime_routes", lambda _app, _modules=None: events.append("register_routes"))
     monkeypatch.setattr(main_module, "_init_db", lambda: events.append("init_db"))
-    monkeypatch.setattr(main_module, "_get_paper_run_manager", lambda: paper_manager)
-    monkeypatch.setattr(main_module, "_get_factor_paper_run_manager", lambda: factor_manager)
+    monkeypatch.setattr(main_module, "get_paper_run_manager", lambda: paper_manager)
+    monkeypatch.setattr(main_module, "get_factor_paper_run_manager", lambda: factor_manager)
     monkeypatch.setattr(
         main_module,
         "_import_market_cron_module",
@@ -52,13 +46,10 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
 
     async with main_module.lifespan(main_module.app):
         events.append("inside")
-        main_module._ensure_startup_tasks(main_module.app)
-        await main_module.app.state.runtime_routes_task
+        await main_module.app.state.database_task
         await main_module.app.state.background_services_task
 
     assert events[0] == "inside"
-    assert "import_routes" in events
-    assert events.index("import_routes") < events.index("register_routes")
     assert events.index("init_db") < events.index("start_scheduler")
     assert events.count("restore") == 2
     assert events[-3:] == ["shutdown", "shutdown", "scheduler_shutdown"]

@@ -5,6 +5,7 @@ from datetime import datetime
 
 from app.infra.db.schema import BacktestRun
 from app.services.backtest.run_repository import BacktestRunRepository
+from app.services.backtest.run_contract import update_paper_metadata
 from app.services.backtest.serializers import serialize_backtest_run
 
 
@@ -36,7 +37,7 @@ def test_repository_filters_by_execution_mode_in_query(db_session, monkeypatch):
                 end_date=datetime(2026, 1, 4),
                 status="running",
                 execution_mode="paper_live",
-                engine="PaperLive",
+                engine="FreqtradePaper",
                 metadata_info={"strategy_key": "beta"},
             ),
         ]
@@ -50,7 +51,7 @@ def test_repository_filters_by_execution_mode_in_query(db_session, monkeypatch):
     assert len(runs) == 1
     assert runs[0]["symbol"] == "ETH/USDT"
     assert runs[0]["metadata"]["execution_mode"] == "paper_live"
-    assert runs[0]["metadata"]["engine"] == "PaperLive"
+    assert runs[0]["metadata"]["engine"] == "FreqtradePaper"
 
 
 def test_serializer_projects_mode_and_engine_from_columns():
@@ -73,3 +74,18 @@ def test_serializer_projects_mode_and_engine_from_columns():
     assert payload["metadata"]["execution_mode"] == "paper_live"
     assert payload["metadata"]["engine"] == "FactorBlendPaper"
     assert payload["report"] == {"profit_pct": 12.5}
+
+
+def test_update_paper_metadata_preserves_last_synced_end():
+    payload = update_paper_metadata(
+        {"symbols": ["BTC/USDT"]},
+        runtime_state={
+            "cash_balance": 10000,
+            "last_processed": {"BTC/USDT": 1710000000000},
+            "last_synced_end": 1710000000000,
+            "positions": {},
+        },
+        last_updated="2026-03-28T10:00:00",
+    )
+
+    assert payload["runtime_state"]["last_synced_end"] == 1710000000000

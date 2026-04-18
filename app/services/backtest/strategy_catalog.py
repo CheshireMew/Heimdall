@@ -5,6 +5,7 @@ from typing import Any
 
 from app.infra.db.database import engine, session_scope
 from app.infra.db.schema import Base, IndicatorDefinition, StrategyTemplateDefinition
+from app.services.backtest.scripted_template_runtime import get_template_runtime
 from app.services.backtest.strategy_contract import (
     blank_strategy_config,
     editor_contract,
@@ -119,6 +120,10 @@ def get_template_spec(template: str) -> dict[str, Any]:
     raise ValueError(f"不支持的策略模板: {template}")
 
 
+def get_template_runtime_contract(template: str) -> dict[str, Any]:
+    return get_template_runtime(template)
+
+
 def create_template_definition(
     *,
     key: str,
@@ -218,12 +223,14 @@ def _template_payload(
     *,
     is_builtin: bool,
 ) -> dict[str, Any]:
+    runtime = get_template_runtime(template_key)
     return {
         "template": template_key,
         "name": spec["name"],
         "category": spec["category"],
         "description": spec["description"],
         "is_builtin": is_builtin,
+        "template_runtime": runtime,
         "indicator_keys": list(spec["indicator_keys"]),
         "indicator_registry": [
             deepcopy(indicator_map[indicator_key])
@@ -243,12 +250,14 @@ def _template_row_payload(
     contract: dict[str, Any],
 ) -> dict[str, Any]:
     indicator_keys = list(row.indicator_keys or [])
+    runtime = get_template_runtime(row.key)
     return {
         "template": row.key,
         "name": row.name,
         "category": row.category,
         "description": row.description,
         "is_builtin": False,
+        "template_runtime": runtime,
         "indicator_keys": indicator_keys,
         "indicator_registry": [
             deepcopy(indicator_map[indicator_key])

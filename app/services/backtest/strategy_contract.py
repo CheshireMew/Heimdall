@@ -99,6 +99,15 @@ def risk_defaults() -> dict[str, Any]:
     return {
         "stoploss": -0.10,
         "roi_targets": [],
+        "trade_plan": {
+            "enabled": False,
+            "stop_multiplier": 1.0,
+            "min_stop_pct": 0.01,
+            "reward_multiplier": 2.0,
+            "atr_indicator": "",
+            "support_indicator": "",
+            "resistance_indicator": "",
+        },
         "trailing": {
             "enabled": False,
             "positive": 0.02,
@@ -379,6 +388,17 @@ def normalize_risk(risk: dict[str, Any], base_risk: dict[str, Any] | None = None
         "positive": float(trailing.get("positive", normalized["trailing"]["positive"])),
         "offset": float(trailing.get("offset", normalized["trailing"]["offset"])),
         "only_offset_reached": bool(trailing.get("only_offset_reached", normalized["trailing"]["only_offset_reached"])),
+    }
+
+    trade_plan = risk.get("trade_plan") or deepcopy(normalized.get("trade_plan") or {})
+    normalized["trade_plan"] = {
+        "enabled": bool(trade_plan.get("enabled", normalized["trade_plan"]["enabled"])),
+        "stop_multiplier": float(trade_plan.get("stop_multiplier", normalized["trade_plan"]["stop_multiplier"])),
+        "min_stop_pct": float(trade_plan.get("min_stop_pct", normalized["trade_plan"]["min_stop_pct"])),
+        "reward_multiplier": float(trade_plan.get("reward_multiplier", normalized["trade_plan"]["reward_multiplier"])),
+        "atr_indicator": str(trade_plan.get("atr_indicator", normalized["trade_plan"]["atr_indicator"] or "")).strip(),
+        "support_indicator": str(trade_plan.get("support_indicator", normalized["trade_plan"]["support_indicator"] or "")).strip(),
+        "resistance_indicator": str(trade_plan.get("resistance_indicator", normalized["trade_plan"]["resistance_indicator"] or "")).strip(),
     }
 
     partial_exits = risk.get("partial_exits")

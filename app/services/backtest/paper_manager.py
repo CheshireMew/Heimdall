@@ -1,45 +1,51 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 from app.infra.db.database import session_scope
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun
 from app.services.backtest.contracts import PaperStartCommand
-from app.services.backtest.models import BacktestEquityPointRecord, BacktestSignalRecord, BacktestTradeRecord
-from app.services.backtest.run_repository import BacktestRunRepository
+from app.services.backtest.models import (
+    BacktestEquityPointRecord,
+    BacktestTradeRecord,
+    PortfolioConfigRecord,
+    ResearchConfigRecord,
+)
+from app.services.backtest.result_store import replace_run_rows, result_signal_counts
 from app.services.backtest.run_contract import PAPER_LIVE_ENGINE, PAPER_LIVE_EXECUTION_MODE, build_paper_metadata, update_paper_metadata
 from config import settings
-from utils.time_utils import utc_now_naive
 from utils.logger import logger
+from utils.time_utils import utc_now_naive
 
 if TYPE_CHECKING:
     from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
-    from app.services.backtest.paper_persistence_service import PaperPersistenceService
-    from app.services.backtest.paper_position_service import PaperPosition, PaperPositionService
-    from app.services.backtest.paper_runtime_service import PaperRuntimeService
+    from app.services.backtest.freqtrade_service import FreqtradeBacktestService
+    from app.services.backtest.run_repository import BacktestRunRepository
     from app.services.backtest.strategy_query_service import StrategyQueryService
-    from app.services.backtest.strategy_runtime import StrategyRuntime
+
+
+@dataclass(slots=True)
+class PaperSyncWindow:
+    end_at: datetime | None
+    synced_end_ms: int | None
+    last_processed: dict[str, int | None]
 
 
 class PaperRunManager:
     def __init__(
         self,
         *,
-        strategy_query_service: StrategyQueryService | None = None,
-        runtime: StrategyRuntime | None = None,
-        report_builder: FreqtradeReportBuilder | None = None,
-        position_service: PaperPositionService | None = None,
-        persistence_service: PaperPersistenceService | None = None,
-        runtime_service: PaperRuntimeService | None = None,
+        strategy_query_service: StrategyQueryService,
+        freqtrade_service: FreqtradeBacktestService,
+        report_builder: FreqtradeReportBuilder,
         run_repository: BacktestRunRepository,
     ) -> None:
         self.strategy_query_service = strategy_query_service
-        self.runtime = runtime
+        self.freqtrade_service = freqtrade_service
         self.report_builder = report_builder
-        self.position_service = position_service
-        self.runtime_service = runtime_service
-        self.persistence_service = persistence_service
         self.run_repository = run_repository
         self._tasks: dict[int, asyncio.Task[Any]] = {}
 
@@ -82,7 +88,7 @@ class PaperRunManager:
 
         deleted = await loop.run_in_executor(
             None,
-            lambda: self.run_repository.delete_run(run_id, "paper_live"),
+            lambda: self.run_repository.delete_run(run_id, PAPER_LIVE_EXECUTION_MODE),
         )
         if not deleted:
             raise ValueError(f"模拟盘记录不存在: {run_id}")
@@ -122,103 +128,47 @@ class PaperRunManager:
             if run.execution_mode != PAPER_LIVE_EXECUTION_MODE or run.engine != PAPER_LIVE_ENGINE or run.status != "running":
                 return False
 
-            strategy = self._get_strategy_query_service().get_strategy_version(metadata["strategy_key"], metadata.get("strategy_version"))
-            runtime_service = self._get_runtime_service()
-            runtime_state = runtime_service.load_runtime_state(metadata)
-            symbols = list(metadata.get("symbols") or [])
-            now = utc_now_naive()
-            fee_ratio = float(metadata.get("fee_rate", 0.0)) / 100.0
-            runtime = self._get_runtime()
-            pending = runtime_service.build_pending_snapshots(
-                strategy=strategy,
-                symbols=symbols,
-                timeframe=run.timeframe,
-                runtime_state=runtime_state,
-                now=now,
-                warmup_bars=runtime.warmup_bars(strategy.template, strategy.config, run.timeframe),
-            )
-            if not pending:
+            symbols = [str(symbol).strip().upper() for symbol in (metadata.get("symbols") or []) if str(symbol).strip()]
+            if not symbols:
+                raise ValueError("模拟盘缺少 symbols 配置")
+
+            sync_window = self._resolve_sync_window(symbols=symbols, timeframe=run.timeframe, now=utc_now_naive())
+            if sync_window.end_at is None or sync_window.synced_end_ms is None:
                 return True
 
-            new_signals: list[BacktestSignalRecord] = []
-            new_trades: list[BacktestTradeRecord] = []
-            new_equity_points: list[BacktestEquityPointRecord] = []
-            position_service = self._get_position_service()
-            positions = position_service.deserialize_positions(runtime_state.get("positions") or {})
-            cash_balance = float(runtime_state.get("cash_balance", metadata.get("initial_cash", 0.0)))
-            portfolio = metadata.get("portfolio") or {}
-            risk = strategy.config.get("risk") or {}
-            initial_cash = float(metadata.get("initial_cash", 0.0))
+            runtime_state = dict(metadata.get("runtime_state") or {})
+            last_synced_end_ms = self._optional_int(runtime_state.get("last_synced_end"))
+            if last_synced_end_ms is not None and sync_window.synced_end_ms <= last_synced_end_ms:
+                return True
 
-            for symbol, snapshot in pending:
-                run.total_candles += 1
-                position = positions.get(symbol)
-                if position:
-                    signals, trades = position_service.process_open_position(
-                        position=position,
-                        snapshot=snapshot,
-                        fee_ratio=fee_ratio,
-                        risk=risk,
-                    )
-                    new_signals.extend(signals)
-                    new_trades.extend(trades)
-                    for trade in trades:
-                        cash_balance += trade.stake_amount + trade.profit_abs
-                    if position.remaining_amount <= 1e-12 or position.remaining_cost <= 1e-8:
-                        positions.pop(symbol, None)
-                entry_side = position_service.entry_side(snapshot)
-                if symbol not in positions and entry_side and len(positions) < int(portfolio.get("max_open_trades", 1)):
-                    created_position, entry_signal, cash_spent = position_service.try_open_position(
-                        symbol=symbol,
-                        snapshot=snapshot,
-                        side=entry_side,
-                        cash_balance=cash_balance,
-                        fee_ratio=fee_ratio,
-                        portfolio=portfolio,
-                        initial_cash=initial_cash,
-                    )
-                    if created_position:
-                        positions[symbol] = created_position
-                        new_signals.append(entry_signal)
-                        cash_balance -= cash_spent
-
-                runtime_state.setdefault("last_processed", {})[symbol] = int(snapshot.timestamp.timestamp() * 1000)
-                equity = position_service.current_equity(cash_balance, positions, snapshot.price, symbol, fee_ratio)
-                new_equity_points.append(
-                    BacktestEquityPointRecord(
-                        timestamp=snapshot.timestamp,
-                        equity=equity,
-                        pnl_abs=equity - initial_cash,
-                        drawdown_pct=0.0,
-                    )
-                )
-
-            self._get_persistence_service().persist_increment(
+            strategy = self.strategy_query_service.get_strategy_version(metadata["strategy_key"], metadata.get("strategy_version"))
+            portfolio = self._portfolio_from_metadata(metadata, symbols)
+            result = self.freqtrade_service.execute(
+                strategy=strategy,
+                portfolio=portfolio,
+                research=ResearchConfigRecord(),
+                start_date=self._naive_utc(run.start_date or utc_now_naive()),
+                end_date=sync_window.end_at,
+                timeframe=run.timeframe,
+                initial_cash=float(metadata.get("initial_cash", 0.0) or 0.0),
+                fee_rate=float(metadata.get("fee_rate", 0.0) or 0.0),
+            )
+            self._replace_run_snapshot(
                 session=session,
                 run=run,
                 metadata=metadata,
-                runtime_state=runtime_state,
-                positions=positions,
-                cash_balance=cash_balance,
-                new_signals=new_signals,
-                new_trades=new_trades,
-                new_equity_points=new_equity_points,
-                now=now,
+                result=result,
+                timeframe=run.timeframe,
+                sync_window=sync_window,
             )
             return True
 
     def _create_run(self, command: PaperStartCommand) -> int:
-        strategy = self._get_strategy_query_service().get_strategy_version(command.strategy_key, command.strategy_version)
+        strategy = self.strategy_query_service.get_strategy_version(command.strategy_key, command.strategy_version)
         now = utc_now_naive()
-        symbols = list(command.portfolio.symbols)
-        runtime_service = self._get_runtime_service()
-        timeframe_delta = runtime_service.timeframe_delta(command.timeframe)
-        baseline_last_processed = {
-            symbol: runtime_service.latest_closed_timestamp(symbol, command.timeframe, now, timeframe_delta)
-            for symbol in symbols
-        }
-        report_builder = self._get_report_builder()
-        initial_report = report_builder.build_report(
+        symbols = [str(symbol).strip().upper() for symbol in command.portfolio.symbols if str(symbol).strip()]
+        sync_window = self._resolve_sync_window(symbols=symbols, timeframe=command.timeframe, now=now)
+        initial_report = self.report_builder.build_report(
             trades=[],
             equity_curve=[BacktestEquityPointRecord(timestamp=now, equity=command.initial_cash, pnl_abs=0.0, drawdown_pct=0.0)],
             initial_cash=command.initial_cash,
@@ -236,7 +186,13 @@ class PaperRunManager:
             "max_open_trades": command.portfolio.max_open_trades,
             "position_size_pct": command.portfolio.position_size_pct,
             "stake_mode": command.portfolio.stake_mode,
-            "stake_currency": report_builder.quote_currency(symbols[0]),
+            "stake_currency": self.report_builder.quote_currency(symbols[0]),
+        }
+        runtime_state = {
+            "cash_balance": command.initial_cash,
+            "last_processed": sync_window.last_processed,
+            "last_synced_end": sync_window.synced_end_ms,
+            "positions": {},
         }
         with session_scope() as session:
             run = BacktestRun(
@@ -253,8 +209,13 @@ class PaperRunManager:
                     initial_cash=command.initial_cash,
                     fee_rate=command.fee_rate,
                     portfolio=command.portfolio,
-                    runtime_state={"cash_balance": command.initial_cash, "last_processed": baseline_last_processed, "positions": {}},
-                    paper_live={"cash_balance": command.initial_cash, "open_positions": 0, "positions": [], "last_updated": now.isoformat()},
+                    runtime_state=runtime_state,
+                    paper_live={
+                        "cash_balance": command.initial_cash,
+                        "open_positions": 0,
+                        "positions": [],
+                        "last_updated": now.isoformat(),
+                    },
                     report=initial_report,
                 ),
             )
@@ -263,6 +224,123 @@ class PaperRunManager:
             session.add(BacktestEquityPoint(backtest_id=run.id, timestamp=now, equity=command.initial_cash, pnl_abs=0.0, drawdown_pct=0.0))
             session.flush()
             return run.id
+
+    def _replace_run_snapshot(
+        self,
+        *,
+        session,
+        run: BacktestRun,
+        metadata: dict[str, Any],
+        result,
+        timeframe: str,
+        sync_window: PaperSyncWindow,
+    ) -> None:
+        replace_run_rows(
+            session=session,
+            run_id=run.id,
+            result=result,
+            default_pair=run.symbol,
+            clear_existing=True,
+        )
+
+        positions = self._build_open_positions(result.trades, timeframe=timeframe, end_at=sync_window.end_at)
+        cash_balance = self._cash_balance(
+            initial_cash=float(metadata.get("initial_cash", 0.0) or 0.0),
+            trades=result.trades,
+        )
+        runtime_state = {
+            "cash_balance": cash_balance,
+            "last_processed": sync_window.last_processed,
+            "last_synced_end": sync_window.synced_end_ms,
+            "positions": positions,
+        }
+
+        buy_count, sell_count, hold_count = result_signal_counts(result)
+        merged_metadata = {
+            **metadata,
+            **dict(result.metadata or {}),
+            "engine": PAPER_LIVE_ENGINE,
+            "execution_model": "freqtrade_replay",
+            "research": None,
+        }
+        run.end_date = sync_window.end_at
+        run.total_candles = int(result.total_candles)
+        run.total_signals = len(result.signals)
+        run.buy_signals = buy_count
+        run.sell_signals = sell_count
+        run.hold_signals = hold_count
+        run.metadata_info = update_paper_metadata(
+            merged_metadata,
+            runtime_state=runtime_state,
+            last_updated=sync_window.end_at.isoformat(),
+            report=result.report,
+        )
+        session.flush()
+
+    def _resolve_sync_window(self, *, symbols: list[str], timeframe: str, now: datetime) -> PaperSyncWindow:
+        timeframe_delta = self._timeframe_delta(timeframe)
+        timeframe_ms = int(timeframe_delta.total_seconds() * 1000)
+        scan_start = now - (timeframe_delta * 3)
+        cutoff_ms = int(now.timestamp() * 1000)
+        last_processed: dict[str, int | None] = {}
+        closed_values: list[int] = []
+        for symbol in symbols:
+            candles = self.freqtrade_service.market_data_service.fetch_live_ohlcv_range(symbol, timeframe, scan_start, now)
+            closed = [row for row in candles if row[0] + timeframe_ms <= cutoff_ms]
+            latest_closed = int(closed[-1][0]) if closed else None
+            last_processed[symbol] = latest_closed
+            if latest_closed is not None:
+                closed_values.append(latest_closed)
+        if len(closed_values) != len(symbols):
+            return PaperSyncWindow(end_at=None, synced_end_ms=None, last_processed=last_processed)
+        synced_end_ms = min(closed_values)
+        end_at = datetime.utcfromtimestamp(synced_end_ms / 1000.0)
+        return PaperSyncWindow(end_at=end_at, synced_end_ms=synced_end_ms, last_processed=last_processed)
+
+    def _build_open_positions(
+        self,
+        trades: list[BacktestTradeRecord],
+        *,
+        timeframe: str,
+        end_at: datetime | None,
+    ) -> dict[str, dict[str, Any]]:
+        if end_at is None:
+            return {}
+        positions: dict[str, dict[str, Any]] = {}
+        for trade in trades:
+            if trade.closed_at is not None or not trade.pair:
+                continue
+            candles = self.freqtrade_service.market_data_service.fetch_ohlcv_range(trade.pair, timeframe, trade.opened_at, end_at)
+            highs = [float(row[2]) for row in candles] or [trade.entry_price]
+            lows = [float(row[3]) for row in candles] or [trade.entry_price]
+            last_price = float(candles[-1][4]) if candles else trade.entry_price
+            positions[trade.pair] = {
+                "symbol": trade.pair,
+                "side": trade.side,
+                "opened_at": trade.opened_at.isoformat(),
+                "entry_price": trade.entry_price,
+                "remaining_amount": trade.amount,
+                "remaining_cost": trade.stake_amount,
+                "highest_price": max(highs),
+                "lowest_price": min(lows),
+                "last_price": last_price,
+                "taken_partial_ids": [],
+            }
+        return positions
+
+    def _cash_balance(self, *, initial_cash: float, trades: list[BacktestTradeRecord]) -> float:
+        realized_profit = sum(item.profit_abs for item in trades if item.closed_at is not None)
+        reserved_cost = sum(item.stake_amount for item in trades if item.closed_at is None)
+        return initial_cash + realized_profit - reserved_cost
+
+    def _portfolio_from_metadata(self, metadata: dict[str, Any], symbols: list[str]) -> PortfolioConfigRecord:
+        portfolio = dict(metadata.get("portfolio") or {})
+        return PortfolioConfigRecord(
+            symbols=symbols,
+            max_open_trades=int(portfolio.get("max_open_trades", 1) or 1),
+            position_size_pct=float(portfolio.get("position_size_pct", 0.0) or 0.0),
+            stake_mode=str(portfolio.get("stake_mode") or "fixed"),
+        )
 
     def _mark_stopped(self, run_id: int, status: str, reason: str) -> None:
         with session_scope() as session:
@@ -287,44 +365,26 @@ class PaperRunManager:
             engine=PAPER_LIVE_ENGINE,
         )
 
-    def _get_strategy_query_service(self) -> StrategyQueryService:
-        if self.strategy_query_service is None:
-            from app.dependencies import get_strategy_query_service
+    def _timeframe_delta(self, timeframe: str) -> timedelta:
+        value = int(timeframe[:-1])
+        unit = timeframe[-1]
+        if unit == "m":
+            return timedelta(minutes=value)
+        if unit == "h":
+            return timedelta(hours=value)
+        if unit == "d":
+            return timedelta(days=value)
+        if unit == "w":
+            return timedelta(weeks=value)
+        raise ValueError(f"暂不支持的时间周期: {timeframe}")
 
-            self.strategy_query_service = get_strategy_query_service()
-        return self.strategy_query_service
+    def _optional_int(self, value: Any) -> int | None:
+        if value in (None, ""):
+            return None
+        return int(value)
 
-    def _get_runtime(self) -> StrategyRuntime:
-        if self.runtime is None:
-            from app.dependencies import get_strategy_runtime
-
-            self.runtime = get_strategy_runtime()
-        return self.runtime
-
-    def _get_report_builder(self) -> FreqtradeReportBuilder:
-        if self.report_builder is None:
-            from app.dependencies import get_freqtrade_report_builder
-
-            self.report_builder = get_freqtrade_report_builder()
-        return self.report_builder
-
-    def _get_position_service(self) -> PaperPositionService:
-        if self.position_service is None:
-            from app.dependencies import get_paper_position_service
-
-            self.position_service = get_paper_position_service()
-        return self.position_service
-
-    def _get_runtime_service(self) -> PaperRuntimeService:
-        if self.runtime_service is None:
-            from app.dependencies import get_paper_runtime_service
-
-            self.runtime_service = get_paper_runtime_service()
-        return self.runtime_service
-
-    def _get_persistence_service(self) -> PaperPersistenceService:
-        if self.persistence_service is None:
-            from app.dependencies import get_paper_persistence_service
-
-            self.persistence_service = get_paper_persistence_service()
-        return self.persistence_service
+    def _naive_utc(self, value: datetime) -> datetime:
+        timestamp = value if isinstance(value, datetime) else utc_now_naive()
+        if timestamp.tzinfo is None:
+            return timestamp.replace(tzinfo=None)
+        return timestamp.astimezone(timezone.utc).replace(tzinfo=None)

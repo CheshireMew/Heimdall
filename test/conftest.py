@@ -18,11 +18,13 @@ import app.main as main_module
 from app.dependencies import (
     get_backtest_command_service,
     get_backtest_query_service,
+    get_base_market_app_service,
+    get_binance_market_intel_service,
+    get_binance_web3_service,
     get_currency_rate_service,
     get_factor_execution_service,
     get_factor_paper_run_manager,
     get_factor_research_service,
-    get_market_app_service,
     get_market_data_service,
     get_tools_app_service,
 )
@@ -30,10 +32,12 @@ from app.infra.db.schema import Base
 from test.regression_support import (
     StubBacktestCommandService,
     StubBacktestQueryService,
+    StubBaseMarketAppService,
+    StubBinanceMarketService,
+    StubBinanceWeb3Service,
     StubFactorExecutionService,
     StubFactorPaperRunManager,
     StubFactorResearchService,
-    StubMarketAppService,
     StubMarketDataService,
     StubToolsAppService,
 )
@@ -95,7 +99,9 @@ def api_harness():
 
     services = {
         "market_data": StubMarketDataService(),
-        "market_app": StubMarketAppService(),
+        "base_market_app": StubBaseMarketAppService(),
+        "binance_market_service": StubBinanceMarketService(),
+        "binance_web3_service": StubBinanceWeb3Service(),
         "backtest_command": StubBacktestCommandService(),
         "backtest_query": StubBacktestQueryService(),
         "tools_app": StubToolsAppService(),
@@ -105,15 +111,14 @@ def api_harness():
         "factor_paper": StubFactorPaperRunManager(),
     }
     app = main_module.app
-    main_module._register_runtime_routes(app)
-    app.state.startup_tasks_started = True
-    app.state.runtime_routes_error = None
     app.state.database_error = None
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = noop_lifespan
     app.dependency_overrides = {
         get_market_data_service: lambda: services["market_data"],
-        get_market_app_service: lambda: services["market_app"],
+        get_base_market_app_service: lambda: services["base_market_app"],
+        get_binance_market_intel_service: lambda: services["binance_market_service"],
+        get_binance_web3_service: lambda: services["binance_web3_service"],
         get_backtest_command_service: lambda: services["backtest_command"],
         get_backtest_query_service: lambda: services["backtest_query"],
         get_tools_app_service: lambda: services["tools_app"],

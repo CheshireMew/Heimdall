@@ -125,6 +125,7 @@ export interface BacktestDetailResponse {
 export interface BacktestRunMetadata {
   schema_version?: number | null
   execution_mode?: string | null
+  execution_model?: string | null
   engine?: string | null
   exchange?: string | null
   market_type?: string | null
@@ -303,6 +304,7 @@ export interface BacktestPaperPosition {
 export interface BacktestRuntimeState {
   cash_balance: number
   last_processed?: { [key: string]: number | null }
+  last_synced_end?: number | null
   positions?: { [key: string]: BacktestPaperPosition }
 }
 
@@ -348,6 +350,7 @@ export interface StrategyDefinition {
   category: string
   description?: string | null
   is_active: boolean
+  template_runtime?: StrategyTemplateRuntime
   versions: Array<StrategyVersion>
 }
 
@@ -364,6 +367,17 @@ export interface StrategyIndicatorRegistryItem {
 export interface StrategyOperator {
   key: string
   label: string
+}
+
+export interface StrategyTemplateCapabilities {
+  signal_runtime?: boolean
+  paper?: boolean
+  version_editing?: boolean
+}
+
+export interface StrategyTemplateRuntime {
+  builder_kind?: string
+  capabilities?: StrategyTemplateCapabilities
 }
 
 export interface StrategyGroupLogic {
@@ -386,6 +400,7 @@ export interface StrategyTemplate {
   category: string
   description?: string | null
   is_builtin?: boolean
+  template_runtime?: StrategyTemplateRuntime
   indicator_keys?: Array<string>
   indicator_registry: Array<StrategyIndicatorRegistryItem>
   operators: Array<StrategyOperator>

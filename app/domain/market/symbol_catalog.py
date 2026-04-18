@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.domain.market.index_catalog import INDEX_CATALOG, get_index_instrument
 from config import settings
 
 
@@ -65,6 +66,10 @@ def build_market_symbol_catalog() -> dict[str, MarketSymbolSource]:
 MARKET_SYMBOL_CATALOG = build_market_symbol_catalog()
 
 
+def get_supported_crypto_symbols() -> list[str]:
+    return list(MARKET_SYMBOL_CATALOG.keys())
+
+
 def get_market_symbol_source(symbol: str) -> MarketSymbolSource | None:
     normalized_symbol = normalize_market_symbol(symbol)
     if not normalized_symbol:
@@ -73,11 +78,85 @@ def get_market_symbol_source(symbol: str) -> MarketSymbolSource | None:
 
 
 def get_supported_market_symbols() -> list[str]:
-    return list(MARKET_SYMBOL_CATALOG.keys())
+    return get_supported_crypto_symbols()
 
 
 def get_usd_equivalent_symbols() -> list[str]:
     return list(USD_EQUIVALENT_SYMBOLS)
+
+
+def is_usd_equivalent_symbol(symbol: str) -> bool:
+    value = str(symbol or "").strip().upper()
+    if not value:
+        return False
+    base_symbol = value.split("/")[0]
+    return base_symbol in USD_EQUIVALENT_SYMBOLS
+
+
+def list_market_search_items() -> list[dict[str, object]]:
+    cash_symbols = [
+        {
+            "symbol": symbol,
+            "name": "US Dollar" if symbol == "USD" else f"{symbol} USD equivalent",
+            "asset_class": "cash",
+            "market": "USD",
+            "currency": "USD",
+            "exchange": "USD",
+            "aliases": ["美元", "现金", "stablecoin", "稳定币", "usd equivalent"],
+            "pricing_symbol": None,
+            "pricing_name": None,
+            "pricing_currency": "USD",
+        }
+        for symbol in get_usd_equivalent_symbols()
+    ]
+    crypto_symbols = [
+        {
+            "symbol": source.symbol,
+            "name": source.symbol,
+            "asset_class": "crypto",
+            "market": "CRYPTO",
+            "currency": "USDT",
+            "exchange": source.exchange_id.upper(),
+            "aliases": [source.symbol.split("/")[0]],
+            "pricing_symbol": None,
+            "pricing_name": None,
+            "pricing_currency": "USDT",
+        }
+        for source in MARKET_SYMBOL_CATALOG.values()
+    ]
+    index_symbols = [
+        {
+            "symbol": instrument.symbol,
+            "name": instrument.name,
+            "asset_class": "index",
+            "market": instrument.market,
+            "currency": instrument.currency,
+            "exchange": instrument.market,
+            "aliases": list(instrument.aliases),
+            "pricing_symbol": instrument.pricing_symbol,
+            "pricing_name": instrument.pricing_name,
+            "pricing_currency": instrument.pricing_currency or instrument.currency,
+        }
+        for instrument in INDEX_CATALOG.values()
+    ]
+    return cash_symbols + crypto_symbols + index_symbols
+
+
+def resolve_market_asset(symbol: str) -> dict[str, str] | None:
+    value = str(symbol or "").strip().upper()
+    if not value:
+        return None
+    if is_usd_equivalent_symbol(value):
+        return {"symbol": value.split("/")[0], "asset_class": "cash"}
+
+    instrument = get_index_instrument(value)
+    if instrument:
+        return {"symbol": instrument.symbol, "asset_class": "index"}
+
+    source = get_market_symbol_source(value)
+    if source:
+        return {"symbol": source.symbol, "asset_class": "crypto"}
+    return None
 
 
 __all__ = [
@@ -85,7 +164,11 @@ __all__ = [
     "MARKET_SYMBOL_CATALOG",
     "build_market_symbol_catalog",
     "get_market_symbol_source",
+    "get_supported_crypto_symbols",
     "get_supported_market_symbols",
     "get_usd_equivalent_symbols",
+    "is_usd_equivalent_symbol",
+    "list_market_search_items",
     "normalize_market_symbol",
+    "resolve_market_asset",
 ]

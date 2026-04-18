@@ -33,6 +33,8 @@ from app.schemas.backtest import (
     StrategyIndicatorEngineResponse,
     StrategyIndicatorRegistryResponse,
     StrategyOperatorResponse,
+    StrategyTemplateCapabilitiesResponse,
+    StrategyTemplateRuntimeResponse,
     StrategyTemplateCreateRequest,
     StrategyTemplateResponse,
     StrategyVersionCreateRequest,
@@ -132,6 +134,7 @@ from app.schemas.market import (
     CryptoIndexHistoryPointResponse,
     CryptoIndexResponse,
     CryptoIndexSummaryResponse,
+    CurrentPriceResponse,
     CurrencyRatesResponse,
     DisplayCurrencyResponse,
     FundingRateHistoryPointResponse,
@@ -139,6 +142,7 @@ from app.schemas.market import (
     FundingRateSnapshotResponse,
     FundingRateSyncResponse,
     IndicatorSummaryResponse,
+    KlineTailResponse,
     MACDResponse,
     MarketIndexHistoryResponse,
     MarketIndexResponse,
@@ -163,9 +167,11 @@ from app.schemas.strategy_contract import (
     StrategyTemplateConfigResponse,
     StrategyTrailingConfigResponse,
 )
+from app.domain.market.symbol_catalog import get_usd_equivalent_symbols, list_market_search_items
 
 
 FRONTEND_TYPES_DIR = REPO_ROOT / "frontend" / "src" / "types"
+FRONTEND_MARKET_MODULE_DIR = REPO_ROOT / "frontend" / "src" / "modules" / "market"
 
 ALIAS_MAP = {
     "BacktestPortfolioRequest": "BacktestPortfolioConfig",
@@ -199,6 +205,8 @@ ALIAS_MAP = {
     "StrategyDefinitionResponse": "StrategyDefinition",
     "StrategyIndicatorRegistryResponse": "StrategyIndicatorRegistryItem",
     "StrategyOperatorResponse": "StrategyOperator",
+    "StrategyTemplateCapabilitiesResponse": "StrategyTemplateCapabilities",
+    "StrategyTemplateRuntimeResponse": "StrategyTemplateRuntime",
     "StrategyGroupLogicResponse": "StrategyGroupLogic",
     "StrategyIndicatorEngineResponse": "StrategyIndicatorEngine",
     "StrategyTemplateResponse": "StrategyTemplate",
@@ -273,6 +281,8 @@ FILE_MODELS: dict[str, list[dict[str, Any]]] = {
         {"name": "StrategyDefinition", "model": StrategyDefinitionResponse},
         {"name": "StrategyIndicatorRegistryItem", "model": StrategyIndicatorRegistryResponse},
         {"name": "StrategyOperator", "model": StrategyOperatorResponse},
+        {"name": "StrategyTemplateCapabilities", "model": StrategyTemplateCapabilitiesResponse},
+        {"name": "StrategyTemplateRuntime", "model": StrategyTemplateRuntimeResponse},
         {"name": "StrategyGroupLogic", "model": StrategyGroupLogicResponse},
         {"name": "StrategyIndicatorEngine", "model": StrategyIndicatorEngineResponse},
         {"name": "StrategyTemplate", "model": StrategyTemplateResponse},
@@ -312,6 +322,8 @@ FILE_MODELS: dict[str, list[dict[str, Any]]] = {
     ],
     "market.ts": [
         {"name": "RealtimeResponse", "model": RealtimeResponse},
+        {"name": "KlineTailResponse", "model": KlineTailResponse},
+        {"name": "CurrentPriceResponse", "model": CurrentPriceResponse},
         {"name": "IndicatorItem", "model": MarketIndicatorResponse},
         {"name": "MarketIndexResponse", "model": MarketIndexResponse},
         {"name": "MarketSymbolSearchItem", "model": MarketSymbolSearchResponse},
@@ -441,16 +453,29 @@ FILE_EXTRAS = {
         "  limit?: number",
         "}",
         "",
+        "export interface TailKlineParams {",
+        "  symbol: string",
+        "  timeframe: string",
+        "  limit?: number",
+        "}",
+        "",
+        "export interface CurrentPriceParams {",
+        "  symbol: string",
+        "  timeframe?: string",
+        "}",
+        "",
         "export interface FullHistoryParams {",
         "  symbol: string",
         "  timeframe?: string",
         "  start_date?: string",
+        "  fetch_policy?: 'cache_only' | 'hydrate'",
         "}",
         "",
         "export interface BatchFullHistoryParams {",
         "  symbols: string[]",
         "  timeframe?: string",
         "  start_date?: string",
+        "  fetch_policy?: 'cache_only' | 'hydrate'",
         "}",
         "",
         "export interface IndicatorParams {",
@@ -497,6 +522,7 @@ def main() -> None:
     for filename, entries in FILE_MODELS.items():
         content = render_file(filename, entries, FILE_EXTRAS[filename])
         (FRONTEND_TYPES_DIR / filename).write_text(content, encoding="utf-8")
+    (FRONTEND_MARKET_MODULE_DIR / "generatedSymbolCatalog.ts").write_text(render_symbol_catalog_module(), encoding="utf-8")
 
 
 def render_file(filename: str, entries: list[dict[str, Any]], extra_lines: list[str]) -> str:
@@ -642,6 +668,24 @@ def render_type(schema: dict[str, Any]) -> str:
 
 def is_object_schema(schema: dict[str, Any]) -> bool:
     return schema.get("type") == "object" or "properties" in schema
+
+
+def render_symbol_catalog_module() -> str:
+    fallback_symbols = list_market_search_items()
+    usd_equivalent_symbols = get_usd_equivalent_symbols()
+    return "\n".join(
+        [
+            "// This file is generated from backend market symbol contracts.",
+            "// Do not edit manually.",
+            "",
+            "import type { MarketSymbolSearchItem } from '@/types'",
+            "",
+            f"export const USD_EQUIVALENT_SYMBOLS = {json.dumps(usd_equivalent_symbols, ensure_ascii=False, indent=2)} as const",
+            "",
+            f"export const FALLBACK_SYMBOLS: MarketSymbolSearchItem[] = {json.dumps(fallback_symbols, ensure_ascii=False, indent=2)}",
+            "",
+        ]
+    )
 
 
 if __name__ == "__main__":

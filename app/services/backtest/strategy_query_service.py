@@ -9,6 +9,7 @@ from app.services.backtest.strategy_catalog import (
     get_indicator_catalog,
     get_indicator_engine_catalog,
     get_template_catalog,
+    get_template_runtime_contract,
 )
 from app.services.backtest.run_form_contract import backtest_run_defaults
 from app.services.backtest.strategy_contract import editor_contract, strategy_runtime_profile
@@ -40,6 +41,7 @@ class StrategyQueryService:
             )
             result: list[dict[str, Any]] = []
             for definition in definitions:
+                runtime_contract = get_template_runtime_contract(definition.template)
                 versions = (
                     session.query(StrategyVersion)
                     .filter_by(strategy_key=definition.key)
@@ -73,6 +75,7 @@ class StrategyQueryService:
                         "category": definition.category,
                         "description": definition.description,
                         "is_active": definition.is_active,
+                        "template_runtime": runtime_contract,
                         "versions": normalized_versions,
                     }
                 )

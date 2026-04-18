@@ -18,7 +18,9 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
+API_HOST=127.0.0.1
 API_PORT=8000
+FRONTEND_HOST=127.0.0.1
 FRONTEND_PORT=4173
 
 # Get script directory
@@ -39,13 +41,13 @@ fi
 
 echo ""
 echo "[Step 1/3] Starting Backend (FastAPI)..."
-echo "Backend will run on: http://localhost:$API_PORT"
-echo "API Documentation: http://localhost:$API_PORT/docs"
+echo "Backend will run on: http://$API_HOST:$API_PORT"
+echo "API Documentation: http://$API_HOST:$API_PORT/docs"
 echo ""
 
 # Start backend in background
 cd "$PROJECT_ROOT"
-HEIMDALL_API_PORT="$API_PORT" python -m uvicorn app.main:app --reload --reload-dir app --reload-dir config --reload-dir utils --reload-exclude "data/*" --reload-exclude "logs/*" --reload-exclude "frontend/dist/*" --port "$API_PORT" > "$LOG_DIR/backend.log" 2>&1 &
+HEIMDALL_API_HOST="$API_HOST" HEIMDALL_API_PORT="$API_PORT" python -m uvicorn app.main:app --host "$API_HOST" --reload --reload-dir app --reload-dir config --reload-dir utils --reload-exclude "data/*" --reload-exclude "logs/*" --reload-exclude "frontend/dist/*" --port "$API_PORT" > "$LOG_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!
 echo "Backend PID: $BACKEND_PID"
 
@@ -57,7 +59,7 @@ sleep 3
 
 echo ""
 echo "[Step 2/3] Starting Frontend (Vue + Vite)..."
-echo "Frontend will run on: http://localhost:$FRONTEND_PORT"
+echo "Frontend will run on: http://$FRONTEND_HOST:$FRONTEND_PORT"
 echo ""
 
 # Check if node_modules exists
@@ -74,7 +76,7 @@ fi
 
 # Start frontend in background
 cd "$PROJECT_ROOT/frontend"
-HEIMDALL_API_PORT="$API_PORT" HEIMDALL_FRONTEND_PORT="$FRONTEND_PORT" npm run dev > "$LOG_DIR/frontend.log" 2>&1 &
+HEIMDALL_API_HOST="$API_HOST" HEIMDALL_API_PORT="$API_PORT" HEIMDALL_FRONTEND_HOST="$FRONTEND_HOST" HEIMDALL_FRONTEND_PORT="$FRONTEND_PORT" npm run dev > "$LOG_DIR/frontend.log" 2>&1 &
 FRONTEND_PID=$!
 echo "Frontend PID: $FRONTEND_PID"
 
@@ -92,8 +94,8 @@ echo "                        Startup Complete!"
 echo "======================================================================"
 echo ""
 echo "Services:"
-echo "  Backend:  http://localhost:$API_PORT/docs"
-echo "  Frontend: http://localhost:$FRONTEND_PORT"
+echo "  Backend:  http://$API_HOST:$API_PORT/docs"
+echo "  Frontend: http://$FRONTEND_HOST:$FRONTEND_PORT"
 echo ""
 echo "Logs:"
 echo "  Backend:  logs/backend.log"
@@ -105,9 +107,9 @@ echo ""
 
 # Open browser (macOS/Linux)
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    open "http://localhost:$FRONTEND_PORT"
+    open "http://$FRONTEND_HOST:$FRONTEND_PORT"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    xdg-open "http://localhost:$FRONTEND_PORT" 2>/dev/null
+    xdg-open "http://$FRONTEND_HOST:$FRONTEND_PORT" 2>/dev/null
 fi
 
 # Wait for Ctrl+C

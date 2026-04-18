@@ -13,6 +13,8 @@ from app.services.backtest.contracts import (
 from app.services.backtest.paper_manager import PaperRunManager
 from app.services.backtest.run_repository import BacktestRunRepository
 from app.services.backtest.run_service import BacktestRunService
+from app.services.backtest.scripted_template_runtime import template_supports_paper
+from app.services.backtest.strategy_catalog import get_template_runtime_contract
 from app.services.backtest.strategy_query_service import StrategyQueryService
 from app.services.backtest.strategy_write_service import StrategyWriteService
 from utils.logger import logger
@@ -37,7 +39,7 @@ class BacktestCommandService:
     async def start_backtest(self, command: BacktestStartCommand) -> dict[str, Any]:
         strategy = self.strategy_query_service.get_strategy_version(command.strategy_key, command.strategy_version)
         logger.info(
-            f"启动 Freqtrade 回测: strategy={command.strategy_key} v{command.strategy_version or 'default'}, "
+            f"启动回测: strategy={command.strategy_key} v{command.strategy_version or 'default'}, "
             f"symbols={','.join(command.portfolio.symbols)}, tf={command.timeframe}, "
             f"range=({command.start_date} - {command.end_date}), "
             f"本金={command.initial_cash}, 手续费={command.fee_rate}%"
@@ -63,6 +65,9 @@ class BacktestCommandService:
 
     async def start_paper_run(self, command: PaperStartCommand) -> dict[str, Any]:
         strategy = self.strategy_query_service.get_strategy_version(command.strategy_key, command.strategy_version)
+        runtime_contract = get_template_runtime_contract(strategy.template)
+        if not template_supports_paper(runtime_contract):
+            raise ValueError("该策略当前只支持回测，不支持模拟盘")
         logger.info(
             f"启动模拟盘: strategy={strategy.strategy_key} v{strategy.version}, "
             f"symbols={','.join(command.portfolio.symbols)}, tf={command.timeframe}, "

@@ -15,7 +15,12 @@ export const useBacktestRunChart = () => {
     }
     const startDate = run.start_date.slice(0, 10)
     const endTs = run.end_date ? new Date(run.end_date).getTime() : Date.now()
-    const res = await marketApi.getFullHistory({ symbol: targetSymbol, timeframe: run.timeframe, start_date: startDate })
+    const res = await marketApi.getPriceHistory({
+      symbol: targetSymbol,
+      timeframe: run.timeframe,
+      start_date: startDate,
+      fetch_policy: 'hydrate',
+    })
     const candles = (res.data || []).filter((item: any[]) => item[0] <= endTs)
     chartData.candles = candles.map((item: any[]) => ({ time: item[0] / 1000, open: item[1], high: item[2], low: item[3], close: item[4] }))
     chartData.volume = candles.map((item: any[]) => ({

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
+from app.domain.market.symbol_catalog import resolve_market_asset
 from app.services.market.market_data_service import MarketDataService
 from app.services.market.index_data_service import IndexDataService
 from app.services.sentiment_service import SentimentService
@@ -58,19 +59,24 @@ class DCAService:
             buffer_days = settings.DCA_INDICATOR_BUFFER_DAYS
             fetch_start_utc = TimeManager.convert_to_utc(start_dt_local - timedelta(days=buffer_days + 1), timezone)
             fetch_end_utc = TimeManager.convert_to_utc(end_dt_local + timedelta(days=1), timezone)
-            is_index = self.index_data_service.get_instrument(symbol) is not None
+            resolved_asset = resolve_market_asset(symbol)
+            if not resolved_asset or resolved_asset["asset_class"] == "cash":
+                return {"error": "无效标的"}
+
+            normalized_symbol = resolved_asset["symbol"]
+            is_index = resolved_asset["asset_class"] == "index"
             if is_index and strategy in {"ahr999", "fear_greed"}:
                 return {"error": "指数定投不支持 AHR999 或恐惧贪婪策略"}
             if is_index:
                 index_pricing = self.index_data_service.get_pricing_history(
-                    symbol=symbol,
+                    symbol=normalized_symbol,
                     timeframe="1d",
                     start_date=fetch_start_utc.strftime("%Y-%m-%d"),
                     end_date=fetch_end_utc.strftime("%Y-%m-%d"),
                 )
                 klines = index_pricing.get("data") or []
             else:
-                klines = self.market_data_service.fetch_ohlcv_range(symbol, "1h", fetch_start_utc, fetch_end_utc)
+                klines = self.market_data_service.fetch_ohlcv_range(normalized_symbol, "1h", fetch_start_utc, fetch_end_utc)
             if not klines:
                 return {"error": "该时间段无数据"}
 
@@ -100,8 +106,7 @@ class DCAService:
                 current_price = klines[-1][4]
             else:
                 try:
-                    latest_kline = self.market_data_service.get_kline_data(symbol, "1m", limit=1)
-                    current_price = latest_kline[-1][4] if latest_kline and len(latest_kline[-1]) > 4 else history[-1]["price"]
+                    current_price = self.market_data_service.get_latest_price(normalized_symbol, "1m") or history[-1]["price"]
                 except Exception as exc:
                     logger.warning(f"无法获取实时价格，降级使用最后一次定投价格: {exc}")
                     current_price = history[-1]["price"]
@@ -110,11 +115,11 @@ class DCAService:
             profit_loss = final_value - total_invested
             roi_percent = (profit_loss / total_invested) * 100 if total_invested > 0 else 0
             return {
-                "symbol": symbol,
+                "symbol": normalized_symbol,
                 "asset_class": "index" if is_index else "crypto",
                 "price_basis": "proxy_etf" if is_index else "spot",
-                "pricing_symbol": index_pricing.get("pricing_symbol") if is_index else symbol,
-                "pricing_name": index_pricing.get("pricing_name") if is_index else symbol,
+                "pricing_symbol": index_pricing.get("pricing_symbol") if is_index else normalized_symbol,
+                "pricing_name": index_pricing.get("pricing_name") if is_index else normalized_symbol,
                 "pricing_currency": index_pricing.get("pricing_currency") if is_index else "USDT",
                 "start_date": start_date_str,
                 "end_date": end_dt_local.strftime("%Y-%m-%d"),

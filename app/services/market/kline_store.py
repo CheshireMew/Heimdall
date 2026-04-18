@@ -122,15 +122,31 @@ class KlineStore:
                 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
                 stmt = pg_insert(Kline).values(values)
-                stmt = stmt.on_conflict_do_nothing(
-                    index_elements=["symbol", "timeframe", "timestamp"]
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["symbol", "timeframe", "timestamp"],
+                    set_={
+                        "open": stmt.excluded.open,
+                        "high": stmt.excluded.high,
+                        "low": stmt.excluded.low,
+                        "close": stmt.excluded.close,
+                        "volume": stmt.excluded.volume,
+                    },
                 )
                 session.execute(stmt)
             elif dialect_name == "sqlite":
                 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
                 stmt = sqlite_insert(Kline).values(values)
-                stmt = stmt.on_conflict_do_nothing()
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["symbol", "timeframe", "timestamp"],
+                    set_={
+                        "open": stmt.excluded.open,
+                        "high": stmt.excluded.high,
+                        "low": stmt.excluded.low,
+                        "close": stmt.excluded.close,
+                        "volume": stmt.excluded.volume,
+                    },
+                )
                 session.execute(stmt)
             else:
                 from sqlalchemy.exc import IntegrityError as SAIntegrityError

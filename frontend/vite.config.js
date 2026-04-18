@@ -2,8 +2,11 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
-const FRONTEND_PORT = Number(process.env.HEIMDALL_FRONTEND_PORT ?? 4173)
-const API_PORT = Number(process.env.HEIMDALL_API_PORT ?? 8000)
+const DEV_FRONTEND_HOST = process.env.HEIMDALL_FRONTEND_HOST ?? '127.0.0.1'
+const DEV_FRONTEND_PORT = Number(process.env.HEIMDALL_FRONTEND_PORT ?? 4173)
+const DEV_API_HOST = process.env.HEIMDALL_API_HOST ?? '127.0.0.1'
+const DEV_API_PORT = Number(process.env.HEIMDALL_API_PORT ?? 8000)
+const DEV_API_TARGET = `http://${DEV_API_HOST}:${DEV_API_PORT}`
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -14,12 +17,12 @@ export default defineConfig({
     },
   },
   server: {
-    host: '127.0.0.1',
-    port: FRONTEND_PORT,
+    host: DEV_FRONTEND_HOST,
+    port: DEV_FRONTEND_PORT,
     strictPort: true,
     proxy: {
       '/api': {
-        target: `http://localhost:${API_PORT}`,
+        target: DEV_API_TARGET,
         changeOrigin: true,
         // rewrite: (path) => path.replace(/^\/api/, ''), // FastAPI有/api前缀，不需要rewrite
       }

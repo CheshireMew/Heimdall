@@ -4,6 +4,18 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from app.domain.market.trade_setup_rules import (
+    SIDE_RULES,
+    STRATEGY_PROFILES,
+    STYLE_PROFILES,
+    build_rule_trade_plan,
+    resolve_rule_side,
+    rolling_high,
+    rolling_low,
+    strategy_profile,
+    style_profile,
+)
+
 
 @dataclass(frozen=True)
 class TradeSetupRequest:
@@ -16,17 +28,6 @@ class TradeSetupRequest:
 
 
 class TradeSetupEngine:
-    STYLE_PROFILES = {
-        "Scalping": {"stop_multiplier": 0.85, "min_stop_pct": 0.008, "risk_pct": 0.006},
-        "Intraday": {"stop_multiplier": 1.0, "min_stop_pct": 0.012, "risk_pct": 0.01},
-        "Swing": {"stop_multiplier": 1.35, "min_stop_pct": 0.018, "risk_pct": 0.012},
-    }
-    STRATEGY_PROFILES = {
-        "最大收益": {"reward_multiplier": 2.4},
-        "稳健突破": {"reward_multiplier": 1.8},
-        "回撤反转": {"reward_multiplier": 2.0},
-    }
-
     def build_rules(
         self,
         request: TradeSetupRequest,
@@ -50,28 +51,25 @@ class TradeSetupEngine:
         if not side:
             return self._empty(request, "多空条件不清晰，先等待下一根K线")
 
-        style_profile = self._style_profile(request.style)
-        strategy_profile = self._strategy_profile(request.strategy)
-        stop_distance = max(
-            atr * style_profile["stop_multiplier"],
-            current_price * style_profile["min_stop_pct"],
+        support_price = rolling_low(kline_data, 20)
+        resistance_price = rolling_high(kline_data, 20)
+        plan = build_rule_trade_plan(
+            side=side,
+            entry_price=current_price,
+            atr=atr,
+            support_price=support_price,
+            resistance_price=resistance_price,
+            style=request.style,
+            strategy=request.strategy,
         )
-        if side == "long":
-            recent_floor = min(float(kline[3]) for kline in kline_data[-20:])
-            stop = min(current_price - stop_distance, recent_floor)
-            target = current_price + abs(current_price - stop) * strategy_profile["reward_multiplier"]
-        else:
-            recent_ceiling = max(float(kline[2]) for kline in kline_data[-20:])
-            stop = max(current_price + stop_distance, recent_ceiling)
-            target = current_price - abs(current_price - stop) * strategy_profile["reward_multiplier"]
 
-        risk_amount = max(request.account_size, 0) * style_profile["risk_pct"]
+        risk_amount = max(request.account_size, 0) * style_profile(request.style)["risk_pct"]
         setup = {
             "side": side,
-            "entry": current_price,
-            "target": target,
-            "stop": stop,
-            "risk_reward": abs(target - current_price) / abs(current_price - stop),
+            "entry": plan["entry"],
+            "target": plan["target"],
+            "stop": plan["stop"],
+            "risk_reward": plan["risk_reward"],
             "confidence": self._confidence(current_price=current_price, ema=ema, rsi=rsi, macd_hist=macd_hist, side=side),
             "risk_amount": risk_amount,
             "entry_time": int(kline_data[-1][0]),
@@ -138,11 +136,7 @@ class TradeSetupEngine:
         }
 
     def _resolve_side(self, *, current_price: float, ema: float, rsi: float, macd_hist: float) -> str | None:
-        if current_price > ema and macd_hist >= 0 and 42 <= rsi <= 74:
-            return "long"
-        if current_price < ema and macd_hist <= 0 and 26 <= rsi <= 58:
-            return "short"
-        return None
+        return resolve_rule_side(current_price=current_price, ema=ema, rsi=rsi, macd_hist=macd_hist)
 
     def _confidence(self, *, current_price: float, ema: float, rsi: float, macd_hist: float, side: str) -> int:
         score = 55
@@ -174,10 +168,10 @@ class TradeSetupEngine:
         }
 
     def _style_profile(self, style: str) -> dict[str, float]:
-        return self.STYLE_PROFILES.get(style, self.STYLE_PROFILES["Intraday"])
+        return style_profile(style)
 
     def _strategy_profile(self, strategy: str) -> dict[str, float]:
-        return self.STRATEGY_PROFILES.get(strategy, self.STRATEGY_PROFILES["最大收益"])
+        return strategy_profile(strategy)
 
     def _normalize_side(self, value: Any) -> str | None:
         text = str(value or "").strip().lower()

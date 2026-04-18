@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from app.domain.market.symbol_catalog import get_supported_crypto_symbols
 from app.services.market.indicator_repository import MarketIndicatorRepository
 from app.services.market.market_data_service import MarketDataService
-from config import settings
 
 from .analysis_service import FactorAnalysisService
 from .catalog_service import FactorCatalogService
@@ -81,8 +81,9 @@ class FactorResearchService:
         categories: list[str] | None = None,
         factor_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        if symbol not in settings.SYMBOLS:
-            raise ValueError(f"无效交易对。可选: {settings.SYMBOLS}")
+        supported_symbols = get_supported_crypto_symbols()
+        if symbol not in supported_symbols:
+            raise ValueError(f"无效交易对。可选: {supported_symbols}")
         if timeframe not in SUPPORTED_TIMEFRAMES:
             raise ValueError(f"当前只支持这些周期: {list(SUPPORTED_TIMEFRAMES)}")
 

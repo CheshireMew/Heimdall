@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.domain.market.trade_setup_rules import BACKTEST_FIXED_STRATEGY, BACKTEST_FIXED_STYLE, SIDE_RULES, STRATEGY_PROFILES, STYLE_PROFILES
 from app.services.backtest.strategy_contract import branch_defaults, build_condition, build_group, execution_defaults
 
 
@@ -118,8 +119,174 @@ BUILTIN_INDICATOR_ENGINES: dict[str, dict[str, Any]] = {
     },
 }
 
+_builtin_rule_style = STYLE_PROFILES[BACKTEST_FIXED_STYLE]
+_builtin_rule_strategy = STRATEGY_PROFILES[BACKTEST_FIXED_STRATEGY]
+_builtin_long_rule = SIDE_RULES["long"]
+_builtin_short_rule = SIDE_RULES["short"]
 
 BUILTIN_TEMPLATE_DEFINITIONS: dict[str, dict[str, Any]] = {
+    "smart_order_builtin_rules": {
+        "template": "smart_order_builtin_rules",
+        "name": "智能开单计划回测",
+        "category": "system",
+        "description": "对应智能开单中的内置规则计划版，开仓后固定目标和止损，按单笔交易计划回放。",
+        "indicator_keys": ["ema", "rsi", "macd", "atr", "rolling_high", "rolling_low"],
+        "config": {
+            "indicators": {
+                "ema": {"label": "EMA", "type": "ema", "timeframe": "base", "params": {"period": 20}},
+                "rsi": {"label": "RSI", "type": "rsi", "timeframe": "base", "params": {"period": 14}},
+                "macd": {"label": "MACD", "type": "macd", "timeframe": "base", "params": {"fast": 12, "slow": 26, "signal": 9}},
+                "atr": {"label": "ATR", "type": "atr", "timeframe": "base", "params": {"period": 14}},
+                "recent_high": {"label": "Recent High", "type": "rolling_high", "timeframe": "base", "params": {"lookback": 20}},
+                "recent_low": {"label": "Recent Low", "type": "rolling_low", "timeframe": "base", "params": {"lookback": 20}},
+            },
+            "execution": {"market_type": "futures", "direction": "long_short"},
+            "regime_priority": ["trend", "range"],
+            "trend": {
+                **branch_defaults("trend", "趋势", enabled=True),
+                "long_entry": build_group(
+                    "builtin_rule_long_entry",
+                    "内置规则做多入场",
+                    "and",
+                    [
+                        build_condition("builtin_rule_long_price_above_ema", "收盘价站上 EMA", {"kind": "price", "field": "close"}, "gt", {"kind": "indicator", "indicator": "ema", "output": "value"}),
+                        build_condition("builtin_rule_long_macd_hist_positive", "MACD Hist 不低于 0", {"kind": "indicator", "indicator": "macd", "output": "hist"}, "gte", {"kind": "value", "value": _builtin_long_rule["macd_hist_threshold"]}),
+                        build_condition("builtin_rule_long_rsi_floor", "RSI 不低于下限", {"kind": "indicator", "indicator": "rsi", "output": "value"}, "gte", {"kind": "value", "value": _builtin_long_rule["rsi_min"]}),
+                        build_condition("builtin_rule_long_rsi_cap", "RSI 不高于上限", {"kind": "indicator", "indicator": "rsi", "output": "value"}, "lte", {"kind": "value", "value": _builtin_long_rule["rsi_max"]}),
+                    ],
+                ),
+                "long_exit": build_group(
+                    "builtin_rule_long_exit",
+                    "内置规则做多离场",
+                    "or",
+                    [
+                        build_condition("builtin_rule_long_price_below_ema", "收盘价跌破 EMA", {"kind": "price", "field": "close"}, "lt", {"kind": "indicator", "indicator": "ema", "output": "value"}),
+                        build_condition("builtin_rule_long_macd_hist_negative", "MACD Hist 低于 0", {"kind": "indicator", "indicator": "macd", "output": "hist"}, "lt", {"kind": "value", "value": _builtin_long_rule["macd_hist_threshold"]}),
+                    ],
+                ),
+                "short_entry": build_group(
+                    "builtin_rule_short_entry",
+                    "内置规则做空入场",
+                    "and",
+                    [
+                        build_condition("builtin_rule_short_price_below_ema", "收盘价跌破 EMA", {"kind": "price", "field": "close"}, "lt", {"kind": "indicator", "indicator": "ema", "output": "value"}),
+                        build_condition("builtin_rule_short_macd_hist_negative", "MACD Hist 不高于 0", {"kind": "indicator", "indicator": "macd", "output": "hist"}, "lte", {"kind": "value", "value": _builtin_short_rule["macd_hist_threshold"]}),
+                        build_condition("builtin_rule_short_rsi_floor", "RSI 不低于下限", {"kind": "indicator", "indicator": "rsi", "output": "value"}, "gte", {"kind": "value", "value": _builtin_short_rule["rsi_min"]}),
+                        build_condition("builtin_rule_short_rsi_cap", "RSI 不高于上限", {"kind": "indicator", "indicator": "rsi", "output": "value"}, "lte", {"kind": "value", "value": _builtin_short_rule["rsi_max"]}),
+                    ],
+                    enabled=True,
+                ),
+                "short_exit": build_group(
+                    "builtin_rule_short_exit",
+                    "内置规则做空离场",
+                    "or",
+                    [
+                        build_condition("builtin_rule_short_price_above_ema", "收盘价站回 EMA 上方", {"kind": "price", "field": "close"}, "gt", {"kind": "indicator", "indicator": "ema", "output": "value"}),
+                        build_condition("builtin_rule_short_macd_hist_positive", "MACD Hist 高于 0", {"kind": "indicator", "indicator": "macd", "output": "hist"}, "gt", {"kind": "value", "value": _builtin_short_rule["macd_hist_threshold"]}),
+                    ],
+                    enabled=True,
+                ),
+            },
+            "range": branch_defaults("range", "区间", enabled=False),
+            "risk": {
+                "stoploss": -0.99,
+                "roi_targets": [],
+                "trade_plan": {
+                    "enabled": True,
+                    "stop_multiplier": _builtin_rule_style["stop_multiplier"],
+                    "min_stop_pct": _builtin_rule_style["min_stop_pct"],
+                    "reward_multiplier": _builtin_rule_strategy["reward_multiplier"],
+                    "atr_indicator": "atr",
+                    "support_indicator": "recent_low",
+                    "resistance_indicator": "recent_high",
+                },
+                "trailing": {"enabled": False, "positive": 0.02, "offset": 0.03, "only_offset_reached": True},
+                "partial_exits": [],
+            },
+        },
+        "parameter_space": {},
+        "builtin": {
+            "key": "smart_order_builtin_rules",
+            "version_name": "固定版 v1",
+            "notes": "信号阈值与智能开单内置规则同步，按固定交易计划执行",
+        },
+    },
+    "smart_order_traditional_strategy": {
+        "template": "smart_order_traditional_strategy",
+        "name": "智能开单传统策略",
+        "category": "system",
+        "description": "把智能开单的方向判断改写成持续型趋势策略，每根 K 线都重新判断进出场。",
+        "indicator_keys": ["ema", "rsi", "macd"],
+        "config": {
+            "indicators": {
+                "ema": {"label": "EMA", "type": "ema", "timeframe": "base", "params": {"period": 20}},
+                "rsi": {"label": "RSI", "type": "rsi", "timeframe": "base", "params": {"period": 14}},
+                "macd": {"label": "MACD", "type": "macd", "timeframe": "base", "params": {"fast": 12, "slow": 26, "signal": 9}},
+            },
+            "execution": {"market_type": "futures", "direction": "long_short"},
+            "regime_priority": ["trend", "range"],
+            "trend": {
+                **branch_defaults("trend", "趋势", enabled=True),
+                "long_entry": build_group(
+                    "smart_traditional_long_entry",
+                    "传统策略做多入场",
+                    "and",
+                    [
+                        build_condition("smart_traditional_long_price_above_ema", "收盘价站上 EMA", {"kind": "price", "field": "close"}, "gt", {"kind": "indicator", "indicator": "ema", "output": "value"}),
+                        build_condition("smart_traditional_long_macd_hist_positive", "MACD Hist 不低于 0", {"kind": "indicator", "indicator": "macd", "output": "hist"}, "gte", {"kind": "value", "value": _builtin_long_rule["macd_hist_threshold"]}),
+                        build_condition("smart_traditional_long_rsi_floor", "RSI 不低于下限", {"kind": "indicator", "indicator": "rsi", "output": "value"}, "gte", {"kind": "value", "value": _builtin_long_rule["rsi_min"]}),
+                        build_condition("smart_traditional_long_rsi_cap", "RSI 不高于上限", {"kind": "indicator", "indicator": "rsi", "output": "value"}, "lte", {"kind": "value", "value": _builtin_long_rule["rsi_max"]}),
+                    ],
+                ),
+                "long_exit": build_group(
+                    "smart_traditional_long_exit",
+                    "传统策略做多离场",
+                    "or",
+                    [
+                        build_condition("smart_traditional_long_price_below_ema", "收盘价跌破 EMA", {"kind": "price", "field": "close"}, "lt", {"kind": "indicator", "indicator": "ema", "output": "value"}),
+                        build_condition("smart_traditional_long_macd_hist_negative", "MACD Hist 低于 0", {"kind": "indicator", "indicator": "macd", "output": "hist"}, "lt", {"kind": "value", "value": _builtin_long_rule["macd_hist_threshold"]}),
+                        build_condition("smart_traditional_long_rsi_overheat", "RSI 高于上限", {"kind": "indicator", "indicator": "rsi", "output": "value"}, "gt", {"kind": "value", "value": _builtin_long_rule["rsi_max"]}),
+                    ],
+                ),
+                "short_entry": build_group(
+                    "smart_traditional_short_entry",
+                    "传统策略做空入场",
+                    "and",
+                    [
+                        build_condition("smart_traditional_short_price_below_ema", "收盘价跌破 EMA", {"kind": "price", "field": "close"}, "lt", {"kind": "indicator", "indicator": "ema", "output": "value"}),
+                        build_condition("smart_traditional_short_macd_hist_negative", "MACD Hist 不高于 0", {"kind": "indicator", "indicator": "macd", "output": "hist"}, "lte", {"kind": "value", "value": _builtin_short_rule["macd_hist_threshold"]}),
+                        build_condition("smart_traditional_short_rsi_floor", "RSI 不低于下限", {"kind": "indicator", "indicator": "rsi", "output": "value"}, "gte", {"kind": "value", "value": _builtin_short_rule["rsi_min"]}),
+                        build_condition("smart_traditional_short_rsi_cap", "RSI 不高于上限", {"kind": "indicator", "indicator": "rsi", "output": "value"}, "lte", {"kind": "value", "value": _builtin_short_rule["rsi_max"]}),
+                    ],
+                    enabled=True,
+                ),
+                "short_exit": build_group(
+                    "smart_traditional_short_exit",
+                    "传统策略做空离场",
+                    "or",
+                    [
+                        build_condition("smart_traditional_short_price_above_ema", "收盘价站回 EMA 上方", {"kind": "price", "field": "close"}, "gt", {"kind": "indicator", "indicator": "ema", "output": "value"}),
+                        build_condition("smart_traditional_short_macd_hist_positive", "MACD Hist 高于 0", {"kind": "indicator", "indicator": "macd", "output": "hist"}, "gt", {"kind": "value", "value": _builtin_short_rule["macd_hist_threshold"]}),
+                        build_condition("smart_traditional_short_rsi_exhausted", "RSI 低于下限", {"kind": "indicator", "indicator": "rsi", "output": "value"}, "lt", {"kind": "value", "value": _builtin_short_rule["rsi_min"]}),
+                    ],
+                    enabled=True,
+                ),
+            },
+            "range": branch_defaults("range", "区间", enabled=False),
+            "risk": {
+                "stoploss": -0.02,
+                "roi_targets": [{"id": "roi_0", "minutes": 0, "profit": 0.048, "enabled": True}],
+                "trailing": {"enabled": False, "positive": 0.02, "offset": 0.03, "only_offset_reached": True},
+                "partial_exits": [],
+            },
+        },
+        "parameter_space": {},
+        "builtin": {
+            "key": "smart_order_traditional_strategy",
+            "version_name": "传统版 v1",
+            "notes": "保留智能开单方向过滤，但改为持续型进出场策略",
+        },
+    },
     "ema_rsi_macd": {
         "template": "ema_rsi_macd",
         "name": "EMA RSI MACD",
@@ -433,5 +600,31 @@ BUILTIN_TEMPLATE_DEFINITIONS: dict[str, dict[str, Any]] = {
             "range.short_entry.range_short_position.right.value": [0.8, 0.85, 0.9],
         },
         "builtin": {"key": "btc_regime_switch", "version_name": "Base v3", "notes": "BTC 多周期 M/E/P 状态切换与假突破收回确认版本"},
+    },
+    "btc_regime_pulse_supertrend": {
+        "template": "btc_regime_pulse_supertrend",
+        "name": "BTC Regime Pulse SuperTrend",
+        "category": "regime",
+        "description": "面向 BTC 的脚本化内置策略，使用状态判定、自适应 SuperTrend 和信号评分一起筛选翻转入场。",
+        "indicator_keys": [],
+        "config": {
+            "indicators": {},
+            "execution": {"market_type": "futures", "direction": "long_short"},
+            "regime_priority": ["trend", "range"],
+            "trend": branch_defaults("trend", "趋势", enabled=False),
+            "range": branch_defaults("range", "区间", enabled=False),
+            "risk": {
+                "stoploss": -0.99,
+                "roi_targets": [],
+                "trailing": {"enabled": False, "positive": 0.02, "offset": 0.03, "only_offset_reached": True},
+                "partial_exits": [],
+            },
+        },
+        "parameter_space": {},
+        "builtin": {
+            "key": "btc_regime_pulse_supertrend",
+            "version_name": "Pulse v1",
+            "notes": "AI 评分、自适应 SuperTrend、ATR 止损和固定 RR 止盈的首个内置版本",
+        },
     },
 }

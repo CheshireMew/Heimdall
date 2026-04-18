@@ -33,6 +33,7 @@ def test_llm_config_preset_uses_default_base_and_model(tmp_path, monkeypatch):
 
     assert config["baseUrl"] == "https://api.openai.com/v1"
     assert config["modelId"] == "gpt-5.2-chat-latest"
+    assert config["apiKeyPreview"] == "sk-t********enai"
     assert effective["apiKey"] == "sk-test-openai"
 
 

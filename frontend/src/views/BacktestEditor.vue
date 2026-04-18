@@ -47,10 +47,13 @@
           <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">
             {{ $t('backtest.selectedVersion') }}: v{{ page.seedPanel.config.strategy_version }} · {{ page.seedPanel.selectedVersion?.name || '-' }}
           </div>
+          <div v-if="page.seedPanel.strategyCapabilityHint" class="mt-2 text-xs text-amber-600 dark:text-amber-300">
+            {{ page.seedPanel.strategyCapabilityHint }}
+          </div>
         </div>
 
         <div class="space-y-3">
-          <button class="btn-primary w-full" :disabled="!page.seedPanel.selectedVersion" @click="page.seedPanel.openCopySeed">{{ $t('backtest.fillFromCurrent') }}</button>
+          <button class="btn-primary w-full" :disabled="!page.seedPanel.canCopyCurrentStrategy" @click="page.seedPanel.openCopySeed">{{ $t('backtest.fillFromCurrent') }}</button>
           <button class="btn-secondary w-full" @click="page.seedPanel.openBlankSeed">{{ $t('backtest.startBlankBuilder') }}</button>
         </div>
       </aside>

@@ -28,6 +28,27 @@ class FakeKlineStore:
         self.saved.append((symbol, timeframe, klines))
 
 
+class FakeIndexHistorySources:
+    def __init__(self, rows_by_window: dict[tuple[str, str], list[list[float]]]) -> None:
+        self.rows_by_window = rows_by_window
+        self.calls: list[tuple[str, str]] = []
+
+    def fetch_history(self, instrument, start_dt, end_dt):
+        key = (start_dt.strftime("%Y-%m-%d"), end_dt.strftime("%Y-%m-%d"))
+        self.calls.append(key)
+        return types.SimpleNamespace(
+            data=self.rows_by_window.get(key, []),
+            source="fake_source",
+            is_close_only=False,
+        )
+
+    def fetch_pricing_history(self, instrument, start_dt, end_dt):
+        raise AssertionError("pricing history should not be used in this test")
+
+    def fetch_usd_fx_rates(self, currency, start_dt, end_dt):
+        return {}
+
+
 class FakeResponse:
     def __init__(self, payload=None, text: str = "") -> None:
         self._payload = payload
@@ -102,7 +123,7 @@ def test_eastmoney_history_is_normalized_and_cached(monkeypatch):
             }
         )
 
-    monkeypatch.setattr("app.services.market.index_data_service.requests.get", fake_get)
+    monkeypatch.setattr("app.services.market.index_history_sources.requests.get", fake_get)
 
     result = service.get_history(
         symbol="CN_CSI300",
@@ -268,7 +289,7 @@ def test_fred_history_close_only_is_not_cached(monkeypatch):
     def fake_get(*args, **kwargs):
         return FakeResponse(text="observation_date,VIXCLS\n2024-01-02,13.20\n2024-01-03,.\n")
 
-    monkeypatch.setattr("app.services.market.index_data_service.requests.get", fake_get)
+    monkeypatch.setattr("app.services.market.index_history_sources.requests.get", fake_get)
 
     result = service._fetch_fred_history(
         instrument,
@@ -327,3 +348,34 @@ def test_cached_history_is_used_before_upstream_fetch(monkeypatch):
     assert result["is_close_only"] is False
     assert result["count"] == 2
     assert result["data"] == cached_rows
+
+
+def test_index_history_repairs_middle_gap():
+    base_ts = int(datetime(2024, 1, 2, tzinfo=timezone.utc).timestamp() * 1000)
+    one_day_ms = 24 * 60 * 60 * 1000
+    cached_rows = [
+        [base_ts, 1.0, 2.0, 0.5, 1.5, 100.0],
+        [base_ts + (2 * one_day_ms), 2.0, 3.0, 1.5, 2.5, 110.0],
+    ]
+    missing_row = [base_ts + one_day_ms, 1.6, 2.4, 1.2, 2.1, 105.0]
+    history_sources = FakeIndexHistorySources({
+        ("2024-01-03", "2024-01-03"): [missing_row],
+    })
+    service = IndexDataService(
+        kline_store=FakeKlineStore(cached=cached_rows),
+        history_sources=history_sources,
+    )
+
+    result = service.get_history(
+        symbol="CN_CSI300",
+        timeframe="1d",
+        start_date="2024-01-02",
+        end_date="2024-01-04",
+    )
+
+    assert history_sources.calls == [("2024-01-03", "2024-01-03")]
+    assert [row[0] for row in result["data"]] == [
+        cached_rows[0][0],
+        missing_row[0],
+        cached_rows[1][0],
+    ]

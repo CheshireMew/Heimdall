@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.domain.market.symbol_catalog import get_supported_crypto_symbols
 from app.services.market.indicator_repository import MarketIndicatorRepository
-from config import settings
 
 from .contracts import (
     DEFAULT_CLEANING,
@@ -27,7 +27,7 @@ class FactorCatalogService:
             key=lambda item: (SUPPORTED_CATEGORIES.index(item.category), item.name.lower()),
         )
         return {
-            "symbols": settings.SYMBOLS,
+            "symbols": get_supported_crypto_symbols(),
             "timeframes": list(SUPPORTED_TIMEFRAMES),
             "categories": list(SUPPORTED_CATEGORIES),
             "factors": [serialize_factor(item) for item in factor_list],

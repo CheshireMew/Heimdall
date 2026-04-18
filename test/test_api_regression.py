@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from app.services.market.history_service import HistoryService
 from test.regression_support import make_strategy_config
 
 
@@ -92,7 +93,7 @@ def make_factor_execution_payload() -> dict[str, Any]:
         ("get", "/api/v1/status", {}, lambda data: data["framework"] == "FastAPI"),
         ("get", "/api/v1/config", {}, lambda data: "exchange" in data),
         ("get", "/api/v1/currencies", {}, lambda data: data["rates"]["CNY"] == 7.2 and data["supported"][0]["code"] == "USD"),
-        ("get", "/api/v1/llm-config", {}, lambda data: "deepseek" in [item["id"] for item in data["presets"]]),
+        ("get", "/api/v1/llm-config", {}, lambda data: "deepseek" in [item["id"] for item in data["presets"]] and "apiKeyPreview" in data),
         ("get", "/api/v1/realtime", {"params": {"symbol": "BTC/USDT"}}, lambda data: data["symbol"] == "BTC/USDT"),
         ("get", "/api/v1/history", {"params": {"symbol": "BTC/USDT", "timeframe": "1h", "end_ts": 1710007200000}}, lambda data: len(data) == 3),
         ("get", "/api/v1/full_history", {"params": {"symbol": "BTC/USDT", "timeframe": "1d", "start_date": "2025-01-01"}}, lambda data: len(data) == 3),
@@ -135,7 +136,7 @@ def test_full_history_uses_service_level_cache_write(api_harness):
 
     assert response.status_code == 200
     assert api_harness["market_data"].saved_klines == []
-    assert api_harness["market_app"].full_history_used_external_persist_callback is False
+    assert api_harness["base_market_app"].full_history_used_external_persist_callback is False
 
 
 def test_backtest_mutation_routes_normalize_contracts(api_harness):
@@ -221,7 +222,7 @@ def test_value_errors_are_mapped_to_bad_request(api_harness, monkeypatch):
     def fail_factor(**kwargs):
         raise ValueError("bad factor input")
 
-    monkeypatch.setattr(api_harness["market_app"], "get_realtime", fail_market)
+    monkeypatch.setattr(api_harness["base_market_app"], "get_realtime", fail_market)
     monkeypatch.setattr(api_harness["factor_research"], "analyze", fail_factor)
 
     realtime_response = api_harness["client"].get("/api/v1/realtime", params={"symbol": "BTC/USDT"})
@@ -232,6 +233,19 @@ def test_value_errors_are_mapped_to_bad_request(api_harness, monkeypatch):
 
     assert realtime_response.status_code == 400
     assert factor_response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_full_history_rejects_invalid_start_date():
+    service = HistoryService()
+
+    with pytest.raises(ValueError, match="start_date 必须是 YYYY-MM-DD"):
+        await service.get_full_history(
+            market_data_service=object(),
+            symbol="BTC/USDT",
+            timeframe="1d",
+            start_date="2025/01/01",
+        )
 
 
 def test_backtest_detail_returns_not_found_when_service_returns_none(api_harness, monkeypatch):

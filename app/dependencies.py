@@ -9,13 +9,9 @@ if TYPE_CHECKING:
     from app.services.backtest.command_service import BacktestCommandService
     from app.services.backtest.freqtrade_service import FreqtradeBacktestService
     from app.services.backtest.paper_manager import PaperRunManager
-    from app.services.backtest.paper_persistence_service import PaperPersistenceService
-    from app.services.backtest.paper_position_service import PaperPositionService
-    from app.services.backtest.paper_runtime_service import PaperRuntimeService
     from app.services.backtest.query_service import BacktestQueryService
     from app.services.backtest.run_repository import BacktestRunRepository
     from app.services.backtest.run_service import BacktestRunService
-    from app.services.backtest.strategy_runtime import StrategyRuntime
     from app.services.backtest.strategy_query_service import StrategyQueryService
     from app.services.backtest.strategy_write_service import StrategyWriteService
     from app.services.factors.execution import FactorExecutionService
@@ -25,10 +21,10 @@ if TYPE_CHECKING:
     from app.services.factors.signal_execution_core import FactorSignalExecutionCore
     from app.services.factors.service import FactorResearchService
     from app.services.currency_service import CurrencyRateService
-    from app.services.market.app_service import MarketAppService
+    from app.services.market.base_app_service import BaseMarketAppService
     from app.services.market.binance_market_intel_service import BinanceMarketIntelService
     from app.services.market.binance_web3_service import BinanceWeb3Service
-    from app.services.market.crypto_index_app_service import CryptoIndexAppService
+    from app.services.market.crypto_index_service import CryptoIndexService
     from app.services.market.exchange_gateway import ExchangeGateway
     from app.services.market.funding_rate_service import FundingRateService
     from app.services.market.funding_rate_store import FundingRateStore
@@ -73,12 +69,11 @@ def get_market_data_service() -> MarketDataService:
 
 
 @lru_cache(maxsize=1)
-def get_crypto_index_service() -> CryptoIndexAppService:
-    """Get or create a singleton crypto index application service."""
-    from app.services.market.crypto_index_app_service import CryptoIndexAppService
+def get_crypto_index_service() -> CryptoIndexService:
+    """Get or create the crypto index service."""
     from app.services.market.crypto_index_service import CryptoIndexService
 
-    return CryptoIndexAppService(CryptoIndexService())
+    return CryptoIndexService()
 
 
 @lru_cache(maxsize=1)
@@ -131,17 +126,15 @@ def get_binance_web3_service() -> BinanceWeb3Service:
 
 
 @lru_cache(maxsize=1)
-def get_market_app_service() -> MarketAppService:
-    from app.services.market.app_service import MarketAppService
+def get_base_market_app_service() -> BaseMarketAppService:
+    from app.services.market.base_app_service import BaseMarketAppService
 
-    return MarketAppService(
-        binance_market_intel_service=get_binance_market_intel_service(),
-        binance_web3_service=get_binance_web3_service(),
-        crypto_index_service=get_crypto_index_service(),
+    return BaseMarketAppService(
         realtime_service=get_realtime_service(),
         indicator_service=get_indicator_service(),
         history_service=get_history_service(),
         funding_rate_service=get_funding_rate_service(),
+        crypto_index_service=get_crypto_index_service(),
     )
 
 
@@ -163,7 +156,7 @@ def get_freqtrade_backtest_service() -> FreqtradeBacktestService:
 def get_backtest_run_service() -> BacktestRunService:
     from app.services.backtest.run_service import BacktestRunService
 
-    return BacktestRunService(engine=get_freqtrade_backtest_service())
+    return BacktestRunService(execution_engine=get_freqtrade_backtest_service())
 
 
 @lru_cache(maxsize=1)
@@ -204,13 +197,6 @@ def get_backtest_query_service() -> BacktestQueryService:
 
 
 @lru_cache(maxsize=1)
-def get_strategy_runtime() -> StrategyRuntime:
-    from app.services.backtest.strategy_runtime import StrategyRuntime
-
-    return StrategyRuntime()
-
-
-@lru_cache(maxsize=1)
 def get_freqtrade_report_builder():
     from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
 
@@ -218,37 +204,13 @@ def get_freqtrade_report_builder():
 
 
 @lru_cache(maxsize=1)
-def get_paper_position_service() -> PaperPositionService:
-    from app.services.backtest.paper_position_service import PaperPositionService
-
-    return PaperPositionService()
-
-
-@lru_cache(maxsize=1)
-def get_paper_runtime_service() -> PaperRuntimeService:
-    from app.services.backtest.paper_runtime_service import PaperRuntimeService
-
-    return PaperRuntimeService(
-        market_data_service=get_market_data_service(),
-        runtime=get_strategy_runtime(),
-    )
-
-
-@lru_cache(maxsize=1)
-def get_paper_persistence_service() -> PaperPersistenceService:
-    from app.services.backtest.paper_persistence_service import PaperPersistenceService
-
-    return PaperPersistenceService(
-        report_builder=get_freqtrade_report_builder(),
-        position_service=get_paper_position_service(),
-    )
-
-
-@lru_cache(maxsize=1)
 def get_paper_run_manager() -> PaperRunManager:
     from app.services.backtest.paper_manager import PaperRunManager
 
     return PaperRunManager(
+        strategy_query_service=get_strategy_query_service(),
+        freqtrade_service=get_freqtrade_backtest_service(),
+        report_builder=get_freqtrade_report_builder(),
         run_repository=get_backtest_run_repository(),
     )
 
@@ -373,7 +335,11 @@ def get_factor_paper_run_manager() -> FactorPaperRunManager:
     from app.services.factors.paper_manager import FactorPaperRunManager
 
     return FactorPaperRunManager(
+        factor_service=get_factor_research_service(),
         run_repository=get_backtest_run_repository(),
+        report_builder=get_freqtrade_report_builder(),
+        execution_core=get_factor_signal_execution_core(),
+        persistence_service=get_factor_paper_persistence_service(),
     )
 
 

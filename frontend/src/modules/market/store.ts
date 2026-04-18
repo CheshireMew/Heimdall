@@ -18,6 +18,43 @@ export const useMarketStore = defineStore('market', {
   }),
 
   actions: {
+    _readKlineSlice(data: OHLCVRaw[] | null | undefined, limit: number): OHLCVRaw[] | null {
+      if (!Array.isArray(data) || data.length === 0) return null
+      if (limit <= 0 || data.length <= limit) return data
+      return data.slice(-limit)
+    },
+
+    _setKlineCache(key: string, data: OHLCVRaw[]) {
+      this.klineCache[key] = {
+        data,
+        timestamp: Date.now(),
+      }
+      this.save()
+    },
+
+    setKlineHistory(
+      symbol: string,
+      timeframe: string,
+      data: OHLCVRaw[],
+      maxLength: number = 1000,
+    ): OHLCVRaw[] {
+      const key = `${symbol}:${timeframe}`
+      const trimmed = this._mergeKlines(data).slice(-maxLength)
+      this._setKlineCache(key, trimmed)
+      return trimmed
+    },
+
+    _mergeKlines(...batches: Array<OHLCVRaw[] | null | undefined>): OHLCVRaw[] {
+      const merged = new Map<number, OHLCVRaw>()
+      batches.forEach((batch) => {
+        if (!batch) return
+        batch.forEach((row) => {
+          if (Array.isArray(row) && row.length >= 6) merged.set(row[0], row)
+        })
+      })
+      return Array.from(merged.values()).sort((left, right) => left[0] - right[0])
+    },
+
     init() {
       try {
         const stored = localStorage.getItem('heimdall_market_cache')
@@ -60,17 +97,23 @@ export const useMarketStore = defineStore('market', {
       if (changed) this.save()
     },
 
-    async getKlineData(symbol: string, timeframe: string, limit: number = 1000): Promise<OHLCVRaw[] | null> {
+    async getKlineData(
+      symbol: string,
+      timeframe: string,
+      limit: number = 1000,
+      options: { force?: boolean } = {},
+    ): Promise<OHLCVRaw[] | null> {
       const key = `${symbol}:${timeframe}`
       const now = Date.now()
+      const forceRefresh = Boolean(options.force)
 
       const cachedParams = this.klineCache[key]
       let cachedData: OHLCVRaw[] | null = null
 
       if (cachedParams) {
         cachedData = cachedParams.data
-        if (now - cachedParams.timestamp < 10000) {
-          return cachedData
+        if (!forceRefresh && now - cachedParams.timestamp < 10000 && cachedData.length >= limit) {
+          return this._readKlineSlice(cachedData, limit)
         }
       }
 
@@ -78,12 +121,8 @@ export const useMarketStore = defineStore('market', {
         try {
           const res = await marketApi.getLatestKlines({ symbol, timeframe, limit })
           if (Array.isArray(res.data) && res.data.length) {
-            this.klineCache[key] = {
-              data: res.data,
-              timestamp: Date.now(),
-            }
-            this.save()
-            return res.data
+            this._setKlineCache(key, res.data)
+            return this._readKlineSlice(res.data, limit)
           }
         } catch (e) {
           console.error('Background fetch failed', e)
@@ -91,11 +130,40 @@ export const useMarketStore = defineStore('market', {
         return null
       })()
 
-      if (cachedData) {
+      if (cachedData && !forceRefresh) {
         fetchPromise.then(() => {})
-        return cachedData
+        return this._readKlineSlice(cachedData, limit)
       }
-      return await fetchPromise
+      const freshData = await fetchPromise
+      return freshData || this._readKlineSlice(cachedData, limit)
+    },
+
+    applyKlineTail(
+      symbol: string,
+      timeframe: string,
+      tail: OHLCVRaw[],
+      maxLength: number = 1000,
+    ): OHLCVRaw[] {
+      const key = `${symbol}:${timeframe}`
+      const current = this.klineCache[key]?.data || []
+      const merged = this._mergeKlines(current, tail)
+      const trimmed = merged.slice(-maxLength)
+      this._setKlineCache(key, trimmed)
+      return trimmed
+    },
+
+    prependKlineHistory(
+      symbol: string,
+      timeframe: string,
+      history: OHLCVRaw[],
+      maxLength: number = 5000,
+    ): OHLCVRaw[] {
+      const key = `${symbol}:${timeframe}`
+      const current = this.klineCache[key]?.data || []
+      const merged = this._mergeKlines(history, current)
+      const trimmed = merged.slice(-maxLength)
+      this._setKlineCache(key, trimmed)
+      return trimmed
     },
 
     async getSentiment(): Promise<SentimentData | null> {

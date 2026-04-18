@@ -12,6 +12,21 @@ export interface RealtimeResponse {
   type?: string | null
 }
 
+export interface KlineTailResponse {
+  symbol: string
+  timeframe: string
+  timestamp: string
+  current_price: number | null
+  kline_data: Array<OHLCVRaw>
+}
+
+export interface CurrentPriceResponse {
+  symbol: string
+  timeframe: string
+  timestamp: string
+  current_price: number | null
+}
+
 export interface IndicatorItem {
   indicator_id: string
   name: string
@@ -695,16 +710,29 @@ export interface LatestKlineParams {
   limit?: number
 }
 
+export interface TailKlineParams {
+  symbol: string
+  timeframe: string
+  limit?: number
+}
+
+export interface CurrentPriceParams {
+  symbol: string
+  timeframe?: string
+}
+
 export interface FullHistoryParams {
   symbol: string
   timeframe?: string
   start_date?: string
+  fetch_policy?: 'cache_only' | 'hydrate'
 }
 
 export interface BatchFullHistoryParams {
   symbols: string[]
   timeframe?: string
   start_date?: string
+  fetch_policy?: 'cache_only' | 'hydrate'
 }
 
 export interface IndicatorParams {

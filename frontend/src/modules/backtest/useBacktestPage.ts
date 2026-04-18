@@ -6,6 +6,7 @@ import type { BacktestRunDefaults, StrategyEditorContract } from '@/types'
 import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
 import { backtestApi } from './api'
 import { asNumber } from './format'
+import { supportsPaperTrading, supportsVersionEditing } from './templateRuntime'
 import { useBacktestRuns } from './useBacktestRuns'
 
 interface BacktestPageSnapshot {
@@ -162,6 +163,18 @@ export const useBacktestPage = () => {
     return Array.isArray(versions) ? versions.filter(Boolean) : []
   })
   const selectedVersion = computed(() => selectedStrategyVersions.value.find((item: any) => item.version === config.strategy_version) || null)
+  const canCopyCurrentStrategy = computed(() => Boolean(selectedVersion.value) && supportsVersionEditing(selectedStrategy.value))
+  const canStartPaperRun = computed(() => supportsPaperTrading(selectedStrategy.value))
+  const strategyCapabilityHint = computed(() => {
+    if (!selectedStrategy.value) return ''
+    if (!supportsVersionEditing(selectedStrategy.value) && !supportsPaperTrading(selectedStrategy.value)) {
+      return t('backtest.scriptedReadonlyHint')
+    }
+    if (!supportsPaperTrading(selectedStrategy.value)) {
+      return t('backtest.paperUnsupportedHint')
+    }
+    return ''
+  })
 
   const runs = useBacktestRuns({
     t,
@@ -268,7 +281,7 @@ export const useBacktestPage = () => {
   }
 
   const openCopyEditor = () => {
-    if (!selectedStrategy.value || !selectedVersion.value) return
+    if (!selectedStrategy.value || !selectedVersion.value || !canCopyCurrentStrategy.value) return
     router.push({
       path: '/backtest/editor',
       query: {
@@ -301,6 +314,7 @@ export const useBacktestPage = () => {
   }
 
   const startPaperRun = async () => {
+    if (!canStartPaperRun.value) return
     const target = await runs.startPaperRun()
     if (!target) return
     router.push(`/backtest/paper/${target.id}`)
@@ -359,6 +373,9 @@ export const useBacktestPage = () => {
     selectedStrategy,
     selectedStrategyVersions,
     selectedVersion,
+    canCopyCurrentStrategy,
+    canStartPaperRun,
+    strategyCapabilityHint,
     timeframes,
     optimizeMetrics,
     symbolsText: runs.symbolsText,

@@ -116,7 +116,7 @@
       <button :disabled="panel.isBusy || !panel.strategies.length" class="btn-primary" @click="panel.startBacktest">
         {{ panel.backtestLoading ? $t('backtest.running') : $t('backtest.run') }}
       </button>
-      <button :disabled="panel.isBusy || !panel.strategies.length" class="btn-paper" @click="panel.startPaperRun">
+      <button :disabled="panel.isBusy || !panel.strategies.length || !panel.canStartPaperRun" class="btn-paper" @click="panel.startPaperRun">
         {{ panel.paperLoading ? $t('backtest.running') : $t('backtest.paperRun') }}
       </button>
     </div>

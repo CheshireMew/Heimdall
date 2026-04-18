@@ -1,5 +1,7 @@
 import type { ComputedRef, Ref } from 'vue'
 
+import { supportsVersionEditing } from './templateRuntime'
+
 
 interface UseBacktestEditorSeedsOptions {
   route: any
@@ -22,8 +24,14 @@ export const useBacktestEditorSeeds = ({
   editor,
   syncStrategyVersion,
 }: UseBacktestEditorSeedsOptions) => {
+  const canCopySelectedStrategy = () => supportsVersionEditing(selectedStrategy.value)
+
   const prepareCopyDraft = () => {
     if (!selectedStrategy.value || !selectedVersion.value) return
+    if (!canCopySelectedStrategy()) {
+      prepareBlankDraft()
+      return
+    }
     editor.fillVersionDraft()
     editor.showVersionEditor.value = true
   }

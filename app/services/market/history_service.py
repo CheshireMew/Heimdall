@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from typing import Callable
+from typing import Callable, Literal
 
 from app.services.market.market_data_service import MarketDataService
 
@@ -15,7 +15,26 @@ class HistoryService:
         timeframe: str,
         limit: int,
     ) -> list[list[float]]:
-        return market_data_service.get_recent_candles(symbol, timeframe, limit)
+        return market_data_service.get_recent_candles(
+            symbol,
+            timeframe,
+            limit,
+            allow_cached_response=True,
+        )
+
+    def get_live_tail(
+        self,
+        market_data_service: MarketDataService,
+        symbol: str,
+        timeframe: str,
+        limit: int,
+    ) -> list[list[float]]:
+        return market_data_service.get_recent_candles(
+            symbol,
+            timeframe,
+            limit,
+            allow_cached_response=False,
+        )
 
     def get_history(
         self,
@@ -33,15 +52,26 @@ class HistoryService:
         symbol: str,
         timeframe: str,
         start_date: str,
+        fetch_policy: Literal["cache_only", "hydrate"] = "hydrate",
         persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
     ) -> list[list[float]]:
         try:
             start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        except ValueError:
-            start_dt = datetime(2010, 1, 1)
+        except ValueError as exc:
+            raise ValueError("start_date 必须是 YYYY-MM-DD") from exc
 
         end_dt = datetime.now()
         loop = asyncio.get_running_loop()
+        if fetch_policy == "cache_only":
+            return await loop.run_in_executor(
+                None,
+                lambda: market_data_service.get_cached_ohlcv_range(
+                    symbol,
+                    timeframe,
+                    start_dt,
+                    end_dt,
+                ),
+            )
         return await loop.run_in_executor(
             None,
             lambda: market_data_service.fetch_ohlcv_range(
@@ -59,6 +89,7 @@ class HistoryService:
         symbols: list[str],
         timeframe: str,
         start_date: str,
+        fetch_policy: Literal["cache_only", "hydrate"] = "hydrate",
         persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
     ) -> dict[str, list[list[float]]]:
         results = await asyncio.gather(
@@ -68,6 +99,7 @@ class HistoryService:
                     symbol=symbol,
                     timeframe=timeframe,
                     start_date=start_date,
+                    fetch_policy=fetch_policy,
                     persist_klines=persist_klines,
                 )
                 for symbol in symbols

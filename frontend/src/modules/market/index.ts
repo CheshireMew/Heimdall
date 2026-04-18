@@ -1,5 +1,6 @@
 export { marketApi } from './api'
 export { useMarketStore } from './store'
+export { useDashboardPage } from './useDashboardPage'
 export { useKlineSeries } from './useKlineSeries'
 export { useIndicatorCategory } from './useIndicatorCategory'
 export { useBinanceMarketPage } from './useBinanceMarketPage'

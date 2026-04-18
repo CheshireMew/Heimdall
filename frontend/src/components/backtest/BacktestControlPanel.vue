@@ -26,9 +26,12 @@
           <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
             {{ $t('backtest.selectedVersion') }}: v{{ panel.config.strategy_version }} · {{ panel.selectedVersion?.name || '-' }}
           </div>
+          <div v-if="panel.strategyCapabilityHint" class="mt-2 text-xs text-amber-600 dark:text-amber-300">
+            {{ panel.strategyCapabilityHint }}
+          </div>
         </div>
         <div class="flex gap-2">
-          <button class="btn-secondary flex-1" :disabled="!panel.selectedVersion" @click="panel.openCopyEditor">{{ $t('backtest.fillFromCurrent') }}</button>
+          <button class="btn-secondary flex-1" :disabled="!panel.canCopyCurrentStrategy" @click="panel.openCopyEditor">{{ $t('backtest.fillFromCurrent') }}</button>
           <button class="btn-secondary flex-1" @click="panel.openBlankEditor">{{ $t('backtest.startBlankBuilder') }}</button>
         </div>
       </section>

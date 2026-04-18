@@ -25,12 +25,13 @@ def test_delete_paper_run_updates_stop_state_and_removes_row(db_session, monkeyp
         end_date=datetime(2026, 3, 28, 10, 0, 0),
         status="running",
         execution_mode="paper_live",
-        engine="PaperLive",
+        engine="FreqtradePaper",
         metadata_info={
             "symbols": ["BTC/USDT"],
             "runtime_state": {
                 "cash_balance": 10000,
                 "last_processed": {"BTC/USDT": None},
+                "last_synced_end": None,
                 "positions": {},
             },
             "paper_live": {
@@ -49,6 +50,9 @@ def test_delete_paper_run_updates_stop_state_and_removes_row(db_session, monkeyp
     monkeypatch.setattr("app.services.backtest.run_repository.session_scope", session_scope)
 
     manager = PaperRunManager(
+        strategy_query_service=object(),
+        freqtrade_service=object(),
+        report_builder=object(),
         run_repository=BacktestRunRepository(),
     )
 

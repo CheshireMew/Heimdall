@@ -231,6 +231,14 @@ def make_template_response() -> dict:
         "category": "trend",
         "description": "Template for trend strategies",
         "is_builtin": True,
+        "template_runtime": {
+            "builder_kind": "rules",
+            "capabilities": {
+                "signal_runtime": True,
+                "paper": True,
+                "version_editing": True,
+            },
+        },
         "indicator_keys": ["ema_fast"],
         "indicator_registry": [make_indicator_registry_item()],
         "operators": [{"key": "gt", "label": "Greater Than"}],
@@ -265,6 +273,14 @@ def make_strategy_definition() -> dict:
         "category": "trend",
         "description": "Momentum strategy",
         "is_active": True,
+        "template_runtime": {
+            "builder_kind": "rules",
+            "capabilities": {
+                "signal_runtime": True,
+                "paper": True,
+                "version_editing": True,
+            },
+        },
         "versions": [make_strategy_version()],
     }
 
@@ -372,7 +388,7 @@ def make_backtest_report() -> dict:
 
 def make_backtest_metadata() -> dict:
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "execution_mode": "backtest",
         "engine": "Freqtrade",
         "exchange": "binance",
@@ -412,6 +428,7 @@ def make_backtest_metadata() -> dict:
         "runtime_state": {
             "cash_balance": 90000.0,
             "last_processed": {"BTC/USDT": 1710007200000},
+            "last_synced_end": 1710007200000,
             "positions": {
                 "BTC/USDT": {
                     "symbol": "BTC/USDT",
@@ -466,6 +483,8 @@ def make_backtest_metadata() -> dict:
 def make_backtest_run(run_id: int = 101, *, execution_mode: str = "backtest") -> dict:
     metadata = make_backtest_metadata()
     metadata["execution_mode"] = execution_mode
+    if execution_mode == "paper_live":
+        metadata["engine"] = "FreqtradePaper"
     return {
         "id": run_id,
         "symbol": "BTC/USDT",
@@ -876,7 +895,7 @@ class StubMarketDataService:
         self.saved_klines.append((symbol, timeframe, deepcopy(klines)))
 
 
-class StubMarketAppService:
+class StubBaseMarketAppService:
     valid_symbols = ["BTC/USDT", "ETH/USDT"]
     valid_timeframes = ["1h", "4h", "1d"]
     full_history_used_external_persist_callback = False
@@ -914,6 +933,14 @@ class StubMarketAppService:
 
     async def get_crypto_index(self, **kwargs):
         return make_crypto_index_response()
+
+
+class StubBinanceMarketService:
+    pass
+
+
+class StubBinanceWeb3Service:
+    pass
 
 
 class StubBacktestCommandService:

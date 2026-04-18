@@ -62,10 +62,11 @@ const rowsToHistory = (rows: any[]): PortfolioHistoryPoint[] => rows
 const loadCryptoHistoryMap = async (symbols: string[], startText: string) => {
   const cacheKey = `crypto:${symbols.slice().sort().join(',')}:1d:${startText}`
   return rememberHistoryMap(cacheKey, async () => {
-    const response = await marketApi.getBatchFullHistory({
+    const response = await marketApi.getBatchPriceHistory({
       symbols,
       timeframe: '1d',
       start_date: startText,
+      fetch_policy: 'hydrate',
     })
     return Object.fromEntries(
       symbols.map((symbol) => [symbol, rowsToHistory(response.data?.[symbol] || [])]),
@@ -101,7 +102,7 @@ export const fetchPortfolioPriceMap = async (portfolio: PortfolioBalancePortfoli
   const responses = await Promise.allSettled(
     targets.map((item) => isIndexSymbol(item.marketSymbol)
       ? loadIndexHistory(item.marketSymbol, latestStartDate)
-      : marketApi.getRealtime({ symbol: item.marketSymbol, timeframe: '1d', limit: 2 })),
+      : marketApi.getCurrentPrice({ symbol: item.marketSymbol, timeframe: '1d' })),
   )
 
   let successCount = priceBySymbol.size

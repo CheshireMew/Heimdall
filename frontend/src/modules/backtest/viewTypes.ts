@@ -5,6 +5,9 @@ export interface BacktestControlPanelView {
   selectedStrategy: any | null
   selectedStrategyVersions: any[]
   selectedVersion: any | null
+  canCopyCurrentStrategy: boolean
+  canStartPaperRun: boolean
+  strategyCapabilityHint: string
   timeframes: string[]
   optimizeMetrics: string[]
   symbolsText: string

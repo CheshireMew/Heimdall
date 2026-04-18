@@ -321,7 +321,7 @@ class FreqtradeIterationExecutor:
     ) -> dict[str, Any]:
         if portfolio.stake_mode == "fixed":
             stake_amount: str | float = round(initial_cash * portfolio.position_size_pct / 100.0, 8)
-            tradable_balance_ratio = min((portfolio.max_open_trades * portfolio.position_size_pct) / 100.0, 1.0)
+            tradable_balance_ratio = 0.99
         else:
             stake_amount = "unlimited"
             tradable_balance_ratio = min((portfolio.max_open_trades * portfolio.position_size_pct) / 100.0, 0.99)

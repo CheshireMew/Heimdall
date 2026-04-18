@@ -13,6 +13,7 @@ import {
   createBlankVersionDraft,
   pruneTreeByIndicator,
 } from './editorContract'
+import { supportsVersionEditing } from './templateRuntime'
 
 
 interface UseBacktestEditorOptions {
@@ -36,6 +37,7 @@ export const useBacktestEditor = ({
   selectedVersion,
 }: UseBacktestEditorOptions) => {
   const normalizedTemplates = computed(() => (Array.isArray(templates.value) ? templates.value.filter((item) => item?.template) : []))
+  const editableTemplates = computed(() => normalizedTemplates.value.filter((item: any) => supportsVersionEditing(item)))
   const normalizedIndicators = computed(() => (Array.isArray(indicators.value) ? indicators.value.filter((item) => item?.key) : []))
   const normalizedIndicatorEngines = computed(() => (Array.isArray(indicatorEngines.value) ? indicatorEngines.value.filter((item) => item?.key) : []))
   const showVersionEditor = ref(false)
@@ -115,10 +117,10 @@ export const useBacktestEditor = ({
 
   const resolveDraftSeed = () => {
     const strategy = selectedStrategy.value
-    const preferredKey = strategy?.key || editorContract.value?.run_defaults?.strategy_key || ''
-    const templateSpec = normalizedTemplates.value.find((item) => item.template === strategy?.template)
+    const preferredKey = supportsVersionEditing(strategy) ? (strategy?.key || editorContract.value?.run_defaults?.strategy_key || '') : ''
+    const templateSpec = editableTemplates.value.find((item) => item.template === strategy?.template)
       || normalizedTemplates.value.find((item) => item.template === versionDraft.template)
-      || normalizedTemplates.value[0]
+      || editableTemplates.value[0]
       || null
 
     return {
@@ -172,7 +174,7 @@ export const useBacktestEditor = ({
   }
 
   const applyDraftFromTemplate = (templateKey: string, configValues = {}, parameterSpaceValues = {}, overrides = {}) => {
-    const templateSpec = normalizedTemplates.value.find((item) => item.template === templateKey)
+    const templateSpec = editableTemplates.value.find((item) => item.template === templateKey)
     if (!templateSpec) return
     useGlobalIndicatorCatalog.value = false
     versionDraft.template = templateSpec.template
@@ -376,6 +378,7 @@ export const useBacktestEditor = ({
     versionDraft,
     indicatorDraft,
     templateDraft,
+    editableTemplates,
     editorTemplate,
     availableIndicators,
     operatorOptions,

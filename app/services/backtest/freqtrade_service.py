@@ -10,6 +10,7 @@ from app.services.backtest.freqtrade_research import FreqtradeResearchService
 from app.services.backtest.freqtrade_result_builder import FreqtradeResultBuilder
 from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBuilder
 from app.services.backtest.models import BacktestExecutionResult
+from app.services.backtest.scripted_template_runtime import get_template_runtime, template_builder_kind
 from app.services.market.market_data_service import MarketDataService
 from config import settings
 
@@ -165,9 +166,11 @@ class FreqtradeBacktestService:
         report["research"] = research_report
 
         metadata = dict(primary_result.execution.metadata)
+        execution_model = self._execution_model(strategy.template, selected_config)
         metadata.update(
             {
                 "engine": "Freqtrade",
+                "execution_model": execution_model,
                 "strategy_key": strategy.strategy_key,
                 "strategy_name": strategy.strategy_name,
                 "strategy_version": strategy.version,
@@ -258,6 +261,15 @@ class FreqtradeBacktestService:
 
     def _fee_ratio(self, fee_rate: float) -> float:
         return fee_rate / 100.0
+
+    def _execution_model(self, template: str, selected_config: dict[str, object]) -> str:
+        risk = dict((selected_config or {}).get("risk") or {})
+        trade_plan = dict(risk.get("trade_plan") or {})
+        if bool(trade_plan.get("enabled")):
+            return "trade_plan"
+        if template_builder_kind(get_template_runtime(template)) == "scripted":
+            return "scripted_template"
+        return "rules"
 
     def _ensure_utc(self, value: datetime) -> datetime:
         timestamp = pd.Timestamp(value)
