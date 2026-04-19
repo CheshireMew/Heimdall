@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { marketApi } from './api'
 import { resolveSentimentBucket } from './sentiment'
-import type { OHLCVRaw, KlineCacheEntry, SentimentCache, SentimentData, IndicatorItem } from '@/types'
+import type { KlineCacheEntry, MarketIndicatorResponse, OhlcvPointResponse, SentimentCache, SentimentData } from '@/types'
 
 interface MarketState {
   klineCache: Record<string, KlineCacheEntry>
@@ -18,13 +18,13 @@ export const useMarketStore = defineStore('market', {
   }),
 
   actions: {
-    _readKlineSlice(data: OHLCVRaw[] | null | undefined, limit: number): OHLCVRaw[] | null {
+    _readKlineSlice(data: OhlcvPointResponse[] | null | undefined, limit: number): OhlcvPointResponse[] | null {
       if (!Array.isArray(data) || data.length === 0) return null
       if (limit <= 0 || data.length <= limit) return data
       return data.slice(-limit)
     },
 
-    _setKlineCache(key: string, data: OHLCVRaw[]) {
+    _setKlineCache(key: string, data: OhlcvPointResponse[]) {
       this.klineCache[key] = {
         data,
         timestamp: Date.now(),
@@ -34,24 +34,24 @@ export const useMarketStore = defineStore('market', {
     setKlineHistory(
       symbol: string,
       timeframe: string,
-      data: OHLCVRaw[],
+      data: OhlcvPointResponse[],
       maxLength: number = 1000,
-    ): OHLCVRaw[] {
+    ): OhlcvPointResponse[] {
       const key = `${symbol}:${timeframe}`
       const trimmed = this._mergeKlines(data).slice(-maxLength)
       this._setKlineCache(key, trimmed)
       return trimmed
     },
 
-    _mergeKlines(...batches: Array<OHLCVRaw[] | null | undefined>): OHLCVRaw[] {
-      const merged = new Map<number, OHLCVRaw>()
+    _mergeKlines(...batches: Array<OhlcvPointResponse[] | null | undefined>): OhlcvPointResponse[] {
+      const merged = new Map<number, OhlcvPointResponse>()
       batches.forEach((batch) => {
         if (!batch) return
         batch.forEach((row) => {
-          if (Array.isArray(row) && row.length >= 6) merged.set(row[0], row)
+          if (typeof row?.timestamp === 'number') merged.set(row.timestamp, row)
         })
       })
-      return Array.from(merged.values()).sort((left, right) => left[0] - right[0])
+      return Array.from(merged.values()).sort((left, right) => left.timestamp - right.timestamp)
     },
 
     async getKlineData(
@@ -59,13 +59,13 @@ export const useMarketStore = defineStore('market', {
       timeframe: string,
       limit: number = 1000,
       options: { force?: boolean } = {},
-    ): Promise<OHLCVRaw[] | null> {
+    ): Promise<OhlcvPointResponse[] | null> {
       const key = `${symbol}:${timeframe}`
       const now = Date.now()
       const forceRefresh = Boolean(options.force)
 
       const cachedParams = this.klineCache[key]
-      let cachedData: OHLCVRaw[] | null = null
+      let cachedData: OhlcvPointResponse[] | null = null
 
       if (cachedParams) {
         cachedData = cachedParams.data
@@ -74,12 +74,13 @@ export const useMarketStore = defineStore('market', {
         }
       }
 
-      const fetchPromise = (async (): Promise<OHLCVRaw[] | null> => {
+      const fetchPromise = (async (): Promise<OhlcvPointResponse[] | null> => {
         try {
           const res = await marketApi.getLatestKlines({ symbol, timeframe, limit })
-          if (Array.isArray(res.data) && res.data.length) {
-            this._setKlineCache(key, res.data)
-            return this._readKlineSlice(res.data, limit)
+          const items = res.data.items || []
+          if (items.length) {
+            this._setKlineCache(key, items)
+            return this._readKlineSlice(items, limit)
           }
         } catch (e) {
           console.error('Background fetch failed', e)
@@ -98,9 +99,9 @@ export const useMarketStore = defineStore('market', {
     applyKlineTail(
       symbol: string,
       timeframe: string,
-      tail: OHLCVRaw[],
+      tail: OhlcvPointResponse[],
       maxLength: number = 1000,
-    ): OHLCVRaw[] {
+    ): OhlcvPointResponse[] {
       const key = `${symbol}:${timeframe}`
       const current = this.klineCache[key]?.data || []
       const merged = this._mergeKlines(current, tail)
@@ -112,9 +113,9 @@ export const useMarketStore = defineStore('market', {
     prependKlineHistory(
       symbol: string,
       timeframe: string,
-      history: OHLCVRaw[],
+      history: OhlcvPointResponse[],
       maxLength: number = 5000,
-    ): OHLCVRaw[] {
+    ): OhlcvPointResponse[] {
       const key = `${symbol}:${timeframe}`
       const current = this.klineCache[key]?.data || []
       const merged = this._mergeKlines(history, current)
@@ -138,7 +139,7 @@ export const useMarketStore = defineStore('market', {
       try {
         const res = await marketApi.getIndicators({ days: 7 })
         if (res.data && Array.isArray(res.data)) {
-          const fearGreed = (res.data as IndicatorItem[]).find(ind => ind.indicator_id === 'FEAR_GREED')
+          const fearGreed = (res.data as MarketIndicatorResponse[]).find(ind => ind.indicator_id === 'FEAR_GREED')
           if (fearGreed && fearGreed.current_value !== null) {
             const sentimentData: SentimentData = {
               value: fearGreed.current_value,

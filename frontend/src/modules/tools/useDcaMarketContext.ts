@@ -1,5 +1,6 @@
 import { reactive } from 'vue'
 
+import { isRecord } from '@/composables/pageSnapshot'
 import { isIndexSymbol, marketApi } from '@/modules/market'
 import { resolveSentimentBucket } from '@/modules/market/sentiment'
 
@@ -16,12 +17,11 @@ export const createEmptyMarketData = (): DcaMarketState => ({
 })
 
 export const normalizeMarketData = (value: unknown): DcaMarketState => {
-  if (!value || typeof value !== 'object') return createEmptyMarketData()
-  const payload = value as Record<string, unknown>
+  if (!isRecord(value)) return createEmptyMarketData()
   return {
-    rsi: typeof payload.rsi === 'string' ? payload.rsi : null,
-    sentiment: typeof payload.sentiment === 'number' ? payload.sentiment : null,
-    sentimentLabel: typeof payload.sentimentLabel === 'string' ? payload.sentimentLabel : '',
+    rsi: typeof value.rsi === 'string' ? value.rsi : null,
+    sentiment: typeof value.sentiment === 'number' ? value.sentiment : null,
+    sentimentLabel: typeof value.sentimentLabel === 'string' ? value.sentimentLabel : '',
   }
 }
 

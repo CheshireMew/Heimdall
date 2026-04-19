@@ -6,12 +6,12 @@
 
 ## ✨ 核心特性
 
-- 🔍 **智能发现** - 利用 AI 大模型（DeepSeek）分析市场趋势和技术指标
+- 🔍 **智能发现** - 通过可配置的大模型分析市场趋势和技术指标
 - 📊 **多维度分析** - 支持 EMA、MACD、RSI、ATR 等核心技术指标
 - 🌐 **多交易所支持** - 基于 [CCXT](https://github.com/ccxt/ccxt)，支持 Binance、OKX、Bybit 等主流交易所
 - 🎯 **非自动交易** - 专注于"机会发现"和"投资建议"，不涉及自动下单
 - 🧩 **模块化设计** - 高内聚、低耦合，易于扩展和维护
-- 📊 **回测功能** - 支持回测，评估策略表现
+- 📊 **回测与模拟盘** - 支持策略回测、因子研究和纸面运行
 
 ## 🚫 非目标
 
@@ -21,7 +21,7 @@
 
 ## 启动
 
-python -m uvicorn app.main:app --reload --port 5001
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 cd frontend
 npm run dev
@@ -32,7 +32,7 @@ npm run dev
 
 ### 1. 环境要求
 
-- Python 3.8+
+- Python 3.12+
 - pip
 
 ### 2. 克隆项目
@@ -54,11 +54,19 @@ pip install -r requirements.txt
 # 复制环境变量模板
 cp .env.example .env
 
-# 编辑 .env 文件，填写你的 DeepSeek API Key
+# 编辑 .env 文件，填写你的模型服务 API Key
 # DEEPSEEK_API_KEY=sk-your-actual-api-key-here
 ```
 
 > **获取 DeepSeek API Key**: 访问 [DeepSeek Platform](https://platform.deepseek.com/api_keys) 注册并创建 API Key
+
+### 5. 初始化数据库
+
+```bash
+python scripts/prepare_db.py
+```
+
+数据库结构由 Alembic 管理。应用启动时会先尝试连接本机 PostgreSQL 开发库；如果本机开发库不可用，才会回退到 SQLite。发现未迁移结构会直接报错，避免运行时继续写入错误表结构。
 
 ## 🚀 快速开始
 
@@ -83,15 +91,15 @@ python test/test_technical_analysis.py
 Heimdall 提供了一个现代化的 Web 界面，基于 **FastAPI** 构建，用于实时市场监控和策略回测。
 
 ```bash
-python -m uvicorn app.main:app --reload --port 5001
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-启动后访问: [http://localhost:5001](http://localhost:5001)
+启动后访问: [http://localhost:8000](http://localhost:8000)
 
 **API文档**（自动生成）:
 
-- Swagger UI: [http://localhost:5001/docs](http://localhost:5001/docs)
-- ReDoc: [http://localhost:5001/redoc](http://localhost:5001/redoc)
+- Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
+- ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 包含功能：
 
@@ -99,6 +107,8 @@ python -m uvicorn app.main:app --reload --port 5001
 - **币种对比**: 专业K线对比工具，支持多周期切换和三图联动
 - **DCA模拟器**: 定投回测分析工具
 - **回测中心**: 可视化运行历史回测，无需写代码
+- **策略编辑器**: 使用统一策略 contract 编辑指标、规则、风控和交易计划
+- **因子研究**: 构建、回测和运行因子组合
 - **配置管理**: 界面化查看系统参数
 
 ## ⚙️ 配置说明
@@ -148,7 +158,7 @@ Heimdall/
 │   ├── services/            # 应用服务层
 │   ├── domain/              # 纯业务规则与指标计算
 │   ├── infra/               # 数据库、缓存、外部服务
-│   └── schemas/             # 请求/响应 contract
+│   └── schemas/             # 请求/响应 contract，前端类型从这里生成
 ├── config/
 │   └── settings.py          # 全局配置
 ├── frontend/                # Vue + Vite 前端工程
@@ -163,6 +173,7 @@ Heimdall/
 ├── test/                    # 测试套件
 │   └── ...
 ├── requirements.txt         # Python 依赖
+├── alembic/                 # 数据库迁移
 └── .env.example             # 环境变量模板
 ```
 
@@ -174,19 +185,32 @@ Heimdall/
 pytest
 ```
 
+### 前端契约与构建
+
+```bash
+cd frontend
+npm run sync:contracts
+npm run typecheck
+npm run build
+```
+
+`frontend/src/types/backtest.ts`、`factor.ts`、`market.ts`、`tools.ts`、`config.ts` 都由后端 Pydantic schema 生成，不要手写修改。
+
 ## 🔧 高级功能
 
 - [x] 历史数据回测 (Backtest)
 - [x] Web Dashboard 可视化界面
-- [ ] 定时自动运行（cron / schedule）
+- [x] 策略编辑器
+- [x] 因子研究
+- [x] 纸面运行
+- [x] 后台任务运行时
 - [ ] 多渠道通知（邮件 / Telegram / 企业微信）
-- [ ] 策略编辑器
 
 ## ❓ FAQ
 
-### 1. 如何获取 DeepSeek API Key？
+### 1. 如何配置模型 API Key？
 
-访问 [DeepSeek Platform](https://platform.deepseek.com/) 注册账号，在控制台创建 API Key。
+默认可以使用 DeepSeek，也可以在设置页切换到其他预设或自定义模型服务。API Key 可以写入 `.env`，也可以在界面配置。
 
 ### 2. 支持哪些交易所？
 
@@ -217,7 +241,7 @@ AI 仅提供参考建议，不保证准确性。**加密货币投资有风险，
 
 - **Linux/macOS**: `crontab` 定时任务
 - **Windows**: 任务计划程序
-- **Python**: `schedule` 库（后续版本将内置支持）
+- **应用后台运行时**: 启动后恢复模拟盘和行情快照任务
 - **Docker**: 容器化部署（规划中）
 
 ## ⚖️ 免责声明

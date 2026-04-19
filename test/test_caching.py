@@ -6,7 +6,8 @@ from unittest.mock import patch
 from app.services.market.exchange_gateway import ExchangeGateway
 from app.services.market.kline_store import KlineStore
 from app.services.market.market_data_service import MarketDataService
-from app.infra.db.database import get_session, init_db
+from app.infra.db.database import get_session
+from app.infra.db.schema_runtime import init_db
 from app.infra.db.schema import Kline
 
 class CachingTestCase(unittest.TestCase):

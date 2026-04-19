@@ -3,11 +3,18 @@ import type { Router } from 'vue-router'
 
 import { factorApi } from './api'
 import type { FactorResearchState } from './state'
+import type { FactorResearchRunDetail } from '@/types'
 
+const responseErrorDetail = (error: unknown): string | null => {
+  if (!error || typeof error !== 'object' || !('response' in error)) return null
+  const response = (error as { response?: { data?: { detail?: unknown } } }).response
+  const detail = response?.data?.detail
+  return typeof detail === 'string' ? detail : null
+}
 
 export const useFactorResearchData = (
   state: FactorResearchState,
-  applyRun: (run: any) => void,
+  applyRun: (run: FactorResearchRunDetail) => void,
   t: (key: string) => string,
   router: Router,
 ) => {
@@ -84,9 +91,9 @@ export const useFactorResearchData = (
       if (response.data.run_id) {
         await loadRun(response.data.run_id)
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to analyze factors', err)
-      state.error.value = err?.response?.data?.detail || t('factorResearch.analysisFailed')
+      state.error.value = responseErrorDetail(err) || t('factorResearch.analysisFailed')
       state.ranking.value = []
       state.details.value = []
       state.summary.value = null
@@ -117,9 +124,9 @@ export const useFactorResearchData = (
         ? await factorApi.startBacktest(state.selectedRunId.value, body)
         : await factorApi.startPaper(state.selectedRunId.value, body)
       router.push(mode === 'backtest' ? `/backtest/runs/${response.data.run_id}` : `/backtest/paper/${response.data.run_id}`)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to start factor execution', err)
-      state.error.value = err?.response?.data?.detail || t('factorResearch.executionFailed')
+      state.error.value = responseErrorDetail(err) || t('factorResearch.executionFailed')
     } finally {
       state.executionLoading.value = ''
     }

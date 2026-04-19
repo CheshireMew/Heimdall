@@ -1,19 +1,11 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 
-import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
+import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
 import { isIndexSymbol } from '@/modules/market'
 import { useTheme } from '@/composables/useTheme'
 import { toolsApi } from './api'
-import type { CandlestickData, MarketSymbolSearchItem } from '@/types'
-
-interface ComparePageSnapshot {
-  config: {
-    symbolA: string
-    symbolB: string
-    days: number
-    timeframe: string
-  }
-}
+import type { CandlestickData, MarketSymbolSearchResponse } from '@/types'
+import { createDefaultCompareSnapshot, normalizeCompareSnapshot } from './pageSnapshots'
 
 interface CompareLinePoint {
   time: number
@@ -32,32 +24,9 @@ interface ChartComponentRef {
   chart?: SyncableChart | null
 }
 
-const createDefaultSnapshot = (): ComparePageSnapshot => ({
-  config: {
-    symbolA: 'BTC',
-    symbolB: 'ETH',
-    days: 30,
-    timeframe: '1h',
-  },
-})
-
-const normalizeSnapshot = (value: unknown): ComparePageSnapshot => {
-  const defaults = createDefaultSnapshot()
-  if (!isRecord(value) || !isRecord(value.config)) return defaults
-  return {
-    config: {
-      symbolA: readString(value.config.symbolA, defaults.config.symbolA),
-      symbolB: readString(value.config.symbolB, defaults.config.symbolB),
-      days: readNumber(value.config.days, defaults.config.days),
-      timeframe: readString(value.config.timeframe, defaults.config.timeframe),
-    },
-  }
-}
-
-
 export function useComparePage() {
   const { theme } = useTheme()
-  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.compare, normalizeSnapshot, createDefaultSnapshot())
+  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.compare, normalizeCompareSnapshot, createDefaultCompareSnapshot())
   const restoredSnapshot = pageSnapshot.load()
 
   const chartColors = computed(() => {
@@ -142,7 +111,7 @@ export function useComparePage() {
     }
   }
 
-  const handleSymbolSelect = (item: MarketSymbolSearchItem) => {
+  const handleSymbolSelect = (item: MarketSymbolSearchResponse) => {
     if (item.asset_class === 'index') config.timeframe = '1d'
   }
 

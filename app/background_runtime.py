@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import importlib
 import os
 from dataclasses import dataclass
 from enum import StrEnum
@@ -125,9 +124,10 @@ class BackgroundRuntimeController:
 
     async def _bootstrap(self) -> None:
         try:
-            market_cron = await asyncio.to_thread(importlib.import_module, "app.services.market_cron")
-            market_cron.start_scheduler()
-            self.runtime_services.market_scheduler = market_cron.scheduler
+            scheduler_runtime = self.runtime_services.market_scheduler_runtime
+            if scheduler_runtime is None:
+                raise RuntimeError("Background scheduler runtime is not initialized")
+            scheduler_runtime.start()
 
             binance_snapshot = self.runtime_services.binance_market_snapshot
             binance_market = self.runtime_services.binance_market_intel
@@ -160,7 +160,5 @@ class BackgroundRuntimeController:
         if runtime_services.paper_run_manager is not None:
             await runtime_services.paper_run_manager.shutdown()
 
-        scheduler = runtime_services.market_scheduler
-        runtime_services.market_scheduler = None
-        if scheduler is not None and scheduler.running:
-            scheduler.shutdown()
+        if runtime_services.market_scheduler_runtime is not None:
+            await runtime_services.market_scheduler_runtime.shutdown()

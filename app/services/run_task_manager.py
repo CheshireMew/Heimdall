@@ -4,6 +4,8 @@ import asyncio
 from collections.abc import Callable
 from typing import Any
 
+from utils.logger import logger
+
 
 class RunTaskManager:
     def __init__(
@@ -66,4 +68,5 @@ class RunTaskManager:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, lambda: self._mark_failed(run_id, str(exc)))
             self._tasks.pop(run_id, None)
-            raise RuntimeError(f"{self._error_label} run_id={run_id}: {exc}") from exc
+            # 单个模拟运行失败已经写回对应 run，不应把整个后台 runtime 标记为不可用。
+            logger.error(f"{self._error_label} run_id={run_id}: {exc}", exc_info=True)

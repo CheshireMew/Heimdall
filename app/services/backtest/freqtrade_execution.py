@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -19,6 +20,7 @@ from app.contracts.backtest import (
     ResearchConfigRecord,
     StrategyVersionRecord,
 )
+from app.services.backtest.symbol_contract import sanitize_backtest_run_fragment
 from app.services.market.market_data_service import MarketDataService
 from config import settings
 from utils.logger import logger
@@ -65,8 +67,13 @@ class FreqtradeIterationExecutor:
         self.market_data_service = market_data_service
         self.strategy_builder = strategy_builder
         self.result_builder = result_builder
-        self.shared_data_dir = self.workspace_root / "_shared_data" / settings.EXCHANGE_ID
-        self.shared_manifest_path = self.workspace_root / "_shared_data" / "coverage.json"
+        self.shared_data_dir = (
+            self.workspace_root / "_shared_data" / settings.EXCHANGE_ID
+        )
+        self.shared_manifest_path = (
+            self.workspace_root / "_shared_data" / "coverage.json"
+        )
+        self.shared_lock_path = self.workspace_root / "_shared_data" / "coverage.lock"
 
     def run_iteration(
         self,
@@ -77,7 +84,9 @@ class FreqtradeIterationExecutor:
         start_date: datetime,
         end_date: datetime,
     ) -> IterationResult:
-        run_key = self._build_run_key(context.execution_symbols, context.timeframe, start_date, end_date, label)
+        run_key = self._build_run_key(
+            context.execution_symbols, context.timeframe, start_date, end_date, label
+        )
         run_root = self.workspace_root / run_key
         user_data_dir = run_root / "user_data"
         strategies_dir = user_data_dir / "strategies"
@@ -97,11 +106,15 @@ class FreqtradeIterationExecutor:
             timeframe=context.timeframe,
             start_date=start_date,
             end_date=end_date,
-            warmup_bars=self.strategy_builder.warmup_bars(context.strategy.template, strategy_config, context.timeframe),
+            warmup_bars=self.strategy_builder.warmup_bars(
+                context.strategy.template, strategy_config, context.timeframe
+            ),
             market_type=context.market_type,
         )
         strategy_path.write_text(
-            self.strategy_builder.build_code(context.strategy.template, context.timeframe, strategy_config),
+            self.strategy_builder.build_code(
+                context.strategy.template, context.timeframe, strategy_config
+            ),
             encoding="utf-8",
         )
         config_path.write_text(
@@ -113,7 +126,9 @@ class FreqtradeIterationExecutor:
                     portfolio=context.portfolio,
                     stake_currency=context.stake_currency,
                     market_type=context.market_type,
-                    trade_settings=self.strategy_builder.trade_settings(context.strategy.template, strategy_config),
+                    trade_settings=self.strategy_builder.trade_settings(
+                        context.strategy.template, strategy_config
+                    ),
                 ),
                 ensure_ascii=False,
                 indent=2,
@@ -172,7 +187,9 @@ class FreqtradeIterationExecutor:
                 f"Freqtrade 回测超时，当前超时阈值为 {settings.FREQTRADE_BACKTEST_TIMEOUT_SECONDS} 秒。"
             ) from exc
         except subprocess.CalledProcessError as exc:
-            raise RuntimeError(self._format_process_error(exc.stdout, exc.stderr)) from exc
+            raise RuntimeError(
+                self._format_process_error(exc.stdout, exc.stderr)
+            ) from exc
 
         if completed.stdout:
             logger.debug(completed.stdout.strip())
@@ -211,6 +228,31 @@ class FreqtradeIterationExecutor:
         warmup_bars: int,
         market_type: str,
     ) -> int:
+        lock_file = self._acquire_shared_data_lock()
+        try:
+            return self._export_history_locked(
+                data_symbols=data_symbols,
+                execution_symbols=execution_symbols,
+                timeframe=timeframe,
+                start_date=start_date,
+                end_date=end_date,
+                warmup_bars=warmup_bars,
+                market_type=market_type,
+            )
+        finally:
+            self._release_shared_data_lock(lock_file)
+
+    def _export_history_locked(
+        self,
+        *,
+        data_symbols: list[str],
+        execution_symbols: list[str],
+        timeframe: str,
+        start_date: datetime,
+        end_date: datetime,
+        warmup_bars: int,
+        market_type: str,
+    ) -> int:
         total_candles = 0
         handler = JsonDataHandler(self.shared_data_dir)
         manifest = self._load_shared_coverage()
@@ -219,13 +261,17 @@ class FreqtradeIterationExecutor:
         start_ms = int(start_date.timestamp() * 1000)
         end_ms = int(end_date.timestamp() * 1000)
         request_start_ms = int(warmup_start.timestamp() * 1000)
-        for data_symbol, execution_symbol in zip(data_symbols, execution_symbols, strict=True):
+        for data_symbol, execution_symbol in zip(
+            data_symbols, execution_symbols, strict=True
+        ):
             # Data and execution are intentionally decoupled here:
             # - data_symbol is the only source we query from our own database/cache
             # - execution_symbol is the pair name Freqtrade expects under the selected trading_mode
             # This lets futures backtests reuse spot OHLCV as synthetic mark/last prices
             # without maintaining a second futures kline dataset.
-            candle_type = CandleType.FUTURES if market_type == "futures" else CandleType.SPOT
+            candle_type = (
+                CandleType.FUTURES if market_type == "futures" else CandleType.SPOT
+            )
             manifest_key = self._shared_coverage_key(
                 execution_symbol=execution_symbol,
                 timeframe=timeframe,
@@ -238,10 +284,17 @@ class FreqtradeIterationExecutor:
                 start_ms=request_start_ms,
                 end_ms=end_ms,
             ):
-                rows = self.market_data_service.fetch_ohlcv_range(data_symbol, timeframe, warmup_start, end_date)
+                rows = self.market_data_service.fetch_ohlcv_range(
+                    data_symbol, timeframe, warmup_start, end_date
+                )
                 if not rows:
-                    raise RuntimeError(f"没有可用于 Freqtrade 回测的历史数据: {data_symbol} {timeframe}")
-                frame = pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close", "volume"])
+                    raise RuntimeError(
+                        f"没有可用于 Freqtrade 回测的历史数据: {data_symbol} {timeframe}"
+                    )
+                frame = pd.DataFrame(
+                    rows,
+                    columns=["timestamp", "open", "high", "low", "close", "volume"],
+                )
                 frame["date"] = pd.to_datetime(frame["timestamp"], unit="ms", utc=True)
                 frame = frame.loc[:, ["date", "open", "high", "low", "close", "volume"]]
                 handler.ohlcv_store(execution_symbol, timeframe, frame, candle_type)
@@ -254,10 +307,47 @@ class FreqtradeIterationExecutor:
             frame = handler._ohlcv_load(execution_symbol, timeframe, None, candle_type)
             if frame.empty:
                 raise RuntimeError(f"共享回测数据不可用: {execution_symbol} {timeframe}")
-            total_candles += int(frame["date"].astype("int64").floordiv(1_000_000).between(start_ms, end_ms).sum())
+            total_candles += int(
+                frame["date"]
+                .astype("int64")
+                .floordiv(1_000_000)
+                .between(start_ms, end_ms)
+                .sum()
+            )
         if manifest_changed:
             self._save_shared_coverage(manifest)
         return total_candles
+
+    def _acquire_shared_data_lock(self):
+        self.shared_lock_path.parent.mkdir(parents=True, exist_ok=True)
+        lock_file = self.shared_lock_path.open("a+b")
+        lock_file.seek(0)
+        if lock_file.read(1) == b"":
+            lock_file.write(b"\0")
+            lock_file.flush()
+        lock_file.seek(0)
+        # Freqtrade 的 json handler 会写多个文件，锁必须覆盖 manifest 和 OHLCV 文件的整段读写。
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        return lock_file
+
+    def _release_shared_data_lock(self, lock_file) -> None:
+        lock_file.seek(0)
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        lock_file.close()
 
     def _shared_coverage_key(
         self,
@@ -296,9 +386,7 @@ class FreqtradeIterationExecutor:
         if not isinstance(payload, dict):
             return {}
         return {
-            str(key): value
-            for key, value in payload.items()
-            if isinstance(value, dict)
+            str(key): value for key, value in payload.items() if isinstance(value, dict)
         }
 
     def _save_shared_coverage(self, coverage: dict[str, dict[str, Any]]) -> None:
@@ -320,11 +408,15 @@ class FreqtradeIterationExecutor:
         trade_settings: dict[str, Any],
     ) -> dict[str, Any]:
         if portfolio.stake_mode == "fixed":
-            stake_amount: str | float = round(initial_cash * portfolio.position_size_pct / 100.0, 8)
+            stake_amount: str | float = round(
+                initial_cash * portfolio.position_size_pct / 100.0, 8
+            )
             tradable_balance_ratio = 0.99
         else:
             stake_amount = "unlimited"
-            tradable_balance_ratio = min((portfolio.max_open_trades * portfolio.position_size_pct) / 100.0, 0.99)
+            tradable_balance_ratio = min(
+                (portfolio.max_open_trades * portfolio.position_size_pct) / 100.0, 0.99
+            )
         config = {
             "$schema": "https://schema.freqtrade.io/schema.json",
             "max_open_trades": portfolio.max_open_trades,
@@ -370,11 +462,17 @@ class FreqtradeIterationExecutor:
         return f"{self._sanitize_symbol_fragment(symbols)}_{timeframe}_{label}_{int(start_date.timestamp())}_{int(end_date.timestamp())}"
 
     def _sanitize_symbol_fragment(self, symbols: list[str]) -> str:
-        base = symbols[0] if len(symbols) == 1 else f"portfolio_{len(symbols)}_{symbols[0]}"
-        return base.replace("/", "_").replace(":", "_")
+        base = (
+            symbols[0]
+            if len(symbols) == 1
+            else f"portfolio_{len(symbols)}_{symbols[0]}"
+        )
+        return sanitize_backtest_run_fragment(base)
 
     def _build_timerange(self, start_date: datetime, end_date: datetime) -> str:
-        return f"{int(start_date.timestamp() * 1000)}-{int(end_date.timestamp() * 1000)}"
+        return (
+            f"{int(start_date.timestamp() * 1000)}-{int(end_date.timestamp() * 1000)}"
+        )
 
     def _timeframe_delta(self, timeframe: str) -> pd.Timedelta:
         value = int(timeframe[:-1])

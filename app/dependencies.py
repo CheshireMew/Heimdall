@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from app.services.market.market_data_service import MarketDataService
     from app.services.market.query_app_service import MarketQueryAppService
     from app.services.market.realtime_service import RealtimeService
+    from app.services.market.websocket_service import MarketWebSocketService
     from app.services.sentiment_client import SentimentApiClient
     from app.services.sentiment_repository import SentimentRepository
     from app.services.sentiment_service import SentimentService
@@ -113,6 +114,10 @@ def get_market_query_app_service(connection: HTTPConnection) -> MarketQueryAppSe
 
 def get_market_insight_app_service(connection: HTTPConnection) -> MarketInsightAppService:
     return _require_runtime_service(connection, "market_insight_app_service")
+
+
+def get_market_websocket_service(connection: HTTPConnection) -> MarketWebSocketService:
+    return _require_runtime_service(connection, "market_websocket_service")
 
 
 def get_index_data_service(connection: HTTPConnection) -> IndexDataService:

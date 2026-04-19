@@ -136,6 +136,3 @@ class CurrencyRateService:
             except ValueError:
                 pass
         return fallback
-
-
-currency_rate_service = CurrencyRateService()

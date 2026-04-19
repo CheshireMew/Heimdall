@@ -5,7 +5,7 @@ import sqlite3
 import json
 from datetime import datetime
 
-from app.infra.db.database import SessionLocal, engine
+from app.infra.db import get_database_runtime
 from models import schema
 from sqlalchemy import text
 
@@ -156,7 +156,7 @@ def main():
     sqlite_cursor = sqlite_conn.cursor()
     
     print("[CONN] 连接PostgreSQL...")
-    pg_session = SessionLocal()
+    pg_session = get_database_runtime().get_session()
     
     try:
         migrate_klines(sqlite_cursor, pg_session)

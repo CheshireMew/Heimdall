@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends, Query
 
 from app.dependencies import get_binance_web3_service
-from app.routers.market.common import internal_error
+from app.routers.errors import service_http_error
 from app.schemas.binance_market import (
     BinanceRwaDynamicResponse,
     BinanceRwaKlineResponse,
@@ -48,7 +48,7 @@ async def get_binance_web3_social_hype(
             social_language=social_language,
         )
     except Exception as exc:
-        raise internal_error("API /binance/web3/social_hype 错误", exc)
+        raise service_http_error("API /binance/web3/social_hype 错误", exc)
 
 
 @router.get("/binance/web3/unified_token_rank", response_model=BinanceWeb3UnifiedTokenRankResponse)
@@ -73,7 +73,7 @@ async def get_binance_web3_unified_token_rank(
             size=size,
         )
     except Exception as exc:
-        raise internal_error("API /binance/web3/unified_token_rank 错误", exc)
+        raise service_http_error("API /binance/web3/unified_token_rank 错误", exc)
 
 
 @router.get("/binance/web3/smart_money_inflow", response_model=BinanceWeb3SmartMoneyInflowResponse)
@@ -86,7 +86,7 @@ async def get_binance_web3_smart_money_inflow(
     try:
         return await service.get_smart_money_inflow_rank(chain_id=chain_id, period=period, tag_type=tag_type)
     except Exception as exc:
-        raise internal_error("API /binance/web3/smart_money_inflow 错误", exc)
+        raise service_http_error("API /binance/web3/smart_money_inflow 错误", exc)
 
 
 @router.get("/binance/web3/meme_rank", response_model=BinanceWeb3MemeRankResponse)
@@ -97,7 +97,7 @@ async def get_binance_web3_meme_rank(
     try:
         return await service.get_meme_rank(chain_id=chain_id)
     except Exception as exc:
-        raise internal_error("API /binance/web3/meme_rank 错误", exc)
+        raise service_http_error("API /binance/web3/meme_rank 错误", exc)
 
 
 @router.get("/binance/web3/address_pnl_rank", response_model=BinanceWeb3AddressPnlResponse)
@@ -118,7 +118,7 @@ async def get_binance_web3_address_pnl_rank(
             page_size=page_size,
         )
     except Exception as exc:
-        raise internal_error("API /binance/web3/address_pnl_rank 错误", exc)
+        raise service_http_error("API /binance/web3/address_pnl_rank 错误", exc)
 
 
 @router.get("/binance/web3/heat_rank", response_model=BinanceWeb3HeatRankResponse)
@@ -130,7 +130,7 @@ async def get_binance_web3_heat_rank(
     try:
         return await service.get_web3_heat_rank(chain_id=chain_id, size=size)
     except Exception as exc:
-        raise internal_error("API /binance/web3/heat_rank 错误", exc)
+        raise service_http_error("API /binance/web3/heat_rank 错误", exc)
 
 
 @router.get("/binance/rwa/symbols", response_model=BinanceRwaSymbolListResponse)
@@ -141,7 +141,7 @@ async def get_binance_rwa_symbols(
     try:
         return await service.list_rwa_symbols(platform_type=platform_type)
     except Exception as exc:
-        raise internal_error("API /binance/rwa/symbols 错误", exc)
+        raise service_http_error("API /binance/rwa/symbols 错误", exc)
 
 
 @router.get("/binance/rwa/meta", response_model=BinanceRwaMetaResponse)
@@ -153,7 +153,7 @@ async def get_binance_rwa_meta(
     try:
         return await service.get_rwa_meta(chain_id=chain_id, contract_address=contract_address)
     except Exception as exc:
-        raise internal_error("API /binance/rwa/meta 错误", exc)
+        raise service_http_error("API /binance/rwa/meta 错误", exc)
 
 
 @router.get("/binance/rwa/market_status", response_model=BinanceRwaMarketStatusResponse)
@@ -163,7 +163,7 @@ async def get_binance_rwa_market_status(
     try:
         return await service.get_rwa_market_status()
     except Exception as exc:
-        raise internal_error("API /binance/rwa/market_status 错误", exc)
+        raise service_http_error("API /binance/rwa/market_status 错误", exc)
 
 
 @router.get("/binance/rwa/asset_market_status", response_model=BinanceRwaMarketStatusResponse)
@@ -175,7 +175,7 @@ async def get_binance_rwa_asset_market_status(
     try:
         return await service.get_rwa_asset_market_status(chain_id=chain_id, contract_address=contract_address)
     except Exception as exc:
-        raise internal_error("API /binance/rwa/asset_market_status 错误", exc)
+        raise service_http_error("API /binance/rwa/asset_market_status 错误", exc)
 
 
 @router.get("/binance/rwa/dynamic", response_model=BinanceRwaDynamicResponse)
@@ -187,7 +187,7 @@ async def get_binance_rwa_dynamic(
     try:
         return await service.get_rwa_dynamic(chain_id=chain_id, contract_address=contract_address)
     except Exception as exc:
-        raise internal_error("API /binance/rwa/dynamic 错误", exc)
+        raise service_http_error("API /binance/rwa/dynamic 错误", exc)
 
 
 @router.get("/binance/rwa/kline", response_model=BinanceRwaKlineResponse)
@@ -210,7 +210,7 @@ async def get_binance_rwa_kline(
             end_time=end_time,
         )
     except Exception as exc:
-        raise internal_error("API /binance/rwa/kline 错误", exc)
+        raise service_http_error("API /binance/rwa/kline 错误", exc)
 
 
 @router.get("/binance/web3/token_dynamic", response_model=BinanceWeb3TokenDynamicResponse)
@@ -222,7 +222,7 @@ async def get_binance_web3_token_dynamic(
     try:
         return await service.get_token_dynamic(chain_id=chain_id, contract_address=contract_address)
     except Exception as exc:
-        raise internal_error("API /binance/web3/token_dynamic 错误", exc)
+        raise service_http_error("API /binance/web3/token_dynamic 错误", exc)
 
 
 @router.get("/binance/web3/token_kline", response_model=BinanceWeb3TokenKlineResponse)
@@ -247,7 +247,7 @@ async def get_binance_web3_token_kline(
             pm=pm,
         )
     except Exception as exc:
-        raise internal_error("API /binance/web3/token_kline 错误", exc)
+        raise service_http_error("API /binance/web3/token_kline 错误", exc)
 
 
 @router.get("/binance/web3/token_audit", response_model=BinanceWeb3TokenAuditResponse)
@@ -259,4 +259,4 @@ async def get_binance_web3_token_audit(
     try:
         return await service.get_token_audit(binance_chain_id=binance_chain_id, contract_address=contract_address)
     except Exception as exc:
-        raise internal_error("API /binance/web3/token_audit 错误", exc)
+        raise service_http_error("API /binance/web3/token_audit 错误", exc)

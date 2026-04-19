@@ -1,5 +1,5 @@
 import { computed, reactive, ref } from 'vue'
-import type { FactorDetail, FactorResearchRun, FactorScorecard } from '@/types'
+import type { FactorBlend, FactorCatalogItem, FactorCatalogResponse, FactorResearchSummary, FactorResearchRun, FactorScorecard, FactorDetail } from '@/types'
 
 export const createFactorResearchForm = () => ({
   symbol: 'BTC/USDT',
@@ -33,17 +33,17 @@ export const createFactorResearchState = () => {
     symbols: [] as string[],
     timeframes: [] as string[],
     categories: [] as string[],
-    factors: [] as any[],
+    factors: [] as FactorCatalogItem[],
     forward_horizons: [] as number[],
-    cleaning: {} as Record<string, unknown>,
+    cleaning: {} as FactorCatalogResponse['cleaning'],
   })
   const form = reactive(createFactorResearchForm())
   const executionForm = reactive(createFactorExecutionForm())
   const runs = ref<FactorResearchRun[]>([])
-  const summary = ref<any | null>(null)
+  const summary = ref<FactorResearchSummary | null>(null)
   const ranking = ref<FactorScorecard[]>([])
   const details = ref<FactorDetail[]>([])
-  const blend = ref<any | null>(null)
+  const blend = ref<FactorBlend | null>(null)
   const selectedFactorId = ref('')
   const selectedRunId = ref<number | null>(null)
 

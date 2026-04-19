@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import delete, select
 
-from app.infra.db.database import SessionLocal
+from app.infra.db import get_database_runtime
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade, Kline
 from config import settings
 from utils.logger import logger
@@ -32,7 +32,7 @@ def _delete_backtest_graph(session, cutoff_dt: datetime) -> int:
 
 async def cleanup_old_data():
     """定期清理过期数据"""
-    session = SessionLocal()
+    session = get_database_runtime().get_session()
     try:
         # 1. 清理短周期 Kline (1m/5m/15m/1h/4h)
         cutoff_ts = int((datetime.now() - timedelta(days=settings.KLINE_RETENTION_DAYS)).timestamp() * 1000)

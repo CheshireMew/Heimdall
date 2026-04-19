@@ -5,352 +5,60 @@ import json
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
+from fastapi.routing import APIRoute
 from pydantic import BaseModel
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from app.domain.market.symbol_catalog import get_usd_equivalent_symbols, list_market_search_items
-from app.schemas.backtest import (
-    BacktestDetailResponse,
-    BacktestEquityPointResponse,
-    BacktestMetricsResponse,
-    BacktestPortfolioRequest,
-    BacktestResearchRequest,
-    BacktestRunResponse,
-    BacktestSignalResponse,
-    BacktestStartRequest,
-    BacktestStartResponse,
-    BacktestTradeResponse,
-    IndicatorDefinitionCreateRequest,
-    PaginationResponse,
-    PaperStartRequest,
-    PaperStartResponse,
-    PaperStopResponse,
-    StrategyDefinitionResponse,
-    StrategyEditorContractResponse,
-    StrategyGroupLogicResponse,
-    StrategyIndicatorEngineResponse,
-    StrategyIndicatorRegistryResponse,
-    StrategyOperatorResponse,
-    StrategyTemplateCapabilitiesResponse,
-    StrategyTemplateCreateRequest,
-    StrategyTemplateResponse,
-    StrategyTemplateRuntimeResponse,
-    StrategyVersionCreateRequest,
-    StrategyVersionResponse,
-)
-from app.schemas.backtest_result import (
-    BacktestDateRangeResponse,
-    BacktestIterationSummaryResponse,
-    BacktestOptimizationSummaryResponse,
-    BacktestOptimizationTrialResponse,
-    BacktestPairBreakdownResponse,
-    BacktestPaperLiveResponse,
-    BacktestPaperPositionResponse,
-    BacktestPortfolioPayloadResponse,
-    BacktestPortfolioSummaryResponse,
-    BacktestReportResponse,
-    BacktestReportSnapshotResponse,
-    BacktestResearchPayloadResponse,
-    BacktestResearchReportResponse,
-    BacktestRollingWindowResponse,
-    BacktestRunMetadataResponse,
-    BacktestRuntimeStateResponse,
-    BacktestSampleRangesResponse,
-    BacktestStrategySummaryResponse,
-)
-from app.schemas.binance_market import (
-    BinanceBasisResponse,
-    BinanceBookTickerItemResponse,
-    BinanceBookTickerResponse,
-    BinanceBreakoutMonitorItemResponse,
-    BinanceBreakoutMonitorResponse,
-    BinanceBreakoutMonitorSummaryResponse,
-    BinanceExchangeInfoResponse,
-    BinanceFundingHistoryItemResponse,
-    BinanceFundingHistoryListResponse,
-    BinanceFundingInfoItemResponse,
-    BinanceFundingInfoResponse,
-    BinanceKlineItemResponse,
-    BinanceKlineResponse,
-    BinanceMarkPriceItemResponse,
-    BinanceMarkPriceResponse,
-    BinanceMarketPageResponse,
-    BinanceOpenInterestSnapshotResponse,
-    BinanceOpenInterestStatItemResponse,
-    BinanceOpenInterestStatsResponse,
-    BinanceOrderBookLevelResponse,
-    BinanceOrderBookResponse,
-    BinancePriceTickerItemResponse,
-    BinancePriceTickerResponse,
-    BinanceRatioItemResponse,
-    BinanceRatioSeriesResponse,
-    BinanceRwaDynamicResponse,
-    BinanceRwaKlineItemResponse,
-    BinanceRwaKlineResponse,
-    BinanceRwaMarketStatusResponse,
-    BinanceRwaMetaResponse,
-    BinanceRwaSymbolItemResponse,
-    BinanceRwaSymbolListResponse,
-    BinanceSymbolSummaryResponse,
-    BinanceTakerVolumeItemResponse,
-    BinanceTakerVolumeResponse,
-    BinanceTickerStatsItemResponse,
-    BinanceTickerStatsResponse,
-    BinanceTradeItemResponse,
-    BinanceTradeListResponse,
-    BinanceWeb3AddressPnlItemResponse,
-    BinanceWeb3AddressPnlResponse,
-    BinanceWeb3HeatRankItemResponse,
-    BinanceWeb3HeatRankResponse,
-    BinanceWeb3MemeRankItemResponse,
-    BinanceWeb3MemeRankResponse,
-    BinanceWeb3RankItemResponse,
-    BinanceWeb3SmartMoneyInflowItemResponse,
-    BinanceWeb3SmartMoneyInflowResponse,
-    BinanceWeb3SocialHypeItemResponse,
-    BinanceWeb3SocialHypeResponse,
-    BinanceWeb3TokenAuditResponse,
-    BinanceWeb3TokenDynamicResponse,
-    BinanceWeb3TokenKlineItemResponse,
-    BinanceWeb3TokenKlineResponse,
-    BinanceWeb3UnifiedTokenRankResponse,
-)
-from app.schemas.factor import (
-    FactorBlendComponentResponse,
-    FactorBlendResponse,
-    FactorCatalogItemResponse,
-    FactorCatalogResponse,
-    FactorDetailResponse,
-    FactorDroppedComponentResponse,
-    FactorExecutionRequest,
-    FactorExecutionResponse,
-    FactorForwardMetricResponse,
-    FactorLagPointResponse,
-    FactorNormalizedPointResponse,
-    FactorQuantileBucketResponse,
-    FactorResearchRequest,
-    FactorResearchResponse,
-    FactorResearchRunDetailResponse,
-    FactorResearchSummaryResponse,
-    FactorRollingPointResponse,
-    FactorScorecardResponse,
-)
-from app.schemas.market import (
-    ApiStatusResponse,
-    CryptoIndexConstituentResponse,
-    CryptoIndexHistoryPointResponse,
-    CryptoIndexResponse,
-    CryptoIndexSummaryResponse,
-    CurrentPriceBatchItemResponse,
-    CurrentPriceBatchResponse,
-    CurrentPriceResponse,
-    CurrencyRatesResponse,
-    DisplayCurrencyResponse,
-    FundingRateHistoryPointResponse,
-    FundingRateHistoryResponse,
-    FundingRateSnapshotResponse,
-    FundingRateSyncResponse,
-    IndicatorSummaryResponse,
-    KlineTailResponse,
-    MACDResponse,
-    MarketIndicatorResponse,
-    MarketIndexHistoryResponse,
-    MarketIndexResponse,
-    MarketSymbolSearchResponse,
-    RealtimeResponse,
-    TechnicalMetricsResponse,
-    TradeSetupResponse,
-    TradeSetupResponseItem,
-)
-from app.schemas.strategy_contract import (
-    StrategyExecutionConfigResponse,
-    StrategyGroupNodeResponse,
-    StrategyIndicatorConfigResponse,
-    StrategyIndicatorOutputResponse,
-    StrategyIndicatorParamResponse,
-    StrategyPartialExitResponse,
-    StrategyRiskConfigResponse,
-    StrategyRoiTargetResponse,
-    StrategyRuleSourceResponse,
-    StrategyStateBranchResponse,
-    StrategyTemplateConfigResponse,
-    StrategyTrailingConfigResponse,
-)
+from app.main import app
 
 FRONTEND_TYPES_DIR = REPO_ROOT / "frontend" / "src" / "types"
 FRONTEND_MARKET_MODULE_DIR = REPO_ROOT / "frontend" / "src" / "modules" / "market"
-TARGET_FILES = ("backtest.ts", "factor.ts", "market.ts")
-
-SCHEMA_MODELS: tuple[type[BaseModel], ...] = (
-    BacktestStartRequest,
-    BacktestStartResponse,
-    PaperStartRequest,
-    PaperStartResponse,
-    PaperStopResponse,
-    BacktestMetricsResponse,
-    BacktestSignalResponse,
-    BacktestTradeResponse,
-    BacktestEquityPointResponse,
-    PaginationResponse,
-    BacktestRunResponse,
-    BacktestDetailResponse,
-    BacktestRunMetadataResponse,
-    BacktestReportResponse,
-    BacktestReportSnapshotResponse,
-    BacktestDateRangeResponse,
-    BacktestPairBreakdownResponse,
-    BacktestStrategySummaryResponse,
-    BacktestPortfolioSummaryResponse,
-    BacktestPortfolioPayloadResponse,
-    BacktestResearchPayloadResponse,
-    BacktestOptimizationTrialResponse,
-    BacktestOptimizationSummaryResponse,
-    BacktestIterationSummaryResponse,
-    BacktestRollingWindowResponse,
-    BacktestResearchReportResponse,
-    BacktestSampleRangesResponse,
-    BacktestPaperPositionResponse,
-    BacktestRuntimeStateResponse,
-    BacktestPaperLiveResponse,
-    BacktestPortfolioRequest,
-    BacktestResearchRequest,
-    StrategyVersionResponse,
-    StrategyDefinitionResponse,
-    StrategyIndicatorRegistryResponse,
-    StrategyOperatorResponse,
-    StrategyTemplateCapabilitiesResponse,
-    StrategyTemplateRuntimeResponse,
-    StrategyGroupLogicResponse,
-    StrategyIndicatorEngineResponse,
-    StrategyTemplateResponse,
-    StrategyEditorContractResponse,
-    StrategyVersionCreateRequest,
-    IndicatorDefinitionCreateRequest,
-    StrategyTemplateCreateRequest,
-    StrategyRuleSourceResponse,
-    StrategyStateBranchResponse,
-    StrategyIndicatorConfigResponse,
-    StrategyExecutionConfigResponse,
-    StrategyRoiTargetResponse,
-    StrategyPartialExitResponse,
-    StrategyTrailingConfigResponse,
-    StrategyRiskConfigResponse,
-    StrategyTemplateConfigResponse,
-    StrategyGroupNodeResponse,
-    FactorCatalogItemResponse,
-    FactorCatalogResponse,
-    FactorResearchRequest,
-    FactorForwardMetricResponse,
-    FactorResearchSummaryResponse,
-    FactorScorecardResponse,
-    FactorLagPointResponse,
-    FactorRollingPointResponse,
-    FactorQuantileBucketResponse,
-    FactorNormalizedPointResponse,
-    FactorDetailResponse,
-    FactorBlendComponentResponse,
-    FactorDroppedComponentResponse,
-    FactorBlendResponse,
-    FactorResearchResponse,
-    FactorResearchRunDetailResponse,
-    FactorExecutionRequest,
-    FactorExecutionResponse,
-    RealtimeResponse,
-    KlineTailResponse,
-    CurrentPriceResponse,
-    CurrentPriceBatchItemResponse,
-    CurrentPriceBatchResponse,
-    MarketIndicatorResponse,
-    MarketIndexResponse,
-    MarketSymbolSearchResponse,
-    MarketIndexHistoryResponse,
-    FundingRateSnapshotResponse,
-    FundingRateHistoryPointResponse,
-    FundingRateHistoryResponse,
-    FundingRateSyncResponse,
-    TechnicalMetricsResponse,
-    TradeSetupResponseItem,
-    TradeSetupResponse,
-    ApiStatusResponse,
-    DisplayCurrencyResponse,
-    CurrencyRatesResponse,
-    CryptoIndexConstituentResponse,
-    CryptoIndexHistoryPointResponse,
-    CryptoIndexSummaryResponse,
-    CryptoIndexResponse,
-    MACDResponse,
-    IndicatorSummaryResponse,
-    BinanceSymbolSummaryResponse,
-    BinanceExchangeInfoResponse,
-    BinanceTickerStatsItemResponse,
-    BinanceTickerStatsResponse,
-    BinancePriceTickerItemResponse,
-    BinancePriceTickerResponse,
-    BinanceBookTickerItemResponse,
-    BinanceBookTickerResponse,
-    BinanceOrderBookLevelResponse,
-    BinanceOrderBookResponse,
-    BinanceTradeItemResponse,
-    BinanceTradeListResponse,
-    BinanceKlineItemResponse,
-    BinanceKlineResponse,
-    BinanceMarkPriceItemResponse,
-    BinanceMarkPriceResponse,
-    BinanceFundingInfoItemResponse,
-    BinanceFundingInfoResponse,
-    BinanceFundingHistoryItemResponse,
-    BinanceFundingHistoryListResponse,
-    BinanceOpenInterestSnapshotResponse,
-    BinanceOpenInterestStatItemResponse,
-    BinanceOpenInterestStatsResponse,
-    BinanceRatioItemResponse,
-    BinanceRatioSeriesResponse,
-    BinanceTakerVolumeItemResponse,
-    BinanceTakerVolumeResponse,
-    BinanceBasisResponse,
-    BinanceBreakoutMonitorSummaryResponse,
-    BinanceBreakoutMonitorItemResponse,
-    BinanceBreakoutMonitorResponse,
-    BinanceMarketPageResponse,
-    BinanceWeb3RankItemResponse,
-    BinanceWeb3UnifiedTokenRankResponse,
-    BinanceWeb3SocialHypeItemResponse,
-    BinanceWeb3SocialHypeResponse,
-    BinanceWeb3SmartMoneyInflowItemResponse,
-    BinanceWeb3SmartMoneyInflowResponse,
-    BinanceWeb3MemeRankItemResponse,
-    BinanceWeb3MemeRankResponse,
-    BinanceWeb3AddressPnlItemResponse,
-    BinanceWeb3AddressPnlResponse,
-    BinanceWeb3HeatRankItemResponse,
-    BinanceWeb3HeatRankResponse,
-    BinanceWeb3TokenDynamicResponse,
-    BinanceWeb3TokenKlineItemResponse,
-    BinanceWeb3TokenKlineResponse,
-    BinanceWeb3TokenAuditResponse,
-    BinanceRwaSymbolItemResponse,
-    BinanceRwaSymbolListResponse,
-    BinanceRwaMetaResponse,
-    BinanceRwaMarketStatusResponse,
-    BinanceRwaDynamicResponse,
-    BinanceRwaKlineItemResponse,
-    BinanceRwaKlineResponse,
-)
+TARGET_FILES = ("backtest.ts", "factor.ts", "market.ts", "tools.ts", "config.ts")
 
 
 def main() -> None:
     grouped_models: dict[str, list[type[BaseModel]]] = defaultdict(list)
-    for model in SCHEMA_MODELS:
+    for model in collect_route_contract_models():
         grouped_models[resolve_target_file(model)].append(model)
 
     for filename in TARGET_FILES:
         content = render_file(grouped_models.get(filename, []))
         (FRONTEND_TYPES_DIR / filename).write_text(content, encoding="utf-8")
-    (FRONTEND_MARKET_MODULE_DIR / "generatedSymbolCatalog.ts").write_text(render_symbol_catalog_module(), encoding="utf-8")
+    (FRONTEND_MARKET_MODULE_DIR / "generatedSymbolCatalog.ts").write_text(
+        render_symbol_catalog_module(), encoding="utf-8"
+    )
+
+
+def collect_route_contract_models() -> tuple[type[BaseModel], ...]:
+    models: dict[str, type[BaseModel]] = {}
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        for model in extract_pydantic_models(route.response_model):
+            models.setdefault(model.__name__, model)
+        body_field = getattr(route, "body_field", None)
+        if body_field is not None:
+            for model in extract_pydantic_models(body_field.type_):
+                models.setdefault(model.__name__, model)
+    if not models:
+        raise RuntimeError("No FastAPI contract models were discovered")
+    return tuple(models.values())
+
+
+def extract_pydantic_models(annotation: Any) -> tuple[type[BaseModel], ...]:
+    if annotation is None:
+        return ()
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return (annotation,)
+    models: list[type[BaseModel]] = []
+    for arg in get_args(annotation):
+        models.extend(extract_pydantic_models(arg))
+    return tuple(models)
 
 
 def resolve_target_file(model: type[BaseModel]) -> str:
@@ -359,6 +67,10 @@ def resolve_target_file(model: type[BaseModel]) -> str:
         return "factor.ts"
     if module_name.endswith(".market") or module_name.endswith(".binance_market"):
         return "market.ts"
+    if module_name.endswith(".tools"):
+        return "tools.ts"
+    if module_name.endswith(".config"):
+        return "config.ts"
     return "backtest.ts"
 
 
@@ -377,7 +89,7 @@ def render_file(models: list[type[BaseModel]]) -> str:
                 definitions[def_name] = normalized_def_schema
 
     lines = [
-        "// This file is generated from backend Pydantic schemas.",
+        "// This file is generated from backend FastAPI route contracts.",
         "// Do not edit manually.",
         "",
     ]

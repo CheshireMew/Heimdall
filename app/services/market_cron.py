@@ -1,12 +1,9 @@
 import asyncio
 import logging
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
-from app.infra.db.database import init_db, session_scope
+from app.infra.db.database import session_scope
+from app.infra.db.schema_runtime import init_db
 from app.infra.db.schema import MarketIndicatorMeta, MarketIndicatorData
-from config import settings
-from app.services.data_retention import cleanup_old_data
 
 logger = logging.getLogger(__name__)
 
@@ -118,38 +115,6 @@ class MarketIndicatorCronJob:
             except Exception as e:
                  logger.error(f"Failed to save Market Indicator to DB: {e}")
                  raise
-
-# 全局单例调度器
-scheduler = AsyncIOScheduler()
-
-def _schedule_deferred_start(callback, *, delay_seconds: float = 1.0) -> None:
-    async def _runner() -> None:
-        await asyncio.sleep(delay_seconds)
-        await callback()
-
-    asyncio.create_task(_runner())
-
-
-def start_scheduler():
-    """启动全局异步定时器"""
-    if scheduler.running:
-        logger.info("Market Indicator Scheduler already running, skip duplicate start.")
-        return
-
-    job = MarketIndicatorCronJob()
-
-    # 避免首轮后台任务与 API 启动争抢导入和网络资源
-    _schedule_deferred_start(job.run, delay_seconds=15.0)
-
-    # 设定每 4 小时执行一次数据汇总汇聚
-    scheduler.add_job(job.run, 'interval', hours=settings.MARKET_CRON_INTERVAL_HOURS, id='fetch_market_indicators', replace_existing=True)
-
-    # 数据保留清理: 每 24 小时执行一次
-    _schedule_deferred_start(cleanup_old_data, delay_seconds=30.0)
-    scheduler.add_job(cleanup_old_data, 'interval', hours=24, id='data_retention_cleanup', replace_existing=True)
-
-    scheduler.start()
-    logger.info(f"Market Indicator Scheduler Started. Fetching every {settings.MARKET_CRON_INTERVAL_HOURS} hours.")
 
 if __name__ == "__main__":
     init_db()

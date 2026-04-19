@@ -2,6 +2,7 @@ import request, { longTaskRequest } from '@/api/request'
 import type { AxiosResponse } from 'axios'
 import type {
   BacktestDetailResponse,
+  BacktestDeleteResponse,
   BacktestRun,
   BacktestStartRequest,
   BacktestStartResponse,
@@ -40,11 +41,11 @@ export const backtestApi = {
     return request.post(`/paper/${runId}/stop`)
   },
 
-  deleteRun(backtestId: number): Promise<AxiosResponse<PaperStopResponse>> {
+  deleteRun(backtestId: number): Promise<AxiosResponse<BacktestDeleteResponse>> {
     return request.delete(`/backtest/${backtestId}`)
   },
 
-  deletePaperRun(runId: number): Promise<AxiosResponse<PaperStopResponse>> {
+  deletePaperRun(runId: number): Promise<AxiosResponse<BacktestDeleteResponse>> {
     return request.delete(`/paper/${runId}`)
   },
 

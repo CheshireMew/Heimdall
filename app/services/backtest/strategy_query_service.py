@@ -14,9 +14,12 @@ from app.services.backtest.strategy_catalog import (
     get_template_runtime_contract,
 )
 from app.services.backtest.run_form_contract import backtest_run_defaults
-from app.services.backtest.strategy_contract import editor_contract, strategy_runtime_profile
+from app.services.backtest.strategy_contract import editor_contract
 
-from .strategy_support import normalize_strategy_version_payload
+from .strategy_support import (
+    build_strategy_version_response_payload,
+    normalize_strategy_version_payload,
+)
 
 
 class StrategyQueryService:
@@ -36,35 +39,59 @@ class StrategyQueryService:
 
     def list_strategies(self) -> list[dict[str, Any]]:
         with session_scope() as session:
-            definitions = (
-                session.query(StrategyDefinition)
-                .order_by(StrategyDefinition.category.asc(), StrategyDefinition.name.asc())
+            definitions = [
+                self._definition_snapshot(row)
+                for row in (
+                    session.query(StrategyDefinition)
+                    .order_by(
+                        StrategyDefinition.category.asc(), StrategyDefinition.name.asc()
+                    )
+                    .all()
+                )
+            ]
+            version_rows = [
+                self._version_snapshot(row)
+                for row in session.query(StrategyVersion)
+                .order_by(StrategyVersion.version.desc())
                 .all()
-            )
-            version_rows = session.query(StrategyVersion).order_by(StrategyVersion.version.desc()).all()
+            ]
 
-        versions_by_key: dict[str, list[StrategyVersion]] = {}
+        versions_by_key: dict[str, list[dict[str, Any]]] = {}
         for version_row in version_rows:
-            versions_by_key.setdefault(version_row.strategy_key, []).append(version_row)
+            versions_by_key.setdefault(version_row["strategy_key"], []).append(
+                version_row
+            )
 
         result: list[dict[str, Any]] = []
-        builtin_by_key = {item["key"]: deepcopy(item) for item in get_builtin_strategy_definitions()}
+        builtin_by_key = {
+            item["key"]: deepcopy(item) for item in get_builtin_strategy_definitions()
+        }
 
         for strategy_key, builtin in builtin_by_key.items():
-            db_versions = [row for row in versions_by_key.get(strategy_key, []) if row.version != 1]
-            has_custom_default = any(row.is_default for row in db_versions)
+            db_versions = [
+                row
+                for row in versions_by_key.get(strategy_key, [])
+                if row["version"] != 1
+            ]
+            has_custom_default = any(row["is_default"] for row in db_versions)
             builtin_versions = []
             for version_payload in builtin["versions"]:
                 builtin_versions.append(
-                    self._build_version_payload(
-                        template=builtin["template"],
-                        version=version_payload["version"],
-                        name=version_payload["name"],
-                        notes=version_payload.get("notes"),
-                        is_default=version_payload.get("is_default", False) and not has_custom_default,
-                        config=version_payload["config"] or {},
-                        parameter_space=version_payload.get("parameter_space") or {},
-                        version_id=None,
+                    build_strategy_version_response_payload(
+                        StrategyVersionRecord(
+                            strategy_key=strategy_key,
+                            strategy_name=builtin["name"],
+                            version=version_payload["version"],
+                            template=builtin["template"],
+                            config=version_payload["config"] or {},
+                            parameter_space=version_payload.get("parameter_space")
+                            or {},
+                            notes=version_payload.get("notes"),
+                            version_name=version_payload["name"],
+                            id=None,
+                            is_default=version_payload.get("is_default", False)
+                            and not has_custom_default,
+                        )
                     )
                 )
 
@@ -76,7 +103,9 @@ class StrategyQueryService:
                     "category": builtin["category"],
                     "description": builtin.get("description"),
                     "is_active": True,
-                    "template_runtime": get_template_runtime_contract(builtin["template"]),
+                    "template_runtime": get_template_runtime_contract(
+                        builtin["template"]
+                    ),
                     "versions": [
                         *self._build_db_versions(builtin["template"], db_versions),
                         *builtin_versions,
@@ -85,47 +114,76 @@ class StrategyQueryService:
             )
 
         for definition in definitions:
-            if definition.key in builtin_by_key:
+            if definition["key"] in builtin_by_key:
                 continue
             result.append(
                 {
-                    "key": definition.key,
-                    "name": definition.name,
-                    "template": definition.template,
-                    "category": definition.category,
-                    "description": definition.description,
-                    "is_active": definition.is_active,
-                    "template_runtime": get_template_runtime_contract(definition.template),
-                    "versions": self._build_db_versions(definition.template, versions_by_key.get(definition.key, [])),
+                    "key": definition["key"],
+                    "name": definition["name"],
+                    "template": definition["template"],
+                    "category": definition["category"],
+                    "description": definition["description"],
+                    "is_active": definition["is_active"],
+                    "template_runtime": get_template_runtime_contract(
+                        definition["template"]
+                    ),
+                    "versions": self._build_db_versions(
+                        definition["template"],
+                        versions_by_key.get(definition["key"], []),
+                    ),
                 }
             )
 
         return sorted(result, key=lambda item: (item["category"], item["name"].lower()))
 
-    def get_strategy_version(self, strategy_key: str, version: int | None = None) -> StrategyVersionRecord:
+    def get_strategy_version(
+        self, strategy_key: str, version: int | None = None
+    ) -> StrategyVersionRecord:
         builtin_definition = self._get_builtin_definition(strategy_key)
         with session_scope() as session:
-            definition = session.query(StrategyDefinition).filter(StrategyDefinition.key == strategy_key).first()
-            db_versions = (
-                session.query(StrategyVersion)
-                .filter(StrategyVersion.strategy_key == strategy_key)
-                .order_by(StrategyVersion.is_default.desc(), StrategyVersion.version.desc())
-                .all()
+            definition_row = (
+                session.query(StrategyDefinition)
+                .filter(StrategyDefinition.key == strategy_key)
+                .first()
             )
+            definition = (
+                self._definition_snapshot(definition_row)
+                if definition_row is not None
+                else None
+            )
+            db_versions = [
+                self._version_snapshot(row)
+                for row in (
+                    session.query(StrategyVersion)
+                    .filter(StrategyVersion.strategy_key == strategy_key)
+                    .order_by(
+                        StrategyVersion.is_default.desc(),
+                        StrategyVersion.version.desc(),
+                    )
+                    .all()
+                )
+            ]
 
         if builtin_definition:
-            filtered_versions = [row for row in db_versions if row.version != 1]
+            filtered_versions = [row for row in db_versions if row["version"] != 1]
             if version is None:
-                selected = next((row for row in filtered_versions if row.is_default), None)
+                selected = next(
+                    (row for row in filtered_versions if row["is_default"]), None
+                )
                 if selected is None:
                     return self._build_builtin_version_record(builtin_definition)
             elif version == 1:
                 return self._build_builtin_version_record(builtin_definition)
             else:
-                selected = next((row for row in filtered_versions if row.version == version), None)
+                selected = next(
+                    (row for row in filtered_versions if row["version"] == version),
+                    None,
+                )
 
             if selected is None:
-                raise ValueError(f"策略不存在: {strategy_key} v{version if version is not None else 'default'}")
+                raise ValueError(
+                    f"策略不存在: {strategy_key} v{version if version is not None else 'default'}"
+                )
             return self._build_strategy_version_record(
                 definition_name=builtin_definition["name"],
                 description=builtin_definition.get("description"),
@@ -135,69 +193,58 @@ class StrategyQueryService:
             )
 
         if not definition:
-            raise ValueError(f"策略不存在: {strategy_key} v{version if version is not None else 'default'}")
+            raise ValueError(
+                f"策略不存在: {strategy_key} v{version if version is not None else 'default'}"
+            )
 
         selected = None
         if version is None:
             selected = db_versions[0] if db_versions else None
         else:
-            selected = next((row for row in db_versions if row.version == version), None)
+            selected = next(
+                (row for row in db_versions if row["version"] == version), None
+            )
         if selected is None:
-            raise ValueError(f"策略不存在: {strategy_key} v{version if version is not None else 'default'}")
+            raise ValueError(
+                f"策略不存在: {strategy_key} v{version if version is not None else 'default'}"
+            )
         return self._build_strategy_version_record(
-            definition_name=definition.name,
-            description=definition.description,
-            template=definition.template,
+            definition_name=definition["name"],
+            description=definition["description"],
+            template=definition["template"],
             strategy_key=strategy_key,
             strategy_version=selected,
         )
 
-    def _build_db_versions(self, template: str, versions: list[StrategyVersion]) -> list[dict[str, Any]]:
+    def _build_db_versions(
+        self, template: str, versions: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         return [
-            self._build_version_payload(
-                template=template,
-                version=version.version,
-                name=version.name,
-                notes=version.notes,
-                is_default=version.is_default,
-                config=version.config or {},
-                parameter_space=version.parameter_space or {},
-                version_id=version.id,
+            build_strategy_version_response_payload(
+                StrategyVersionRecord(
+                    strategy_key=version["strategy_key"],
+                    strategy_name=version["name"],
+                    version=version["version"],
+                    template=template,
+                    config=version["config"] or {},
+                    parameter_space=version["parameter_space"] or {},
+                    notes=version["notes"],
+                    version_name=version["name"],
+                    id=version["id"],
+                    is_default=version["is_default"],
+                )
             )
             for version in versions
         ]
 
-    def _build_version_payload(
-        self,
-        *,
-        template: str,
-        version: int,
-        name: str,
-        notes: str | None,
-        is_default: bool,
-        config: dict[str, Any],
-        parameter_space: dict[str, Any],
-        version_id: int | None,
-    ) -> dict[str, Any]:
-        normalized_config, normalized_parameter_space = normalize_strategy_version_payload(
-            template,
-            config,
-            parameter_space,
-        )
-        return {
-            "id": version_id,
-            "version": version,
-            "name": name,
-            "notes": notes,
-            "is_default": is_default,
-            "config": normalized_config,
-            "parameter_space": normalized_parameter_space,
-            "runtime": strategy_runtime_profile(normalized_config),
-        }
-
-    def _build_builtin_version_record(self, definition: dict[str, Any]) -> StrategyVersionRecord:
+    def _build_builtin_version_record(
+        self, definition: dict[str, Any]
+    ) -> StrategyVersionRecord:
         version_payload = definition["versions"][0]
-        normalized_config, normalized_parameter_space = normalize_strategy_version_payload(
+        (
+            normalized_config,
+            normalized_parameter_space,
+        ) = normalize_strategy_version_payload(
             definition["template"],
             version_payload["config"] or {},
             version_payload.get("parameter_space") or {},
@@ -223,29 +270,60 @@ class StrategyQueryService:
         description: str | None,
         template: str,
         strategy_key: str,
-        strategy_version: StrategyVersion,
+        strategy_version: dict[str, Any],
     ) -> StrategyVersionRecord:
-        normalized_config, normalized_parameter_space = normalize_strategy_version_payload(
+        (
+            normalized_config,
+            normalized_parameter_space,
+        ) = normalize_strategy_version_payload(
             template,
-            strategy_version.config or {},
-            strategy_version.parameter_space or {},
+            strategy_version["config"] or {},
+            strategy_version["parameter_space"] or {},
         )
         return StrategyVersionRecord(
             strategy_key=strategy_key,
             strategy_name=definition_name,
-            version=strategy_version.version,
+            version=strategy_version["version"],
             template=template,
             config=normalized_config,
             parameter_space=normalized_parameter_space,
             description=description,
-            notes=strategy_version.notes,
-            version_name=strategy_version.name,
-            id=strategy_version.id,
-            is_default=strategy_version.is_default,
+            notes=strategy_version["notes"],
+            version_name=strategy_version["name"],
+            id=strategy_version["id"],
+            is_default=strategy_version["is_default"],
         )
+
+    @staticmethod
+    def _definition_snapshot(row: StrategyDefinition) -> dict[str, Any]:
+        return {
+            "key": row.key,
+            "name": row.name,
+            "template": row.template,
+            "category": row.category,
+            "description": row.description,
+            "is_active": row.is_active,
+        }
+
+    @staticmethod
+    def _version_snapshot(row: StrategyVersion) -> dict[str, Any]:
+        return {
+            "id": row.id,
+            "strategy_key": row.strategy_key,
+            "version": row.version,
+            "name": row.name,
+            "config": row.config,
+            "parameter_space": row.parameter_space,
+            "notes": row.notes,
+            "is_default": row.is_default,
+        }
 
     def _get_builtin_definition(self, strategy_key: str) -> dict[str, Any] | None:
         return next(
-            (definition for definition in get_builtin_strategy_definitions() if definition["key"] == strategy_key),
+            (
+                definition
+                for definition in get_builtin_strategy_definitions()
+                if definition["key"] == strategy_key
+            ),
             None,
         )

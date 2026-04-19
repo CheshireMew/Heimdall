@@ -18,7 +18,7 @@ from app.services.backtest.freqtrade_strategy_runtime import (
     resolve_freqtrade_strategy_runtime,
 )
 from app.services.backtest.strategy_catalog import get_indicator_registry_map
-from app.services.backtest.strategy_contract import set_by_path
+from app.services.backtest.strategy_contract import normalize_strategy_identifier, set_by_path
 from app.services.backtest.strategy_runtime import StrategyRuntime
 
 
@@ -207,6 +207,7 @@ class {self.strategy_class_name}(IStrategy):
         for timeframe, indicator_items in timeframes.items():
             frame_var = frame_vars[timeframe]
             for indicator_id, indicator, indicator_spec in indicator_items:
+                normalize_strategy_identifier(indicator_id, "指标标识")
                 lines.extend(self._render_indicator_block(frame_var, indicator_id, indicator, indicator_spec))
 
         for timeframe in sorted([key for key in timeframes.keys() if key != base_timeframe], key=self._timeframe_sort_key):
@@ -313,14 +314,22 @@ class {self.strategy_class_name}(IStrategy):
             expression = f'dataframe["{source.get("field", "close")}"]'
             return self._apply_shift(expression, bars_ago)
         if kind == "indicator":
+            normalize_strategy_identifier(source.get("indicator"), "指标标识")
+            normalize_strategy_identifier(source.get("output") or "value", "指标输出")
             expression = f'dataframe["{source.get("indicator")}__{source.get("output", "value")}"]'
             return self._apply_shift(expression, bars_ago)
         if kind == "value":
             return repr(float(source.get("value", 0)))
         if kind == "indicator_multiplier":
+            normalize_strategy_identifier(source.get("indicator"), "指标标识")
+            normalize_strategy_identifier(source.get("output") or "value", "指标输出")
             expression = f'(dataframe["{source.get("indicator")}__{source.get("output", "value")}"] * {float(source.get("multiplier", 1.0))})'
             return self._apply_shift(expression, bars_ago)
         if kind == "indicator_offset":
+            normalize_strategy_identifier(source.get("base_indicator"), "基础指标标识")
+            normalize_strategy_identifier(source.get("base_output") or "value", "基础指标输出")
+            normalize_strategy_identifier(source.get("offset_indicator"), "偏移指标标识")
+            normalize_strategy_identifier(source.get("offset_output") or "value", "偏移指标输出")
             expression = (
                 f'(dataframe["{source.get("base_indicator")}__{source.get("base_output", "value")}"] '
                 f'- dataframe["{source.get("offset_indicator")}__{source.get("offset_output", "value")}"] * {float(source.get("offset_multiplier", 1.0))})'
@@ -420,6 +429,9 @@ class {self.strategy_class_name}(IStrategy):
         resistance_indicator = str(trade_plan.get("resistance_indicator") or "").strip()
         if not atr_indicator or not support_indicator or not resistance_indicator:
             raise ValueError("trade_plan 已启用，但缺少 ATR / 支撑 / 阻力指标")
+        normalize_strategy_identifier(atr_indicator, "ATR 指标标识")
+        normalize_strategy_identifier(support_indicator, "支撑指标标识")
+        normalize_strategy_identifier(resistance_indicator, "阻力指标标识")
         stop_multiplier = float(trade_plan.get("stop_multiplier") or 1.0)
         min_stop_pct = float(trade_plan.get("min_stop_pct") or 0.01)
         reward_multiplier = float(trade_plan.get("reward_multiplier") or 2.0)

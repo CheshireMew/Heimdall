@@ -5,11 +5,10 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-from config.settings import BASE_DIR
 from config import settings
 
 
-CONFIG_PATH = BASE_DIR / "data" / "llm_provider_config.json"
+CONFIG_PATH = settings.LLM_CONFIG_PATH
 
 LLM_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
     "deepseek": {
@@ -147,6 +146,7 @@ def save_llm_config(payload: dict[str, Any]) -> dict[str, Any]:
         "modelId": model_id,
         "reasoningEnabled": reasoning_enabled,
     }
+    # 密钥属于本机运行时状态，不能落在仓库目录里；路径由 settings 统一指定。
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(json.dumps(saved, ensure_ascii=False, indent=2), encoding="utf-8")
     return read_llm_config()

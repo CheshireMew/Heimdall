@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, Field
+
+from app.schemas.json_types import JsonValue
 
 
 class MACDResponse(BaseModel):
@@ -21,13 +21,38 @@ class IndicatorSummaryResponse(BaseModel):
     annualized_volatility_pct: float | None = None
 
 
+class OhlcvPointResponse(BaseModel):
+    timestamp: int
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+
+
+class MarketHistoryResponse(BaseModel):
+    symbol: str
+    timeframe: str
+    items: list[OhlcvPointResponse] = Field(default_factory=list)
+
+
+class MarketHistoryBatchItemResponse(BaseModel):
+    symbol: str
+    items: list[OhlcvPointResponse] = Field(default_factory=list)
+
+
+class MarketHistoryBatchResponse(BaseModel):
+    timeframe: str
+    items: list[MarketHistoryBatchItemResponse] = Field(default_factory=list)
+
+
 class RealtimeResponse(BaseModel):
     symbol: str
     timestamp: str
     current_price: float
     indicators: IndicatorSummaryResponse
-    ai_analysis: Any | None
-    kline_data: list[list[float]]
+    ai_analysis: JsonValue | None
+    kline_data: list[OhlcvPointResponse] = Field(default_factory=list)
     timeframe: str | None = None
     type: str | None = None
 
@@ -37,7 +62,7 @@ class KlineTailResponse(BaseModel):
     timeframe: str
     timestamp: str
     current_price: float | None
-    kline_data: list[list[float]]
+    kline_data: list[OhlcvPointResponse] = Field(default_factory=list)
 
 
 class CurrentPriceResponse(BaseModel):
@@ -157,7 +182,7 @@ class MarketIndexHistoryResponse(BaseModel):
     pricing_currency: str | None = None
     is_close_only: bool = False
     count: int
-    data: list[list[float]]
+    data: list[OhlcvPointResponse] = Field(default_factory=list)
 
 
 class FundingRateSnapshotResponse(BaseModel):
@@ -250,3 +275,37 @@ class CryptoIndexResponse(BaseModel):
     is_partial: bool = False
     resolved_constituents_count: int | None = None
     missing_symbols: list[str] = Field(default_factory=list)
+
+
+def build_ohlcv_points(rows: list[list[float]]) -> list[OhlcvPointResponse]:
+    # API 边界统一输出命名字段，前端不再依赖 [0]-[5] 这种位置约定。
+    return [
+        OhlcvPointResponse(
+            timestamp=int(row[0]),
+            open=float(row[1]),
+            high=float(row[2]),
+            low=float(row[3]),
+            close=float(row[4]),
+            volume=float(row[5]),
+        )
+        for row in rows
+        if isinstance(row, list) and len(row) >= 6
+    ]
+
+
+def build_market_history_response(*, symbol: str, timeframe: str, rows: list[list[float]]) -> MarketHistoryResponse:
+    return MarketHistoryResponse(symbol=symbol, timeframe=timeframe, items=build_ohlcv_points(rows))
+
+
+def build_market_history_batch_response(
+    *,
+    timeframe: str,
+    series_by_symbol: dict[str, list[list[float]]],
+) -> MarketHistoryBatchResponse:
+    return MarketHistoryBatchResponse(
+        timeframe=timeframe,
+        items=[
+            MarketHistoryBatchItemResponse(symbol=symbol, items=build_ohlcv_points(rows))
+            for symbol, rows in series_by_symbol.items()
+        ],
+    )

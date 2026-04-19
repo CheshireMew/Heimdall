@@ -2,158 +2,23 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, type WatchS
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import type { BacktestRun, BacktestRunDefaults, StrategyDefinition, StrategyEditorContract, StrategyVersion } from '@/types'
-import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
+import type { BacktestRun, StrategyDefinition, StrategyEditorContract, StrategyVersion } from '@/types'
+import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
 import { backtestApi } from './api'
 import { asNumber } from './format'
+import {
+  applyBacktestPageSnapshot,
+  createBacktestPageSnapshotDefaults,
+  createEmptyBacktestPageSnapshot,
+  normalizeBacktestPageSnapshot,
+  readOptimizeMetric,
+  readStakeMode,
+} from './pageSnapshots'
 import { supportsPaperTrading, supportsVersionEditing } from './templateRuntime'
 import { useBacktestRuns } from './useBacktestRuns'
 import { defineReactiveView, type BacktestControlPanelView, type BacktestHistoryPanelView } from './viewTypes'
 
-interface BacktestPageSnapshot {
-  config: {
-    strategy_key: string
-    strategy_version: number
-    timeframe: string
-    start_date: string
-    end_date: string
-    initial_cash: number
-    fee_rate: number
-    portfolio: {
-      max_open_trades: number
-      position_size_pct: number
-      stake_mode: 'fixed' | 'unlimited'
-    }
-    research: {
-      slippage_bps: number
-      funding_rate_daily: number
-      in_sample_ratio: number
-      optimize_metric: 'sharpe' | 'profit_pct' | 'calmar' | 'profit_factor'
-      optimize_trials: number
-      rolling_windows: number
-    }
-  }
-  symbolsText: string
-  historyMode: 'backtest' | 'paper'
-}
-
 const todayIso = () => new Date().toISOString().slice(0, 10)
-
-const createEmptySnapshot = (): BacktestPageSnapshot => ({
-  config: {
-    strategy_key: '',
-    strategy_version: 1,
-    timeframe: '',
-    start_date: '',
-    end_date: '',
-    initial_cash: 0,
-    fee_rate: 0,
-    portfolio: {
-      max_open_trades: 1,
-      position_size_pct: 0,
-      stake_mode: 'fixed',
-    },
-    research: {
-      slippage_bps: 0,
-      funding_rate_daily: 0,
-      in_sample_ratio: 100,
-      optimize_metric: 'sharpe',
-      optimize_trials: 0,
-      rolling_windows: 0,
-    },
-  },
-  symbolsText: '',
-  historyMode: 'backtest',
-})
-
-const createSnapshotDefaults = (runDefaults: BacktestRunDefaults): BacktestPageSnapshot => ({
-  config: {
-    strategy_key: runDefaults.strategy_key ?? '',
-    strategy_version: 1,
-    timeframe: runDefaults.timeframe ?? '1h',
-    start_date: runDefaults.start_date ?? todayIso(),
-    end_date: runDefaults.end_date ?? todayIso(),
-    initial_cash: runDefaults.initial_cash ?? 10000,
-    fee_rate: runDefaults.fee_rate ?? 0,
-    portfolio: {
-      max_open_trades: runDefaults.portfolio?.max_open_trades ?? 1,
-      position_size_pct: runDefaults.portfolio?.position_size_pct ?? 0,
-      stake_mode: runDefaults.portfolio?.stake_mode ?? 'fixed',
-    },
-    research: {
-      slippage_bps: runDefaults.research?.slippage_bps ?? 0,
-      funding_rate_daily: runDefaults.research?.funding_rate_daily ?? 0,
-      in_sample_ratio: runDefaults.research?.in_sample_ratio ?? 100,
-      optimize_metric: readOptimizeMetric(runDefaults.research?.optimize_metric, 'sharpe'),
-      optimize_trials: runDefaults.research?.optimize_trials ?? 0,
-      rolling_windows: runDefaults.research?.rolling_windows ?? 0,
-    },
-  },
-  symbolsText: (runDefaults.portfolio?.symbols || []).join(', '),
-  historyMode: runDefaults.history_mode === 'paper' ? 'paper' : 'backtest',
-})
-
-const normalizeSnapshot = (value: unknown, defaults: BacktestPageSnapshot): BacktestPageSnapshot => {
-  if (!isRecord(value) || !isRecord(value.config)) return defaults
-  const config = value.config
-  const portfolio = isRecord(config.portfolio) ? config.portfolio : {}
-  const research = isRecord(config.research) ? config.research : {}
-  const historyMode = readString(value.historyMode, defaults.historyMode)
-
-  return {
-    config: {
-      strategy_key: readString(config.strategy_key, defaults.config.strategy_key),
-      strategy_version: readNumber(config.strategy_version, defaults.config.strategy_version),
-      timeframe: readString(config.timeframe, defaults.config.timeframe),
-      start_date: readString(config.start_date, defaults.config.start_date),
-      end_date: readString(config.end_date, defaults.config.end_date),
-      initial_cash: readNumber(config.initial_cash, defaults.config.initial_cash),
-      fee_rate: readNumber(config.fee_rate, defaults.config.fee_rate),
-      portfolio: {
-        max_open_trades: readNumber(portfolio.max_open_trades, defaults.config.portfolio.max_open_trades),
-        position_size_pct: readNumber(portfolio.position_size_pct, defaults.config.portfolio.position_size_pct),
-        stake_mode: readStakeMode(portfolio.stake_mode, defaults.config.portfolio.stake_mode),
-      },
-      research: {
-        slippage_bps: readNumber(research.slippage_bps, defaults.config.research.slippage_bps),
-        funding_rate_daily: readNumber(research.funding_rate_daily, defaults.config.research.funding_rate_daily),
-        in_sample_ratio: readNumber(research.in_sample_ratio, defaults.config.research.in_sample_ratio),
-        optimize_metric: readOptimizeMetric(research.optimize_metric, defaults.config.research.optimize_metric),
-        optimize_trials: readNumber(research.optimize_trials, defaults.config.research.optimize_trials),
-        rolling_windows: readNumber(research.rolling_windows, defaults.config.research.rolling_windows),
-      },
-    },
-    symbolsText: readString(value.symbolsText, defaults.symbolsText),
-    historyMode: historyMode === 'paper' ? 'paper' : 'backtest',
-  }
-}
-
-const applySnapshot = (
-  config: BacktestPageSnapshot['config'],
-  snapshot: BacktestPageSnapshot,
-  symbolsText: { value: string },
-  historyMode: { value: 'backtest' | 'paper' },
-) => {
-  config.strategy_key = snapshot.config.strategy_key
-  config.strategy_version = snapshot.config.strategy_version
-  config.timeframe = snapshot.config.timeframe
-  config.start_date = snapshot.config.start_date
-  config.end_date = snapshot.config.end_date
-  config.initial_cash = snapshot.config.initial_cash
-  config.fee_rate = snapshot.config.fee_rate
-  config.portfolio = { ...snapshot.config.portfolio }
-  config.research = { ...snapshot.config.research }
-  symbolsText.value = snapshot.symbolsText
-  historyMode.value = snapshot.historyMode
-}
-
-const readStakeMode = (value: unknown, fallback: 'fixed' | 'unlimited') => (
-  value === 'unlimited' ? 'unlimited' : fallback
-)
-
-const readOptimizeMetric = (value: unknown, fallback: 'sharpe' | 'profit_pct' | 'calmar' | 'profit_factor') => (
-  value === 'sharpe' || value === 'profit_pct' || value === 'calmar' || value === 'profit_factor' ? value : fallback
-)
 
 export const useBacktestPage = () => {
   const { t } = useI18n()
@@ -164,7 +29,7 @@ export const useBacktestPage = () => {
   const ready = ref(false)
   const editorContract = ref<StrategyEditorContract | null>(null)
   const strategies = ref<StrategyDefinition[]>([])
-  const config = reactive(createEmptySnapshot().config)
+  const config = reactive(createEmptyBacktestPageSnapshot().config)
 
   const selectedStrategy = computed<StrategyDefinition | null>(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
   const selectedStrategyVersions = computed<StrategyVersion[]>(() => {
@@ -232,13 +97,13 @@ export const useBacktestPage = () => {
   }
 
   const bindSnapshot = (contract: StrategyEditorContract) => {
-    const defaults = createSnapshotDefaults(contract.run_defaults)
+    const defaults = createBacktestPageSnapshotDefaults(contract.run_defaults)
     const pageSnapshot = createPageSnapshot(
       PAGE_SNAPSHOT_KEYS.backtest,
-      (value) => normalizeSnapshot(value, defaults),
+      (value) => normalizeBacktestPageSnapshot(value, defaults),
       defaults,
     )
-    applySnapshot(config, pageSnapshot.load(), runs.symbolsText, runs.historyMode)
+    applyBacktestPageSnapshot(config, pageSnapshot.load(), runs.symbolsText, runs.historyMode)
     snapshotStopHandle?.()
     snapshotStopHandle = bindPageSnapshot(
       [config, runs.symbolsText, runs.historyMode],

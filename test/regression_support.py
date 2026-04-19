@@ -1128,8 +1128,18 @@ class StubToolsAppService:
     async def simulate_dca(self, command):
         return {
             "symbol": command.symbol,
+            "start_date": "2024-01-01",
+            "end_date": "2024-12-31",
+            "target_time": "23:00",
+            "total_days": 365,
             "total_invested": 1200.0,
-            "current_value": 1480.0,
+            "final_value": 1480.0,
+            "total_coins": 0.02,
+            "roi": 23.33,
+            "average_cost": 60000.0,
+            "profit_loss": 280.0,
+            "current_price": 74000.0,
+            "history": [],
             "profit_pct": 23.33,
         }
 
@@ -1137,6 +1147,10 @@ class StubToolsAppService:
         return {
             "symbol_a": command.symbol_a,
             "symbol_b": command.symbol_b,
+            "data_a": [],
+            "data_b": [],
+            "ratio_ohlc": [],
+            "ratio_symbol": f"{command.symbol_a}/{command.symbol_b}",
             "relative_strength": 1.12,
         }
 

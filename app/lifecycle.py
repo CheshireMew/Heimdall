@@ -18,9 +18,9 @@ def _logger():
 
 
 def _init_db() -> None:
-    from app.infra.db.database import prepare_db
+    from app.infra.db.schema_runtime import verify_database_schema
 
-    prepare_db()
+    verify_database_schema()
 
 
 async def _init_db_async(app) -> None:
@@ -56,6 +56,13 @@ async def _shutdown_background_services(app) -> None:
         await background_runtime.shutdown()
 
 
+def _dispose_runtime_services(app) -> None:
+    runtime_services = getattr(app.state, "runtime_services", None)
+    database_runtime = getattr(runtime_services, "database_runtime", None) if runtime_services is not None else None
+    if database_runtime is not None:
+        database_runtime.dispose()
+
+
 async def _cancel_task(task: asyncio.Task | None) -> None:
     if task is None or task.done():
         return
@@ -77,6 +84,7 @@ async def lifespan(app):
     await _cancel_task(getattr(app.state, "background_services_task", None))
     await _cancel_task(getattr(app.state, "database_task", None))
     await _shutdown_background_services(app)
+    _dispose_runtime_services(app)
 
 
 def requires_runtime_initialization(path: str) -> bool:
@@ -89,7 +97,9 @@ def build_health_payload(app) -> tuple[dict[str, object], int]:
     database_error = getattr(app.state, "database_error", None)
     background_services_error = getattr(app.state, "background_services_error", None)
     background_runtime = getattr(app.state, "background_runtime", None)
-    background_runtime_state = background_runtime.state if background_runtime is not None else None
+    background_runtime_state = (
+        background_runtime.state if background_runtime is not None else None
+    )
 
     background_component = "disabled"
     if background_runtime_state is not None:
@@ -98,7 +108,13 @@ def build_health_payload(app) -> tuple[dict[str, object], int]:
         background_component = "starting"
 
     components = {
-        "database": "failed" if database_error else ("starting" if database_task is not None and not database_task.done() else "ready"),
+        "database": "failed"
+        if database_error
+        else (
+            "starting"
+            if database_task is not None and not database_task.done()
+            else "ready"
+        ),
         "background_runtime": background_component,
     }
 
@@ -116,7 +132,10 @@ def build_health_payload(app) -> tuple[dict[str, object], int]:
             "components": components,
             "detail": "Background services failed",
         }, 503
-    if background_runtime_state is not None and background_runtime_state.status == BackgroundRuntimeStatus.FAILED:
+    if (
+        background_runtime_state is not None
+        and background_runtime_state.status == BackgroundRuntimeStatus.FAILED
+    ):
         return {
             "status": "unhealthy",
             "version": "2.0.0",
@@ -142,5 +161,7 @@ async def wait_for_background_services(request: Request, call_next):
         if database_task is not None and not database_task.done():
             await database_task
         if getattr(request.app.state, "database_error", None) is not None:
-            return JSONResponse(status_code=503, content={"detail": "Database initialization failed"})
+            return JSONResponse(
+                status_code=503, content={"detail": "Database initialization failed"}
+            )
     return await call_next(request)

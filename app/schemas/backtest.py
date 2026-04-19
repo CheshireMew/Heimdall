@@ -12,6 +12,7 @@ from app.schemas.strategy_contract import (
     StrategyIndicatorParamResponse,
     StrategyTemplateConfigResponse,
 )
+from app.schemas.json_types import JsonObject, JsonValue
 from app.contracts.backtest import (
     BacktestStartCommand,
     CreateIndicatorDefinitionCommand,
@@ -21,7 +22,10 @@ from app.contracts.backtest import (
     PortfolioConfigRecord,
     ResearchConfigRecord,
 )
-from app.schemas.backtest_result import BacktestReportResponse, BacktestRunMetadataResponse
+from app.schemas.backtest_result import (
+    BacktestReportResponse,
+    BacktestRunMetadataResponse,
+)
 from app.services.backtest.run_form_contract import (
     DEFAULT_FEE_RATE,
     DEFAULT_HISTORY_MODE,
@@ -34,12 +38,19 @@ from app.services.backtest.run_form_contract import (
     OPTIMIZE_METRIC_OPTIONS,
     default_backtest_dates,
 )
+from app.services.backtest.symbol_contract import normalize_backtest_symbols
 
 
 class BacktestPortfolioRequest(BaseModel):
-    symbols: list[str] = Field(default_factory=lambda: list(DEFAULT_PORTFOLIO["symbols"]))
-    max_open_trades: int = Field(default=DEFAULT_PORTFOLIO["max_open_trades"], ge=1, le=50)
-    position_size_pct: float = Field(default=DEFAULT_PORTFOLIO["position_size_pct"], gt=0, le=100)
+    symbols: list[str] = Field(
+        default_factory=lambda: list(DEFAULT_PORTFOLIO["symbols"])
+    )
+    max_open_trades: int = Field(
+        default=DEFAULT_PORTFOLIO["max_open_trades"], ge=1, le=50
+    )
+    position_size_pct: float = Field(
+        default=DEFAULT_PORTFOLIO["position_size_pct"], gt=0, le=100
+    )
     stake_mode: Literal["fixed", "unlimited"] = DEFAULT_PORTFOLIO["stake_mode"]
 
     @field_validator("symbols", mode="before")
@@ -51,20 +62,34 @@ class BacktestPortfolioRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_portfolio(self) -> "BacktestPortfolioRequest":
+        self.symbols = normalize_backtest_symbols(self.symbols)
         if not self.symbols:
             raise ValueError("至少选择一个交易对")
-        if self.stake_mode == "fixed" and self.position_size_pct * self.max_open_trades > 100:
+        if (
+            self.stake_mode == "fixed"
+            and self.position_size_pct * self.max_open_trades > 100
+        ):
             raise ValueError("固定仓位下，单笔仓位百分比乘以最大持仓数不能超过 100")
         return self
 
 
 class BacktestResearchRequest(BaseModel):
     slippage_bps: float = Field(default=DEFAULT_RESEARCH["slippage_bps"], ge=0, le=1000)
-    funding_rate_daily: float = Field(default=DEFAULT_RESEARCH["funding_rate_daily"], ge=-10, le=10)
-    in_sample_ratio: float = Field(default=DEFAULT_RESEARCH["in_sample_ratio"], ge=50, le=100)
-    optimize_metric: Literal["sharpe", "profit_pct", "calmar", "profit_factor"] = DEFAULT_RESEARCH["optimize_metric"]
-    optimize_trials: int = Field(default=DEFAULT_RESEARCH["optimize_trials"], ge=0, le=500)
-    rolling_windows: int = Field(default=DEFAULT_RESEARCH["rolling_windows"], ge=0, le=24)
+    funding_rate_daily: float = Field(
+        default=DEFAULT_RESEARCH["funding_rate_daily"], ge=-10, le=10
+    )
+    in_sample_ratio: float = Field(
+        default=DEFAULT_RESEARCH["in_sample_ratio"], ge=50, le=100
+    )
+    optimize_metric: Literal[
+        "sharpe", "profit_pct", "calmar", "profit_factor"
+    ] = DEFAULT_RESEARCH["optimize_metric"]
+    optimize_trials: int = Field(
+        default=DEFAULT_RESEARCH["optimize_trials"], ge=0, le=500
+    )
+    rolling_windows: int = Field(
+        default=DEFAULT_RESEARCH["rolling_windows"], ge=0, le=24
+    )
 
 
 class BacktestStartRequest(BaseModel):
@@ -75,7 +100,9 @@ class BacktestStartRequest(BaseModel):
     end_date: date = Field(default_factory=lambda: default_backtest_dates()[1])
     initial_cash: float = Field(default=DEFAULT_INITIAL_CASH, gt=0)
     fee_rate: float = Field(default=DEFAULT_FEE_RATE, ge=0, le=100)
-    portfolio: BacktestPortfolioRequest = Field(default_factory=BacktestPortfolioRequest)
+    portfolio: BacktestPortfolioRequest = Field(
+        default_factory=BacktestPortfolioRequest
+    )
     research: BacktestResearchRequest = Field(default_factory=BacktestResearchRequest)
 
     @model_validator(mode="after")
@@ -128,7 +155,9 @@ class PaperStartRequest(BaseModel):
     timeframe: str = DEFAULT_TIMEFRAME
     initial_cash: float = Field(default=DEFAULT_INITIAL_CASH, gt=0)
     fee_rate: float = Field(default=DEFAULT_FEE_RATE, ge=0, le=100)
-    portfolio: BacktestPortfolioRequest = Field(default_factory=BacktestPortfolioRequest)
+    portfolio: BacktestPortfolioRequest = Field(
+        default_factory=BacktestPortfolioRequest
+    )
 
     def to_command(self) -> PaperStartCommand:
         return PaperStartCommand(
@@ -178,7 +207,7 @@ class BacktestSignalResponse(BaseModel):
     price: float
     signal: str
     confidence: float
-    indicators: dict[str, Any] | None = None
+    indicators: JsonObject | None = None
     reasoning: str | None = None
 
 
@@ -237,13 +266,13 @@ class BacktestDetailResponse(BacktestRunResponse):
 
 
 class StrategyVersionResponse(BaseModel):
-    id: int
+    id: int | None
     version: int
     name: str
     notes: str | None = None
     is_default: bool
     config: StrategyTemplateConfigResponse
-    parameter_space: dict[str, list[Any]]
+    parameter_space: dict[str, list[JsonValue]]
     runtime: "StrategyRunProfileResponse"
 
 
@@ -255,7 +284,9 @@ class StrategyTemplateCapabilitiesResponse(BaseModel):
 
 class StrategyTemplateRuntimeResponse(BaseModel):
     builder_kind: str = "rules"
-    capabilities: StrategyTemplateCapabilitiesResponse = Field(default_factory=StrategyTemplateCapabilitiesResponse)
+    capabilities: StrategyTemplateCapabilitiesResponse = Field(
+        default_factory=StrategyTemplateCapabilitiesResponse
+    )
 
 
 class StrategyDefinitionResponse(BaseModel):
@@ -265,7 +296,9 @@ class StrategyDefinitionResponse(BaseModel):
     category: str
     description: str | None = None
     is_active: bool
-    template_runtime: StrategyTemplateRuntimeResponse = Field(default_factory=StrategyTemplateRuntimeResponse)
+    template_runtime: StrategyTemplateRuntimeResponse = Field(
+        default_factory=StrategyTemplateRuntimeResponse
+    )
     versions: list[StrategyVersionResponse]
 
 
@@ -310,27 +343,37 @@ class StrategyTemplateResponse(BaseModel):
     category: str
     description: str | None = None
     is_builtin: bool = False
-    template_runtime: StrategyTemplateRuntimeResponse = Field(default_factory=StrategyTemplateRuntimeResponse)
+    template_runtime: StrategyTemplateRuntimeResponse = Field(
+        default_factory=StrategyTemplateRuntimeResponse
+    )
     indicator_keys: list[str] = Field(default_factory=list)
     indicator_registry: list[StrategyIndicatorRegistryResponse]
     operators: list[StrategyOperatorResponse]
     group_logics: list[StrategyGroupLogicResponse]
     default_config: StrategyTemplateConfigResponse
-    default_parameter_space: dict[str, list[Any]]
+    default_parameter_space: dict[str, list[JsonValue]]
 
 
 class BacktestRunDefaultsResponse(BaseModel):
     strategy_key: str = DEFAULT_STRATEGY_KEY
     timeframe: str = DEFAULT_TIMEFRAME
-    start_date: str = Field(default_factory=lambda: default_backtest_dates()[0].isoformat())
-    end_date: str = Field(default_factory=lambda: default_backtest_dates()[1].isoformat())
+    start_date: str = Field(
+        default_factory=lambda: default_backtest_dates()[0].isoformat()
+    )
+    end_date: str = Field(
+        default_factory=lambda: default_backtest_dates()[1].isoformat()
+    )
     initial_cash: float = DEFAULT_INITIAL_CASH
     fee_rate: float = DEFAULT_FEE_RATE
-    portfolio: BacktestPortfolioRequest = Field(default_factory=BacktestPortfolioRequest)
+    portfolio: BacktestPortfolioRequest = Field(
+        default_factory=BacktestPortfolioRequest
+    )
     research: BacktestResearchRequest = Field(default_factory=BacktestResearchRequest)
     history_mode: Literal["backtest", "paper"] = DEFAULT_HISTORY_MODE
     optimize_metric_options: list[StrategyOperatorResponse] = Field(
-        default_factory=lambda: [StrategyOperatorResponse(**item) for item in OPTIMIZE_METRIC_OPTIONS]
+        default_factory=lambda: [
+            StrategyOperatorResponse(**item) for item in OPTIMIZE_METRIC_OPTIONS
+        ]
     )
 
 
@@ -353,7 +396,7 @@ class StrategyVersionCreateRequest(BaseModel):
     category: str
     description: str | None = None
     config: StrategyTemplateConfigResponse
-    parameter_space: dict[str, list[Any]] = Field(default_factory=dict)
+    parameter_space: dict[str, list[JsonValue]] = Field(default_factory=dict)
     notes: str | None = None
     make_default: bool = True
 
@@ -395,7 +438,7 @@ class StrategyTemplateCreateRequest(BaseModel):
     description: str | None = None
     indicator_keys: list[str] = Field(default_factory=list)
     default_config: StrategyTemplateConfigResponse
-    default_parameter_space: dict[str, list[Any]] = Field(default_factory=dict)
+    default_parameter_space: dict[str, list[JsonValue]] = Field(default_factory=dict)
 
     def to_command(self) -> CreateStrategyTemplateCommand:
         return CreateStrategyTemplateCommand(

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from typing import Any, Callable
+
 from app.domain.market.prompt_engine import PromptEngine
 from app.domain.market.trade_setup import TradeSetupEngine, TradeSetupRequest
-from app.services.market.app_service_support import build_llm_client
 from app.services.market.crypto_index_service import CryptoIndexService
 from app.services.market.indicator_service import IndicatorService
-from app.services.market.query_app_service import MarketQueryAppService
 from app.services.market.market_data_service import MarketDataService
+from app.services.market.query_app_service import MarketQueryAppService
 
 
 class MarketInsightAppService:
@@ -16,10 +17,12 @@ class MarketInsightAppService:
         indicator_service: IndicatorService,
         crypto_index_service: CryptoIndexService,
         market_query_service: MarketQueryAppService,
+        llm_client_factory: Callable[[], Any | None] | None = None,
     ) -> None:
         self.indicator_service = indicator_service
         self.crypto_index_service = crypto_index_service
         self.market_query_service = market_query_service
+        self.llm_client_factory = llm_client_factory or (lambda: None)
         self.trade_setup_engine = TradeSetupEngine()
 
     def get_indicators(self, category: str | None, days: int) -> list[dict]:
@@ -60,7 +63,7 @@ class MarketInsightAppService:
         if mode == "rules":
             return self.trade_setup_engine.build_rules(request, kline_data, indicators)
 
-        llm_client = build_llm_client()
+        llm_client = self.llm_client_factory()
         if not llm_client:
             return self.trade_setup_engine.build_ai(request, kline_data, None)
         prompt = PromptEngine.build_trade_setup_prompt(

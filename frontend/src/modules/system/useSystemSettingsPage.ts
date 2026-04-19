@@ -1,6 +1,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 
-import { systemApi, type LlmProviderConfigResponse } from './api'
+import type { LlmProviderConfigResponse, LlmProviderPresetResponse, SystemConfigResponse } from '@/types'
+import { systemApi } from './api'
 
 interface LlmConfigForm {
   provider: string
@@ -12,7 +13,8 @@ interface LlmConfigForm {
 }
 
 export const useSystemSettingsPage = () => {
-  const presets = ref<LlmProviderConfigResponse['presets']>([])
+  const systemConfig = ref<SystemConfigResponse | null>(null)
+  const presets = ref<LlmProviderPresetResponse[]>([])
   const apiKeyDraft = ref('')
   const saving = ref(false)
   const message = ref('')
@@ -69,8 +71,12 @@ export const useSystemSettingsPage = () => {
   const loadConfig = async () => {
     error.value = ''
     try {
-      const response = await systemApi.getLlmConfig()
-      applyConfig(response.data)
+      const [systemResponse, llmResponse] = await Promise.all([
+        systemApi.getConfig(),
+        systemApi.getLlmConfig(),
+      ])
+      systemConfig.value = systemResponse.data
+      applyConfig(llmResponse.data)
     } catch (err) {
       console.error('Load LLM config failed', err)
       error.value = '加载配置失败'
@@ -103,6 +109,7 @@ export const useSystemSettingsPage = () => {
   onMounted(loadConfig)
 
   return {
+    systemConfig,
     presets,
     apiKeyDraft,
     saving,

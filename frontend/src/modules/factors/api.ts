@@ -7,6 +7,7 @@ import type {
   FactorResearchRequest,
   FactorResearchResponse,
   FactorResearchRun,
+  FactorResearchRunDetail,
 } from '@/types'
 
 export const factorApi = {
@@ -22,7 +23,7 @@ export const factorApi = {
     return request.get('/factor-research/runs', { params: { limit } })
   },
 
-  getRun(runId: number): Promise<AxiosResponse<FactorResearchRun>> {
+  getRun(runId: number): Promise<AxiosResponse<FactorResearchRunDetail>> {
     return request.get(`/factor-research/runs/${runId}`)
   },
 

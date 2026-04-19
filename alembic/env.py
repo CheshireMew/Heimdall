@@ -12,8 +12,8 @@ from app.infra.db.schema import Base
 # Alembic Config 对象
 config = context.config
 
-# 用项目的 DATABASE_URL 覆盖 alembic.ini 中的 sqlalchemy.url
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+if not config.attributes.get("use_configured_database_url"):
+    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 # 配置日志
 if config.config_file_name is not None:

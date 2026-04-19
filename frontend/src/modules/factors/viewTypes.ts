@@ -1,11 +1,23 @@
+import type {
+  FactorBlend,
+  FactorCatalogItem,
+  FactorCatalogResponse,
+  FactorDetail,
+  FactorExecutionRequest,
+  FactorResearchRequest,
+  FactorResearchRun,
+  FactorResearchSummary,
+  FactorScorecard,
+} from '@/types'
+
 export interface FactorResearchHeroView {
   catalog: { forward_horizons: number[] }
 }
 
 export interface FactorResearchFiltersView {
-  form: any
-  catalog: any
-  factorPool: any[]
+  form: FactorResearchRequest
+  catalog: FactorCatalogResponse
+  factorPool: FactorCatalogItem[]
   loading: boolean
   catalogLoading: boolean
   runAnalysis: () => Promise<void>
@@ -18,10 +30,10 @@ export interface FactorResearchFiltersView {
 
 export interface FactorResearchSidebarView {
   runsLoading: boolean
-  runs: any[]
+  runs: FactorResearchRun[]
   selectedRunId: number | null
-  blend: any | null
-  executionForm: any
+  blend: FactorBlend | null
+  executionForm: FactorExecutionRequest
   executionLoading: '' | 'backtest' | 'paper'
   loadRun: (runId: number) => Promise<void>
   startExecution: (mode: 'backtest' | 'paper') => Promise<void>
@@ -33,11 +45,11 @@ export interface FactorResearchSidebarView {
 
 export interface FactorResearchDetailView {
   isDark: boolean
-  ranking: any[]
+  ranking: FactorScorecard[]
   loading: boolean
   selectedFactorId: string
-  selectedDetail: any | null
-  blend: any | null
+  selectedDetail: FactorDetail | null
+  blend: FactorBlend | null
   selectFactor: (factorId: string) => void
   scoreClass: (score: number) => string
   correlationClass: (value: number) => string
@@ -47,6 +59,6 @@ export interface FactorResearchDetailView {
 }
 
 export interface FactorResearchSummaryView {
-  summary: any | null
+  summary: FactorResearchSummary | null
   formatDate: (value: string | null | undefined) => string
 }

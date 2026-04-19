@@ -2,21 +2,18 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Chart, ChartConfiguration, ChartDataset } from 'chart.js'
 
-import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readBoolean, readString } from '@/composables/pageSnapshot'
+import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
+import type { OhlcvPointResponse } from '@/types'
 import { marketApi } from './api'
-
-interface HalvingPageSnapshot {
-  showPhases: boolean
-  scaleType: 'logarithmic' | 'linear'
-}
+import { createDefaultHalvingSnapshot, normalizeHalvingSnapshot } from './pageSnapshots'
 
 interface HalvingChartRuntime {
   Chart: typeof import('chart.js').Chart
 }
 
-type HalvingAnnotationMap = Record<string, any>
+type HalvingAnnotationMap = Record<string, Record<string, unknown>>
 
 const HALVING_DATES = [
   { date: '2012-11-28', label: 'H1' },
@@ -30,21 +27,6 @@ const LAST_HALVING_DATE = new Date('2024-04-20')
 const NEXT_HALVING_ESTIMATE = new Date('2028-04-17')
 const ONE_DAY = 24 * 60 * 60 * 1000
 const CURRENT_PRICE_REFRESH_INTERVAL_MS = 15_000
-
-const createDefaultSnapshot = (): HalvingPageSnapshot => ({
-  showPhases: true,
-  scaleType: 'logarithmic',
-})
-
-const normalizeSnapshot = (value: unknown): HalvingPageSnapshot => {
-  const defaults = createDefaultSnapshot()
-  if (!isRecord(value)) return defaults
-  const scaleType = readString(value.scaleType, defaults.scaleType)
-  return {
-    showPhases: readBoolean(value.showPhases, defaults.showPhases),
-    scaleType: scaleType === 'linear' ? 'linear' : 'logarithmic',
-  }
-}
 
 const nextAnimationFrame = () => new Promise<void>((resolve) => {
   requestAnimationFrame(() => resolve())
@@ -81,12 +63,12 @@ export function useHalvingPage() {
   const { t } = useI18n()
   const { theme } = useTheme()
   const { displayCurrency, toDisplayAmount, formatMoney } = useMoney()
-  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.halving, normalizeSnapshot, createDefaultSnapshot())
+  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.halving, normalizeHalvingSnapshot, createDefaultHalvingSnapshot())
   const restoredSnapshot = pageSnapshot.load()
 
   const loading = ref(true)
   const chartCanvas = ref<HTMLCanvasElement | null>(null)
-  const historyData = ref<any[]>([])
+  const historyData = ref<OhlcvPointResponse[]>([])
   const currentPrice = ref(0)
   const showPhases = ref(restoredSnapshot.showPhases)
   const scaleType = ref<'logarithmic' | 'linear'>(restoredSnapshot.scaleType)
@@ -106,8 +88,8 @@ export function useHalvingPage() {
 
   const seriesData = computed(() =>
     historyData.value.map((row) => ({
-      x: row[0],
-      y: toDisplayAmount(row[4], 'USDT') ?? 0,
+      x: row.timestamp,
+      y: toDisplayAmount(row.close, 'USDT') ?? 0,
     })),
   )
 
@@ -341,13 +323,10 @@ export function useHalvingPage() {
         symbol: 'BTC/USDT',
         start_date: '2010-07-01',
         timeframe: '1d',
-        fetch_policy: 'cache_only',
       })
-      if (Array.isArray(response.data)) {
-        historyData.value = response.data.filter((row) => row[4] > 0)
-        if (currentPrice.value <= 0 && historyData.value.length > 0) {
-          currentPrice.value = Number(historyData.value[historyData.value.length - 1][4]) || 0
-        }
+      historyData.value = (response.data.items || []).filter((row) => row.close > 0)
+      if (currentPrice.value <= 0 && historyData.value.length > 0) {
+        currentPrice.value = Number(historyData.value[historyData.value.length - 1]?.close || 0)
       }
     } catch (error) {
       console.error('Fetch halving history failed', error)

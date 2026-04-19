@@ -1,35 +1,17 @@
 import { computed, onMounted, ref } from 'vue'
 
-import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber } from '@/composables/pageSnapshot'
+import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS, readNumber } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
 import { marketApi } from './api'
 import type { CryptoIndexConstituent, CryptoIndexHistoryPoint, CryptoIndexResponse } from '@/types'
-
-interface CryptoIndexSnapshot {
-  topN: number
-  days: number
-}
-
-const createDefaultSnapshot = (): CryptoIndexSnapshot => ({
-  topN: 20,
-  days: 90,
-})
-
-const normalizeSnapshot = (value: unknown): CryptoIndexSnapshot => {
-  const defaults = createDefaultSnapshot()
-  if (!isRecord(value)) return defaults
-  return {
-    topN: readNumber(value.topN, defaults.topN),
-    days: readNumber(value.days, defaults.days),
-  }
-}
+import { createDefaultCryptoIndexSnapshot, normalizeCryptoIndexSnapshot } from './pageSnapshots'
 
 
 export function useCryptoIndexPage() {
   const { theme } = useTheme()
   const { formatMoney, formatCompactMoney } = useMoney()
-  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.cryptoIndex, normalizeSnapshot, createDefaultSnapshot())
+  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.cryptoIndex, normalizeCryptoIndexSnapshot, createDefaultCryptoIndexSnapshot())
   const restoredSnapshot = pageSnapshot.load()
 
   const basketSizes = [10, 20, 50]

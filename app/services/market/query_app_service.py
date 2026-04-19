@@ -4,11 +4,9 @@ import asyncio
 from datetime import datetime
 from typing import Any, Callable, Literal
 
-from app.infra.llm_client import LLMClient
 from app.services.market.app_service_support import (
     VALID_MARKET_SYMBOLS,
     VALID_MARKET_TIMEFRAMES,
-    build_llm_client,
     validate_market_request,
 )
 from app.services.market.history_service import HistoryService
@@ -25,12 +23,12 @@ class MarketQueryAppService:
         realtime_service: RealtimeService,
         history_service: HistoryService,
         binance_snapshot_service=None,
-        llm_client_factory: Callable[[], LLMClient | None] = build_llm_client,
+        llm_client_factory: Callable[[], Any | None] | None = None,
     ) -> None:
         self.realtime_service = realtime_service
         self.history_service = history_service
         self.binance_snapshot_service = binance_snapshot_service
-        self.llm_client_factory = llm_client_factory
+        self.llm_client_factory = llm_client_factory or (lambda: None)
         self.valid_symbols = list(VALID_MARKET_SYMBOLS)
         self.valid_timeframes = list(VALID_MARKET_TIMEFRAMES)
 

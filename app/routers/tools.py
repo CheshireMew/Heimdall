@@ -5,14 +5,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 
 from app.dependencies import get_tools_app_service
 from app.rate_limit import limiter
-from app.schemas.tools import DCARequestSchema, DynamicToolResponse, PairCompareRequestSchema
+from app.routers.errors import service_http_error
+from app.schemas.tools import DCARequestSchema, DCAResponse, PairCompareRequestSchema, PairCompareToolResponse
 from app.services.tools.contracts import ComparePairsCommand, SimulateDcaCommand
 from config import settings
-from utils.logger import logger
 
 if TYPE_CHECKING:
     from app.services.tools.app_service import ToolsAppService
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 router = APIRouter()
 
 
-@router.post("/dca_simulate", response_model=DynamicToolResponse)
+@router.post("/dca_simulate", response_model=DCAResponse)
 @limiter.limit(settings.RATE_LIMIT_HEAVY)
 async def dca_simulate(
     request: Request,
@@ -41,14 +41,11 @@ async def dca_simulate(
                 strategy_params=dict(body.strategy_params or {}),
             )
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
-        logger.error(f"API Error (DCA): {exc}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise service_http_error("API Error (DCA)", exc)
 
 
-@router.post("/compare_pairs", response_model=DynamicToolResponse)
+@router.post("/compare_pairs", response_model=PairCompareToolResponse)
 @limiter.limit(settings.RATE_LIMIT_HEAVY)
 async def compare_pairs(
     request: Request,
@@ -64,8 +61,5 @@ async def compare_pairs(
                 timeframe=body.timeframe,
             )
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
-        logger.error(f"API Error (Pair Comparison): {exc}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise service_http_error("API Error (Pair Comparison)", exc)

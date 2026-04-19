@@ -33,6 +33,15 @@ import {
   touchPortfolio,
 } from './snapshot'
 
+type RequestError = {
+  message?: string
+  response?: {
+    data?: {
+      detail?: string
+    }
+  }
+}
+
 export function usePortfolioBalancePage() {
   const pageSnapshot = createPageSnapshot(
     PAGE_SNAPSHOT_KEYS.portfolioBalance,
@@ -73,8 +82,9 @@ export function usePortfolioBalancePage() {
     sourceError.value = ''
   }
 
-  const toUserError = (error: any, fallback: string) => {
-    const message = String(error?.response?.data?.detail || error?.message || '').trim()
+  const toUserError = (error: unknown, fallback: string) => {
+    const requestError = error as RequestError
+    const message = String(requestError.response?.data?.detail || requestError.message || '').trim()
     if (!message) return fallback
     if (message.includes('Background on this error at:') || message.includes('sqlalche.me/e/')) {
       return '历史数据处理失败，请稍后重试。'
@@ -120,7 +130,7 @@ export function usePortfolioBalancePage() {
           : `已刷新 ${successCount} 个标的`
       }
       touchPortfolio(portfolio)
-    } catch (error: any) {
+    } catch (error: unknown) {
       sourceError.value = toUserError(error, '刷新市场价格失败')
     } finally {
       marketLoading.value = false
@@ -285,7 +295,7 @@ export function usePortfolioBalancePage() {
 
       lastImportedRun.value = targetRun
       sourceMessage.value = `已导入模拟盘 #${targetRun.id}`
-    } catch (error: any) {
+    } catch (error: unknown) {
       sourceError.value = toUserError(error, '导入模拟盘持仓失败')
     } finally {
       importLoading.value = false
@@ -319,7 +329,7 @@ export function usePortfolioBalancePage() {
         currentPortfolio.lastBacktestResult = nextResult
       })
       sourceMessage.value = `已生成 ${nextResult.startDate} 到 ${nextResult.endDate} 的回测结果`
-    } catch (error: any) {
+    } catch (error: unknown) {
       sourceError.value = toUserError(error, '组合回测失败')
     } finally {
       backtestLoading.value = false

@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 
 import { marketApi } from '@/modules/market'
-import type { BacktestDetailResponse, CandlestickData, OHLCVRaw, VolumeData } from '@/types'
+import type { BacktestDetailResponse, CandlestickData, OhlcvPointResponse, VolumeData } from '@/types'
 
 import type { BacktestChartData } from './viewTypes'
 
@@ -23,12 +23,18 @@ export const useBacktestRunChart = () => {
       start_date: startDate,
       fetch_policy: 'hydrate',
     })
-    const candles = (res.data || []).filter((item: OHLCVRaw) => item[0] <= endTs)
-    chartData.candles = candles.map<CandlestickData>((item) => ({ time: item[0] / 1000, open: item[1], high: item[2], low: item[3], close: item[4] }))
+    const candles = (res.data.items || []).filter((item: OhlcvPointResponse) => item.timestamp <= endTs)
+    chartData.candles = candles.map<CandlestickData>((item) => ({
+      time: item.timestamp / 1000,
+      open: item.open,
+      high: item.high,
+      low: item.low,
+      close: item.close,
+    }))
     chartData.volume = candles.map<VolumeData>((item) => ({
-      time: item[0] / 1000,
-      value: item[5],
-      color: item[4] >= item[1] ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+      time: item.timestamp / 1000,
+      value: item.volume,
+      color: item.close >= item.open ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)',
     }))
   }
 

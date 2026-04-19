@@ -5,68 +5,17 @@ import { useRouter } from 'vue-router'
 import {
   bindPageSnapshot,
   createPageSnapshot,
-  isRecord,
   PAGE_SNAPSHOT_KEYS,
   readNumber,
   readString,
-  readStringArray,
 } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
 
-import { createFactorExecutionForm, createFactorResearchForm, createFactorResearchState } from './state'
+import { createDefaultFactorResearchSnapshot, normalizeFactorResearchSnapshot } from './pageSnapshot'
+import { createFactorResearchState } from './state'
 import { useFactorResearchData } from './useFactorResearchData'
 import { useFactorResearchFormatting } from './useFactorResearchFormatting'
 import { useFactorResearchSelection } from './useFactorResearchSelection'
-
-interface FactorResearchSnapshot {
-  form: ReturnType<typeof createFactorResearchForm>
-  executionForm: ReturnType<typeof createFactorExecutionForm>
-  selectedRunId: number | null
-  selectedFactorId: string
-}
-
-const normalizeSnapshot = (value: unknown): FactorResearchSnapshot => {
-  const defaultForm = createFactorResearchForm()
-  const defaultExecutionForm = createFactorExecutionForm()
-  if (!isRecord(value)) {
-    return {
-      form: defaultForm,
-      executionForm: defaultExecutionForm,
-      selectedRunId: null,
-      selectedFactorId: '',
-    }
-  }
-
-  const form = isRecord(value.form) ? value.form : {}
-  const executionForm = isRecord(value.executionForm) ? value.executionForm : {}
-
-  return {
-    form: {
-      symbol: readString(form.symbol, defaultForm.symbol),
-      timeframe: ['1h', '4h', '1d'].includes(readString(form.timeframe, defaultForm.timeframe))
-        ? readString(form.timeframe, defaultForm.timeframe) as typeof defaultForm.timeframe
-        : defaultForm.timeframe,
-      days: readNumber(form.days, defaultForm.days),
-      horizon_bars: readNumber(form.horizon_bars, defaultForm.horizon_bars),
-      max_lag_bars: readNumber(form.max_lag_bars, defaultForm.max_lag_bars),
-      categories: readStringArray(form.categories),
-      factor_ids: readStringArray(form.factor_ids),
-    },
-    executionForm: {
-      initial_cash: readNumber(executionForm.initial_cash, defaultExecutionForm.initial_cash),
-      fee_rate: readNumber(executionForm.fee_rate, defaultExecutionForm.fee_rate),
-      position_size_pct: readNumber(executionForm.position_size_pct, defaultExecutionForm.position_size_pct),
-      stake_mode: readString(executionForm.stake_mode, defaultExecutionForm.stake_mode) === 'unlimited' ? 'unlimited' : 'fixed',
-      entry_threshold: typeof executionForm.entry_threshold === 'number' ? executionForm.entry_threshold : null,
-      exit_threshold: typeof executionForm.exit_threshold === 'number' ? executionForm.exit_threshold : null,
-      stoploss_pct: readNumber(executionForm.stoploss_pct, defaultExecutionForm.stoploss_pct),
-      takeprofit_pct: readNumber(executionForm.takeprofit_pct, defaultExecutionForm.takeprofit_pct),
-      max_hold_bars: readNumber(executionForm.max_hold_bars, defaultExecutionForm.max_hold_bars),
-    },
-    selectedRunId: typeof value.selectedRunId === 'number' ? value.selectedRunId : null,
-    selectedFactorId: readString(value.selectedFactorId, ''),
-  }
-}
 
 
 export const useFactorResearchPage = () => {
@@ -75,13 +24,8 @@ export const useFactorResearchPage = () => {
   const router = useRouter()
   const pageSnapshot = createPageSnapshot(
     PAGE_SNAPSHOT_KEYS.factorResearch,
-    normalizeSnapshot,
-    {
-      form: createFactorResearchForm(),
-      executionForm: createFactorExecutionForm(),
-      selectedRunId: null,
-      selectedFactorId: '',
-    },
+    normalizeFactorResearchSnapshot,
+    createDefaultFactorResearchSnapshot(),
   )
   const restoredSnapshot = pageSnapshot.load()
 

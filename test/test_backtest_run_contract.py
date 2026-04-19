@@ -3,7 +3,10 @@ from __future__ import annotations
 from contextlib import contextmanager
 from datetime import datetime
 
+import pytest
+
 from app.infra.db.schema import BacktestRun
+from app.schemas.backtest import BacktestPortfolioRequest
 from app.services.backtest.run_repository import BacktestRunRepository
 from app.services.backtest.run_contract import update_paper_metadata
 from app.services.backtest.serializers import serialize_backtest_run
@@ -89,3 +92,14 @@ def test_update_paper_metadata_preserves_last_synced_end():
     )
 
     assert payload["runtime_state"]["last_synced_end"] == 1710000000000
+
+
+def test_backtest_portfolio_symbols_use_market_catalog_contract():
+    payload = BacktestPortfolioRequest(symbols=["btc", "ETH/USDT", "btc/usdt"])
+
+    assert payload.symbols == ["BTC/USDT", "ETH/USDT"]
+
+
+def test_backtest_portfolio_rejects_unknown_symbol():
+    with pytest.raises(ValueError, match="回测不支持的交易对"):
+        BacktestPortfolioRequest(symbols=["BAD\\USDT"])

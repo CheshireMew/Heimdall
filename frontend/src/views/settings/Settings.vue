@@ -108,8 +108,8 @@
         <div class="grid gap-3 text-sm text-gray-600 dark:text-gray-400 md:grid-cols-2">
           <div>{{ $t('settings.env') }}: {{ $t('settings.production') }}</div>
           <div>{{ $t('settings.version') }}: 2.0.0 (Vue + FastAPI)</div>
-          <div>{{ $t('settings.db') }}: PostgreSQL</div>
-          <div>{{ $t('settings.cache') }}: Redis</div>
+          <div>{{ $t('settings.db') }}: {{ systemConfig?.runtime?.database_engine || '-' }}</div>
+          <div>{{ $t('settings.cache') }}: {{ systemConfig?.runtime?.cache_backend || '-' }}</div>
         </div>
       </section>
     </div>
@@ -129,6 +129,7 @@ import { useSystemSettingsPage } from '@/modules/system'
 const { ratesAreFallback, ratesUpdatedAt } = useMoney()
 const { formatDateTime } = useDateTime()
 const {
+  systemConfig,
   presets,
   apiKeyDraft,
   saving,

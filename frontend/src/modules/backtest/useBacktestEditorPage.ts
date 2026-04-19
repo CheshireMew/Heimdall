@@ -2,7 +2,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, type WatchS
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
-import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
+import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
 import type {
   StrategyDefinition,
   StrategyEditorContract,
@@ -13,6 +13,7 @@ import type {
 } from '@/types'
 
 import type { BacktestEditorSeedPanel, BacktestVersionEditorPanel, StrategySelectionConfig } from './editorTypes'
+import { createDefaultBacktestEditorPageSnapshot, normalizeBacktestEditorPageSnapshot } from './pageSnapshots'
 import { defineReactiveView } from './viewTypes'
 import { useBacktestEditor } from './useBacktestEditor'
 import { useBacktestEditorActions } from './useBacktestEditorActions'
@@ -20,40 +21,15 @@ import { useBacktestEditorCatalog } from './useBacktestEditorCatalog'
 import { useBacktestEditorSeeds } from './useBacktestEditorSeeds'
 import { supportsPaperTrading, supportsVersionEditing } from './templateRuntime'
 
-interface BacktestEditorPageSnapshot {
-  config: {
-    strategy_key: string
-    strategy_version: number
-  }
-  editor: unknown
-}
-
-const createDefaultSnapshot = (): BacktestEditorPageSnapshot => ({
-  config: {
-    strategy_key: '',
-    strategy_version: 0,
-  },
-  editor: null,
-})
-
-const normalizeSnapshot = (value: unknown): BacktestEditorPageSnapshot => {
-  const defaults = createDefaultSnapshot()
-  if (!isRecord(value) || !isRecord(value.config)) return defaults
-  return {
-    config: {
-      strategy_key: readString(value.config.strategy_key, defaults.config.strategy_key),
-      strategy_version: readNumber(value.config.strategy_version, defaults.config.strategy_version),
-    },
-    editor: value.editor ?? null,
-  }
-}
-
-
 export const useBacktestEditorPage = () => {
   const { t } = useI18n()
   const route = useRoute()
   const router = useRouter()
-  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.backtestEditor, normalizeSnapshot, createDefaultSnapshot())
+  const pageSnapshot = createPageSnapshot(
+    PAGE_SNAPSHOT_KEYS.backtestEditor,
+    normalizeBacktestEditorPageSnapshot,
+    createDefaultBacktestEditorPageSnapshot(),
+  )
   const restoredSnapshot = pageSnapshot.load()
 
   const editorContract = ref<StrategyEditorContract | null>(null)

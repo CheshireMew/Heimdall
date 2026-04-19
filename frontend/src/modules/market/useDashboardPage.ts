@@ -2,7 +2,7 @@ import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 
 import { useMoney } from '@/composables/useMoney'
 import { useTheme } from '@/composables/useTheme'
-import type { MarketSymbolSearchItem, TradeSetupResponse } from '@/types'
+import type { MarketSymbolSearchResponse, TradeSetupResponse } from '@/types'
 
 import { findSymbolCatalogItem, isIndexSymbol } from './symbolCatalog'
 import { marketApi } from './api'
@@ -57,7 +57,7 @@ export function useDashboardPage() {
     loadMore,
   } = useKlineSeries(currentSymbol, currentTimeframe)
 
-  const handleSymbolSelect = (item: MarketSymbolSearchItem) => {
+  const handleSymbolSelect = (item: MarketSymbolSearchResponse) => {
     if (item.asset_class === 'index') currentTimeframe.value = '1d'
   }
 

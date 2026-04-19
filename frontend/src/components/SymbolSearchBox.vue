@@ -93,7 +93,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { toBaseSymbol, useSymbolCatalog } from '@/modules/market'
-import type { MarketSymbolSearchItem } from '@/types'
+import type { MarketSymbolSearchResponse } from '@/types'
 
 const props = withDefaults(defineProps<{
   modelValue: string | string[]
@@ -114,7 +114,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: string | string[]]
-  select: [item: MarketSymbolSearchItem]
+  select: [item: MarketSymbolSearchResponse]
 }>()
 
 const { t } = useI18n()
@@ -158,7 +158,7 @@ const filteredSymbols = computed(() => {
     .slice(0, 80)
 })
 
-const outputValue = (item: MarketSymbolSearchItem) => props.outputMode === 'base' ? toBaseSymbol(item.symbol) : item.symbol
+const outputValue = (item: MarketSymbolSearchResponse) => props.outputMode === 'base' ? toBaseSymbol(item.symbol) : item.symbol
 
 const openSearch = async () => {
   open.value = true
@@ -172,7 +172,7 @@ const closeSearch = () => {
   query.value = ''
 }
 
-const choose = (item: MarketSymbolSearchItem) => {
+const choose = (item: MarketSymbolSearchResponse) => {
   if (isDisabled(item)) return
   const value = outputValue(item)
   if (props.multiple) {
@@ -192,15 +192,15 @@ const selectFirst = () => {
   if (first) choose(first)
 }
 
-const isSelected = (item: MarketSymbolSearchItem) => normalizedSelected.value.includes(outputValue(item))
-const isDisabled = (item: MarketSymbolSearchItem) => !props.allowedClasses.includes(item.asset_class)
+const isSelected = (item: MarketSymbolSearchResponse) => normalizedSelected.value.includes(outputValue(item))
+const isDisabled = (item: MarketSymbolSearchResponse) => !props.allowedClasses.includes(item.asset_class)
 const classLabel = (value: string) => {
   if (value === 'crypto') return t('symbolSearch.tabs.crypto')
   if (value === 'index') return t('symbolSearch.tabs.index')
   if (value === 'cash') return t('symbolSearch.tabs.cash')
   return value
 }
-const marketLabel = (item: MarketSymbolSearchItem) => item.exchange || item.market
+const marketLabel = (item: MarketSymbolSearchResponse) => item.exchange || item.market
 
 onMounted(() => {
   loadSymbols()

@@ -29,20 +29,20 @@ import type {
   RealtimeResponse,
   KlineTailResponse,
   TradeSetupResponse,
+  MarketHistoryResponse,
   HistoryParams,
   LatestKlineParams,
   TailKlineParams,
   FullHistoryParams,
   BatchFullHistoryParams,
-  BatchFullHistoryResponse,
   IndicatorParams,
-  IndicatorItem,
-  OHLCVRaw,
+  MarketHistoryBatchResponse,
+  MarketIndicatorResponse,
   CryptoIndexParams,
   CryptoIndexResponse,
   IndexHistoryParams,
   MarketIndexHistoryResponse,
-  MarketSymbolSearchItem,
+  MarketSymbolSearchResponse,
 } from '@/types'
 
 const serializeBatchFullHistoryParams = (params: BatchFullHistoryParams) => {
@@ -58,17 +58,18 @@ const serializeBatchFullHistoryParams = (params: BatchFullHistoryParams) => {
 
 const normalizePriceHistoryParams = <T extends FullHistoryParams | BatchFullHistoryParams>(params: T): T => ({
   ...params,
-  fetch_policy: params.fetch_policy ?? 'cache_only',
+  fetch_policy: params.fetch_policy ?? 'hydrate',
 })
 
 const HISTORY_RESPONSE_CACHE_LIMIT = 120
 const HISTORY_CACHE_TTL_MS = 30_000
+type CacheableHistoryPayload = MarketHistoryResponse | MarketHistoryBatchResponse | MarketIndexHistoryResponse
 const historyResponseCache = new Map<string, {
   createdAt: number
-  promise: Promise<AxiosResponse<any>>
+  promise: Promise<AxiosResponse<CacheableHistoryPayload>>
 }>()
 
-const rememberHistoryResponse = <T>(key: string, loader: () => Promise<AxiosResponse<T>>): Promise<AxiosResponse<T>> => {
+const rememberHistoryResponse = <T extends CacheableHistoryPayload>(key: string, loader: () => Promise<AxiosResponse<T>>): Promise<AxiosResponse<T>> => {
   const now = Date.now()
   const cached = historyResponseCache.get(key) as { createdAt: number; promise: Promise<AxiosResponse<T>> } | undefined
   if (cached && now - cached.createdAt < HISTORY_CACHE_TTL_MS) {
@@ -91,7 +92,7 @@ const rememberHistoryResponse = <T>(key: string, loader: () => Promise<AxiosResp
   return promise
 }
 
-const loadHistoryResponse = <T>(
+const loadHistoryResponse = <T extends CacheableHistoryPayload>(
   key: string,
   loader: () => Promise<AxiosResponse<T>>,
   useCache: boolean,
@@ -136,7 +137,7 @@ const serializeArrayParams = (params: Record<string, unknown>) => {
 }
 
 export const marketApi = {
-  getSymbols(): Promise<AxiosResponse<MarketSymbolSearchItem[]>> {
+  getSymbols(): Promise<AxiosResponse<MarketSymbolSearchResponse[]>> {
     return request.get('/symbols')
   },
 
@@ -163,15 +164,15 @@ export const marketApi = {
     })
   },
 
-  getIndicators(params: IndicatorParams): Promise<AxiosResponse<IndicatorItem[]>> {
+  getIndicators(params: IndicatorParams): Promise<AxiosResponse<MarketIndicatorResponse[]>> {
     return request.get('/indicators', { params })
   },
 
-  getPriceSeriesWindow(params: HistoryParams): Promise<AxiosResponse<OHLCVRaw[]>> {
+  getPriceSeriesWindow(params: HistoryParams): Promise<AxiosResponse<MarketHistoryResponse>> {
     return request.get('/history', { params })
   },
 
-  getLatestKlines(params: LatestKlineParams): Promise<AxiosResponse<OHLCVRaw[]>> {
+  getLatestKlines(params: LatestKlineParams): Promise<AxiosResponse<MarketHistoryResponse>> {
     return request.get('/klines/latest', { params })
   },
 
@@ -190,7 +191,7 @@ export const marketApi = {
     })
   },
 
-  getPriceHistory(params: FullHistoryParams): Promise<AxiosResponse<OHLCVRaw[]>> {
+  getPriceHistory(params: FullHistoryParams): Promise<AxiosResponse<MarketHistoryResponse>> {
     const query = normalizePriceHistoryParams(params)
     const key = historyKey('full_history', query)
     return loadHistoryResponse(
@@ -200,7 +201,7 @@ export const marketApi = {
     )
   },
 
-  getBatchPriceHistory(params: BatchFullHistoryParams): Promise<AxiosResponse<BatchFullHistoryResponse>> {
+  getBatchPriceHistory(params: BatchFullHistoryParams): Promise<AxiosResponse<MarketHistoryBatchResponse>> {
     const query = normalizePriceHistoryParams(params)
     const key = historyKey('full_history_batch', { ...query, symbols: query.symbols })
     return loadHistoryResponse(

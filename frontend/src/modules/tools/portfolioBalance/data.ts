@@ -1,5 +1,5 @@
 import { isIndexSymbol, marketApi } from '@/modules/market'
-import type { PortfolioBalancePortfolio } from '@/types'
+import type { MarketHistoryBatchItemResponse, OhlcvPointResponse, PortfolioBalancePortfolio } from '@/types'
 
 import { buildPortfolioSyntheticHistory } from './backtest'
 import { collectPortfolioMarketTargets, normalizePortfolioAssetSymbol, readPortfolioSyntheticPrice } from './model'
@@ -48,10 +48,10 @@ const rememberHistoryMap = (key: string, loader: () => Promise<PortfolioHistoryM
   return promise.then(cloneHistoryMap)
 }
 
-const rowsToHistory = (rows: any[]): PortfolioHistoryPoint[] => rows
+const rowsToHistory = (rows: OhlcvPointResponse[]): PortfolioHistoryPoint[] => rows
   .map((row) => {
-    const timestamp = Array.isArray(row) ? Number(row[0]) : 0
-    const close = Array.isArray(row) ? Number(row[4]) : 0
+    const timestamp = Number(row.timestamp || 0)
+    const close = Number(row.close || 0)
     return {
       date: new Date(timestamp).toISOString().slice(0, 10),
       close,
@@ -68,8 +68,11 @@ const loadCryptoHistoryMap = async (symbols: string[], startText: string) => {
       start_date: startText,
       fetch_policy: 'hydrate',
     })
+    const seriesBySymbol = new Map(
+      (response.data.items || []).map((item: MarketHistoryBatchItemResponse) => [item.symbol, item.items || []]),
+    )
     return Object.fromEntries(
-      symbols.map((symbol) => [symbol, rowsToHistory(response.data?.[symbol] || [])]),
+      symbols.map((symbol) => [symbol, rowsToHistory(seriesBySymbol.get(symbol) || [])]),
     )
   })
 }

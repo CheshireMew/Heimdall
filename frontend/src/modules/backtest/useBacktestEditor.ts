@@ -28,6 +28,7 @@ import {
   pruneTreeByIndicator,
 } from './editorContract'
 import type { IndicatorCard, OptimizableTarget, SourceOption, UseBacktestEditorOptions } from './editorTypes'
+import type { BacktestEditorSnapshot } from './pageSnapshots'
 import { supportsVersionEditing } from './templateRuntime'
 
 type StrategyBranchKey = 'trend' | 'range'
@@ -328,7 +329,7 @@ export const useBacktestEditor = ({
     }
   }
 
-  const buildSnapshot = () => ({
+  const buildSnapshot = (): BacktestEditorSnapshot => ({
     showVersionEditor: showVersionEditor.value,
     showIndicatorCreator: showIndicatorCreator.value,
     showTemplateCreator: showTemplateCreator.value,
@@ -339,9 +340,7 @@ export const useBacktestEditor = ({
     templateDraft: clone(templateDraft),
   })
 
-  const restoreSnapshot = (snapshot: unknown) => {
-    if (!isRecord(snapshot)) return
-
+  const restoreSnapshot = (snapshot: BacktestEditorSnapshot) => {
     showVersionEditor.value = readBoolean(snapshot.showVersionEditor, showVersionEditor.value)
     showIndicatorCreator.value = readBoolean(snapshot.showIndicatorCreator, showIndicatorCreator.value)
     showTemplateCreator.value = readBoolean(snapshot.showTemplateCreator, showTemplateCreator.value)

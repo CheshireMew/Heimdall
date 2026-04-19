@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
+
+from app.schemas.json_types import JsonObject
 
 
 class FactorCatalogItemResponse(BaseModel):
@@ -21,7 +23,7 @@ class FactorCatalogResponse(BaseModel):
     categories: list[str]
     factors: list[FactorCatalogItemResponse]
     forward_horizons: list[int]
-    cleaning: dict[str, Any]
+    cleaning: JsonObject
 
 
 class FactorResearchRequest(BaseModel):

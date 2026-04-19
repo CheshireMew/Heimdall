@@ -16,6 +16,9 @@ from app.services.backtest.run_service import BacktestRunService
 from app.services.backtest.scripted_template_runtime import template_supports_paper
 from app.services.backtest.strategy_catalog import get_template_runtime_contract
 from app.services.backtest.strategy_query_service import StrategyQueryService
+from app.services.backtest.strategy_support import (
+    build_strategy_version_response_payload,
+)
 from app.services.backtest.strategy_write_service import StrategyWriteService
 from utils.logger import logger
 
@@ -37,7 +40,9 @@ class BacktestCommandService:
         self.run_repository = run_repository
 
     async def start_backtest(self, command: BacktestStartCommand) -> dict[str, Any]:
-        strategy = self.strategy_query_service.get_strategy_version(command.strategy_key, command.strategy_version)
+        strategy = self.strategy_query_service.get_strategy_version(
+            command.strategy_key, command.strategy_version
+        )
         logger.info(
             f"启动回测: strategy={command.strategy_key} v{command.strategy_version or 'default'}, "
             f"symbols={','.join(command.portfolio.symbols)}, tf={command.timeframe}, "
@@ -64,7 +69,9 @@ class BacktestCommandService:
         return {"success": True, "backtest_id": backtest_id, "message": "回测已完成"}
 
     async def start_paper_run(self, command: PaperStartCommand) -> dict[str, Any]:
-        strategy = self.strategy_query_service.get_strategy_version(command.strategy_key, command.strategy_version)
+        strategy = self.strategy_query_service.get_strategy_version(
+            command.strategy_key, command.strategy_version
+        )
         runtime_contract = get_template_runtime_contract(strategy.template)
         if not template_supports_paper(runtime_contract):
             raise ValueError("该策略当前只支持回测，不支持模拟盘")
@@ -94,7 +101,9 @@ class BacktestCommandService:
         logger.info(f"删除模拟盘记录: run_id={run_id}")
         return await self.paper_manager.delete_run(run_id)
 
-    async def create_template(self, command: CreateStrategyTemplateCommand) -> dict[str, Any]:
+    async def create_template(
+        self, command: CreateStrategyTemplateCommand
+    ) -> dict[str, Any]:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
@@ -109,7 +118,9 @@ class BacktestCommandService:
             ),
         )
 
-    async def create_indicator(self, command: CreateIndicatorDefinitionCommand) -> dict[str, Any]:
+    async def create_indicator(
+        self, command: CreateIndicatorDefinitionCommand
+    ) -> dict[str, Any]:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
@@ -122,7 +133,9 @@ class BacktestCommandService:
             ),
         )
 
-    async def create_strategy_version(self, command: CreateStrategyVersionCommand) -> dict[str, Any]:
+    async def create_strategy_version(
+        self, command: CreateStrategyVersionCommand
+    ) -> dict[str, Any]:
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(
             None,
@@ -138,12 +151,4 @@ class BacktestCommandService:
                 make_default=command.make_default,
             ),
         )
-        return {
-            "id": result.id,
-            "version": result.version,
-            "name": result.version_name or result.strategy_name,
-            "notes": result.notes,
-            "is_default": result.is_default,
-            "config": result.config,
-            "parameter_space": result.parameter_space,
-        }
+        return build_strategy_version_response_payload(result)

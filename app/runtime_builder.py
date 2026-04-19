@@ -5,6 +5,8 @@ from config import settings
 
 
 def build_app_runtime_services() -> AppRuntimeServices:
+    from app.infra.db import configure_database_runtime, create_database_runtime
+    from app.infra.llm_client import LLMClient
     from app.services.backtest.command_service import BacktestCommandService
     from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
     from app.services.backtest.freqtrade_service import FreqtradeBacktestService
@@ -38,6 +40,8 @@ def build_app_runtime_services() -> AppRuntimeServices:
     from app.services.market.market_data_service import MarketDataService
     from app.services.market.query_app_service import MarketQueryAppService
     from app.services.market.realtime_service import RealtimeService
+    from app.services.market_scheduler_runtime import MarketSchedulerRuntime
+    from app.services.market.websocket_service import MarketWebSocketService
     from app.services.sentiment_client import SentimentApiClient
     from app.services.sentiment_repository import SentimentRepository
     from app.services.sentiment_service import SentimentService
@@ -45,6 +49,7 @@ def build_app_runtime_services() -> AppRuntimeServices:
     from app.services.tools.dca_service import DCAService
     from app.services.tools.pair_compare_service import PairCompareService
 
+    database_runtime = configure_database_runtime(create_database_runtime(settings))
     exchange_gateway = ExchangeGateway(exchange_id=settings.EXCHANGE_ID)
     kline_store = KlineStore()
     market_data_service = MarketDataService(
@@ -64,12 +69,15 @@ def build_app_runtime_services() -> AppRuntimeServices:
         realtime_service=realtime_service,
         history_service=history_service,
         binance_snapshot_service=binance_market_snapshot,
+        llm_client_factory=LLMClient,
     )
     market_insight_app_service = MarketInsightAppService(
         indicator_service=indicator_service,
         crypto_index_service=crypto_index_service,
         market_query_service=market_query_app_service,
+        llm_client_factory=LLMClient,
     )
+    market_websocket_service = MarketWebSocketService()
     index_data_service = IndexDataService(kline_store=kline_store)
     binance_market_intel = BinanceMarketIntelService(snapshot_service=binance_market_snapshot)
     binance_web3_service = BinanceWeb3Service()
@@ -139,9 +147,11 @@ def build_app_runtime_services() -> AppRuntimeServices:
         persistence_service=factor_paper_persistence_service,
     )
     currency_rate_service = CurrencyRateService()
+    market_scheduler_runtime = MarketSchedulerRuntime()
 
-    return AppRuntimeServices(
+    services = AppRuntimeServices(
         exchange_gateway=exchange_gateway,
+        database_runtime=database_runtime,
         kline_store=kline_store,
         market_data_service=market_data_service,
         realtime_service=realtime_service,
@@ -154,6 +164,7 @@ def build_app_runtime_services() -> AppRuntimeServices:
         crypto_index_service=crypto_index_service,
         market_query_app_service=market_query_app_service,
         market_insight_app_service=market_insight_app_service,
+        market_websocket_service=market_websocket_service,
         index_data_service=index_data_service,
         binance_market_snapshot=binance_market_snapshot,
         binance_market_intel=binance_market_intel,
@@ -180,4 +191,7 @@ def build_app_runtime_services() -> AppRuntimeServices:
         factor_paper_persistence_service=factor_paper_persistence_service,
         factor_paper_run_manager=factor_paper_run_manager,
         currency_rate_service=currency_rate_service,
+        market_scheduler_runtime=market_scheduler_runtime,
     )
+    services.validate_required_services()
+    return services

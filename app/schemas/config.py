@@ -28,3 +28,25 @@ class LlmProviderConfigUpdateRequest(BaseModel):
     baseUrl: str = ""
     modelId: str = ""
     reasoningEnabled: bool = False
+
+
+class SystemIndicatorConfigResponse(BaseModel):
+    ema_period: int
+    rsi_period: int
+    macd_fast: int
+    macd_slow: int
+    macd_signal: int
+
+
+class SystemRuntimeConfigResponse(BaseModel):
+    app_role: str
+    database_engine: str
+    cache_backend: str
+
+
+class SystemConfigResponse(BaseModel):
+    exchange: str
+    symbols: list[str]
+    timeframe: str
+    indicators: SystemIndicatorConfigResponse
+    runtime: SystemRuntimeConfigResponse

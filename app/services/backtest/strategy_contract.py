@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from typing import Any
 
+STRATEGY_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
+PRICE_SOURCE_FIELDS = {"open", "high", "low", "close", "volume"}
 
 RULE_OPERATORS: list[dict[str, str]] = [
     {"key": "gt", "label": "大于"},
@@ -162,6 +165,20 @@ def timeframe_to_minutes(timeframe: str) -> int:
     return mapping[timeframe]
 
 
+def normalize_strategy_identifier(value: Any, label: str) -> str:
+    identifier = str(value or "").strip()
+    if not STRATEGY_IDENTIFIER_PATTERN.fullmatch(identifier):
+        raise ValueError(f"{label} 只能使用字母、数字和下划线，且不能以数字开头")
+    return identifier
+
+
+def normalize_optional_strategy_identifier(value: Any, label: str) -> str:
+    identifier = str(value or "").strip()
+    if not identifier:
+        return ""
+    return normalize_strategy_identifier(identifier, label)
+
+
 def explicit_indicator_timeframes(config: dict[str, Any]) -> list[str]:
     normalized: set[str] = set()
     for indicator in (config.get("indicators") or {}).values():
@@ -219,7 +236,7 @@ def normalize_strategy_config(config: dict[str, Any], default_config: dict[str, 
     normalized = deepcopy(default_config or blank_strategy_config())
     if not config:
         return normalized
-    source_config = migrate_legacy_config(config)
+    source_config = config
     normalized["indicators"] = normalize_indicators(source_config.get("indicators") or normalized.get("indicators") or {})
     normalized["execution"] = normalize_execution(source_config.get("execution") or normalized.get("execution") or {})
     normalized["regime_priority"] = normalize_regime_priority(
@@ -245,7 +262,7 @@ def normalize_strategy_config(config: dict[str, Any], default_config: dict[str, 
 def normalize_indicators(indicators: dict[str, Any]) -> dict[str, Any]:
     normalized: dict[str, Any] = {}
     for indicator_id, indicator in (indicators or {}).items():
-        indicator_key = str(indicator_id or "").strip()
+        indicator_key = normalize_strategy_identifier(indicator_id, "指标标识")
         if not indicator_key or not isinstance(indicator, dict):
             continue
         normalized[indicator_key] = {
@@ -358,11 +375,49 @@ def normalize_rule_node(node: dict[str, Any]) -> dict[str, Any]:
         "id": node.get("id") or "condition",
         "node_type": "condition",
         "label": node.get("label") or "条件",
-        "left": deepcopy(node.get("left") or {"kind": "price", "field": "close"}),
+        "left": normalize_rule_source(node.get("left") or {"kind": "price", "field": "close"}),
         "operator": node.get("operator") if node.get("operator") in {"gt", "gte", "lt", "lte"} else "gt",
-        "right": deepcopy(node.get("right") or {"kind": "value", "value": 0}),
+        "right": normalize_rule_source(node.get("right") or {"kind": "value", "value": 0}),
         "enabled": bool(node.get("enabled", True)),
     }
+
+
+def normalize_rule_source(source: dict[str, Any]) -> dict[str, Any]:
+    kind = str((source or {}).get("kind") or "").strip()
+    bars_ago = max(int((source or {}).get("bars_ago", 0) or 0), 0)
+    if kind == "price":
+        field = str((source or {}).get("field") or "close").strip()
+        if field not in PRICE_SOURCE_FIELDS:
+            raise ValueError(f"不支持的价格字段: {field}")
+        return {"kind": "price", "field": field, "bars_ago": bars_ago}
+    if kind == "indicator":
+        return {
+            "kind": "indicator",
+            "indicator": normalize_strategy_identifier(source.get("indicator"), "指标标识"),
+            "output": normalize_strategy_identifier(source.get("output") or "value", "指标输出"),
+            "bars_ago": bars_ago,
+        }
+    if kind == "value":
+        return {"kind": "value", "value": float(source.get("value", 0)), "bars_ago": bars_ago}
+    if kind == "indicator_multiplier":
+        return {
+            "kind": "indicator_multiplier",
+            "indicator": normalize_strategy_identifier(source.get("indicator"), "指标标识"),
+            "output": normalize_strategy_identifier(source.get("output") or "value", "指标输出"),
+            "multiplier": float(source.get("multiplier", 1.0)),
+            "bars_ago": bars_ago,
+        }
+    if kind == "indicator_offset":
+        return {
+            "kind": "indicator_offset",
+            "base_indicator": normalize_strategy_identifier(source.get("base_indicator"), "基础指标标识"),
+            "base_output": normalize_strategy_identifier(source.get("base_output") or "value", "基础指标输出"),
+            "offset_indicator": normalize_strategy_identifier(source.get("offset_indicator"), "偏移指标标识"),
+            "offset_output": normalize_strategy_identifier(source.get("offset_output") or "value", "偏移指标输出"),
+            "offset_multiplier": float(source.get("offset_multiplier", 1.0)),
+            "bars_ago": bars_ago,
+        }
+    raise ValueError(f"不支持的条件源: {kind}")
 
 
 def normalize_risk(risk: dict[str, Any], base_risk: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -396,9 +451,9 @@ def normalize_risk(risk: dict[str, Any], base_risk: dict[str, Any] | None = None
         "stop_multiplier": float(trade_plan.get("stop_multiplier", normalized["trade_plan"]["stop_multiplier"])),
         "min_stop_pct": float(trade_plan.get("min_stop_pct", normalized["trade_plan"]["min_stop_pct"])),
         "reward_multiplier": float(trade_plan.get("reward_multiplier", normalized["trade_plan"]["reward_multiplier"])),
-        "atr_indicator": str(trade_plan.get("atr_indicator", normalized["trade_plan"]["atr_indicator"] or "")).strip(),
-        "support_indicator": str(trade_plan.get("support_indicator", normalized["trade_plan"]["support_indicator"] or "")).strip(),
-        "resistance_indicator": str(trade_plan.get("resistance_indicator", normalized["trade_plan"]["resistance_indicator"] or "")).strip(),
+        "atr_indicator": normalize_optional_strategy_identifier(trade_plan.get("atr_indicator", normalized["trade_plan"]["atr_indicator"] or ""), "ATR 指标标识"),
+        "support_indicator": normalize_optional_strategy_identifier(trade_plan.get("support_indicator", normalized["trade_plan"]["support_indicator"] or ""), "支撑指标标识"),
+        "resistance_indicator": normalize_optional_strategy_identifier(trade_plan.get("resistance_indicator", normalized["trade_plan"]["resistance_indicator"] or ""), "阻力指标标识"),
     }
 
     partial_exits = risk.get("partial_exits")
@@ -466,34 +521,3 @@ def normalize_strategy_payload(
     normalized_config = normalize_strategy_config(config or {}, default_config)
     normalized_parameter_space = normalize_parameter_space(parameter_space or default_parameter_space)
     return normalized_config, normalized_parameter_space
-
-
-def migrate_legacy_config(config: dict[str, Any]) -> dict[str, Any]:
-    if "trend" in config or "range" in config:
-        migrated = deepcopy(config)
-        for branch_key, label in (("trend", "趋势"), ("range", "区间")):
-            branch = migrated.get(branch_key)
-            if not isinstance(branch, dict):
-                continue
-            if "long_entry" in branch or "short_entry" in branch:
-                continue
-            branch["long_entry"] = deepcopy(branch.pop("entry", build_group(f"{branch_key}_long_entry", f"{label}做多入场", "and", [])))
-            branch["long_exit"] = deepcopy(branch.pop("exit", build_group(f"{branch_key}_long_exit", f"{label}做多离场", "or", [])))
-            branch["short_entry"] = deepcopy(branch_defaults(branch_key, label)["short_entry"])
-            branch["short_exit"] = deepcopy(branch_defaults(branch_key, label)["short_exit"])
-        if "execution" not in migrated:
-            migrated["execution"] = execution_defaults()
-        return migrated
-
-    migrated = {
-        "indicators": deepcopy(config.get("indicators") or {}),
-        "execution": execution_defaults(),
-        "regime_priority": ["trend", "range"],
-        "trend": branch_defaults("trend", "趋势", enabled=True),
-        "range": branch_defaults("range", "区间", enabled=False),
-        "risk": deepcopy(config.get("risk") or risk_defaults()),
-    }
-    migrated["trend"]["regime"] = build_group("trend_regime", "趋势状态", "and", [])
-    migrated["trend"]["long_entry"] = deepcopy(config.get("entry") or build_group("trend_long_entry", "趋势做多入场", "and", []))
-    migrated["trend"]["long_exit"] = deepcopy(config.get("exit") or build_group("trend_long_exit", "趋势做多离场", "or", []))
-    return migrated

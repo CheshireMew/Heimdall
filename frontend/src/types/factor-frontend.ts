@@ -9,6 +9,7 @@ import type {
   FactorNormalizedPointResponse,
   FactorQuantileBucketResponse,
   FactorResearchRunDetailResponse,
+  FactorResearchRunListItemResponse,
   FactorResearchSummaryResponse,
   FactorRollingPointResponse,
   FactorScorecardResponse,
@@ -26,6 +27,5 @@ export type FactorDetail = FactorDetailResponse
 export type FactorBlendComponent = FactorBlendComponentResponse
 export type FactorDroppedComponent = FactorDroppedComponentResponse
 export type FactorBlend = FactorBlendResponse
-export type FactorResearchRun = Omit<FactorResearchRunDetailResponse, 'details'> & {
-  details?: FactorResearchRunDetailResponse['details']
-}
+export type FactorResearchRun = FactorResearchRunListItemResponse
+export type FactorResearchRunDetail = FactorResearchRunDetailResponse

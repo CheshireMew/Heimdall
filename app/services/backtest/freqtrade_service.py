@@ -9,6 +9,7 @@ from app.services.backtest.freqtrade_execution import FreqtradeIterationExecutor
 from app.services.backtest.freqtrade_research import FreqtradeResearchService
 from app.services.backtest.freqtrade_result_builder import FreqtradeResultBuilder
 from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBuilder
+from app.services.backtest.symbol_contract import normalize_backtest_symbols
 from app.contracts.backtest import BacktestExecutionResult
 from app.services.backtest.scripted_template_runtime import get_template_runtime, template_builder_kind
 from app.services.market.market_data_service import MarketDataService
@@ -215,14 +216,7 @@ class FreqtradeBacktestService:
             raise ValueError(f"Freqtrade 回测当前只支持: {', '.join(sorted(self.SUPPORTED_TIMEFRAMES))}")
 
     def _normalize_symbols(self, symbols: list[str]) -> list[str]:
-        normalized = []
-        for symbol in symbols:
-            value = symbol.strip().upper()
-            if value and value not in normalized:
-                normalized.append(value)
-        if not normalized:
-            raise ValueError("至少需要一个交易对")
-        return normalized
+        return normalize_backtest_symbols(symbols)
 
     def _validate_stake_currency(self, symbols: list[str]) -> str:
         quotes = {self._quote_currency(symbol) for symbol in symbols}

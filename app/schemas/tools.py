@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from pydantic import BaseModel, Field
 
-from pydantic import BaseModel, ConfigDict, Field
+from app.schemas.json_types import JsonObject
 
 
 class DCARequestSchema(BaseModel):
@@ -13,7 +13,7 @@ class DCARequestSchema(BaseModel):
     timezone: str = 'Asia/Shanghai'
     days: int | None = Field(None, gt=0, le=3650)
     strategy: str = 'standard'
-    strategy_params: dict[str, Any] | None = {}
+    strategy_params: JsonObject | None = Field(default_factory=dict)
 
 
 class PairCompareRequestSchema(BaseModel):
@@ -23,5 +23,52 @@ class PairCompareRequestSchema(BaseModel):
     timeframe: str = '1h'
 
 
-class DynamicToolResponse(BaseModel):
-    model_config = ConfigDict(extra='allow')
+class DCAHistoryPointResponse(BaseModel):
+    date: str
+    price: float
+    invested: float
+    value: float
+    coins: float
+    roi: float
+    avg_cost: float
+
+
+class DCAResponse(BaseModel):
+    symbol: str
+    asset_class: str | None = None
+    price_basis: str | None = None
+    pricing_symbol: str | None = None
+    pricing_name: str | None = None
+    pricing_currency: str | None = None
+    start_date: str
+    end_date: str
+    target_time: str
+    total_days: int
+    total_invested: float
+    final_value: float
+    total_coins: float
+    roi: float
+    average_cost: float
+    profit_loss: float
+    current_price: float
+    history: list[DCAHistoryPointResponse]
+    profit_pct: float | None = None
+
+
+class ToolCandlestickPointResponse(BaseModel):
+    time: int
+    open: float
+    high: float
+    low: float
+    close: float
+
+
+class PairCompareToolResponse(BaseModel):
+    symbol_a: str
+    symbol_b: str
+    data_a: list[ToolCandlestickPointResponse]
+    data_b: list[ToolCandlestickPointResponse]
+    ratio_ohlc: list[ToolCandlestickPointResponse]
+    ratio_symbol: str
+    timeframe: str | None = None
+    relative_strength: float | None = None

@@ -1,18 +1,18 @@
 import request from '@/api/request'
 import type { AxiosResponse } from 'axios'
 import type {
-  DCASimulationConfig,
-  DCASimulationResponse,
-  PairCompareParams,
-  PairCompareResponse,
+  DCARequestSchema,
+  DCAResponse,
+  PairCompareRequestSchema,
+  PairCompareToolResponse,
 } from '@/types'
 
 export const toolsApi = {
-  runSimulation(config: DCASimulationConfig): Promise<AxiosResponse<DCASimulationResponse>> {
+  runSimulation(config: DCARequestSchema): Promise<AxiosResponse<DCAResponse>> {
     return request.post('/tools/dca_simulate', config)
   },
 
-  comparePairs(params: PairCompareParams): Promise<AxiosResponse<PairCompareResponse>> {
+  comparePairs(params: PairCompareRequestSchema): Promise<AxiosResponse<PairCompareToolResponse>> {
     return request.post('/tools/compare_pairs', params)
   },
 }

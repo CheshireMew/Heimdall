@@ -1,15 +1,13 @@
 from datetime import datetime, timezone
 from sqlalchemy import create_engine, text
 
-from config import settings
-
-DB_URL = settings.DATABASE_URL
-
+from app.infra.db import current_database_url
 
 def check_database():
-    print(f"--- Checking Database: {DB_URL} ---")
+    database_url = current_database_url()
+    print(f"--- Checking Database: {database_url} ---")
     try:
-        engine = create_engine(DB_URL)
+        engine = create_engine(database_url)
         with engine.connect() as conn:
             result = conn.execute(text("SELECT count(*) FROM klines"))
             count = result.scalar()

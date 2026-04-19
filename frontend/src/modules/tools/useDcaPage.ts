@@ -1,69 +1,25 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
+import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { isIndexSymbol } from '@/modules/market'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
 import { useUserPreferences } from '@/composables/useUserPreferences'
-import type { DCASimulationConfig, DCASimulationResponse } from '@/types'
+import type { DCAResponse } from '@/types'
 import { toolsApi } from './api'
+import { createDefaultDcaSnapshot, normalizeDcaConfig, normalizeDcaSnapshot } from './pageSnapshots'
 import { createEmptyMarketData, useDcaMarketContext } from './useDcaMarketContext'
 import { useDcaCharts } from './useDcaCharts'
 
-interface DcaPageSnapshot {
-  config: DCASimulationConfig
-}
-
-type DcaPageConfig = Required<Pick<DCASimulationConfig, 'symbol' | 'amount' | 'investment_time' | 'timezone' | 'strategy'>> & {
-  start_date: string
-  strategy_params: {
-    multiplier: number
-  }
-}
-
-const createDefaultConfig = (): DcaPageConfig => ({
-  symbol: 'BTC/USDT',
-  amount: 100,
-  start_date: '2025-04-25',
-  investment_time: '23:00',
-  timezone: 'Asia/Shanghai',
-  strategy: 'standard',
-  strategy_params: {
-    multiplier: 3,
-  },
-})
-
-const normalizeConfig = (value: unknown): DcaPageConfig => {
-  const defaults = createDefaultConfig()
-  if (!isRecord(value)) return defaults
-
-  const strategyParams = isRecord(value.strategy_params) ? value.strategy_params : {}
-
-  return {
-    symbol: readString(value.symbol, defaults.symbol),
-    amount: readNumber(value.amount, defaults.amount),
-    start_date: readString(value.start_date, defaults.start_date),
-    investment_time: readString(value.investment_time, defaults.investment_time),
-    timezone: readString(value.timezone, defaults.timezone),
-    strategy: readString(value.strategy, defaults.strategy),
-    strategy_params: {
-      multiplier: readNumber(strategyParams.multiplier, defaults.strategy_params.multiplier),
-    },
-  }
-}
-
-const normalizeSnapshot = (value: unknown): DcaPageSnapshot => {
-  if (!isRecord(value)) {
-    return {
-      config: createDefaultConfig(),
+type RequestError = {
+  message?: string
+  response?: {
+    data?: {
+      detail?: string
     }
   }
-  return {
-    config: normalizeConfig(value.config),
-  }
 }
-
 
 export function useDcaPage() {
   const { theme } = useTheme()
@@ -72,18 +28,16 @@ export function useDcaPage() {
   const { displayCurrency, fromDisplayAmount, formatDisplayNumber, formatMoney } = useMoney()
   const pageSnapshot = createPageSnapshot(
     PAGE_SNAPSHOT_KEYS.dca,
-    normalizeSnapshot,
-    {
-      config: createDefaultConfig(),
-    },
+    normalizeDcaSnapshot,
+    createDefaultDcaSnapshot(),
   )
   const restoredSnapshot = pageSnapshot.load()
 
-  const config = reactive(normalizeConfig(restoredSnapshot?.config))
+  const config = reactive(normalizeDcaConfig(restoredSnapshot?.config))
   config.timezone = timezone.value
 
   const loading = ref(false)
-  const result = ref<DCASimulationResponse | null>(null)
+  const result = ref<DCAResponse | null>(null)
   const { marketData, fetchMarketIndicators } = useDcaMarketContext({
     symbol: () => config.symbol,
     t,
@@ -113,9 +67,10 @@ export function useDcaPage() {
       }
       await fetchMarketIndicators()
       renderCharts()
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const requestError = error as RequestError
       console.error('DCA Error:', error)
-      alert(`${t('dca.simFailed')}: ${error.response?.data?.detail || error.message}`)
+      alert(`${t('dca.simFailed')}: ${requestError.response?.data?.detail || requestError.message || 'Unknown error'}`)
     } finally {
       loading.value = false
     }
@@ -168,7 +123,7 @@ export function useDcaPage() {
   bindPageSnapshot(
     config,
     () => ({
-      config: normalizeConfig(config),
+      config: normalizeDcaConfig(config),
     }),
     pageSnapshot.save,
   )

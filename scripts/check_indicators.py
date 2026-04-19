@@ -3,9 +3,9 @@ Check market indicators data in database
 """
 from sqlalchemy import create_engine, text
 
-from config import settings
+from app.infra.db import current_database_url
 
-engine = create_engine(settings.DATABASE_URL)
+engine = create_engine(current_database_url())
 
 with engine.connect() as conn:
     # Check Meta

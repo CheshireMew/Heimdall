@@ -17,6 +17,7 @@ import type {
 } from '@/types'
 
 import type { createBlankIndicatorDraft, createBlankTemplateDraft, createBlankVersionDraft } from './editorContract'
+import type { BacktestEditorSnapshot } from './pageSnapshots'
 
 export interface StrategySelectionConfig {
   strategy_key: string
@@ -138,8 +139,8 @@ export interface BacktestEditorState {
   startBlankBuilder: () => void
   toggleTemplateIndicator: (indicatorKey: string) => void
   initializeDraftFromContract: () => void
-  buildSnapshot: () => unknown
-  restoreSnapshot: (snapshot: unknown) => void
+  buildSnapshot: () => BacktestEditorSnapshot
+  restoreSnapshot: (snapshot: BacktestEditorSnapshot) => void
 }
 
 export interface BacktestEditorSeedPanel {

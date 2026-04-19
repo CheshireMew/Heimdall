@@ -2,7 +2,7 @@ import { computed, onUnmounted, ref, watch, type Ref } from 'vue'
 import { marketApi } from './api'
 import { useMarketStore } from './store'
 import { isIndexSymbol } from './symbolCatalog'
-import type { OHLCVRaw } from '@/types'
+import type { OhlcvPointResponse } from '@/types'
 
 const REFRESH_INTERVAL_MS = 5000
 const LIVE_TAIL_LIMIT = 16
@@ -11,15 +11,9 @@ type UseKlineSeriesOptions = {
   enabled?: Ref<boolean>
 }
 
-const normalizeOhlcvRows = (rows: number[][] | OHLCVRaw[] | undefined): OHLCVRaw[] => (
-  (rows || [])
-    .filter((row): row is OHLCVRaw => Array.isArray(row) && row.length >= 6 && row.every((item) => Number.isFinite(Number(item))))
-    .map((row) => [row[0], row[1], row[2], row[3], row[4], row[5]])
-)
-
 export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, options: UseKlineSeriesOptions = {}) {
   const marketStore = useMarketStore()
-  const indexKlineData = ref<OHLCVRaw[]>([])
+  const indexKlineData = ref<OhlcvPointResponse[]>([])
   const loadingMore = ref(false)
   const noMoreHistory = ref(false)
   const enabled = computed(() => options.enabled?.value ?? true)
@@ -35,19 +29,19 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
 
   const chartData = computed(() =>
     klineData.value.map(k => ({
-      time: k[0] / 1000,
-      open: k[1],
-      high: k[2],
-      low: k[3],
-      close: k[4],
+      time: k.timestamp / 1000,
+      open: k.open,
+      high: k.high,
+      low: k.low,
+      close: k.close,
     }))
   )
 
   const volumeData = computed(() =>
     klineData.value.map(k => ({
-      time: k[0] / 1000,
-      value: k[5],
-      color: k[4] >= k[1] ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+      time: k.timestamp / 1000,
+      value: k.volume,
+      color: k.close >= k.open ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)',
     }))
   )
 
@@ -70,7 +64,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
         end_date: end.toISOString().slice(0, 10),
       })
       if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
-      indexKlineData.value = normalizeOhlcvRows(res.data.data)
+      indexKlineData.value = res.data.data || []
       return
     }
     const data = await marketStore.getKlineData(requestSymbol, requestTimeframe, 1000, options)
@@ -94,9 +88,9 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
       limit: LIVE_TAIL_LIMIT,
     })
     if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
-    const tail = Array.isArray(res.data?.kline_data) ? res.data.kline_data : []
+    const tail = res.data.kline_data || []
     if (tail.length === 0) return
-    marketStore.applyKlineTail(requestSymbol, requestTimeframe, normalizeOhlcvRows(tail), 1000)
+    marketStore.applyKlineTail(requestSymbol, requestTimeframe, tail, 1000)
   }
 
   const stopAutoRefresh = () => {
@@ -129,7 +123,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
       const requestTimeframe = timeframe.value
       const oldest = klineData.value[0]
       if (isIndexSymbol(requestSymbol)) {
-        const end = new Date(oldest[0] - 24 * 60 * 60 * 1000)
+        const end = new Date(oldest.timestamp - 24 * 60 * 60 * 1000)
         const start = new Date(end)
         start.setFullYear(end.getFullYear() - 1)
         const res = await marketApi.getIndexHistory({
@@ -139,7 +133,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
           end_date: end.toISOString().slice(0, 10),
         })
         if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
-        const newKlines = normalizeOhlcvRows(res.data.data)
+        const newKlines = res.data.data || []
         if (newKlines.length === 0) {
           noMoreHistory.value = true
           return
@@ -151,12 +145,12 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
       const res = await marketApi.getPriceSeriesWindow({
         symbol: requestSymbol,
         timeframe: requestTimeframe,
-        end_ts: oldest[0],
+        end_ts: oldest.timestamp,
         limit: 500,
       })
       if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
 
-      const newKlines = normalizeOhlcvRows(res.data)
+      const newKlines = res.data.items || []
       if (newKlines.length === 0) {
         noMoreHistory.value = true
         return

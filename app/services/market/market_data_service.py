@@ -135,7 +135,7 @@ class MarketDataService:
             return self.kline_store.get_before(self._storage_symbol(symbol), timeframe, end_ts, limit)
         except Exception as e:
             logger.error(f"历史数据查询失败: {e}")
-            return []
+            raise
         finally:
             elapsed = time.time() - start_time
             logger.debug(f"[metrics] get_history_data symbol={symbol} tf={timeframe} limit={limit} elapsed={elapsed:.2f}s")
@@ -149,7 +149,11 @@ class MarketDataService:
         allow_cached_response: bool = False,
     ) -> list[list[float]]:
         end_ts = int(time.time() * 1000) + 1
-        cached = self.get_history_data(symbol, timeframe, end_ts, limit)
+        try:
+            cached = self.get_history_data(symbol, timeframe, end_ts, limit)
+        except Exception as exc:
+            logger.warning(f"最近 K 线缓存读取失败，改用交易所实时数据: {exc}")
+            cached = []
         if allow_cached_response and is_recent_cache_usable(
             cached=cached,
             timeframe=timeframe,
@@ -195,7 +199,11 @@ class MarketDataService:
         storage_symbol = self._storage_symbol(symbol)
 
         try:
-            cached_klines = self.kline_store.get_range(storage_symbol, timeframe, start_ts, end_ts)
+            try:
+                cached_klines = self.kline_store.get_range(storage_symbol, timeframe, start_ts, end_ts)
+            except Exception as exc:
+                logger.error(f"缓存读取失败，改用交易所数据: {exc}")
+                return self._fetch_gap(symbol, timeframe, start_ts, end_ts_exclusive)
 
             logger.info(f"缓存命中: {len(cached_klines)} 条 ({storage_symbol})")
 
@@ -210,10 +218,14 @@ class MarketDataService:
 
             if new_data:
                 logger.info(f"下载新数据: {len(new_data)} 条")
-                if persist_klines:
-                    persist_klines(storage_symbol, timeframe, new_data)
-                else:
-                    self.kline_store.save(storage_symbol, timeframe, new_data)
+                try:
+                    if persist_klines:
+                        persist_klines(storage_symbol, timeframe, new_data)
+                    else:
+                        self.kline_store.save(storage_symbol, timeframe, new_data)
+                except Exception as exc:
+                    # 历史数据写缓存只是加速下一次读取；不能因为回写失败丢掉本次已经拉到的真实行情。
+                    logger.warning(f"历史 K 线回写缓存失败: {exc}")
 
             merged = {k[0]: k for k in cached_klines}
             for row in new_data:
@@ -221,9 +233,6 @@ class MarketDataService:
 
             final_data = sorted(merged.values(), key=lambda x: x[0])
             return [row for row in final_data if start_ts <= row[0] <= end_ts]
-        except Exception as e:
-            logger.error(f"带缓存数据获取失败: {e}")
-            return self._fetch_gap(symbol, timeframe, start_ts, end_ts)
         finally:
             elapsed = time.time() - range_start
             logger.debug(

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.dependencies import get_factor_execution_service, get_factor_paper_run_manager, get_factor_research_service
+from app.routers.errors import service_http_error
 from app.schemas.factor import (
     FactorCatalogResponse,
     FactorExecutionRequest,
@@ -14,7 +15,6 @@ from app.schemas.factor import (
     FactorResearchRunDetailResponse,
     FactorResearchRunListItemResponse,
 )
-from utils.logger import logger
 
 if TYPE_CHECKING:
     from app.services.factors.execution import FactorExecutionService
@@ -32,8 +32,7 @@ async def get_factor_catalog(
     try:
         return service.get_catalog()
     except Exception as exc:
-        logger.error(f"API /factor-research/catalog 错误: {exc}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to load factor catalog")
+        raise service_http_error("API /factor-research/catalog 错误", exc)
 
 
 @router.post("/factor-research/analyze", response_model=FactorResearchResponse)
@@ -51,11 +50,8 @@ async def analyze_factors(
             categories=body.categories,
             factor_ids=body.factor_ids,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
-        logger.error(f"API /factor-research/analyze 错误: {exc}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to analyze factors")
+        raise service_http_error("API /factor-research/analyze 错误", exc)
 
 
 @router.get("/factor-research/runs", response_model=list[FactorResearchRunListItemResponse])
@@ -66,8 +62,7 @@ async def list_factor_runs(
     try:
         return service.list_runs(limit=limit)
     except Exception as exc:
-        logger.error(f"API /factor-research/runs 错误: {exc}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to load factor runs")
+        raise service_http_error("API /factor-research/runs 错误", exc)
 
 
 @router.get("/factor-research/runs/{run_id}", response_model=FactorResearchRunDetailResponse)
@@ -83,8 +78,7 @@ async def get_factor_run(
     except HTTPException:
         raise
     except Exception as exc:
-        logger.error(f"API /factor-research/runs/{run_id} 错误: {exc}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to load factor run")
+        raise service_http_error(f"API /factor-research/runs/{run_id} 错误", exc)
 
 
 @router.post("/factor-research/runs/{run_id}/backtest", response_model=FactorExecutionResponse)
@@ -107,11 +101,8 @@ async def start_factor_backtest(
             max_hold_bars=body.max_hold_bars,
         )
         return {"success": True, "run_id": backtest_id, "message": "因子组合回测已完成"}
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
-        logger.error(f"API /factor-research/runs/{run_id}/backtest 错误: {exc}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to run factor backtest")
+        raise service_http_error(f"API /factor-research/runs/{run_id}/backtest 错误", exc)
 
 
 @router.post("/factor-research/runs/{run_id}/paper", response_model=FactorExecutionResponse)
@@ -133,8 +124,5 @@ async def start_factor_paper_run(
             takeprofit_pct=body.takeprofit_pct,
             max_hold_bars=body.max_hold_bars,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
-        logger.error(f"API /factor-research/runs/{run_id}/paper 错误: {exc}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to start factor paper run")
+        raise service_http_error(f"API /factor-research/runs/{run_id}/paper 错误", exc)

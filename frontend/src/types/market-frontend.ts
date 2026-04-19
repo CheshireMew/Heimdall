@@ -1,11 +1,8 @@
 import type {
   CryptoIndexConstituentResponse,
   CryptoIndexHistoryPointResponse,
-  MarketIndicatorResponse,
-  MarketSymbolSearchResponse,
+  OhlcvPointResponse,
 } from './market'
-
-export type OHLCVRaw = [number, number, number, number, number, number]
 
 export interface CandlestickData {
   time: number
@@ -82,9 +79,6 @@ export interface IndexHistoryParams {
   end_date?: string
 }
 
-export type BatchFullHistoryResponse = Record<string, OHLCVRaw[]>
-export type IndicatorItem = MarketIndicatorResponse
-export type MarketSymbolSearchItem = MarketSymbolSearchResponse
 export type CryptoIndexConstituent = CryptoIndexConstituentResponse
 export type CryptoIndexHistoryPoint = CryptoIndexHistoryPointResponse
 
@@ -95,7 +89,7 @@ export interface SentimentData {
 }
 
 export interface KlineCacheEntry {
-  data: OHLCVRaw[]
+  data: OhlcvPointResponse[]
   timestamp: number
 }
 

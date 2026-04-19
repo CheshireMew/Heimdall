@@ -1,4 +1,5 @@
 from app.services import llm_config_service
+from config.settings import BASE_DIR
 
 
 def test_llm_config_deepseek_reasoning_switch_updates_model(tmp_path, monkeypatch):
@@ -70,3 +71,7 @@ def test_llm_config_presets_include_glm_and_minimax():
 
     assert "glm" in preset_ids
     assert "minimax" in preset_ids
+
+
+def test_llm_config_default_path_is_outside_repo():
+    assert not llm_config_service.CONFIG_PATH.resolve().is_relative_to(BASE_DIR.resolve())

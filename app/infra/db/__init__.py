@@ -1,4 +1,13 @@
-from app.infra.db.database import SessionLocal, engine, get_session, init_db, session_scope
+from app.infra.db.database import (
+    DatabaseRuntime,
+    configure_database_runtime,
+    create_database_runtime,
+    current_database_url,
+    get_database_runtime,
+    get_session,
+    session_scope,
+)
+from app.infra.db.schema_runtime import init_db
 from app.infra.db.schema import (
     Base,
     BacktestEquityPoint,
@@ -29,10 +38,12 @@ __all__ = [
     "StrategyDefinition",
     "StrategyTemplateDefinition",
     "StrategyVersion",
-    "SessionLocal",
-    "engine",
+    "DatabaseRuntime",
+    "configure_database_runtime",
+    "create_database_runtime",
+    "current_database_url",
+    "get_database_runtime",
     "get_session",
     "init_db",
     "session_scope",
 ]
-

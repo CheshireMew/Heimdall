@@ -1,9 +1,9 @@
 import { ref, watch, type ComputedRef } from 'vue'
 import { marketApi } from './api'
-import type { IndicatorItem } from '@/types'
+import type { MarketIndicatorResponse } from '@/types'
 
 export function useIndicatorCategory(category: ComputedRef<string>, days: number = 90) {
-  const indicators = ref<IndicatorItem[]>([])
+  const indicators = ref<MarketIndicatorResponse[]>([])
   const loading = ref(true)
   const error = ref('')
 

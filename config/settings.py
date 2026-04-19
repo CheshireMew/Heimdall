@@ -10,6 +10,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_DB_PATH = BASE_DIR / "data" / "heimdall.db"
+DEFAULT_POSTGRES_DEV_HOST = "localhost"
+DEFAULT_POSTGRES_DEV_PORT = 5432
+DEFAULT_POSTGRES_DEV_NAME = "heimdall"
+DEFAULT_POSTGRES_DEV_USER = "postgres"
 
 
 def _default_runtime_root() -> Path:
@@ -43,7 +47,13 @@ class AppSettings(BaseSettings):
     REDIS_DB: int = 0
     REDIS_PASSWORD: str = ""
 
-    DATABASE_URL: str = Field(default_factory=lambda: f"sqlite:///{DEFAULT_DB_PATH}")
+    DATABASE_URL: str = ""
+    POSTGRES_DEV_URL: str = ""
+    POSTGRES_DEV_HOST: str = DEFAULT_POSTGRES_DEV_HOST
+    POSTGRES_DEV_PORT: int = DEFAULT_POSTGRES_DEV_PORT
+    POSTGRES_DEV_DB: str = DEFAULT_POSTGRES_DEV_NAME
+    POSTGRES_DEV_USER: str = DEFAULT_POSTGRES_DEV_USER
+    POSTGRES_DEV_PASSWORD: str = ""
 
     EMA_PERIOD: int = 20
     RSI_PERIOD: int = 14
@@ -160,6 +170,7 @@ class AppSettings(BaseSettings):
     BACKGROUND_RUNTIME_LOCK_PATH: Path = Field(default_factory=lambda: _default_runtime_root() / "runtime" / "background.lock")
     FREQTRADE_BACKTEST_TIMEOUT_SECONDS: int = 600
     FREQTRADE_WORKSPACE_DIR: Path = Field(default_factory=lambda: _default_runtime_root() / "freqtrade")
+    LLM_CONFIG_PATH: Path = Field(default_factory=lambda: _default_runtime_root() / "config" / "llm_provider_config.json")
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
+    from app.infra.db import DatabaseRuntime
     from app.services.backtest.command_service import BacktestCommandService
     from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
     from app.services.backtest.freqtrade_service import FreqtradeBacktestService
@@ -37,6 +38,8 @@ if TYPE_CHECKING:
     from app.services.market.market_data_service import MarketDataService
     from app.services.market.query_app_service import MarketQueryAppService
     from app.services.market.realtime_service import RealtimeService
+    from app.services.market_scheduler_runtime import MarketSchedulerRuntime
+    from app.services.market.websocket_service import MarketWebSocketService
     from app.services.sentiment_client import SentimentApiClient
     from app.services.sentiment_repository import SentimentRepository
     from app.services.sentiment_service import SentimentService
@@ -47,7 +50,53 @@ if TYPE_CHECKING:
 
 @dataclass(slots=True)
 class AppRuntimeServices:
+    REQUIRED_SERVICE_FIELDS: ClassVar[tuple[str, ...]] = (
+        "exchange_gateway",
+        "database_runtime",
+        "kline_store",
+        "market_data_service",
+        "realtime_service",
+        "market_indicator_repository",
+        "indicator_service",
+        "history_service",
+        "funding_rate_store",
+        "funding_rate_service",
+        "funding_rate_app_service",
+        "crypto_index_service",
+        "market_query_app_service",
+        "market_insight_app_service",
+        "market_websocket_service",
+        "index_data_service",
+        "binance_market_snapshot",
+        "binance_market_intel",
+        "binance_web3_service",
+        "sentiment_api_client",
+        "sentiment_repository",
+        "sentiment_service",
+        "dca_service",
+        "pair_compare_service",
+        "tools_app_service",
+        "backtest_run_repository",
+        "freqtrade_backtest_service",
+        "backtest_run_service",
+        "strategy_query_service",
+        "strategy_write_service",
+        "freqtrade_report_builder",
+        "paper_run_manager",
+        "backtest_command_service",
+        "backtest_query_service",
+        "factor_research_repository",
+        "factor_research_service",
+        "factor_execution_service",
+        "factor_signal_execution_core",
+        "factor_paper_persistence_service",
+        "factor_paper_run_manager",
+        "currency_rate_service",
+        "market_scheduler_runtime",
+    )
+
     exchange_gateway: ExchangeGateway | None = None
+    database_runtime: DatabaseRuntime | None = None
     kline_store: KlineStore | None = None
     market_data_service: MarketDataService | None = None
     realtime_service: RealtimeService | None = None
@@ -60,6 +109,7 @@ class AppRuntimeServices:
     crypto_index_service: CryptoIndexService | None = None
     market_query_app_service: MarketQueryAppService | None = None
     market_insight_app_service: MarketInsightAppService | None = None
+    market_websocket_service: MarketWebSocketService | None = None
     index_data_service: IndexDataService | None = None
     binance_market_snapshot: BinanceMarketSnapshotService | None = None
     binance_market_intel: BinanceMarketIntelService | None = None
@@ -86,4 +136,12 @@ class AppRuntimeServices:
     factor_paper_persistence_service: FactorPaperPersistenceService | None = None
     factor_paper_run_manager: FactorPaperRunManager | None = None
     currency_rate_service: CurrencyRateService | None = None
-    market_scheduler: Any | None = None
+    market_scheduler_runtime: MarketSchedulerRuntime | None = None
+
+    def missing_required_services(self) -> list[str]:
+        return [name for name in self.REQUIRED_SERVICE_FIELDS if getattr(self, name) is None]
+
+    def validate_required_services(self) -> None:
+        missing = self.missing_required_services()
+        if missing:
+            raise RuntimeError(f"Runtime services missing: {', '.join(missing)}")

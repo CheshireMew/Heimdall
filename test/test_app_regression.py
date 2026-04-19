@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from fastapi import Request
@@ -13,7 +12,6 @@ import app.main as main_module
 import app.web as web_module
 import app.background_runtime as background_runtime_module
 from app.runtime import AppRuntimeServices
-from app.infra.db.database import _build_kline_symbol_contract_statements
 
 
 @pytest.mark.asyncio
@@ -27,10 +25,11 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
         async def shutdown(self):
             events.append("shutdown")
 
-    class FakeScheduler:
-        running = True
+    class FakeSchedulerRuntime:
+        def start(self):
+            events.append("start_scheduler")
 
-        def shutdown(self):
+        async def shutdown(self):
             events.append("scheduler_shutdown")
 
     class FakeSnapshot:
@@ -64,19 +63,15 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
             binance_market_intel=binance_market,
             paper_run_manager=paper_manager,
             factor_paper_run_manager=factor_manager,
+            market_scheduler_runtime=FakeSchedulerRuntime(),
         ),
     )
-    monkeypatch.setattr(background_runtime_module._ProcessFileLock, "acquire", lambda self: True)
-    monkeypatch.setattr(background_runtime_module._ProcessFileLock, "release", lambda self: None)
     monkeypatch.setattr(
-        background_runtime_module.importlib,
-        "import_module",
-        lambda name: SimpleNamespace(
-            start_scheduler=lambda: events.append("start_scheduler"),
-            scheduler=FakeScheduler(),
-        ),
+        background_runtime_module._ProcessFileLock, "acquire", lambda self: True
     )
-
+    monkeypatch.setattr(
+        background_runtime_module._ProcessFileLock, "release", lambda self: None
+    )
     async with lifecycle_module.lifespan(main_module.app):
         events.append("inside")
         await main_module.app.state.database_task
@@ -87,25 +82,27 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
     assert events.index("init_db") < events.index("start_scheduler")
     assert events.index("snapshot_start") < events.index("restore")
     assert events.count("restore") == 2
-    assert events[-4:] == ["snapshot_shutdown", "shutdown", "shutdown", "scheduler_shutdown"]
+    assert events[-4:] == [
+        "snapshot_shutdown",
+        "shutdown",
+        "shutdown",
+        "scheduler_shutdown",
+    ]
 
 
-def test_root_returns_frontend_boot_payload_when_build_missing(api_harness, monkeypatch):
+def test_root_returns_frontend_boot_payload_when_build_missing(
+    api_harness, monkeypatch
+):
     monkeypatch.setattr(web_module, "FRONTEND_DIST_DIR", Path("Z:/missing"))
-    monkeypatch.setattr(web_module, "FRONTEND_INDEX_FILE", Path("Z:/missing/index.html"))
+    monkeypatch.setattr(
+        web_module, "FRONTEND_INDEX_FILE", Path("Z:/missing/index.html")
+    )
 
     response = api_harness["client"].get("/")
 
     assert response.status_code == 200
     assert response.json()["message"] == "Heimdall API is running"
     assert response.json()["docs"] == "/docs"
-
-
-def test_kline_symbol_contract_migrates_short_postgres_column():
-    assert _build_kline_symbol_contract_statements("postgresql", 20) == [
-        "ALTER TABLE klines ALTER COLUMN symbol TYPE VARCHAR(80)"
-    ]
-    assert _build_kline_symbol_contract_statements("postgresql", 80) == []
 
 
 def test_root_and_spa_fallback_serve_built_frontend(api_harness, monkeypatch):
@@ -115,8 +112,12 @@ def test_root_and_spa_fallback_serve_built_frontend(api_harness, monkeypatch):
     assets_dir.mkdir(parents=True, exist_ok=True)
     index_file = dist_dir / "index.html"
     asset_file = assets_dir / "app.js"
-    original_index = index_file.read_text(encoding="utf-8") if index_file.exists() else None
-    original_asset = asset_file.read_text(encoding="utf-8") if asset_file.exists() else None
+    original_index = (
+        index_file.read_text(encoding="utf-8") if index_file.exists() else None
+    )
+    original_asset = (
+        asset_file.read_text(encoding="utf-8") if asset_file.exists() else None
+    )
 
     try:
         index_file.write_text("<html><body>frontend</body></html>", encoding="utf-8")

@@ -2,7 +2,7 @@ import { nextTick, onBeforeUnmount, ref, type Ref } from 'vue'
 import { Chart, registerables } from 'chart.js'
 
 import { useMoney } from '@/composables/useMoney'
-import type { DCASimulationResponse } from '@/types'
+import type { DCAResponse } from '@/types'
 
 
 Chart.register(...registerables)
@@ -10,7 +10,7 @@ Chart.register(...registerables)
 interface UseDcaChartsOptions {
   theme: Ref<string>
   t: (key: string) => string
-  result: Ref<DCASimulationResponse | null>
+  result: Ref<DCAResponse | null>
 }
 
 export const useDcaCharts = ({

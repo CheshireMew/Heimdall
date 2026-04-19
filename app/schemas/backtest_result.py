@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, Field
+
+from app.schemas.json_types import JsonObject
 
 class BacktestReportSnapshotResponse(BaseModel):
     profit_pct: float | None = None
@@ -63,7 +63,7 @@ class BacktestResearchPayloadResponse(BaseModel):
 class BacktestOptimizationTrialResponse(BaseModel):
     trial: int
     score: float | None = None
-    config: dict[str, Any] = Field(default_factory=dict)
+    config: JsonObject = Field(default_factory=dict)
     report: BacktestReportSnapshotResponse | None = None
 
 
@@ -71,13 +71,13 @@ class BacktestOptimizationSummaryResponse(BaseModel):
     metric: str
     trial_count: int
     best_score: float | None = None
-    best_config: dict[str, Any] = Field(default_factory=dict)
+    best_config: JsonObject = Field(default_factory=dict)
     trials: list[BacktestOptimizationTrialResponse] = Field(default_factory=list)
 
 
 class BacktestIterationSummaryResponse(BaseModel):
     range: BacktestDateRangeResponse | None = None
-    config: dict[str, Any] = Field(default_factory=dict)
+    config: JsonObject = Field(default_factory=dict)
     report: BacktestReportSnapshotResponse | None = None
 
 
@@ -85,13 +85,13 @@ class BacktestRollingWindowResponse(BaseModel):
     index: int
     train: BacktestDateRangeResponse | None = None
     test: BacktestDateRangeResponse
-    config: dict[str, Any] = Field(default_factory=dict)
+    config: JsonObject = Field(default_factory=dict)
     optimization: BacktestOptimizationSummaryResponse | None = None
     report: BacktestReportSnapshotResponse | None = None
 
 
 class BacktestResearchReportResponse(BaseModel):
-    selected_config: dict[str, Any] = Field(default_factory=dict)
+    selected_config: JsonObject = Field(default_factory=dict)
     in_sample_ratio: float
     slippage_bps: float
     funding_rate_daily: float
@@ -189,7 +189,7 @@ class BacktestRunMetadataResponse(BaseModel):
     stake_currency: str | None = None
     portfolio: BacktestPortfolioPayloadResponse | None = None
     research: BacktestResearchPayloadResponse | BacktestResearchReportResponse | None = None
-    selected_config: dict[str, Any] = Field(default_factory=dict)
+    selected_config: JsonObject = Field(default_factory=dict)
     sample_ranges: BacktestSampleRangesResponse | None = None
     runtime_state: BacktestRuntimeStateResponse | None = None
     paper_live: BacktestPaperLiveResponse | None = None

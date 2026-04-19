@@ -1,6 +1,8 @@
 import { watch, type WatchSource, type WatchStopHandle } from 'vue'
 
 const PAGE_SNAPSHOT_PREFIX = 'heimdall_page_snapshot:'
+const PAGE_SNAPSHOT_VERSION = 2
+const PAGE_SNAPSHOT_TTL_MS = 1000 * 60 * 60 * 24 * 30
 
 export const PAGE_SNAPSHOT_KEYS = {
   dca: 'tools:dca',
@@ -28,6 +30,22 @@ export const readStringArray = (value: unknown, fallback: string[] = []) => (
     : fallback
 )
 
+export const readEnum = <TValue extends string>(
+  value: unknown,
+  allowed: readonly TValue[],
+  fallback: TValue,
+): TValue => (
+  typeof value === 'string' && (allowed as readonly string[]).includes(value) ? value as TValue : fallback
+)
+
+const readSnapshotEnvelopeData = (value: unknown): unknown | null => {
+  if (!isRecord(value)) return null
+  if (value.version !== PAGE_SNAPSHOT_VERSION) return null
+  if (typeof value.savedAt !== 'number' || Date.now() - value.savedAt > PAGE_SNAPSHOT_TTL_MS) return null
+  if (!('data' in value)) return null
+  return value.data
+}
+
 export const createPageSnapshot = <TSnapshot>(
   key: string,
   normalize: (value: unknown) => TSnapshot,
@@ -46,7 +64,8 @@ export const createPageSnapshot = <TSnapshot>(
       try {
         const stored = window.localStorage.getItem(storageKey)
         if (!stored) return fallback
-        return normalize(JSON.parse(stored))
+        const data = readSnapshotEnvelopeData(JSON.parse(stored))
+        return data === null ? fallback : normalize(data)
       } catch (error) {
         console.warn(`Failed to load page snapshot: ${storageKey}`, error)
         return fallback
@@ -56,7 +75,12 @@ export const createPageSnapshot = <TSnapshot>(
     save(snapshot: TSnapshot) {
       if (typeof window === 'undefined') return
       try {
-        window.localStorage.setItem(storageKey, JSON.stringify(snapshot))
+        // 本地快照会跟随页面结构变化，版本不匹配时直接丢弃，避免把旧字段重新灌回新页面。
+        window.localStorage.setItem(storageKey, JSON.stringify({
+          version: PAGE_SNAPSHOT_VERSION,
+          savedAt: Date.now(),
+          data: snapshot,
+        }))
       } catch (error) {
         console.warn(`Failed to save page snapshot: ${storageKey}`, error)
       }

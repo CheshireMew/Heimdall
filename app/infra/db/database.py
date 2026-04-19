@@ -1,174 +1,150 @@
-"""
-数据库连接与 Session 管理
-"""
+from __future__ import annotations
+
 import os
-import logging
-from pathlib import Path
 from contextlib import contextmanager
-from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.orm import sessionmaker
-from app.domain.market.constants import KLINE_SYMBOL_MAX_LENGTH
-from app.infra.db.schema import Base
+from pathlib import Path
+from threading import Lock
+from urllib.parse import quote_plus
 
-db_logger = logging.getLogger(__name__)
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine, make_url
+from sqlalchemy.orm import Session, sessionmaker
 
-from config import settings
-
-# 数据库文件路径/连接串（可通过环境变量覆盖）
-_DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent.parent.parent / "data" / "heimdall.db"
-DB_URL = settings.DATABASE_URL or f"sqlite:///{_DEFAULT_DB_PATH}"
-
-# 确保 data 目录存在（仅针对 sqlite 文件场景）
-if DB_URL.startswith("sqlite:///"):
-    os.makedirs(_DEFAULT_DB_PATH.parent, exist_ok=True)
-
-# 创建数据库引擎
-_engine_kwargs = {
-    'echo': False,
-    'pool_pre_ping': True,       # 自动检测失效连接
-    'pool_recycle': 3600,        # 每小时回收连接
-}
-
-if DB_URL.startswith("sqlite"):
-    # SQLite: 禁用连接池的线程检查（因为 run_in_executor 跨线程使用）
-    _engine_kwargs['connect_args'] = {"check_same_thread": False}
-else:
-    # PostgreSQL / MySQL: 配置连接池大小
-    _engine_kwargs['pool_size'] = 10
-    _engine_kwargs['max_overflow'] = 20
-
-engine = create_engine(DB_URL, **_engine_kwargs)
-
-# Session 工厂
-SessionLocal = sessionmaker(bind=engine)
-_initialized = False
-
-def init_db():
-    """
-    初始化数据库，创建所有表
-    """
-    global _initialized
-    if _initialized:
-        return
-    Base.metadata.create_all(engine)
-    _initialized = True
-    db_logger.info(f"数据库初始化完成: {DB_URL}")
+from config.settings import DEFAULT_DB_PATH, AppSettings, settings
 
 
-def prepare_db() -> None:
-    """
-    显式执行数据库结构准备。
-    仅供启动脚本/部署脚本调用，不在应用启动链路中隐式触发。
-    """
-    init_db()
-    _ensure_backtest_run_contract_columns()
-    _ensure_kline_symbol_contract()
-    db_logger.info(f"数据库结构准备完成: {DB_URL}")
+class DatabaseRuntime:
+    def __init__(self, *, database_url: str, source: str) -> None:
+        self.database_url = database_url
+        self.source = source
+        self.engine = self._create_engine(database_url)
+        self.session_factory = sessionmaker(bind=self.engine)
 
-def get_session():
-    """
-    获取数据库会话
-    """
-    return SessionLocal()
+    def get_session(self) -> Session:
+        return self.session_factory()
 
+    @contextmanager
+    def session_scope(self):
+        session = self.session_factory()
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
-def _ensure_backtest_run_contract_columns() -> None:
-    inspector = inspect(engine)
-    if "backtest_runs" not in inspector.get_table_names():
-        return
+    def dispose(self) -> None:
+        self.engine.dispose()
 
-    existing_columns = {column["name"] for column in inspector.get_columns("backtest_runs")}
-    statements: list[str] = []
-    if "execution_mode" not in existing_columns:
-        statements.append(
-            "ALTER TABLE backtest_runs ADD COLUMN execution_mode VARCHAR(20) NOT NULL DEFAULT 'backtest'"
-        )
-    if "engine" not in existing_columns:
-        statements.append(
-            "ALTER TABLE backtest_runs ADD COLUMN engine VARCHAR(50) NOT NULL DEFAULT 'Freqtrade'"
-        )
+    @staticmethod
+    def _create_engine(database_url: str) -> Engine:
+        if database_url.startswith("sqlite"):
+            sqlite_path = make_url(database_url).database
+            if sqlite_path and sqlite_path != ":memory:":
+                os.makedirs(Path(sqlite_path).parent, exist_ok=True)
 
-    with engine.begin() as connection:
-        for statement in statements:
-            connection.execute(text(statement))
-        connection.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS ix_backtest_runs_mode_created_at "
-                "ON backtest_runs (execution_mode, created_at)"
-            )
-        )
-        connection.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS ix_backtest_runs_mode_engine_status_created_at "
-                "ON backtest_runs (execution_mode, engine, status, created_at)"
-            )
-        )
+        engine_kwargs: dict[str, object] = {
+            "echo": False,
+            "pool_pre_ping": True,
+            "pool_recycle": 3600,
+        }
 
-    from app.infra.db.schema import BacktestRun
+        if database_url.startswith("sqlite"):
+            # SQLite 仍保留跨线程访问选项，因为后台任务会走线程池。
+            engine_kwargs["connect_args"] = {"check_same_thread": False}
+        else:
+            engine_kwargs["pool_size"] = 10
+            engine_kwargs["max_overflow"] = 20
 
-    with session_scope() as session:
-        runs = session.query(BacktestRun).all()
-        for run in runs:
-            metadata = dict(run.metadata_info or {})
-            next_execution_mode = str(metadata.get("execution_mode") or run.execution_mode or "backtest")
-            next_engine = str(metadata.get("engine") or run.engine or "Freqtrade")
-            changed = False
-            if run.execution_mode != next_execution_mode:
-                run.execution_mode = next_execution_mode
-                changed = True
-            if run.engine != next_engine:
-                run.engine = next_engine
-                changed = True
-            if metadata.pop("execution_mode", None) is not None:
-                changed = True
-            if metadata.pop("engine", None) is not None:
-                changed = True
-            if changed:
-                run.metadata_info = metadata
+        return create_engine(database_url, **engine_kwargs)
 
 
-def _ensure_kline_symbol_contract() -> None:
-    inspector = inspect(engine)
-    if "klines" not in inspector.get_table_names():
-        return
+def build_postgres_dev_url(app_settings: AppSettings) -> str:
+    direct_url = app_settings.POSTGRES_DEV_URL.strip()
+    if direct_url:
+        return direct_url
 
-    symbol_column = next(
-        (column for column in inspector.get_columns("klines") if column["name"] == "symbol"),
-        None,
+    auth = quote_plus(app_settings.POSTGRES_DEV_USER.strip())
+    if app_settings.POSTGRES_DEV_PASSWORD:
+        auth = f"{auth}:{quote_plus(app_settings.POSTGRES_DEV_PASSWORD)}"
+    return (
+        f"postgresql://{auth}@{app_settings.POSTGRES_DEV_HOST.strip()}:"
+        f"{app_settings.POSTGRES_DEV_PORT}/{app_settings.POSTGRES_DEV_DB.strip()}"
     )
-    existing_length = getattr(symbol_column.get("type"), "length", None) if symbol_column else None
-    statements = _build_kline_symbol_contract_statements(engine.dialect.name, existing_length)
-    if not statements:
-        return
-
-    with engine.begin() as connection:
-        for statement in statements:
-            connection.execute(text(statement))
 
 
-def _build_kline_symbol_contract_statements(dialect_name: str, existing_length: int | None) -> list[str]:
-    if existing_length is not None and existing_length >= KLINE_SYMBOL_MAX_LENGTH:
-        return []
-    if dialect_name == "postgresql":
-        return [f"ALTER TABLE klines ALTER COLUMN symbol TYPE VARCHAR({KLINE_SYMBOL_MAX_LENGTH})"]
-    if dialect_name == "mysql":
-        return [f"ALTER TABLE klines MODIFY symbol VARCHAR({KLINE_SYMBOL_MAX_LENGTH}) NOT NULL"]
-    return []
+def can_connect_postgres(database_url: str) -> bool:
+    probe_engine = None
+    try:
+        probe_engine = create_engine(
+            database_url,
+            pool_pre_ping=False,
+            connect_args={"connect_timeout": 1},
+        )
+        with probe_engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        return False
+    finally:
+        if probe_engine is not None:
+            probe_engine.dispose()
+
+
+def resolve_database_url(app_settings: AppSettings) -> tuple[str, str]:
+    explicit_url = app_settings.DATABASE_URL.strip()
+    if explicit_url:
+        return explicit_url, "explicit"
+
+    postgres_dev_url = build_postgres_dev_url(app_settings)
+    if can_connect_postgres(postgres_dev_url):
+        return postgres_dev_url, "postgres-dev"
+
+    return f"sqlite:///{DEFAULT_DB_PATH}", "sqlite-fallback"
+
+
+def create_database_runtime(app_settings: AppSettings) -> DatabaseRuntime:
+    database_url, source = resolve_database_url(app_settings)
+    return DatabaseRuntime(database_url=database_url, source=source)
+
+
+_runtime_lock = Lock()
+_database_runtime: DatabaseRuntime | None = None
+
+
+def configure_database_runtime(runtime: DatabaseRuntime) -> DatabaseRuntime:
+    global _database_runtime
+    with _runtime_lock:
+        previous = _database_runtime
+        _database_runtime = runtime
+    if previous is not None and previous is not runtime:
+        previous.dispose()
+    return runtime
+
+
+def get_database_runtime() -> DatabaseRuntime:
+    global _database_runtime
+    runtime = _database_runtime
+    if runtime is not None:
+        return runtime
+    with _runtime_lock:
+        if _database_runtime is None:
+            _database_runtime = create_database_runtime(settings)
+        return _database_runtime
+
+
+def current_database_url() -> str:
+    return get_database_runtime().database_url
+
+
+def get_session() -> Session:
+    return get_database_runtime().get_session()
+
 
 @contextmanager
 def session_scope():
-    """
-    提供事务型会话上下文，异常时回滚并确保关闭
-    """
-    session = SessionLocal()
-    try:
+    with get_database_runtime().session_scope() as session:
         yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
 
-if __name__ == "__main__":
-    init_db()

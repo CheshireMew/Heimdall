@@ -51,7 +51,9 @@ class StrategyGroupNodeResponse(BaseModel):
     label: str
     logic: Literal["and", "or"]
     enabled: bool = True
-    children: list["StrategyConditionNodeResponse | StrategyGroupNodeResponse"] = Field(default_factory=list)
+    children: list["StrategyConditionNodeResponse | StrategyGroupNodeResponse"] = Field(
+        default_factory=list
+    )
 
 
 class StrategyIndicatorConfigResponse(BaseModel):
@@ -98,18 +100,35 @@ class StrategyTrailingConfigResponse(BaseModel):
     only_offset_reached: bool = True
 
 
+class StrategyTradePlanConfigResponse(BaseModel):
+    enabled: bool = False
+    stop_multiplier: float = 1.0
+    min_stop_pct: float = 0.01
+    reward_multiplier: float = 2.0
+    atr_indicator: str = ""
+    support_indicator: str = ""
+    resistance_indicator: str = ""
+
+
 class StrategyRiskConfigResponse(BaseModel):
     stoploss: float
     roi_targets: list[StrategyRoiTargetResponse] = Field(default_factory=list)
     trailing: StrategyTrailingConfigResponse
     partial_exits: list[StrategyPartialExitResponse] = Field(default_factory=list)
+    trade_plan: StrategyTradePlanConfigResponse = Field(
+        default_factory=StrategyTradePlanConfigResponse
+    )
 
 
 class StrategyTemplateConfigResponse(BaseModel):
     indicators: dict[str, StrategyIndicatorConfigResponse] = Field(default_factory=dict)
     execution: StrategyExecutionConfigResponse
-    regime_priority: list[Literal["trend", "range"]] = Field(default_factory=lambda: ["trend", "range"])
+    regime_priority: list[Literal["trend", "range"]] = Field(
+        default_factory=lambda: ["trend", "range"]
+    )
     trend: StrategyStateBranchResponse
     range: StrategyStateBranchResponse
     risk: StrategyRiskConfigResponse
+
+
 StrategyGroupNodeResponse.model_rebuild()

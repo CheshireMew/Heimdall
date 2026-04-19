@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, Field
+
+from app.schemas.json_types import JsonObject
 
 
 class BinanceSymbolSummaryResponse(BaseModel):
@@ -324,7 +324,7 @@ class BinanceWeb3RankItemResponse(BaseModel):
     unique_trader_1h: int | None = None
     unique_trader_24h: int | None = None
     kyc_holders: int | None = None
-    audit_info: dict[str, Any] = Field(default_factory=dict)
+    audit_info: JsonObject = Field(default_factory=dict)
 
 
 class BinanceWeb3UnifiedTokenRankResponse(BaseModel):
@@ -433,8 +433,8 @@ class BinanceWeb3HeatRankItemResponse(BaseModel):
     ranks: dict[str, int] = Field(default_factory=dict)
     components: dict[str, float] = Field(default_factory=dict)
     penalties: dict[str, float] = Field(default_factory=dict)
-    metrics: dict[str, Any] = Field(default_factory=dict)
-    audit_info: dict[str, Any] = Field(default_factory=dict)
+    metrics: JsonObject = Field(default_factory=dict)
+    audit_info: JsonObject = Field(default_factory=dict)
     sentiment: str | None = None
     summary: str | None = None
 
@@ -515,7 +515,7 @@ class BinanceWeb3TokenAuditResponse(BaseModel):
     buy_tax: float | None = None
     sell_tax: float | None = None
     is_verified: bool | None = None
-    risk_items: list[dict[str, Any]] = Field(default_factory=list)
+    risk_items: list[JsonObject] = Field(default_factory=list)
 
 
 class BinanceRwaSymbolItemResponse(BaseModel):
@@ -545,7 +545,7 @@ class BinanceRwaMetaResponse(BaseModel):
     icon_url: str | None = None
     daily_attestation_report_url: str | None = None
     monthly_attestation_report_url: str | None = None
-    company_info: dict[str, Any] = Field(default_factory=dict)
+    company_info: JsonObject = Field(default_factory=dict)
     description: str | None = None
 
 
@@ -565,10 +565,10 @@ class BinanceRwaDynamicResponse(BaseModel):
     source: str
     symbol: str | None = None
     ticker: str | None = None
-    token_info: dict[str, Any] = Field(default_factory=dict)
-    stock_info: dict[str, Any] = Field(default_factory=dict)
-    status_info: dict[str, Any] = Field(default_factory=dict)
-    limit_info: dict[str, Any] = Field(default_factory=dict)
+    token_info: JsonObject = Field(default_factory=dict)
+    stock_info: JsonObject = Field(default_factory=dict)
+    status_info: JsonObject = Field(default_factory=dict)
+    limit_info: JsonObject = Field(default_factory=dict)
 
 
 class BinanceRwaKlineItemResponse(BaseModel):

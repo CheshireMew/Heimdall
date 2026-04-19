@@ -77,8 +77,24 @@ def test_page_snapshot_registry_and_helpers_are_stable():
     for key in ["dca", "compare", "factorResearch", "halving", "cryptoIndex", "backtest", "backtestEditor"]:
         assert re.search(rf"\b{key}:", source), key
     assert "readStringArray" in source
+    assert "readEnum" in source
     assert "bindPageSnapshot" in source
     assert "{ deep: true, immediate: true }" in source
+
+
+def test_generated_frontend_contracts_include_route_models():
+    backtest_types = read_frontend("types/backtest.ts")
+    factor_types = read_frontend("types/factor.ts")
+    market_types = read_frontend("types/market.ts")
+    market_frontend_types = read_frontend("types/market-frontend.ts")
+
+    assert "interface BacktestDeleteResponse" in backtest_types
+    assert "interface FactorResearchRunListItemResponse" in factor_types
+    assert "interface MarketHistoryResponse" in market_types
+    assert "interface MarketHistoryBatchResponse" in market_types
+    assert "interface OhlcvPointResponse" in market_types
+    assert "OHLCVRaw" not in market_frontend_types
+    assert "BatchFullHistoryResponse" not in market_frontend_types
 
 
 def test_market_store_cache_contract_is_stable():
