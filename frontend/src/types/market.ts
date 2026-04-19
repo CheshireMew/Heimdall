@@ -7,7 +7,7 @@ export interface RealtimeResponse {
   current_price: number
   indicators: IndicatorSummaryResponse
   ai_analysis: unknown | null
-  kline_data: Array<OHLCVRaw>
+  kline_data: Array<Array<number>>
   timeframe?: string | null
   type?: string | null
 }
@@ -17,7 +17,7 @@ export interface KlineTailResponse {
   timeframe: string
   timestamp: string
   current_price: number | null
-  kline_data: Array<OHLCVRaw>
+  kline_data: Array<Array<number>>
 }
 
 export interface CurrentPriceResponse {
@@ -27,7 +27,20 @@ export interface CurrentPriceResponse {
   current_price: number | null
 }
 
-export interface IndicatorItem {
+export interface CurrentPriceBatchItemResponse {
+  symbol: string
+  timeframe: string
+  timestamp: string
+  current_price: number | null
+  source: string
+}
+
+export interface CurrentPriceBatchResponse {
+  timeframe: string
+  items?: Array<CurrentPriceBatchItemResponse>
+}
+
+export interface MarketIndicatorResponse {
   indicator_id: string
   name: string
   category: string
@@ -47,7 +60,7 @@ export interface MarketIndexResponse {
   pricing_currency?: string | null
 }
 
-export interface MarketSymbolSearchItem {
+export interface MarketSymbolSearchResponse {
   symbol: string
   name: string
   asset_class: string
@@ -74,7 +87,7 @@ export interface MarketIndexHistoryResponse {
   pricing_currency?: string | null
   is_close_only?: boolean
   count: number
-  data: Array<OHLCVRaw>
+  data: Array<Array<number>>
 }
 
 export interface FundingRateSnapshotResponse {
@@ -176,7 +189,7 @@ export interface CurrencyRatesResponse {
   is_fallback?: boolean
 }
 
-export interface CryptoIndexConstituent {
+export interface CryptoIndexConstituentResponse {
   id: string
   symbol: string
   name: string
@@ -189,7 +202,7 @@ export interface CryptoIndexConstituent {
   volume_24h?: number | null
 }
 
-export interface CryptoIndexHistoryPoint {
+export interface CryptoIndexHistoryPointResponse {
   date: string
   timestamp: number
   market_cap: number
@@ -210,8 +223,8 @@ export interface CryptoIndexResponse {
   top_n: number
   days: number
   base_value: number
-  constituents: Array<CryptoIndexConstituent>
-  history: Array<CryptoIndexHistoryPoint>
+  constituents: Array<CryptoIndexConstituentResponse>
+  history: Array<CryptoIndexHistoryPointResponse>
   summary?: CryptoIndexSummaryResponse | null
   is_partial?: boolean
   resolved_constituents_count?: number | null
@@ -462,6 +475,65 @@ export interface BinanceBasisResponse {
   items?: Array<BinanceBasisItemResponse>
 }
 
+export interface BinanceBreakoutMonitorSummaryResponse {
+  monitored_count?: number
+  natural_count?: number
+  momentum_count?: number
+  focus_count?: number
+  advancing_count?: number
+  spot_count?: number
+  contract_count?: number
+}
+
+export interface BinanceBreakoutMonitorItemResponse {
+  market: string
+  market_label: string
+  symbol: string
+  last_price?: number | null
+  mark_price?: number | null
+  price_change_pct?: number | null
+  quote_volume?: number | null
+  funding_rate_pct?: number | null
+  change_15m_pct?: number | null
+  change_1h_pct?: number | null
+  change_4h_pct?: number | null
+  pullback_from_high_pct?: number | null
+  range_position_pct?: number | null
+  ema20_gap_15m_pct?: number | null
+  ema20_gap_1h_pct?: number | null
+  rsi_15m?: number | null
+  rsi_1h?: number | null
+  macd_hist_15m?: number | null
+  green_ratio_15m_pct?: number | null
+  natural_score?: number
+  momentum_score?: number
+  structure_ok?: boolean
+  momentum_ok?: boolean
+  follow_status?: string
+  verdict?: string
+  reasons?: Array<string>
+}
+
+export interface BinanceBreakoutMonitorResponse {
+  exchange: string
+  min_rise_pct: number
+  quote_asset: string
+  updated_at: number
+  summary?: BinanceBreakoutMonitorSummaryResponse
+  items?: Array<BinanceBreakoutMonitorItemResponse>
+}
+
+export interface BinanceMarketPageResponse {
+  exchange: string
+  quote_asset: string
+  updated_at: number
+  monitor: BinanceBreakoutMonitorResponse
+  spot_ticker: BinanceTickerStatsResponse
+  usdm_ticker: BinanceTickerStatsResponse
+  usdm_mark: BinanceMarkPriceResponse
+  load_errors?: Array<string>
+}
+
 export interface BinanceWeb3RankItemResponse {
   symbol?: string | null
   chain_id?: string | null
@@ -474,9 +546,15 @@ export interface BinanceWeb3RankItemResponse {
   launch_time?: number | null
   percent_change_1h?: number | null
   percent_change_24h?: number | null
+  volume_1h?: number | null
+  volume_4h?: number | null
   volume_24h?: number | null
+  count_1h?: number | null
+  count_24h?: number | null
+  unique_trader_1h?: number | null
   unique_trader_24h?: number | null
   kyc_holders?: number | null
+  audit_info?: { [key: string]: unknown }
 }
 
 export interface BinanceWeb3UnifiedTokenRankResponse {
@@ -574,6 +652,102 @@ export interface BinanceWeb3AddressPnlResponse {
   items?: Array<BinanceWeb3AddressPnlItemResponse>
 }
 
+export interface BinanceWeb3HeatRankItemResponse {
+  rank?: number | null
+  symbol?: string | null
+  chain_id?: string | null
+  contract_address?: string | null
+  icon_url?: string | null
+  platform?: string | null
+  heat_score?: number
+  ranks?: { [key: string]: number }
+  components?: { [key: string]: number }
+  penalties?: { [key: string]: number }
+  metrics?: { [key: string]: unknown }
+  audit_info?: { [key: string]: unknown }
+  sentiment?: string | null
+  summary?: string | null
+}
+
+export interface BinanceWeb3HeatRankResponse {
+  source: string
+  leaderboard: string
+  chain_id: string
+  size: number
+  items?: Array<BinanceWeb3HeatRankItemResponse>
+  formula?: { [key: string]: Array<string> }
+}
+
+export interface BinanceWeb3TokenDynamicResponse {
+  source: string
+  chain_id: string
+  contract_address: string
+  price?: number | null
+  native_token_price?: number | null
+  volume_24h?: number | null
+  volume_24h_buy?: number | null
+  volume_24h_sell?: number | null
+  volume_4h?: number | null
+  volume_1h?: number | null
+  volume_5m?: number | null
+  count_24h?: number | null
+  count_24h_buy?: number | null
+  count_24h_sell?: number | null
+  percent_change_5m?: number | null
+  percent_change_1h?: number | null
+  percent_change_4h?: number | null
+  percent_change_24h?: number | null
+  market_cap?: number | null
+  fdv?: number | null
+  total_supply?: number | null
+  circulating_supply?: number | null
+  price_high_24h?: number | null
+  price_low_24h?: number | null
+  holders?: number | null
+  liquidity?: number | null
+  launch_time?: number | null
+  top10_holders_percentage?: number | null
+  kyc_holder_count?: number | null
+  kol_holders?: number | null
+  kol_holding_percent?: number | null
+  pro_holders?: number | null
+  pro_holding_percent?: number | null
+  smart_money_holders?: number | null
+  smart_money_holding_percent?: number | null
+}
+
+export interface BinanceWeb3TokenKlineItemResponse {
+  open_time?: number | null
+  open?: number | null
+  high?: number | null
+  low?: number | null
+  close?: number | null
+  volume?: number | null
+  trade_count?: number | null
+}
+
+export interface BinanceWeb3TokenKlineResponse {
+  source: string
+  address: string
+  platform: string
+  interval: string
+  items?: Array<BinanceWeb3TokenKlineItemResponse>
+}
+
+export interface BinanceWeb3TokenAuditResponse {
+  source: string
+  binance_chain_id: string
+  contract_address: string
+  has_result?: boolean
+  is_supported?: boolean
+  risk_level_enum?: string | null
+  risk_level?: number | null
+  buy_tax?: number | null
+  sell_tax?: number | null
+  is_verified?: boolean | null
+  risk_items?: Array<{ [key: string]: unknown }>
+}
+
 export interface BinanceRwaSymbolItemResponse {
   chain_id?: string | null
   contract_address?: string | null
@@ -645,19 +819,6 @@ export interface BinanceRwaKlineResponse {
   items?: Array<BinanceRwaKlineItemResponse>
 }
 
-export interface BinanceReservedFeatureResponse {
-  source: string
-  feature: string
-  status: string
-  message: string
-  skill_name?: string | null
-  skill_version?: string | null
-  supported_chains?: Array<{ [key: string]: string }>
-  reserved_endpoints?: Array<{ [key: string]: unknown }>
-  response_fields?: Array<string>
-  notes?: Array<string>
-}
-
 export interface BinanceBasisItemResponse {
   symbol?: string | null
   pair?: string | null
@@ -673,99 +834,4 @@ export interface BinanceBasisItemResponse {
 export interface IndicatorHistoryPoint {
   date: string
   value: number
-}
-
-export type OHLCVRaw = [number, number, number, number, number, number]
-
-export interface CandlestickData {
-  time: number
-  open: number
-  high: number
-  low: number
-  close: number
-}
-
-export interface VolumeData {
-  time: number
-  value: number
-  color: string
-}
-
-export interface RealtimeParams {
-  symbol: string
-  timeframe?: string
-  limit?: number
-}
-
-export interface HistoryParams {
-  symbol: string
-  timeframe: string
-  end_ts: number
-  limit?: number
-}
-
-export interface LatestKlineParams {
-  symbol: string
-  timeframe: string
-  limit?: number
-}
-
-export interface TailKlineParams {
-  symbol: string
-  timeframe: string
-  limit?: number
-}
-
-export interface CurrentPriceParams {
-  symbol: string
-  timeframe?: string
-}
-
-export interface FullHistoryParams {
-  symbol: string
-  timeframe?: string
-  start_date?: string
-  fetch_policy?: 'cache_only' | 'hydrate'
-}
-
-export interface BatchFullHistoryParams {
-  symbols: string[]
-  timeframe?: string
-  start_date?: string
-  fetch_policy?: 'cache_only' | 'hydrate'
-}
-
-export interface IndicatorParams {
-  category?: string
-  days?: number
-}
-
-export interface CryptoIndexParams {
-  top_n?: number
-  days?: number
-}
-
-export interface IndexHistoryParams {
-  symbol: string
-  timeframe?: string
-  start_date?: string
-  end_date?: string
-}
-
-export type BatchFullHistoryResponse = Record<string, OHLCVRaw[]>
-
-export interface SentimentData {
-  value: number
-  label: string
-  last_updated: string | null
-}
-
-export interface KlineCacheEntry {
-  data: OHLCVRaw[]
-  timestamp: number
-}
-
-export interface SentimentCache {
-  value: SentimentData | null
-  timestamp: number
 }

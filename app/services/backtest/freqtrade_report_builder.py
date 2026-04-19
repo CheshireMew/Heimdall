@@ -6,7 +6,7 @@ from typing import Any
 
 import pandas as pd
 
-from app.services.backtest.models import BacktestEquityPointRecord, BacktestTradeRecord
+from app.contracts.backtest import BacktestEquityPointRecord, BacktestTradeRecord
 
 
 class FreqtradeReportBuilder:

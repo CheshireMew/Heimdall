@@ -3,10 +3,12 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useTheme } from '@/composables/useTheme'
+import type { BacktestRun, StrategyDefinition, StrategyVersion } from '@/types'
 
 import { backtestApi } from './api'
 import { asNumber } from './format'
 import { useBacktestRuns, type BacktestRunMode } from './useBacktestRuns'
+import { defineReactiveView, type BacktestDetailHeroView, type BacktestHistoryPanelView, type BacktestResultPanelView } from './viewTypes'
 
 
 export const useBacktestDetailPage = () => {
@@ -16,7 +18,7 @@ export const useBacktestDetailPage = () => {
   const router = useRouter()
   let paperRefreshTimer: number | null = null
 
-  const strategies = ref<any[]>([])
+  const strategies = ref<StrategyDefinition[]>([])
   const config = reactive({
     strategy_key: '',
     strategy_version: 1,
@@ -31,8 +33,8 @@ export const useBacktestDetailPage = () => {
     downColor: '#ef4444',
   }))
 
-  const selectedStrategy = computed(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
-  const selectedStrategyVersions = computed(() => {
+  const selectedStrategy = computed<StrategyDefinition | null>(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
+  const selectedStrategyVersions = computed<StrategyVersion[]>(() => {
     const versions = selectedStrategy.value?.versions
     if (!Array.isArray(versions)) return []
     return versions.filter(Boolean)
@@ -85,7 +87,7 @@ export const useBacktestDetailPage = () => {
     syncConfigFromSelectedRun()
   }
 
-  const openRunDetail = (run: any, mode: 'backtest' | 'paper' = runs.historyMode.value) => {
+  const openRunDetail = (run: BacktestRun, mode: 'backtest' | 'paper' = runs.historyMode.value) => {
     if (!run?.id) return
     const path = mode === 'paper' ? `/backtest/paper/${run.id}` : `/backtest/runs/${run.id}`
     if (router.currentRoute.value.fullPath === path) {
@@ -129,7 +131,7 @@ export const useBacktestDetailPage = () => {
     }
   })
 
-  const hero = reactive({
+  const hero = defineReactiveView<BacktestDetailHeroView>({
     selectedRun: runs.selectedRun,
     isPaperRun: runs.isPaperRun,
     goBackToCenter,
@@ -137,7 +139,7 @@ export const useBacktestDetailPage = () => {
     runStatusLabel: runs.runStatusLabel,
   })
 
-  const historyPanel = reactive({
+  const historyPanel = defineReactiveView<BacktestHistoryPanelView>({
     historyMode: runs.historyMode,
     enableHistoryCompare: true,
     visibleHistory: runs.visibleHistory,
@@ -151,7 +153,7 @@ export const useBacktestDetailPage = () => {
     deleteRun,
   })
 
-  const resultPanel = reactive({
+  const resultPanel = defineReactiveView<BacktestResultPanelView>({
     selectedRun: runs.selectedRun,
     isPaperRun: runs.isPaperRun,
     isDark,

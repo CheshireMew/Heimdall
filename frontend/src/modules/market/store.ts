@@ -29,7 +29,6 @@ export const useMarketStore = defineStore('market', {
         data,
         timestamp: Date.now(),
       }
-      this.save()
     },
 
     setKlineHistory(
@@ -53,48 +52,6 @@ export const useMarketStore = defineStore('market', {
         })
       })
       return Array.from(merged.values()).sort((left, right) => left[0] - right[0])
-    },
-
-    init() {
-      try {
-        const stored = localStorage.getItem('heimdall_market_cache')
-        if (stored) {
-          const parsed = JSON.parse(stored) as Partial<MarketState>
-          this.klineCache = parsed.klineCache || {}
-          this.sentimentCache = parsed.sentimentCache || { value: null, timestamp: 0 }
-          this.cleanup()
-        }
-      } catch (e) {
-        console.warn('Failed to load market cache', e)
-      }
-    },
-
-    save() {
-      try {
-        localStorage.setItem(
-          'heimdall_market_cache',
-          JSON.stringify({
-            klineCache: this.klineCache,
-            sentimentCache: this.sentimentCache,
-          })
-        )
-      } catch (e) {
-        console.warn('Failed to save market cache', e)
-      }
-    },
-
-    cleanup() {
-      const now = Date.now()
-      const oneWeek = 7 * 24 * 60 * 60 * 1000
-
-      let changed = false
-      for (const key in this.klineCache) {
-        if (now - this.klineCache[key].timestamp > oneWeek) {
-          delete this.klineCache[key]
-          changed = true
-        }
-      }
-      if (changed) this.save()
     },
 
     async getKlineData(
@@ -192,7 +149,6 @@ export const useMarketStore = defineStore('market', {
               value: sentimentData,
               timestamp: Date.now(),
             }
-            this.save()
             return sentimentData
           }
         }

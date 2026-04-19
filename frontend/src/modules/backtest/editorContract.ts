@@ -1,4 +1,5 @@
 import type {
+  EditableStrategyTemplateConfig,
   StrategyConditionNode,
   StrategyEditorContract,
   StrategyGroupNode,
@@ -6,12 +7,23 @@ import type {
   StrategyRuleNode,
   StrategyTemplateConfig,
 } from '@/types'
+import { isStrategyConditionNode, isStrategyGroupNode } from '@/types'
 
 export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
 
 export const buildId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
 
-export const createBlankConfig = (contract: StrategyEditorContract): StrategyTemplateConfig => clone(contract.blank_config)
+export const normalizeEditableStrategyConfig = (value: StrategyTemplateConfig): EditableStrategyTemplateConfig => {
+  const config = clone(value) as EditableStrategyTemplateConfig
+  config.indicators = config.indicators || {}
+  config.risk.roi_targets = config.risk.roi_targets || []
+  config.risk.partial_exits = config.risk.partial_exits || []
+  return config
+}
+
+export const createBlankConfig = (contract: StrategyEditorContract): EditableStrategyTemplateConfig => (
+  normalizeEditableStrategyConfig(contract.blank_config)
+)
 
 export const createBlankGroup = (
   contract: StrategyEditorContract,
@@ -75,7 +87,7 @@ export const collectRuleTargets = (
   multiplierLabel: string,
 ) => {
   if (!node) return
-  if (node.node_type === 'condition') {
+  if (isStrategyConditionNode(node)) {
     if (node.right.kind === 'value') {
       targets.push({ path: `${prefix}.${node.id}.right.value`, label: `${node.label} · ${constantLabel}`, type: 'float', fallback: 0 })
     }
@@ -87,6 +99,7 @@ export const collectRuleTargets = (
     }
     return
   }
+  if (!isStrategyGroupNode(node)) return
   for (const child of node.children || []) {
     collectRuleTargets(child, prefix, targets, constantLabel, multiplierLabel)
   }
@@ -111,10 +124,10 @@ export const buildParameterSpaceJson = (
 
 export const treeUsesIndicator = (node: StrategyRuleNode | null | undefined, indicatorId: string): boolean => {
   if (!node) return false
-  if (node.node_type === 'condition') {
+  if (isStrategyConditionNode(node)) {
     return [node.left, node.right].some((part) => part?.indicator === indicatorId || part?.base_indicator === indicatorId || part?.offset_indicator === indicatorId)
   }
-  return (node.children || []).some((child) => treeUsesIndicator(child, indicatorId))
+  return isStrategyGroupNode(node) && (node.children || []).some((child) => treeUsesIndicator(child, indicatorId))
 }
 
 export const pruneTreeByIndicator = (node: StrategyGroupNode | null | undefined, indicatorId: string) => {
@@ -125,6 +138,6 @@ export const pruneTreeByIndicator = (node: StrategyGroupNode | null | undefined,
       node.children.splice(index, 1)
       continue
     }
-    if (child.node_type === 'group') pruneTreeByIndicator(child, indicatorId)
+    if (isStrategyGroupNode(child)) pruneTreeByIndicator(child, indicatorId)
   }
 }

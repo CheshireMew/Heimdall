@@ -3,8 +3,17 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
-import type { StrategyEditorContract } from '@/types'
+import type {
+  StrategyDefinition,
+  StrategyEditorContract,
+  StrategyIndicatorEngine,
+  StrategyIndicatorRegistryItem,
+  StrategyTemplate,
+  StrategyVersion,
+} from '@/types'
 
+import type { BacktestEditorSeedPanel, BacktestVersionEditorPanel, StrategySelectionConfig } from './editorTypes'
+import { defineReactiveView } from './viewTypes'
 import { useBacktestEditor } from './useBacktestEditor'
 import { useBacktestEditorActions } from './useBacktestEditorActions'
 import { useBacktestEditorCatalog } from './useBacktestEditorCatalog'
@@ -48,21 +57,21 @@ export const useBacktestEditorPage = () => {
   const restoredSnapshot = pageSnapshot.load()
 
   const editorContract = ref<StrategyEditorContract | null>(null)
-  const strategies = ref<any[]>([])
-  const templates = ref<any[]>([])
-  const indicators = ref<any[]>([])
-  const indicatorEngines = ref<any[]>([])
-  const config = reactive(restoredSnapshot.config)
+  const strategies = ref<StrategyDefinition[]>([])
+  const templates = ref<StrategyTemplate[]>([])
+  const indicators = ref<StrategyIndicatorRegistryItem[]>([])
+  const indicatorEngines = ref<StrategyIndicatorEngine[]>([])
+  const config = reactive<StrategySelectionConfig>(restoredSnapshot.config)
   let snapshotStopHandle: WatchStopHandle | null = null
 
-  const selectedStrategy = computed(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
-  const selectedStrategyVersions = computed(() => {
+  const selectedStrategy = computed<StrategyDefinition | null>(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
+  const selectedStrategyVersions = computed<StrategyVersion[]>(() => {
     const versions = selectedStrategy.value?.versions
     if (!Array.isArray(versions)) return []
     return versions.filter(Boolean)
   })
-  const selectedVersion = computed(() => selectedStrategyVersions.value.find((item: any) => item.version === config.strategy_version) || null)
-  const canCopyCurrentStrategy = computed(() => Boolean(selectedVersion.value) && supportsVersionEditing(selectedStrategy.value))
+  const selectedVersion = computed<StrategyVersion | null>(() => selectedStrategyVersions.value.find((item) => item.version === config.strategy_version) || null)
+  const canCopyCurrentStrategy = computed(() => Boolean(selectedVersion.value) && Boolean(supportsVersionEditing(selectedStrategy.value)))
   const strategyCapabilityHint = computed(() => {
     if (!selectedStrategy.value) return ''
     if (!supportsVersionEditing(selectedStrategy.value) && !supportsPaperTrading(selectedStrategy.value)) {
@@ -185,7 +194,7 @@ export const useBacktestEditorPage = () => {
     editor.showTemplateCreator.value = !editor.showTemplateCreator.value
   }
 
-  const seedPanel = reactive({
+  const seedPanel = defineReactiveView<BacktestEditorSeedPanel>({
     config,
     strategies,
     selectedStrategy,
@@ -199,7 +208,7 @@ export const useBacktestEditorPage = () => {
     goBackToCenter: seeds.goBackToCenter,
   })
 
-  const editorPanel = reactive({
+  const editorPanel = defineReactiveView<BacktestVersionEditorPanel>({
     showVersionEditor: editor.showVersionEditor,
     versionDraft: editor.versionDraft,
     metaPanel: {

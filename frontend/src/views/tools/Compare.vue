@@ -4,7 +4,7 @@
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-wrap items-end gap-4 transition-colors">
       <div class="flex-1 min-w-[200px]">
         <label class="block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1">{{ $t('compare.symbolA') }}</label>
-        <SymbolSearchBox v-model="config.symbolA" output-mode="base" placeholder="Search symbol" @select="handleSymbolSelect" />
+        <SymbolSearchBox v-model="config.symbolA" output-mode="base" @select="handleSymbolSelect" />
       </div>
 
       <div class="flex items-center justify-center p-2">
@@ -13,7 +13,7 @@
 
       <div class="flex-1 min-w-[200px]">
         <label class="block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1">{{ $t('compare.symbolB') }}</label>
-        <SymbolSearchBox v-model="config.symbolB" output-mode="base" placeholder="Search symbol" @select="handleSymbolSelect" />
+        <SymbolSearchBox v-model="config.symbolB" output-mode="base" @select="handleSymbolSelect" />
       </div>
 
       <div class="w-32">

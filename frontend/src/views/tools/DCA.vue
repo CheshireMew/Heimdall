@@ -10,7 +10,7 @@
       <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
         <div>
           <label class="block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1">{{ $t('dca.pair') }}</label>
-          <SymbolSearchBox v-model="config.symbol" placeholder="Search symbol" />
+          <SymbolSearchBox v-model="config.symbol" />
         </div>
         <div>
           <AppDateField

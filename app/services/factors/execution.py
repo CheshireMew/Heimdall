@@ -4,9 +4,10 @@ from datetime import datetime
 from typing import Any
 
 from app.infra.db.database import session_scope
-from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade
+from app.infra.db.schema import BacktestRun
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
-from app.services.backtest.models import (
+from app.services.backtest.result_store import store_run_rows
+from app.contracts.backtest import (
     BacktestEquityPointRecord,
     BacktestSignalRecord,
     BacktestTradeRecord,
@@ -169,58 +170,14 @@ class FactorExecutionService:
             )
             session.add(run)
             session.flush()
-            if signals:
-                session.bulk_save_objects(
-                    [
-                        BacktestSignal(
-                            backtest_id=run.id,
-                            timestamp=item.timestamp,
-                            price=item.price,
-                            signal=item.signal,
-                            confidence=item.confidence,
-                            indicators=item.indicators,
-                            reasoning=item.reasoning,
-                        )
-                        for item in signals
-                    ]
-                )
-            if trades:
-                session.bulk_save_objects(
-                    [
-                        BacktestTrade(
-                            backtest_id=run.id,
-                            pair=item.pair or symbol,
-                            opened_at=item.opened_at,
-                            closed_at=item.closed_at,
-                            entry_price=item.entry_price,
-                            exit_price=item.exit_price,
-                            stake_amount=item.stake_amount,
-                            amount=item.amount,
-                            profit_abs=item.profit_abs,
-                            profit_pct=item.profit_pct,
-                            max_drawdown_pct=item.max_drawdown_pct,
-                            duration_minutes=item.duration_minutes,
-                            entry_tag=item.entry_tag,
-                            exit_reason=item.exit_reason,
-                            leverage=item.leverage,
-                        )
-                        for item in trades
-                    ]
-                )
-            if equity_curve:
-                session.bulk_save_objects(
-                    [
-                        BacktestEquityPoint(
-                            backtest_id=run.id,
-                            timestamp=item.timestamp,
-                            equity=item.equity,
-                            pnl_abs=item.pnl_abs,
-                            drawdown_pct=item.drawdown_pct,
-                        )
-                        for item in equity_curve
-                    ]
-                )
-            session.flush()
+            store_run_rows(
+                session=session,
+                run_id=run.id,
+                signals=signals,
+                trades=trades,
+                equity_curve=equity_curve,
+                default_pair=symbol,
+            )
             return run.id
 
     def _decorate_drawdowns(self, equity_curve: list[BacktestEquityPointRecord]) -> list[BacktestEquityPointRecord]:

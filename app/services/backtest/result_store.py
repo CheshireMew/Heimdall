@@ -13,7 +13,32 @@ def replace_run_rows(*, session, run_id: int, result, default_pair: str, clear_e
         session.query(BacktestTrade).filter(BacktestTrade.backtest_id == run_id).delete(synchronize_session=False)
         session.query(BacktestEquityPoint).filter(BacktestEquityPoint.backtest_id == run_id).delete(synchronize_session=False)
 
-    signal_rows = [
+    store_run_rows(
+        session=session,
+        run_id=run_id,
+        signals=result.signals,
+        trades=result.trades,
+        equity_curve=result.equity_curve,
+        default_pair=default_pair,
+    )
+
+
+def store_run_rows(*, session, run_id: int, signals, trades, equity_curve, default_pair: str) -> None:
+    signal_rows = build_signal_rows(run_id=run_id, signals=signals)
+    trade_rows = build_trade_rows(run_id=run_id, trades=trades, default_pair=default_pair)
+    equity_rows = build_equity_rows(run_id=run_id, equity_curve=equity_curve)
+
+    if signal_rows:
+        session.bulk_save_objects(signal_rows)
+    if trade_rows:
+        session.bulk_save_objects(trade_rows)
+    if equity_rows:
+        session.bulk_save_objects(equity_rows)
+    session.flush()
+
+
+def build_signal_rows(*, run_id: int, signals) -> list[BacktestSignal]:
+    return [
         BacktestSignal(
             backtest_id=run_id,
             timestamp=normalize_timestamp(item.timestamp),
@@ -23,9 +48,12 @@ def replace_run_rows(*, session, run_id: int, result, default_pair: str, clear_e
             indicators=item.indicators,
             reasoning=item.reasoning,
         )
-        for item in result.signals
+        for item in signals
     ]
-    trade_rows = [
+
+
+def build_trade_rows(*, run_id: int, trades, default_pair: str) -> list[BacktestTrade]:
+    return [
         BacktestTrade(
             backtest_id=run_id,
             pair=item.pair or default_pair,
@@ -43,9 +71,12 @@ def replace_run_rows(*, session, run_id: int, result, default_pair: str, clear_e
             exit_reason=item.exit_reason,
             leverage=item.leverage,
         )
-        for item in result.trades
+        for item in trades
     ]
-    equity_rows = [
+
+
+def build_equity_rows(*, run_id: int, equity_curve) -> list[BacktestEquityPoint]:
+    return [
         BacktestEquityPoint(
             backtest_id=run_id,
             timestamp=normalize_timestamp(item.timestamp),
@@ -53,16 +84,8 @@ def replace_run_rows(*, session, run_id: int, result, default_pair: str, clear_e
             pnl_abs=item.pnl_abs,
             drawdown_pct=item.drawdown_pct,
         )
-        for item in result.equity_curve
+        for item in equity_curve
     ]
-
-    if signal_rows:
-        session.bulk_save_objects(signal_rows)
-    if trade_rows:
-        session.bulk_save_objects(trade_rows)
-    if equity_rows:
-        session.bulk_save_objects(equity_rows)
-    session.flush()
 
 
 def result_signal_counts(result) -> tuple[int, int, int]:

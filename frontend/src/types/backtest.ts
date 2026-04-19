@@ -9,8 +9,8 @@ export interface BacktestStartRequest {
   end_date?: string
   initial_cash?: number
   fee_rate?: number
-  portfolio?: BacktestPortfolioConfig
-  research?: BacktestResearchConfig
+  portfolio?: BacktestPortfolioRequest
+  research?: BacktestResearchRequest
 }
 
 export interface BacktestStartResponse {
@@ -25,7 +25,7 @@ export interface PaperStartRequest {
   timeframe?: string
   initial_cash?: number
   fee_rate?: number
-  portfolio?: BacktestPortfolioConfig
+  portfolio?: BacktestPortfolioRequest
 }
 
 export interface PaperStartResponse {
@@ -40,7 +40,7 @@ export interface PaperStopResponse {
   message: string
 }
 
-export interface BacktestMetrics {
+export interface BacktestMetricsResponse {
   total_candles: number
   total_signals: number
   buy_signals: number
@@ -48,7 +48,7 @@ export interface BacktestMetrics {
   hold_signals: number
 }
 
-export interface BacktestSignal {
+export interface BacktestSignalResponse {
   id: number
   timestamp: string | null
   price: number
@@ -58,7 +58,7 @@ export interface BacktestSignal {
   reasoning?: string | null
 }
 
-export interface BacktestTrade {
+export interface BacktestTradeResponse {
   id: number
   pair: string
   opened_at: string | null
@@ -76,7 +76,7 @@ export interface BacktestTrade {
   leverage: number
 }
 
-export interface BacktestEquityPoint {
+export interface BacktestEquityPointResponse {
   id: number
   timestamp: string | null
   equity: number
@@ -84,25 +84,25 @@ export interface BacktestEquityPoint {
   drawdown_pct: number
 }
 
-export interface BacktestPagination {
+export interface PaginationResponse {
   page: number
   page_size: number
   total: number
   total_pages: number
 }
 
-export interface BacktestRun {
+export interface BacktestRunResponse {
   id: number
   symbol: string
   timeframe: string
   start_date: string | null
   end_date: string | null
   status: string
-  metadata?: BacktestRunMetadata | null
-  report?: BacktestReport | null
+  metadata?: BacktestRunMetadataResponse | null
+  report?: BacktestReportResponse | null
   created_at: string | null
-  metrics: BacktestMetrics
-  signals?: Array<BacktestSignal> | null
+  metrics: BacktestMetricsResponse
+  signals?: Array<BacktestSignalResponse> | null
 }
 
 export interface BacktestDetailResponse {
@@ -112,17 +112,17 @@ export interface BacktestDetailResponse {
   start_date: string | null
   end_date: string | null
   status: string
-  metadata?: BacktestRunMetadata | null
-  report?: BacktestReport | null
+  metadata?: BacktestRunMetadataResponse | null
+  report?: BacktestReportResponse | null
   created_at: string | null
-  metrics: BacktestMetrics
-  signals: Array<BacktestSignal>
-  trades: Array<BacktestTrade>
-  equity_curve: Array<BacktestEquityPoint>
-  pagination: BacktestPagination
+  metrics: BacktestMetricsResponse
+  signals: Array<BacktestSignalResponse>
+  trades: Array<BacktestTradeResponse>
+  equity_curve: Array<BacktestEquityPointResponse>
+  pagination: PaginationResponse
 }
 
-export interface BacktestRunMetadata {
+export interface BacktestRunMetadataResponse {
   schema_version?: number | null
   execution_mode?: string | null
   execution_model?: string | null
@@ -144,18 +144,18 @@ export interface BacktestRunMetadata {
   fee_ratio?: number | null
   timeframe?: string | null
   stake_currency?: string | null
-  portfolio?: BacktestPortfolioPayload | null
-  research?: BacktestResearchPayload | BacktestResearchReport | null
+  portfolio?: BacktestPortfolioPayloadResponse | null
+  research?: BacktestResearchPayloadResponse | BacktestResearchReportResponse | null
   selected_config?: { [key: string]: unknown }
-  sample_ranges?: BacktestSampleRanges | null
-  runtime_state?: BacktestRuntimeState | null
-  paper_live?: BacktestPaperLive | null
-  report?: BacktestReport | null
-  raw_stats?: BacktestReportSnapshot | null
+  sample_ranges?: BacktestSampleRangesResponse | null
+  runtime_state?: BacktestRuntimeStateResponse | null
+  paper_live?: BacktestPaperLiveResponse | null
+  report?: BacktestReportResponse | null
+  raw_stats?: BacktestReportSnapshotResponse | null
   error?: string | null
 }
 
-export interface BacktestReport {
+export interface BacktestReportResponse {
   initial_cash: number
   final_balance: number
   profit_abs: number
@@ -176,15 +176,15 @@ export interface BacktestReport {
   avg_trade_duration_minutes?: number | null
   best_trade_pct?: number | null
   worst_trade_pct?: number | null
-  pair_breakdown?: Array<BacktestPairBreakdown>
+  pair_breakdown?: Array<BacktestPairBreakdownResponse>
   symbols?: Array<string>
   timeframe?: string | null
-  strategy?: BacktestStrategySummary | null
-  portfolio?: BacktestPortfolioSummary | null
-  research?: BacktestResearchReport | null
+  strategy?: BacktestStrategySummaryResponse | null
+  portfolio?: BacktestPortfolioSummaryResponse | null
+  research?: BacktestResearchReportResponse | null
 }
 
-export interface BacktestReportSnapshot {
+export interface BacktestReportSnapshotResponse {
   profit_pct?: number | null
   profit_abs?: number | null
   final_balance?: number | null
@@ -196,12 +196,12 @@ export interface BacktestReportSnapshot {
   total_trades?: number | null
 }
 
-export interface BacktestDateRange {
+export interface BacktestDateRangeResponse {
   start: string
   end: string
 }
 
-export interface BacktestPairBreakdown {
+export interface BacktestPairBreakdownResponse {
   pair: string
   trades: number
   profit_abs: number
@@ -209,14 +209,14 @@ export interface BacktestPairBreakdown {
   win_rate: number
 }
 
-export interface BacktestStrategySummary {
+export interface BacktestStrategySummaryResponse {
   key: string
   name: string
   version: number
   template: string
 }
 
-export interface BacktestPortfolioSummary {
+export interface BacktestPortfolioSummaryResponse {
   symbols?: Array<string>
   max_open_trades?: number | null
   position_size_pct?: number | null
@@ -224,14 +224,14 @@ export interface BacktestPortfolioSummary {
   stake_currency?: string | null
 }
 
-export interface BacktestPortfolioPayload {
+export interface BacktestPortfolioPayloadResponse {
   symbols?: Array<string>
   max_open_trades?: number | null
   position_size_pct?: number | null
   stake_mode?: string | null
 }
 
-export interface BacktestResearchPayload {
+export interface BacktestResearchPayloadResponse {
   slippage_bps?: number | null
   funding_rate_daily?: number | null
   in_sample_ratio?: number | null
@@ -240,55 +240,55 @@ export interface BacktestResearchPayload {
   rolling_windows?: number | null
 }
 
-export interface BacktestOptimizationTrial {
+export interface BacktestOptimizationTrialResponse {
   trial: number
   score?: number | null
   config?: { [key: string]: unknown }
-  report?: BacktestReportSnapshot | null
+  report?: BacktestReportSnapshotResponse | null
 }
 
-export interface BacktestOptimizationSummary {
+export interface BacktestOptimizationSummaryResponse {
   metric: string
   trial_count: number
   best_score?: number | null
   best_config?: { [key: string]: unknown }
-  trials?: Array<BacktestOptimizationTrial>
+  trials?: Array<BacktestOptimizationTrialResponse>
 }
 
-export interface BacktestIterationSummary {
-  range?: BacktestDateRange | null
+export interface BacktestIterationSummaryResponse {
+  range?: BacktestDateRangeResponse | null
   config?: { [key: string]: unknown }
-  report?: BacktestReportSnapshot | null
+  report?: BacktestReportSnapshotResponse | null
 }
 
-export interface BacktestRollingWindow {
+export interface BacktestRollingWindowResponse {
   index: number
-  train?: BacktestDateRange | null
-  test: BacktestDateRange
+  train?: BacktestDateRangeResponse | null
+  test: BacktestDateRangeResponse
   config?: { [key: string]: unknown }
-  optimization?: BacktestOptimizationSummary | null
-  report?: BacktestReportSnapshot | null
+  optimization?: BacktestOptimizationSummaryResponse | null
+  report?: BacktestReportSnapshotResponse | null
 }
 
-export interface BacktestResearchReport {
+export interface BacktestResearchReportResponse {
   selected_config?: { [key: string]: unknown }
   in_sample_ratio: number
   slippage_bps: number
   funding_rate_daily: number
-  optimization?: BacktestOptimizationSummary | null
-  in_sample?: BacktestIterationSummary | null
-  out_of_sample?: BacktestIterationSummary | null
-  rolling_windows?: Array<BacktestRollingWindow>
+  optimization?: BacktestOptimizationSummaryResponse | null
+  in_sample?: BacktestIterationSummaryResponse | null
+  out_of_sample?: BacktestIterationSummaryResponse | null
+  rolling_windows?: Array<BacktestRollingWindowResponse>
 }
 
-export interface BacktestSampleRanges {
-  requested?: BacktestDateRange | null
-  displayed?: BacktestDateRange | null
-  in_sample?: BacktestDateRange | null
-  out_of_sample?: BacktestDateRange | null
+export interface BacktestSampleRangesResponse {
+  requested?: BacktestDateRangeResponse | null
+  displayed?: BacktestDateRangeResponse | null
+  in_sample?: BacktestDateRangeResponse | null
+  out_of_sample?: BacktestDateRangeResponse | null
 }
 
-export interface BacktestPaperPosition {
+export interface BacktestPaperPositionResponse {
   symbol: string
   side?: string
   opened_at: string
@@ -301,29 +301,29 @@ export interface BacktestPaperPosition {
   taken_partial_ids?: Array<string>
 }
 
-export interface BacktestRuntimeState {
+export interface BacktestRuntimeStateResponse {
   cash_balance: number
   last_processed?: { [key: string]: number | null }
   last_synced_end?: number | null
-  positions?: { [key: string]: BacktestPaperPosition }
+  positions?: { [key: string]: BacktestPaperPositionResponse }
 }
 
-export interface BacktestPaperLive {
+export interface BacktestPaperLiveResponse {
   cash_balance: number
   open_positions: number
-  positions?: Array<BacktestPaperPosition>
+  positions?: Array<BacktestPaperPositionResponse>
   last_updated: string
   stop_reason?: string | null
 }
 
-export interface BacktestPortfolioConfig {
+export interface BacktestPortfolioRequest {
   symbols?: Array<string>
   max_open_trades?: number
   position_size_pct?: number
   stake_mode?: "fixed" | "unlimited"
 }
 
-export interface BacktestResearchConfig {
+export interface BacktestResearchRequest {
   slippage_bps?: number
   funding_rate_daily?: number
   in_sample_ratio?: number
@@ -332,93 +332,93 @@ export interface BacktestResearchConfig {
   rolling_windows?: number
 }
 
-export interface StrategyVersion {
+export interface StrategyVersionResponse {
   id: number
   version: number
   name: string
   notes?: string | null
   is_default: boolean
-  config: StrategyTemplateConfig
+  config: StrategyTemplateConfigResponse
   parameter_space: { [key: string]: Array<unknown> }
-  runtime: StrategyRunProfile
+  runtime: StrategyRunProfileResponse
 }
 
-export interface StrategyDefinition {
+export interface StrategyDefinitionResponse {
   key: string
   name: string
   template: string
   category: string
   description?: string | null
   is_active: boolean
-  template_runtime?: StrategyTemplateRuntime
-  versions: Array<StrategyVersion>
+  template_runtime?: StrategyTemplateRuntimeResponse
+  versions: Array<StrategyVersionResponse>
 }
 
-export interface StrategyIndicatorRegistryItem {
+export interface StrategyIndicatorRegistryResponse {
   key: string
   engine: string
   name: string
   description?: string | null
-  outputs: Array<StrategyIndicatorOutput>
-  params: Array<StrategyIndicatorParam>
+  outputs: Array<StrategyIndicatorOutputResponse>
+  params: Array<StrategyIndicatorParamResponse>
   is_builtin: boolean
 }
 
-export interface StrategyOperator {
+export interface StrategyOperatorResponse {
   key: string
   label: string
 }
 
-export interface StrategyTemplateCapabilities {
+export interface StrategyTemplateCapabilitiesResponse {
   signal_runtime?: boolean
   paper?: boolean
   version_editing?: boolean
 }
 
-export interface StrategyTemplateRuntime {
+export interface StrategyTemplateRuntimeResponse {
   builder_kind?: string
-  capabilities?: StrategyTemplateCapabilities
+  capabilities?: StrategyTemplateCapabilitiesResponse
 }
 
-export interface StrategyGroupLogic {
+export interface StrategyGroupLogicResponse {
   key: string
   label: string
 }
 
-export interface StrategyIndicatorEngine {
+export interface StrategyIndicatorEngineResponse {
   key: string
   engine: string
   name: string
   description?: string | null
-  outputs: Array<StrategyIndicatorOutput>
-  params: Array<StrategyIndicatorParam>
+  outputs: Array<StrategyIndicatorOutputResponse>
+  params: Array<StrategyIndicatorParamResponse>
 }
 
-export interface StrategyTemplate {
+export interface StrategyTemplateResponse {
   template: string
   name: string
   category: string
   description?: string | null
   is_builtin?: boolean
-  template_runtime?: StrategyTemplateRuntime
+  template_runtime?: StrategyTemplateRuntimeResponse
   indicator_keys?: Array<string>
-  indicator_registry: Array<StrategyIndicatorRegistryItem>
-  operators: Array<StrategyOperator>
-  group_logics: Array<StrategyGroupLogic>
-  default_config: StrategyTemplateConfig
+  indicator_registry: Array<StrategyIndicatorRegistryResponse>
+  operators: Array<StrategyOperatorResponse>
+  group_logics: Array<StrategyGroupLogicResponse>
+  default_config: StrategyTemplateConfigResponse
   default_parameter_space: { [key: string]: Array<unknown> }
 }
 
-export interface StrategyEditorContract {
-  operators: Array<StrategyOperator>
-  group_logics: Array<StrategyGroupLogic>
-  timeframe_options: Array<StrategyOperator>
-  market_type_options: Array<StrategyOperator>
-  direction_options: Array<StrategyOperator>
-  blank_condition: StrategyConditionNode
-  blank_group: StrategyGroupNode
-  blank_config: StrategyTemplateConfig
-  run_defaults: BacktestRunDefaults
+export interface StrategyEditorContractResponse {
+  operators: Array<StrategyOperatorResponse>
+  group_logics: Array<StrategyGroupLogicResponse>
+  timeframe_options: Array<StrategyOperatorResponse>
+  market_type_options: Array<StrategyOperatorResponse>
+  direction_options: Array<StrategyOperatorResponse>
+  blank_condition: StrategyConditionNodeResponse
+  blank_group: StrategyGroupNodeResponse
+  blank_config: StrategyTemplateConfigResponse
+  run_defaults: BacktestRunDefaultsResponse
 }
 
 export interface StrategyVersionCreateRequest {
@@ -427,7 +427,7 @@ export interface StrategyVersionCreateRequest {
   template: string
   category: string
   description?: string | null
-  config: StrategyTemplateConfig
+  config: StrategyTemplateConfigResponse
   parameter_space?: { [key: string]: Array<unknown> }
   notes?: string | null
   make_default?: boolean
@@ -438,7 +438,7 @@ export interface IndicatorDefinitionCreateRequest {
   name: string
   engine_key: string
   description?: string | null
-  params?: Array<StrategyIndicatorParam>
+  params?: Array<StrategyIndicatorParamResponse>
 }
 
 export interface StrategyTemplateCreateRequest {
@@ -447,11 +447,11 @@ export interface StrategyTemplateCreateRequest {
   category: string
   description?: string | null
   indicator_keys?: Array<string>
-  default_config: StrategyTemplateConfig
+  default_config: StrategyTemplateConfigResponse
   default_parameter_space?: { [key: string]: Array<unknown> }
 }
 
-export interface StrategyRuleSource {
+export interface StrategyRuleSourceResponse {
   kind: string
   field?: string | null
   indicator?: string | null
@@ -466,85 +466,104 @@ export interface StrategyRuleSource {
   offset_multiplier?: number | null
 }
 
-export interface StrategyStateBranch {
+export interface StrategyStateBranchResponse {
   id: string
   label: string
   enabled?: boolean
-  regime: StrategyGroupNode
-  long_entry: StrategyGroupNode
-  long_exit: StrategyGroupNode
-  short_entry: StrategyGroupNode
-  short_exit: StrategyGroupNode
+  regime: StrategyGroupNodeResponse
+  long_entry: StrategyGroupNodeResponse
+  long_exit: StrategyGroupNodeResponse
+  short_entry: StrategyGroupNodeResponse
+  short_exit: StrategyGroupNodeResponse
 }
 
-export interface StrategyIndicatorConfig {
+export interface StrategyIndicatorConfigResponse {
   label: string
   type: string
   timeframe?: string
   params?: { [key: string]: number | boolean }
 }
 
-export interface StrategyExecutionConfig {
+export interface StrategyExecutionConfigResponse {
   market_type?: "spot" | "futures"
   direction?: "long_only" | "long_short"
 }
 
-export interface StrategyRoiTarget {
+export interface StrategyRoiTargetResponse {
   id: string
   minutes: number
   profit: number
   enabled?: boolean
 }
 
-export interface StrategyPartialExit {
+export interface StrategyPartialExitResponse {
   id: string
   profit: number
   size_pct: number
   enabled?: boolean
 }
 
-export interface StrategyTrailingConfig {
+export interface StrategyTrailingConfigResponse {
   enabled?: boolean
   positive: number
   offset: number
   only_offset_reached?: boolean
 }
 
-export interface StrategyRiskConfig {
+export interface StrategyRiskConfigResponse {
   stoploss: number
-  roi_targets?: Array<StrategyRoiTarget>
-  trailing: StrategyTrailingConfig
-  partial_exits?: Array<StrategyPartialExit>
+  roi_targets?: Array<StrategyRoiTargetResponse>
+  trailing: StrategyTrailingConfigResponse
+  partial_exits?: Array<StrategyPartialExitResponse>
 }
 
-export interface StrategyTemplateConfig {
-  indicators?: { [key: string]: StrategyIndicatorConfig }
-  execution: StrategyExecutionConfig
+export interface StrategyTemplateConfigResponse {
+  indicators?: { [key: string]: StrategyIndicatorConfigResponse }
+  execution: StrategyExecutionConfigResponse
   regime_priority?: Array<"trend" | "range">
-  trend: StrategyStateBranch
-  range: StrategyStateBranch
-  risk: StrategyRiskConfig
+  trend: StrategyStateBranchResponse
+  range: StrategyStateBranchResponse
+  risk: StrategyRiskConfigResponse
 }
 
-export interface BacktestRunDefaults {
+export interface StrategyGroupNodeResponse {
+  id: string
+  node_type?: string
+  label: string
+  logic: "and" | "or"
+  enabled?: boolean
+  children?: Array<StrategyConditionNodeResponse | StrategyGroupNodeResponse>
+}
+
+export interface BacktestRunDefaultsResponse {
   strategy_key?: string
   timeframe?: string
   start_date?: string
   end_date?: string
   initial_cash?: number
   fee_rate?: number
-  portfolio?: BacktestPortfolioConfig
-  research?: BacktestResearchConfig
+  portfolio?: BacktestPortfolioRequest
+  research?: BacktestResearchRequest
   history_mode?: "backtest" | "paper"
-  optimize_metric_options?: Array<StrategyOperator>
+  optimize_metric_options?: Array<StrategyOperatorResponse>
 }
 
-export interface StrategyIndicatorOutput {
+export interface StrategyConditionNodeResponse {
+  id: string
+  node_type?: string
+  label: string
+  left: StrategyRuleSourceResponse
+  operator: "gt" | "gte" | "lt" | "lte"
+  right: StrategyRuleSourceResponse
+  enabled?: boolean
+}
+
+export interface StrategyIndicatorOutputResponse {
   key: string
   label: string
 }
 
-export interface StrategyIndicatorParam {
+export interface StrategyIndicatorParamResponse {
   key: string
   label: string
   type: "int" | "float" | "bool"
@@ -554,29 +573,8 @@ export interface StrategyIndicatorParam {
   step?: number | null
 }
 
-export interface StrategyRunProfile {
+export interface StrategyRunProfileResponse {
   indicator_timeframes?: Array<string>
   allowed_run_timeframes?: Array<string>
   preferred_run_timeframe: string
 }
-
-export interface StrategyConditionNode {
-  id: string
-  node_type?: 'condition'
-  label: string
-  left: StrategyRuleSource
-  operator: 'gt' | 'gte' | 'lt' | 'lte'
-  right: StrategyRuleSource
-  enabled?: boolean
-}
-
-export interface StrategyGroupNode {
-  id: string
-  node_type?: 'group'
-  label: string
-  logic: 'and' | 'or'
-  enabled?: boolean
-  children?: Array<StrategyRuleNode>
-}
-
-export type StrategyRuleNode = StrategyConditionNode | StrategyGroupNode

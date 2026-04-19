@@ -99,31 +99,54 @@ export const fetchPortfolioPriceMap = async (portfolio: PortfolioBalancePortfoli
   if (!targets.length && !priceBySymbol.size) throw new Error('请先填写至少一个标的')
 
   const latestStartDate = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
-  const responses = await Promise.allSettled(
-    targets.map((item) => isIndexSymbol(item.marketSymbol)
-      ? loadIndexHistory(item.marketSymbol, latestStartDate)
-      : marketApi.getCurrentPrice({ symbol: item.marketSymbol, timeframe: '1d' })),
+  const cryptoTargets = targets.filter((item) => !isIndexSymbol(item.marketSymbol))
+  const indexTargets = targets.filter((item) => isIndexSymbol(item.marketSymbol))
+  const cryptoPriceByMarketSymbol = new Map<string, number>()
+  let cryptoFailed = false
+
+  if (cryptoTargets.length) {
+    try {
+      const response = await marketApi.getCurrentPriceBatch({
+        symbols: cryptoTargets.map((item) => item.marketSymbol),
+        timeframe: '1d',
+      })
+      ;(response.data.items || []).forEach((item) => {
+        const currentPrice = Number(item.current_price || 0)
+        if (currentPrice > 0) cryptoPriceByMarketSymbol.set(item.symbol, currentPrice)
+      })
+    } catch {
+      cryptoFailed = true
+    }
+  }
+
+  const indexResponses = await Promise.allSettled(
+    indexTargets.map((item) => loadIndexHistory(item.marketSymbol, latestStartDate)),
   )
 
   let successCount = priceBySymbol.size
   const failedSymbols: string[] = []
-  responses.forEach((result, index) => {
+  cryptoTargets.forEach((target) => {
+    const currentPrice = cryptoPriceByMarketSymbol.get(target.marketSymbol) || 0
+    if (cryptoFailed || !currentPrice) {
+      failedSymbols.push(target.symbol)
+      return
+    }
+    priceBySymbol.set(target.symbol, currentPrice)
+    successCount += 1
+  })
+
+  indexResponses.forEach((result, index) => {
     if (result.status !== 'fulfilled') {
-      failedSymbols.push(targets[index].symbol)
+      failedSymbols.push(indexTargets[index].symbol)
       return
     }
-    const payload = isIndexSymbol(targets[index].marketSymbol) ? null : result.value.data
-    const indexRows = isIndexSymbol(targets[index].marketSymbol) && Array.isArray(result.value) ? result.value : []
-    const currentPrice = Number(
-      isIndexSymbol(targets[index].marketSymbol)
-        ? indexRows[indexRows.length - 1]?.close || 0
-        : payload?.current_price || 0,
-    )
+    const indexRows = Array.isArray(result.value) ? result.value : []
+    const currentPrice = Number(indexRows[indexRows.length - 1]?.close || 0)
     if (!currentPrice) {
-      failedSymbols.push(targets[index].symbol)
+      failedSymbols.push(indexTargets[index].symbol)
       return
     }
-    priceBySymbol.set(targets[index].symbol, currentPrice)
+    priceBySymbol.set(indexTargets[index].symbol, currentPrice)
     successCount += 1
   })
 

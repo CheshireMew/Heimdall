@@ -1,143 +1,163 @@
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 
+import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS, readBoolean, readNumber, readString } from '@/composables/pageSnapshot'
 import { useMoney } from '@/composables/useMoney'
-import { marketApi } from './api'
-
-const formatNumber = (value: number | null | undefined, digits = 2) => {
-  if (value === null || value === undefined || Number.isNaN(value)) return '--'
-  return Number(value).toFixed(digits)
-}
-
-const formatSignedPercent = (value: number | null | undefined, digits = 2) => {
-  if (value === null || value === undefined || Number.isNaN(value)) return '--'
-  const numeric = Number(value)
-  return `${numeric > 0 ? '+' : ''}${numeric.toFixed(digits)}%`
-}
-
-const changeClass = (value: number | null | undefined) => {
-  if (value === null || value === undefined || Number.isNaN(value)) return 'text-slate-500 dark:text-slate-400'
-  return value >= 0 ? 'text-emerald-500' : 'text-rose-500'
-}
-
-const mergeDerivatives = (tickerRows = [], markRows = []) => {
-  const markMap = new Map(markRows.map((item) => [item.symbol, item]))
-  return tickerRows
-    .map((item) => {
-      const mark = markMap.get(item.symbol)
-      return {
-        ...item,
-        mark_price: mark?.mark_price ?? null,
-        index_price: mark?.index_price ?? null,
-        funding_rate_pct: mark?.last_funding_rate != null ? mark.last_funding_rate * 100 : null,
-      }
-    })
-    .sort((left, right) => (right.quote_volume || 0) - (left.quote_volume || 0))
-}
+import type { BinanceBreakoutMonitorItemResponse } from '@/types'
+import {
+  normalizeContractSortField,
+  normalizeMarketFilter,
+  normalizeMode,
+  normalizeSnapshot,
+  normalizeSortDirection,
+  toItemKey,
+  WEB3_CHAIN_OPTIONS,
+  WEB3_KLINE_INTERVALS,
+  displaySymbol,
+  formatScore,
+  formatSigned,
+  formatTime,
+  valueTone,
+  verdictTone,
+  createDefaultSnapshot,
+} from './binanceMarketShared'
+import { useBinanceMarketMonitor } from './useBinanceMarketMonitor'
+import { useBinanceSymbolChart } from './useBinanceSymbolChart'
+import { useBinanceWeb3Panel } from './useBinanceWeb3Panel'
 
 export function useBinanceMarketPage() {
   const { formatMoney, formatCompactMoney } = useMoney()
-  const loading = ref(false)
-  const error = ref('')
-  const spotTicker = ref([])
-  const usdmTicker = ref([])
-  const usdmMark = ref([])
-  const coinmTicker = ref([])
-  const coinmMark = ref([])
+  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.binanceMarket, normalizeSnapshot, createDefaultSnapshot())
+  const restoredSnapshot = pageSnapshot.load()
+  const market = useBinanceMarketMonitor(restoredSnapshot)
+  const web3 = useBinanceWeb3Panel(restoredSnapshot.web3ChainId)
+  const chart = useBinanceSymbolChart()
 
-  const gainers = computed(() =>
-    [...spotTicker.value]
-      .filter((item) => item.symbol?.endsWith('USDT'))
-      .sort((left, right) => (right.price_change_pct || -999) - (left.price_change_pct || -999))
-      .slice(0, 15))
-
-  const losers = computed(() =>
-    [...spotTicker.value]
-      .filter((item) => item.symbol?.endsWith('USDT'))
-      .sort((left, right) => (left.price_change_pct || 999) - (right.price_change_pct || 999))
-      .slice(0, 15))
-
-  const usdmRows = computed(() => mergeDerivatives(usdmTicker.value, usdmMark.value).slice(0, 15))
-  const coinmRows = computed(() => mergeDerivatives(coinmTicker.value, coinmMark.value).slice(0, 15))
-
-  const summaryCards = computed(() => {
-    const bestGainer = gainers.value[0]
-    const worstLoser = losers.value[0]
-    const usdmFunding = [...usdmRows.value].sort((left, right) => Math.abs(right.funding_rate_pct || 0) - Math.abs(left.funding_rate_pct || 0))[0]
-    const coinmFunding = [...coinmRows.value].sort((left, right) => Math.abs(right.funding_rate_pct || 0) - Math.abs(left.funding_rate_pct || 0))[0]
-
-    return [
-      {
-        label: 'Spot Gainer',
-        primary: bestGainer?.symbol || '--',
-        secondary: formatSignedPercent(bestGainer?.price_change_pct),
-        tone: changeClass(bestGainer?.price_change_pct),
-      },
-      {
-        label: 'Spot Loser',
-        primary: worstLoser?.symbol || '--',
-        secondary: formatSignedPercent(worstLoser?.price_change_pct),
-        tone: changeClass(worstLoser?.price_change_pct),
-      },
-      {
-        label: 'USDM Funding',
-        primary: usdmFunding?.symbol || '--',
-        secondary: formatSignedPercent(usdmFunding?.funding_rate_pct, 4),
-        tone: changeClass(usdmFunding?.funding_rate_pct),
-      },
-      {
-        label: 'COINM Funding',
-        primary: coinmFunding?.symbol || '--',
-        secondary: formatSignedPercent(coinmFunding?.funding_rate_pct, 4),
-        tone: changeClass(coinmFunding?.funding_rate_pct),
-      },
-    ]
-  })
-
-  const fetchData = async () => {
-    loading.value = true
-    error.value = ''
-    try {
-      const [spotRes, usdmTickerRes, usdmMarkRes, coinmTickerRes, coinmMarkRes] = await Promise.all([
-        marketApi.getBinanceSpotTicker24h(),
-        marketApi.getBinanceUsdmTicker24h(),
-        marketApi.getBinanceUsdmMarkPrice(),
-        marketApi.getBinanceCoinmTicker24h(),
-        marketApi.getBinanceCoinmMarkPrice(),
-      ])
-      spotTicker.value = spotRes.data?.items || []
-      usdmTicker.value = usdmTickerRes.data?.items || []
-      usdmMark.value = usdmMarkRes.data?.items || []
-      coinmTicker.value = coinmTickerRes.data?.items || []
-      coinmMark.value = coinmMarkRes.data?.items || []
-    } catch (err) {
-      console.error('Failed to load Binance market page', err)
-      error.value = 'Failed to load Binance market data.'
-    } finally {
-      loading.value = false
+  const handleEscape = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && chart.chartDialog.value.open) {
+      chart.closeChart()
+    }
+    if (event.key === 'Escape' && web3.web3Dialog.value.open) {
+      web3.closeWeb3Token()
     }
   }
 
-  onMounted(fetchData)
+  const openChart = (
+    item: Pick<BinanceBreakoutMonitorItemResponse, 'symbol'> & Partial<Pick<BinanceBreakoutMonitorItemResponse, 'market' | 'market_label'>>,
+  ) => {
+    if (item.market && item.symbol) {
+      market.selectedKey.value = `${item.market}:${item.symbol}`
+    }
+    chart.openChart(item)
+  }
 
-  const formatCompact = (value: number | null | undefined) => formatCompactMoney(value, 'USDT')
+  watch([market.filteredItems, market.items], () => {
+    market.selectedKey.value = toItemKey(market.selectedItem.value)
+  })
+
+  onMounted(async () => {
+    window.addEventListener('keydown', handleEscape)
+    await Promise.all([
+      market.fetchData(),
+      web3.fetchWeb3HeatRank(),
+    ])
+    market.startAutoRefresh()
+  })
+
+  onUnmounted(() => {
+    window.removeEventListener('keydown', handleEscape)
+    market.stopAutoRefresh()
+  })
+
+  bindPageSnapshot(
+    [
+      market.minRisePct,
+      market.mode,
+      market.marketFilter,
+      market.autoRefresh,
+      market.spotSortDirection,
+      market.contractSort,
+      market.selectedKey,
+      web3.web3ChainId,
+    ],
+    () => ({
+      minRisePct: readNumber(market.minRisePct.value, 5),
+      mode: normalizeMode(market.mode.value),
+      marketFilter: normalizeMarketFilter(market.marketFilter.value),
+      autoRefresh: readBoolean(market.autoRefresh.value, true),
+      spotSortDirection: normalizeSortDirection(market.spotSortDirection.value),
+      contractSortField: normalizeContractSortField(market.contractSort.value.field),
+      contractSortDirection: normalizeSortDirection(market.contractSort.value.direction),
+      selectedKey: readString(market.selectedKey.value, ''),
+      web3ChainId: readString(web3.web3ChainId.value, '56'),
+    }),
+    pageSnapshot.save,
+  )
+
   const formatPrice = (value: number | null | undefined) => {
     if (value === null || value === undefined || Number.isNaN(value)) return '--'
     return formatMoney(value, 'USDT', { maximumFractionDigits: value >= 100 ? 2 : 6 })
   }
 
+  const formatCompact = (value: number | null | undefined) => formatCompactMoney(value, 'USDT')
+
   return {
-    loading,
-    error,
-    gainers,
-    losers,
-    usdmRows,
-    coinmRows,
-    summaryCards,
-    fetchData,
-    formatNumber,
-    formatSignedPercent,
-    formatCompact,
+    loading: market.loading,
+    error: market.error,
+    minRisePct: market.minRisePct,
+    mode: market.mode,
+    marketFilter: market.marketFilter,
+    autoRefresh: market.autoRefresh,
+    monitor: market.monitor,
+    items: market.items,
+    filteredItems: market.filteredItems,
+    spotRows: market.spotRows,
+    spotSortDirection: market.spotSortDirection,
+    contractRows: market.contractRows,
+    contractSort: market.contractSort,
+    selectedItem: market.selectedItem,
+    selectedKey: market.selectedKey,
+    summaryCards: market.summaryCards,
+    fetchData: market.fetchData,
+    toggleSpotSort: market.toggleSpotSort,
+    toggleContractSort: market.toggleContractSort,
+    web3ChainId: web3.web3ChainId,
+    web3ChainOptions: WEB3_CHAIN_OPTIONS,
+    web3HeatRank: web3.web3HeatRank,
+    web3Loading: web3.web3Loading,
+    web3Error: web3.web3Error,
+    web3Dialog: web3.web3Dialog,
+    web3Dynamic: web3.web3Dynamic,
+    web3Audit: web3.web3Audit,
+    web3DetailLoading: web3.web3DetailLoading,
+    web3DetailError: web3.web3DetailError,
+    web3KlineInterval: web3.web3KlineInterval,
+    web3KlineIntervals: WEB3_KLINE_INTERVALS,
+    web3ChartData: web3.web3ChartData,
+    web3VolumeData: web3.web3VolumeData,
+    fetchWeb3HeatRank: web3.fetchWeb3HeatRank,
+    openWeb3Token: web3.openWeb3Token,
+    closeWeb3Token: web3.closeWeb3Token,
+    chartDialog: chart.chartDialog,
+    chartSymbol: chart.chartSymbol,
+    chartTitle: chart.chartTitle,
+    chartMarketLabel: chart.chartMarketLabel,
+    chartTimeframe: chart.chartTimeframe,
+    chartTimeframes: chart.chartTimeframes,
+    chartColors: chart.chartColors,
+    chartData: chart.chartData,
+    volumeData: chart.volumeData,
+    chartLoadingMore: chart.chartLoadingMore,
+    openChart,
+    closeChart: chart.closeChart,
+    loadMoreChartHistory: chart.loadMoreChartHistory,
+    formatSigned,
+    formatScore,
+    formatTime,
     formatPrice,
-    changeClass,
+    formatCompact,
+    displaySymbol,
+    valueTone,
+    verdictTone,
+    toItemKey,
   }
 }

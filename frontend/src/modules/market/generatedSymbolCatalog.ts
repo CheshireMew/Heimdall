@@ -1,7 +1,7 @@
 // This file is generated from backend market symbol contracts.
 // Do not edit manually.
 
-import type { MarketSymbolSearchItem } from '@/types'
+import type { MarketSymbolSearchResponse } from '@/types'
 
 export const USD_EQUIVALENT_SYMBOLS = [
   "USD",
@@ -16,7 +16,7 @@ export const USD_EQUIVALENT_SYMBOLS = [
   "USDS"
 ] as const
 
-export const FALLBACK_SYMBOLS: MarketSymbolSearchItem[] = [
+export const FALLBACK_SYMBOLS: MarketSymbolSearchResponse[] = [
   {
     "symbol": "USD",
     "name": "US Dollar",

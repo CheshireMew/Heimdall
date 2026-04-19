@@ -6,7 +6,11 @@
       </div>
 
       <section class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-        <div class="grid gap-4 md:grid-cols-2">
+        <div class="grid gap-4 md:grid-cols-3">
+          <label class="block">
+            <span class="mb-1 block text-xs font-bold uppercase text-gray-500 dark:text-gray-400">{{ $t('settings.language') }}</span>
+            <AppLanguageSelect />
+          </label>
           <label class="block">
             <span class="mb-1 block text-xs font-bold uppercase text-gray-500 dark:text-gray-400">{{ $t('settings.timezone') }}</span>
             <AppTimezoneSelect />
@@ -115,105 +119,28 @@
 <script setup>
 defineOptions({ name: 'Settings' })
 
-import { computed, onMounted, reactive, ref } from 'vue'
-import request from '@/api/request'
 import AppCurrencySelect from '@/components/AppCurrencySelect.vue'
+import AppLanguageSelect from '@/components/AppLanguageSelect.vue'
 import AppTimezoneSelect from '@/components/AppTimezoneSelect.vue'
 import { useDateTime } from '@/composables/useDateTime'
 import { useMoney } from '@/composables/useMoney'
+import { useSystemSettingsPage } from '@/modules/system'
 
 const { ratesAreFallback, ratesUpdatedAt } = useMoney()
 const { formatDateTime } = useDateTime()
-
-const presets = ref([])
-const apiKeyDraft = ref('')
-const saving = ref(false)
-const message = ref('')
-const error = ref('')
-const form = reactive({
-  provider: 'deepseek',
-  apiKeySet: false,
-  apiKeyPreview: '',
-  baseUrl: '',
-  modelId: '',
-  reasoningEnabled: false,
-})
-
-const selectedPreset = computed(() => presets.value.find(item => item.id === form.provider))
-const isCustomProvider = computed(() => form.provider === 'custom')
-const canSave = computed(() => {
-  const hasApiKey = Boolean(apiKeyDraft.value || form.apiKeySet)
-  if (!hasApiKey) return false
-  if (isCustomProvider.value) return Boolean(form.baseUrl && form.modelId)
-  return true
-})
-
-const applyConfig = (config) => {
-  presets.value = config.presets || []
-  form.provider = config.provider || 'deepseek'
-  form.apiKeySet = Boolean(config.apiKeySet)
-  form.apiKeyPreview = config.apiKeyPreview || ''
-  form.baseUrl = config.baseUrl || ''
-  form.modelId = config.modelId || ''
-  form.reasoningEnabled = Boolean(config.reasoningEnabled)
-  apiKeyDraft.value = ''
-}
-
-const applyProviderPreset = () => {
-  if (form.provider !== 'deepseek') form.reasoningEnabled = false
-  if (isCustomProvider.value) {
-    form.baseUrl = ''
-    form.modelId = ''
-    return
-  }
-  const preset = selectedPreset.value
-  if (!preset) return
-  form.baseUrl = preset.baseUrl
-  form.modelId = form.provider === 'deepseek' && form.reasoningEnabled ? 'deepseek-reasoner' : preset.defaultModel
-}
-
-const handleProviderChange = () => {
-  form.apiKeySet = false
-  form.apiKeyPreview = ''
-  apiKeyDraft.value = ''
-  applyProviderPreset()
-}
-
-const loadConfig = async () => {
-  error.value = ''
-  try {
-    const response = await request.get('/llm-config')
-    applyConfig(response.data)
-  } catch (err) {
-    console.error('Load LLM config failed', err)
-    error.value = '加载配置失败'
-  }
-}
-
-const saveConfig = async () => {
-  if (!canSave.value) return
-  saving.value = true
-  message.value = ''
-  error.value = ''
-  try {
-    const response = await request.put('/llm-config', {
-      provider: form.provider,
-      apiKey: apiKeyDraft.value || null,
-      baseUrl: form.baseUrl,
-      modelId: form.modelId,
-      reasoningEnabled: form.reasoningEnabled,
-    })
-    applyConfig(response.data)
-    message.value = '配置已保存'
-  } catch (err) {
-    console.error('Save LLM config failed', err)
-    error.value = '保存配置失败'
-  } finally {
-    saving.value = false
-  }
-}
-
-onMounted(loadConfig)
+const {
+  presets,
+  apiKeyDraft,
+  saving,
+  message,
+  error,
+  form,
+  isCustomProvider,
+  canSave,
+  applyProviderPreset,
+  handleProviderChange,
+  saveConfig,
+} = useSystemSettingsPage()
 </script>
 
 <style scoped>

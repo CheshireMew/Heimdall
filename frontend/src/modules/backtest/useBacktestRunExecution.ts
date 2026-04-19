@@ -1,11 +1,12 @@
 import type { Ref } from 'vue'
 
 import { backtestApi } from './api'
+import type { BacktestPageConfig } from './viewTypes'
 
 
 interface UseBacktestRunExecutionOptions {
   t: (key: string) => string
-  config: any
+  config: BacktestPageConfig
   backtestLoading: Ref<boolean>
   paperLoading: Ref<boolean>
   historyMode: Ref<'backtest' | 'paper'>
@@ -79,8 +80,9 @@ export const useBacktestRunExecution = ({
         await fetchHistory()
         return { id: res.data.backtest_id, mode: 'backtest' as const }
       }
-    } catch (error: any) {
-      alert(`${t('backtest.failed')}: ${error.message}`)
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      alert(`${t('backtest.failed')}: ${detail}`)
     } finally {
       backtestLoading.value = false
     }
@@ -97,8 +99,9 @@ export const useBacktestRunExecution = ({
         await fetchPaperHistory()
         return { id: res.data.run_id, mode: 'paper' as const }
       }
-    } catch (error: any) {
-      alert(`${t('backtest.paperFailed')}: ${error.message}`)
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      alert(`${t('backtest.paperFailed')}: ${detail}`)
     } finally {
       paperLoading.value = false
     }

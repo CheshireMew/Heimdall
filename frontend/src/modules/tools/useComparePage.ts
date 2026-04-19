@@ -4,7 +4,7 @@ import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, rea
 import { isIndexSymbol } from '@/modules/market'
 import { useTheme } from '@/composables/useTheme'
 import { toolsApi } from './api'
-import type { MarketSymbolSearchItem } from '@/types'
+import type { CandlestickData, MarketSymbolSearchItem } from '@/types'
 
 interface ComparePageSnapshot {
   config: {
@@ -13,6 +13,23 @@ interface ComparePageSnapshot {
     days: number
     timeframe: string
   }
+}
+
+interface CompareLinePoint {
+  time: number
+  value: number
+}
+
+interface SyncableChart {
+  timeScale: () => {
+    setVisibleLogicalRange: (range: unknown) => void
+    subscribeVisibleLogicalRangeChange: (handler: (range: unknown) => void) => void
+    unsubscribeVisibleLogicalRangeChange: (handler: (range: unknown) => void) => void
+  }
+}
+
+interface ChartComponentRef {
+  chart?: SyncableChart | null
 }
 
 const createDefaultSnapshot = (): ComparePageSnapshot => ({
@@ -57,12 +74,12 @@ export function useComparePage() {
   const config = reactive(restoredSnapshot.config)
 
   const loading = ref(false)
-  const dataA = ref([])
-  const dataB = ref([])
-  const dataRatio = ref([])
-  const chartARef = ref(null)
-  const chartBRef = ref(null)
-  const chartRatioRef = ref(null)
+  const dataA = ref<CandlestickData[]>([])
+  const dataB = ref<CandlestickData[]>([])
+  const dataRatio = ref<CompareLinePoint[]>([])
+  const chartARef = ref<ChartComponentRef | null>(null)
+  const chartBRef = ref<ChartComponentRef | null>(null)
+  const chartRatioRef = ref<ChartComponentRef | null>(null)
   const syncUnsubscribers = ref<Array<() => void>>([])
 
   const syncCharts = () => {
@@ -78,7 +95,7 @@ export function useComparePage() {
 
     const charts = [chartA, chartB, chartRatio]
     charts.forEach((sourceChart) => {
-      const handler = (range) => {
+      const handler = (range: unknown) => {
         if (!range) {
           return
         }

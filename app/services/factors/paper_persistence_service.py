@@ -3,9 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade
+from app.infra.db.schema import BacktestEquityPoint, BacktestRun
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
-from app.services.backtest.models import BacktestEquityPointRecord, BacktestSignalRecord, BacktestTradeRecord
+from app.services.backtest.result_store import build_signal_rows, build_trade_rows
+from app.contracts.backtest import BacktestEquityPointRecord, BacktestSignalRecord, BacktestTradeRecord
 from app.services.backtest.run_contract import update_paper_metadata
 
 from .signal_execution_core import FactorSignalExecutionCore, FactorSignalPosition
@@ -36,43 +37,9 @@ class FactorPaperPersistenceService:
         now: datetime,
     ) -> None:
         if new_signals:
-            session.bulk_save_objects(
-                [
-                    BacktestSignal(
-                        backtest_id=run.id,
-                        timestamp=item.timestamp,
-                        price=item.price,
-                        signal=item.signal,
-                        confidence=item.confidence,
-                        indicators=item.indicators,
-                        reasoning=item.reasoning,
-                    )
-                    for item in new_signals
-                ]
-            )
+            session.bulk_save_objects(build_signal_rows(run_id=run.id, signals=new_signals))
         if new_trades:
-            session.bulk_save_objects(
-                [
-                    BacktestTrade(
-                        backtest_id=run.id,
-                        pair=item.pair or run.symbol,
-                        opened_at=item.opened_at,
-                        closed_at=item.closed_at,
-                        entry_price=item.entry_price,
-                        exit_price=item.exit_price,
-                        stake_amount=item.stake_amount,
-                        amount=item.amount,
-                        profit_abs=item.profit_abs,
-                        profit_pct=item.profit_pct,
-                        max_drawdown_pct=item.max_drawdown_pct,
-                        duration_minutes=item.duration_minutes,
-                        entry_tag=item.entry_tag,
-                        exit_reason=item.exit_reason,
-                        leverage=item.leverage,
-                    )
-                    for item in new_trades
-                ]
-            )
+            session.bulk_save_objects(build_trade_rows(run_id=run.id, trades=new_trades, default_pair=run.symbol))
 
         if new_equity_points:
             peak = max(

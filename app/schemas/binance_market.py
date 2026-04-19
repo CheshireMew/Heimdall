@@ -245,6 +245,65 @@ class BinanceBasisResponse(BaseModel):
     items: list[BinanceBasisItemResponse] = Field(default_factory=list)
 
 
+class BinanceBreakoutMonitorSummaryResponse(BaseModel):
+    monitored_count: int = 0
+    natural_count: int = 0
+    momentum_count: int = 0
+    focus_count: int = 0
+    advancing_count: int = 0
+    spot_count: int = 0
+    contract_count: int = 0
+
+
+class BinanceBreakoutMonitorItemResponse(BaseModel):
+    market: str
+    market_label: str
+    symbol: str
+    last_price: float | None = None
+    mark_price: float | None = None
+    price_change_pct: float | None = None
+    quote_volume: float | None = None
+    funding_rate_pct: float | None = None
+    change_15m_pct: float | None = None
+    change_1h_pct: float | None = None
+    change_4h_pct: float | None = None
+    pullback_from_high_pct: float | None = None
+    range_position_pct: float | None = None
+    ema20_gap_15m_pct: float | None = None
+    ema20_gap_1h_pct: float | None = None
+    rsi_15m: float | None = None
+    rsi_1h: float | None = None
+    macd_hist_15m: float | None = None
+    green_ratio_15m_pct: float | None = None
+    natural_score: int = 0
+    momentum_score: int = 0
+    structure_ok: bool = False
+    momentum_ok: bool = False
+    follow_status: str = "只做观察"
+    verdict: str = "只做观察"
+    reasons: list[str] = Field(default_factory=list)
+
+
+class BinanceBreakoutMonitorResponse(BaseModel):
+    exchange: str
+    min_rise_pct: float
+    quote_asset: str
+    updated_at: int
+    summary: BinanceBreakoutMonitorSummaryResponse = Field(default_factory=BinanceBreakoutMonitorSummaryResponse)
+    items: list[BinanceBreakoutMonitorItemResponse] = Field(default_factory=list)
+
+
+class BinanceMarketPageResponse(BaseModel):
+    exchange: str
+    quote_asset: str
+    updated_at: int
+    monitor: BinanceBreakoutMonitorResponse
+    spot_ticker: BinanceTickerStatsResponse
+    usdm_ticker: BinanceTickerStatsResponse
+    usdm_mark: BinanceMarkPriceResponse
+    load_errors: list[str] = Field(default_factory=list)
+
+
 class BinanceWeb3RankItemResponse(BaseModel):
     symbol: str | None = None
     chain_id: str | None = None
@@ -257,9 +316,15 @@ class BinanceWeb3RankItemResponse(BaseModel):
     launch_time: int | None = None
     percent_change_1h: float | None = None
     percent_change_24h: float | None = None
+    volume_1h: float | None = None
+    volume_4h: float | None = None
     volume_24h: float | None = None
+    count_1h: int | None = None
+    count_24h: int | None = None
+    unique_trader_1h: int | None = None
     unique_trader_24h: int | None = None
     kyc_holders: int | None = None
+    audit_info: dict[str, Any] = Field(default_factory=dict)
 
 
 class BinanceWeb3UnifiedTokenRankResponse(BaseModel):
@@ -357,6 +422,102 @@ class BinanceWeb3AddressPnlResponse(BaseModel):
     items: list[BinanceWeb3AddressPnlItemResponse] = Field(default_factory=list)
 
 
+class BinanceWeb3HeatRankItemResponse(BaseModel):
+    rank: int | None = None
+    symbol: str | None = None
+    chain_id: str | None = None
+    contract_address: str | None = None
+    icon_url: str | None = None
+    platform: str | None = None
+    heat_score: float = 0
+    ranks: dict[str, int] = Field(default_factory=dict)
+    components: dict[str, float] = Field(default_factory=dict)
+    penalties: dict[str, float] = Field(default_factory=dict)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    audit_info: dict[str, Any] = Field(default_factory=dict)
+    sentiment: str | None = None
+    summary: str | None = None
+
+
+class BinanceWeb3HeatRankResponse(BaseModel):
+    source: str
+    leaderboard: str
+    chain_id: str
+    size: int
+    items: list[BinanceWeb3HeatRankItemResponse] = Field(default_factory=list)
+    formula: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class BinanceWeb3TokenDynamicResponse(BaseModel):
+    source: str
+    chain_id: str
+    contract_address: str
+    price: float | None = None
+    native_token_price: float | None = None
+    volume_24h: float | None = None
+    volume_24h_buy: float | None = None
+    volume_24h_sell: float | None = None
+    volume_4h: float | None = None
+    volume_1h: float | None = None
+    volume_5m: float | None = None
+    count_24h: int | None = None
+    count_24h_buy: int | None = None
+    count_24h_sell: int | None = None
+    percent_change_5m: float | None = None
+    percent_change_1h: float | None = None
+    percent_change_4h: float | None = None
+    percent_change_24h: float | None = None
+    market_cap: float | None = None
+    fdv: float | None = None
+    total_supply: float | None = None
+    circulating_supply: float | None = None
+    price_high_24h: float | None = None
+    price_low_24h: float | None = None
+    holders: int | None = None
+    liquidity: float | None = None
+    launch_time: int | None = None
+    top10_holders_percentage: float | None = None
+    kyc_holder_count: int | None = None
+    kol_holders: int | None = None
+    kol_holding_percent: float | None = None
+    pro_holders: int | None = None
+    pro_holding_percent: float | None = None
+    smart_money_holders: int | None = None
+    smart_money_holding_percent: float | None = None
+
+
+class BinanceWeb3TokenKlineItemResponse(BaseModel):
+    open_time: int | None = None
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float | None = None
+    volume: float | None = None
+    trade_count: int | None = None
+
+
+class BinanceWeb3TokenKlineResponse(BaseModel):
+    source: str
+    address: str
+    platform: str
+    interval: str
+    items: list[BinanceWeb3TokenKlineItemResponse] = Field(default_factory=list)
+
+
+class BinanceWeb3TokenAuditResponse(BaseModel):
+    source: str
+    binance_chain_id: str
+    contract_address: str
+    has_result: bool = False
+    is_supported: bool = False
+    risk_level_enum: str | None = None
+    risk_level: int | None = None
+    buy_tax: float | None = None
+    sell_tax: float | None = None
+    is_verified: bool | None = None
+    risk_items: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class BinanceRwaSymbolItemResponse(BaseModel):
     chain_id: str | None = None
     contract_address: str | None = None
@@ -426,16 +587,3 @@ class BinanceRwaKlineResponse(BaseModel):
     interval: str
     decimals: int | None = None
     items: list[BinanceRwaKlineItemResponse] = Field(default_factory=list)
-
-
-class BinanceReservedFeatureResponse(BaseModel):
-    source: str
-    feature: str
-    status: str
-    message: str
-    skill_name: str | None = None
-    skill_version: str | None = None
-    supported_chains: list[dict[str, str]] = Field(default_factory=list)
-    reserved_endpoints: list[dict[str, Any]] = Field(default_factory=list)
-    response_fields: list[str] = Field(default_factory=list)
-    notes: list[str] = Field(default_factory=list)

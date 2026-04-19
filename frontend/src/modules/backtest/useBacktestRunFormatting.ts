@@ -1,16 +1,31 @@
 import { computed, type ComputedRef, type Ref } from 'vue'
 
+import type {
+  BacktestDetailResponse,
+  BacktestOptimizationTrial,
+  BacktestPairBreakdown,
+  BacktestRollingWindow,
+  BacktestRun,
+  StrategyVersion,
+} from '@/types'
+
 import { asNumber } from './format'
+import type {
+  BacktestComparisonChart,
+  BacktestDisplayRun,
+  BacktestRunSelectionConfig,
+  BacktestVersionCompareOption,
+} from './viewTypes'
 
 
 interface UseBacktestRunFormattingOptions {
   t: (key: string) => string
-  config: any
-  selectedStrategyVersions: ComputedRef<any[]>
-  history: Ref<any[]>
-  paperHistory: Ref<any[]>
+  config: BacktestRunSelectionConfig
+  selectedStrategyVersions: ComputedRef<StrategyVersion[]>
+  history: Ref<BacktestRun[]>
+  paperHistory: Ref<BacktestRun[]>
   historyMode: Ref<'backtest' | 'paper'>
-  selectedRun: Ref<any | null>
+  selectedRun: Ref<BacktestDetailResponse | null>
   selectedRunMode: Ref<'backtest' | 'paper' | null>
   compareRunIds: Ref<number[]>
   versionCompareSelections: Ref<number[]>
@@ -28,12 +43,12 @@ export const useBacktestRunFormatting = ({
   compareRunIds,
   versionCompareSelections,
 }: UseBacktestRunFormattingOptions) => {
-  const visibleHistory = computed(() => (historyMode.value === 'paper' ? paperHistory.value : history.value))
+  const visibleHistory = computed<BacktestRun[]>(() => (historyMode.value === 'paper' ? paperHistory.value : history.value))
   const isPaperRun = computed(() => selectedRunMode.value === 'paper' || selectedRun.value?.metadata?.execution_mode === 'paper_live')
-  const pairBreakdown = computed(() => selectedRun.value?.report?.pair_breakdown || [])
-  const optimizationTrials = computed(() => (isPaperRun.value ? [] : (selectedRun.value?.report?.research?.optimization?.trials || [])))
-  const rollingWindows = computed(() => (isPaperRun.value ? [] : (selectedRun.value?.report?.research?.rolling_windows || [])))
-  const selectedCompareRuns = computed(() => compareRunIds.value.map((id) => history.value.find((run) => run.id === id)).filter(Boolean))
+  const pairBreakdown = computed<BacktestPairBreakdown[]>(() => selectedRun.value?.report?.pair_breakdown || [])
+  const optimizationTrials = computed<BacktestOptimizationTrial[]>(() => (isPaperRun.value ? [] : (selectedRun.value?.report?.research?.optimization?.trials || [])))
+  const rollingWindows = computed<BacktestRollingWindow[]>(() => (isPaperRun.value ? [] : (selectedRun.value?.report?.research?.rolling_windows || [])))
+  const selectedCompareRuns = computed<BacktestRun[]>(() => compareRunIds.value.map((id) => history.value.find((run) => run.id === id)).filter((run): run is BacktestRun => Boolean(run)))
   const latestRunsByVersion = computed(() => {
     const runs = [...history.value]
       .filter((run) => run.metadata?.strategy_key === config.strategy_key && run.metadata?.strategy_version)
@@ -48,16 +63,19 @@ export const useBacktestRunFormatting = ({
       const version = Number(run.metadata?.strategy_version)
       if (!map.has(version)) map.set(version, run)
     }
-    return map
+    return map as Map<number, BacktestRun>
   })
-  const versionCompareOptions = computed(() => selectedStrategyVersions.value
-    .map((version: any) => ({ version: version.version, name: version.name, run: latestRunsByVersion.value.get(version.version) }))
-    .filter((item) => item.run))
-  const selectedVersionCompareRuns = computed(() => versionCompareSelections.value
+  const versionCompareOptions = computed<BacktestVersionCompareOption[]>(() => selectedStrategyVersions.value
+    .map((version) => {
+      const run = latestRunsByVersion.value.get(version.version)
+      return run ? { version: version.version, name: version.name, run } : null
+    })
+    .filter((item): item is BacktestVersionCompareOption => item !== null))
+  const selectedVersionCompareRuns = computed<BacktestRun[]>(() => versionCompareSelections.value
     .map((version) => versionCompareOptions.value.find((item) => item.version === version)?.run)
-    .filter(Boolean))
+    .filter((run): run is BacktestRun => Boolean(run)))
 
-  const buildComparisonChart = (runs: any[], labeler: (run: any) => string) => ({
+  const buildComparisonChart = (runs: BacktestRun[], labeler: (run: BacktestRun) => string): BacktestComparisonChart => ({
     performance: {
       categories: runs.map(labeler),
       series: [
@@ -74,7 +92,7 @@ export const useBacktestRunFormatting = ({
     },
   })
 
-  const compareRunLabel = (run: any) => `#${run.id} · v${run.metadata?.strategy_version || '-'}`
+  const compareRunLabel = (run: BacktestDisplayRun) => `#${run.id} · v${run.metadata?.strategy_version || '-'}`
   const recentRunCompare = computed(() => buildComparisonChart(selectedCompareRuns.value, compareRunLabel))
   const versionRunCompare = computed(() => buildComparisonChart(selectedVersionCompareRuns.value, (run) => `v${run.metadata?.strategy_version || '-'}`))
 
@@ -95,7 +113,7 @@ export const useBacktestRunFormatting = ({
   }
 
   const joinSymbols = (symbols: string[] | undefined) => (Array.isArray(symbols) && symbols.length ? symbols.join(', ') : '-')
-  const portfolioLabel = (run: any) => run?.metadata?.portfolio_label || joinSymbols(run?.metadata?.symbols) || run?.symbol || '-'
+  const portfolioLabel = (run: BacktestDisplayRun) => run?.metadata?.portfolio_label || joinSymbols(run?.metadata?.symbols) || run?.symbol || '-'
   const previewValue = (value: unknown) => {
     if (Array.isArray(value)) return `${value.length}项`
     if (value && typeof value === 'object') return `${Object.keys(value as Record<string, unknown>).length}项`
@@ -106,7 +124,7 @@ export const useBacktestRunFormatting = ({
       ? Object.entries(value).slice(0, 3).map(([key, item]) => `${key}:${previewValue(item)}`).join(' · ')
       : '-'
   )
-  const runStatusLabel = (run: any) => (run?.status || '-').toUpperCase()
+  const runStatusLabel = (run: BacktestDisplayRun) => (run?.status || '-').toUpperCase()
 
   return {
     visibleHistory,

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade
+from app.services.backtest.run_contract import serialize_run_metadata
 
 
 def serialize_backtest_metadata(run: BacktestRun) -> dict:
-    payload = dict(run.metadata_info or {})
-    payload["execution_mode"] = run.execution_mode
-    payload["engine"] = run.engine
-    return payload
+    return serialize_run_metadata(
+        run.metadata_info,
+        execution_mode=run.execution_mode,
+        engine=run.engine,
+    )
 
 
 def serialize_backtest_run(run: BacktestRun, include_signals: bool = False) -> dict:

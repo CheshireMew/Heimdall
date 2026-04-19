@@ -47,6 +47,15 @@ class CurrentPriceResponse(BaseModel):
     current_price: float | None
 
 
+class CurrentPriceBatchItemResponse(CurrentPriceResponse):
+    source: str
+
+
+class CurrentPriceBatchResponse(BaseModel):
+    timeframe: str
+    items: list[CurrentPriceBatchItemResponse] = Field(default_factory=list)
+
+
 class TradeSetupResponseItem(BaseModel):
     side: str
     entry: float

@@ -1,13 +1,12 @@
 import { createI18n } from 'vue-i18n'
 import zh from './zh-CN.json'
 import en from './en.json'
-
-const savedLocale = localStorage.getItem('locale') || 'zh-CN'
+import { FALLBACK_LOCALE, resolveInitialLocale } from './config'
 
 const i18n = createI18n({
   legacy: false,
-  locale: savedLocale,
-  fallbackLocale: 'en',
+  locale: resolveInitialLocale(),
+  fallbackLocale: FALLBACK_LOCALE,
   messages: {
     'zh-CN': zh,
     en

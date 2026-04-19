@@ -3,11 +3,12 @@
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onMounted, watch } from 'vue'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import { useEcharts } from '@/composables/useEcharts'
 
 echarts.use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -18,14 +19,7 @@ const props = defineProps({
   yAxisLabel: { type: String, default: '' },
 })
 
-const chartContainer = ref(null)
-let chartInstance = null
-
-const renderChart = async () => {
-  await nextTick()
-  if (!chartContainer.value) return
-  if (!chartInstance) chartInstance = echarts.init(chartContainer.value)
-  chartInstance.setOption({
+const { chartContainer, renderChart } = useEcharts(() => ({
     backgroundColor: 'transparent',
     tooltip: { trigger: 'axis' },
     legend: {
@@ -56,17 +50,9 @@ const renderChart = async () => {
       itemStyle: { color: item.color },
       areaStyle: item.area ? { color: item.area } : undefined,
     })),
-  })
-}
+  }))
 
 watch(() => [props.categories, props.series, props.dark, props.yAxisLabel], renderChart, { deep: true })
 
 onMounted(renderChart)
-
-onBeforeUnmount(() => {
-  if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
-  }
-})
 </script>

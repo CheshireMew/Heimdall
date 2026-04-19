@@ -1,4 +1,4 @@
-import { computed, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
+import { computed, onUnmounted, ref, watch, type Ref } from 'vue'
 import { marketApi } from './api'
 import { useMarketStore } from './store'
 import { isIndexSymbol } from './symbolCatalog'
@@ -7,11 +7,22 @@ import type { OHLCVRaw } from '@/types'
 const REFRESH_INTERVAL_MS = 5000
 const LIVE_TAIL_LIMIT = 16
 
-export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>) {
+type UseKlineSeriesOptions = {
+  enabled?: Ref<boolean>
+}
+
+const normalizeOhlcvRows = (rows: number[][] | OHLCVRaw[] | undefined): OHLCVRaw[] => (
+  (rows || [])
+    .filter((row): row is OHLCVRaw => Array.isArray(row) && row.length >= 6 && row.every((item) => Number.isFinite(Number(item))))
+    .map((row) => [row[0], row[1], row[2], row[3], row[4], row[5]])
+)
+
+export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, options: UseKlineSeriesOptions = {}) {
   const marketStore = useMarketStore()
   const indexKlineData = ref<OHLCVRaw[]>([])
   const loadingMore = ref(false)
   const noMoreHistory = ref(false)
+  const enabled = computed(() => options.enabled?.value ?? true)
   let tailRefreshPending = false
   let refreshTimer: number | null = null
 
@@ -43,6 +54,10 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>) {
   const fetchLatest = async (options: { force?: boolean } = {}) => {
     const requestSymbol = symbol.value
     const requestTimeframe = timeframe.value
+    if (!enabled.value || !requestSymbol || !requestTimeframe) {
+      indexKlineData.value = []
+      return
+    }
     noMoreHistory.value = false
     if (isIndexSymbol(requestSymbol)) {
       const end = new Date()
@@ -55,7 +70,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>) {
         end_date: end.toISOString().slice(0, 10),
       })
       if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
-      indexKlineData.value = res.data.data || []
+      indexKlineData.value = normalizeOhlcvRows(res.data.data)
       return
     }
     const data = await marketStore.getKlineData(requestSymbol, requestTimeframe, 1000, options)
@@ -81,7 +96,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>) {
     if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
     const tail = Array.isArray(res.data?.kline_data) ? res.data.kline_data : []
     if (tail.length === 0) return
-    marketStore.applyKlineTail(requestSymbol, requestTimeframe, tail, 1000)
+    marketStore.applyKlineTail(requestSymbol, requestTimeframe, normalizeOhlcvRows(tail), 1000)
   }
 
   const stopAutoRefresh = () => {
@@ -93,6 +108,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>) {
 
   const startAutoRefresh = () => {
     stopAutoRefresh()
+    if (!enabled.value || !symbol.value || !timeframe.value) return
     refreshTimer = window.setInterval(() => {
       if (isIndexSymbol(symbol.value) || tailRefreshPending) return
       tailRefreshPending = true
@@ -123,7 +139,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>) {
           end_date: end.toISOString().slice(0, 10),
         })
         if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
-        const newKlines = res.data.data || []
+        const newKlines = normalizeOhlcvRows(res.data.data)
         if (newKlines.length === 0) {
           noMoreHistory.value = true
           return
@@ -140,7 +156,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>) {
       })
       if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
 
-      const newKlines = res.data || []
+      const newKlines = normalizeOhlcvRows(res.data)
       if (newKlines.length === 0) {
         noMoreHistory.value = true
         return
@@ -154,17 +170,20 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>) {
     }
   }
 
-  watch([symbol, timeframe], () => {
+  watch([symbol, timeframe, enabled], () => {
+    stopAutoRefresh()
+    tailRefreshPending = false
+    if (!enabled.value || !symbol.value || !timeframe.value) {
+      indexKlineData.value = []
+      noMoreHistory.value = false
+      return
+    }
     if (isIndexSymbol(symbol.value)) {
       indexKlineData.value = []
     }
-    fetchLatest()
-  })
-
-  onMounted(() => {
-    fetchLatest()
+    void fetchLatest()
     startAutoRefresh()
-  })
+  }, { immediate: true })
 
   onUnmounted(() => {
     stopAutoRefresh()

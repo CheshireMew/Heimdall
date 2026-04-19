@@ -1,17 +1,8 @@
+import type { StrategyIndicatorConfig } from '@/types'
+
 import { buildParameterSpaceJson, clone } from './editorContract'
 import { backtestApi } from './api'
-
-
-interface UseBacktestEditorActionsOptions {
-  t: (key: string) => string
-  router: any
-  config: any
-  editor: any
-  fetchStrategies: () => Promise<void>
-  fetchTemplates: () => Promise<void>
-  fetchIndicators: () => Promise<void>
-  syncStrategyVersion: () => void
-}
+import type { UseBacktestEditorActionsOptions } from './editorTypes'
 
 export const useBacktestEditorActions = ({
   t,
@@ -35,8 +26,9 @@ export const useBacktestEditorActions = ({
       await fetchIndicators()
       editor.resetIndicatorDraft()
       alert(t('backtest.indicatorSaved'))
-    } catch (error: any) {
-      alert(`${t('backtest.versionSaveFailed')}: ${error.message}`)
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      alert(`${t('backtest.versionSaveFailed')}: ${detail}`)
     }
   }
 
@@ -46,7 +38,7 @@ export const useBacktestEditorActions = ({
       if (!editor.templateDraft.key.trim() || !editor.templateDraft.name.trim()) throw new Error(t('backtest.templateDraftRequired'))
       const indicatorKeys = Array.from(new Set([
         ...editor.templateDraft.indicator_keys,
-        ...Object.values(editor.versionDraft.config.indicators).map((item: any) => item.type),
+        ...Object.values(editor.versionDraft.config.indicators).map((item) => (item as StrategyIndicatorConfig).type),
       ]))
       const res = await backtestApi.createTemplate({
         key: editor.templateDraft.key.trim(),
@@ -61,8 +53,9 @@ export const useBacktestEditorActions = ({
       editor.applyDraftFromTemplate(res.data.template, res.data.default_config, res.data.default_parameter_space, { description: res.data.description || '' })
       editor.resetTemplateDraft()
       alert(t('backtest.templateSaved'))
-    } catch (error: any) {
-      alert(`${t('backtest.versionSaveFailed')}: ${error.message}`)
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      alert(`${t('backtest.versionSaveFailed')}: ${detail}`)
     }
   }
 
@@ -95,8 +88,9 @@ export const useBacktestEditorActions = ({
         },
       })
       alert(t('backtest.versionSaved'))
-    } catch (error: any) {
-      alert(`${t('backtest.versionSaveFailed')}: ${error.message}`)
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      alert(`${t('backtest.versionSaveFailed')}: ${detail}`)
     }
   }
 

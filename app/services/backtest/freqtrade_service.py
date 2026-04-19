@@ -9,7 +9,7 @@ from app.services.backtest.freqtrade_execution import FreqtradeIterationExecutor
 from app.services.backtest.freqtrade_research import FreqtradeResearchService
 from app.services.backtest.freqtrade_result_builder import FreqtradeResultBuilder
 from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBuilder
-from app.services.backtest.models import BacktestExecutionResult
+from app.contracts.backtest import BacktestExecutionResult
 from app.services.backtest.scripted_template_runtime import get_template_runtime, template_builder_kind
 from app.services.market.market_data_service import MarketDataService
 from config import settings

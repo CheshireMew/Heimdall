@@ -8,6 +8,7 @@ from app.dependencies import get_binance_market_intel_service
 from app.rate_limit import limiter
 from app.routers.market.common import internal_error
 from app.schemas.binance_market import (
+    BinanceBreakoutMonitorResponse,
     BinanceBasisResponse,
     BinanceBookTickerResponse,
     BinanceExchangeInfoResponse,
@@ -15,6 +16,7 @@ from app.schemas.binance_market import (
     BinanceFundingInfoResponse,
     BinanceKlineResponse,
     BinanceMarkPriceResponse,
+    BinanceMarketPageResponse,
     BinanceOpenInterestSnapshotResponse,
     BinanceOpenInterestStatsResponse,
     BinanceOrderBookResponse,
@@ -31,6 +33,40 @@ if TYPE_CHECKING:
 
 
 router = APIRouter(tags=["Market Data"])
+
+
+@router.get("/binance/market/page", response_model=BinanceMarketPageResponse)
+async def get_binance_market_page(
+    min_rise_pct: float = Query(5.0, ge=0.5, le=50.0),
+    limit: int = Query(24, ge=1, le=30),
+    quote_asset: str = Query("USDT", min_length=2, max_length=10),
+    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+):
+    try:
+        return await service.get_market_page_payload(
+            min_rise_pct=min_rise_pct,
+            limit=limit,
+            quote_asset=quote_asset,
+        )
+    except Exception as exc:
+        raise internal_error("API /binance/market/page 错误", exc)
+
+
+@router.get("/binance/market/breakout_monitor", response_model=BinanceBreakoutMonitorResponse)
+async def get_binance_market_breakout_monitor(
+    min_rise_pct: float = Query(5.0, ge=0.5, le=50.0),
+    limit: int = Query(18, ge=1, le=30),
+    quote_asset: str = Query("USDT", min_length=2, max_length=10),
+    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+):
+    try:
+        return await service.get_market_breakout_monitor(
+            min_rise_pct=min_rise_pct,
+            limit=limit,
+            quote_asset=quote_asset,
+        )
+    except Exception as exc:
+        raise internal_error("API /binance/market/breakout_monitor 错误", exc)
 
 
 @router.get("/binance/spot/exchange_info", response_model=BinanceExchangeInfoResponse)
@@ -335,170 +371,3 @@ async def get_binance_usdm_basis(
         return await service.get_usdm_basis(pair=pair, contract_type=contract_type, period=period, limit=limit)
     except Exception as exc:
         raise internal_error("API /binance/futures/usdm/basis 错误", exc)
-
-
-@router.get("/binance/futures/coinm/exchange_info", response_model=BinanceExchangeInfoResponse)
-@limiter.limit(settings.RATE_LIMIT_HEAVY)
-async def get_binance_coinm_exchange_info(
-    request: Request,
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
-):
-    try:
-        return await service.get_coinm_exchange_info()
-    except Exception as exc:
-        raise internal_error("API /binance/futures/coinm/exchange_info 错误", exc)
-
-
-@router.get("/binance/futures/coinm/ticker_24hr", response_model=BinanceTickerStatsResponse)
-async def get_binance_coinm_ticker_24hr(
-    symbol: str | None = Query(None),
-    pair: str | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
-):
-    try:
-        return await service.get_coinm_ticker_24hr(symbol=symbol, pair=pair)
-    except Exception as exc:
-        raise internal_error("API /binance/futures/coinm/ticker_24hr 错误", exc)
-
-
-@router.get("/binance/futures/coinm/mark_price", response_model=BinanceMarkPriceResponse)
-async def get_binance_coinm_mark_price(
-    symbol: str | None = Query(None),
-    pair: str | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
-):
-    try:
-        return await service.get_coinm_mark_price(symbol=symbol, pair=pair)
-    except Exception as exc:
-        raise internal_error("API /binance/futures/coinm/mark_price 错误", exc)
-
-
-@router.get("/binance/futures/coinm/funding_info", response_model=BinanceFundingInfoResponse)
-async def get_binance_coinm_funding_info(
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
-):
-    try:
-        return await service.get_coinm_funding_info()
-    except Exception as exc:
-        raise internal_error("API /binance/futures/coinm/funding_info 错误", exc)
-
-
-@router.get("/binance/futures/coinm/funding_history", response_model=BinanceFundingHistoryListResponse)
-async def get_binance_coinm_funding_history(
-    symbol: str | None = Query(None),
-    limit: int = Query(100, ge=1, le=1000),
-    start_time: int | None = Query(None),
-    end_time: int | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
-):
-    try:
-        return await service.get_coinm_funding_history(
-            symbol=symbol,
-            limit=limit,
-            start_time=start_time,
-            end_time=end_time,
-        )
-    except Exception as exc:
-        raise internal_error("API /binance/futures/coinm/funding_history 错误", exc)
-
-
-@router.get("/binance/futures/coinm/open_interest", response_model=BinanceOpenInterestSnapshotResponse)
-async def get_binance_coinm_open_interest(
-    symbol: str = Query(...),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
-):
-    try:
-        return await service.get_coinm_open_interest(symbol=symbol)
-    except Exception as exc:
-        raise internal_error("API /binance/futures/coinm/open_interest 错误", exc)
-
-
-@router.get("/binance/futures/coinm/open_interest_stats", response_model=BinanceOpenInterestStatsResponse)
-async def get_binance_coinm_open_interest_stats(
-    pair: str = Query(...),
-    contract_type: str = Query(...),
-    period: str = Query(...),
-    limit: int = Query(30, ge=1, le=500),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
-):
-    try:
-        return await service.get_coinm_open_interest_stats(
-            pair=pair,
-            contract_type=contract_type,
-            period=period,
-            limit=limit,
-        )
-    except Exception as exc:
-        raise internal_error("API /binance/futures/coinm/open_interest_stats 错误", exc)
-
-
-@router.get("/binance/futures/coinm/long_short_ratio", response_model=BinanceRatioSeriesResponse)
-async def get_binance_coinm_long_short_ratio(
-    pair: str = Query(...),
-    period: str = Query(...),
-    limit: int = Query(30, ge=1, le=500),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
-):
-    try:
-        return await service.get_coinm_long_short_ratio(pair=pair, period=period, limit=limit)
-    except Exception as exc:
-        raise internal_error("API /binance/futures/coinm/long_short_ratio 错误", exc)
-
-
-@router.get("/binance/futures/coinm/top_trader_accounts", response_model=BinanceRatioSeriesResponse)
-async def get_binance_coinm_top_trader_accounts(
-    symbol: str = Query(...),
-    period: str = Query(...),
-    limit: int = Query(30, ge=1, le=500),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
-):
-    try:
-        return await service.get_coinm_top_trader_accounts(symbol=symbol, period=period, limit=limit)
-    except Exception as exc:
-        raise internal_error("API /binance/futures/coinm/top_trader_accounts 错误", exc)
-
-
-@router.get("/binance/futures/coinm/top_trader_positions", response_model=BinanceRatioSeriesResponse)
-async def get_binance_coinm_top_trader_positions(
-    pair: str = Query(...),
-    period: str = Query(...),
-    limit: int = Query(30, ge=1, le=500),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
-):
-    try:
-        return await service.get_coinm_top_trader_positions(pair=pair, period=period, limit=limit)
-    except Exception as exc:
-        raise internal_error("API /binance/futures/coinm/top_trader_positions 错误", exc)
-
-
-@router.get("/binance/futures/coinm/taker_volume", response_model=BinanceTakerVolumeResponse)
-async def get_binance_coinm_taker_volume(
-    pair: str = Query(...),
-    contract_type: str = Query(...),
-    period: str = Query(...),
-    limit: int = Query(30, ge=1, le=500),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
-):
-    try:
-        return await service.get_coinm_taker_volume(
-            pair=pair,
-            contract_type=contract_type,
-            period=period,
-            limit=limit,
-        )
-    except Exception as exc:
-        raise internal_error("API /binance/futures/coinm/taker_volume 错误", exc)
-
-
-@router.get("/binance/futures/coinm/basis", response_model=BinanceBasisResponse)
-async def get_binance_coinm_basis(
-    pair: str = Query(...),
-    contract_type: str = Query(...),
-    period: str = Query(...),
-    limit: int = Query(30, ge=1, le=500),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
-):
-    try:
-        return await service.get_coinm_basis(pair=pair, contract_type=contract_type, period=period, limit=limit)
-    except Exception as exc:
-        raise internal_error("API /binance/futures/coinm/basis 错误", exc)

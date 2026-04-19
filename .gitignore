@@ -14,6 +14,8 @@ traceback.log
 /.uv-*.out
 /.codex_tmp_frontend_tests/
 /.codex_tmp_pytest/
+/.codex_tmp_freqtrade_runtime/
+/.codex_logs/
 /test_tmp_frontend/
 /test_tmp_pytest/
 /frontend/.npm-cache/

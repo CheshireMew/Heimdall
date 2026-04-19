@@ -7,16 +7,19 @@ from fastapi import APIRouter, Depends, Query
 from app.dependencies import get_binance_web3_service
 from app.routers.market.common import internal_error
 from app.schemas.binance_market import (
-    BinanceReservedFeatureResponse,
     BinanceRwaDynamicResponse,
     BinanceRwaKlineResponse,
     BinanceRwaMarketStatusResponse,
     BinanceRwaMetaResponse,
     BinanceRwaSymbolListResponse,
     BinanceWeb3AddressPnlResponse,
+    BinanceWeb3HeatRankResponse,
     BinanceWeb3MemeRankResponse,
     BinanceWeb3SmartMoneyInflowResponse,
     BinanceWeb3SocialHypeResponse,
+    BinanceWeb3TokenAuditResponse,
+    BinanceWeb3TokenDynamicResponse,
+    BinanceWeb3TokenKlineResponse,
     BinanceWeb3UnifiedTokenRankResponse,
 )
 
@@ -118,6 +121,18 @@ async def get_binance_web3_address_pnl_rank(
         raise internal_error("API /binance/web3/address_pnl_rank 错误", exc)
 
 
+@router.get("/binance/web3/heat_rank", response_model=BinanceWeb3HeatRankResponse)
+async def get_binance_web3_heat_rank(
+    chain_id: str = Query("56"),
+    size: int = Query(30, ge=1, le=50),
+    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+):
+    try:
+        return await service.get_web3_heat_rank(chain_id=chain_id, size=size)
+    except Exception as exc:
+        raise internal_error("API /binance/web3/heat_rank 错误", exc)
+
+
 @router.get("/binance/rwa/symbols", response_model=BinanceRwaSymbolListResponse)
 async def get_binance_rwa_symbols(
     platform_type: int | None = Query(1),
@@ -198,63 +213,50 @@ async def get_binance_rwa_kline(
         raise internal_error("API /binance/rwa/kline 错误", exc)
 
 
-@router.get("/binance/web3/token_info/search", response_model=BinanceReservedFeatureResponse)
-async def get_reserved_binance_web3_token_search(
-    keyword: str | None = Query(None),
-    chain_ids: str | None = Query(None, alias="chainIds"),
-    order_by: str | None = Query(None, alias="orderBy"),
+@router.get("/binance/web3/token_dynamic", response_model=BinanceWeb3TokenDynamicResponse)
+async def get_binance_web3_token_dynamic(
+    chain_id: str = Query(...),
+    contract_address: str = Query(...),
     service: BinanceWeb3Service = Depends(get_binance_web3_service),
 ):
-    return await service.search_tokens(keyword=keyword, chain_ids=chain_ids, order_by=order_by)
+    try:
+        return await service.get_token_dynamic(chain_id=chain_id, contract_address=contract_address)
+    except Exception as exc:
+        raise internal_error("API /binance/web3/token_dynamic 错误", exc)
 
 
-@router.get("/binance/web3/token_info/metadata", response_model=BinanceReservedFeatureResponse)
-async def get_reserved_binance_web3_token_metadata(
-    chain_id: str | None = Query(None, alias="chainId"),
-    contract_address: str | None = Query(None, alias="contractAddress"),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
-):
-    return await service.get_token_metadata(chain_id=chain_id, contract_address=contract_address)
-
-
-@router.get("/binance/web3/token_info/dynamic", response_model=BinanceReservedFeatureResponse)
-async def get_reserved_binance_web3_token_dynamic(
-    chain_id: str | None = Query(None, alias="chainId"),
-    contract_address: str | None = Query(None, alias="contractAddress"),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
-):
-    return await service.get_token_dynamic(chain_id=chain_id, contract_address=contract_address)
-
-
-@router.get("/binance/web3/token_info/kline", response_model=BinanceReservedFeatureResponse)
-async def get_reserved_binance_web3_token_kline(
-    address: str | None = Query(None),
-    platform: str | None = Query(None),
-    interval: str | None = Query(None),
-    limit: int | None = Query(None, ge=1, le=1000),
+@router.get("/binance/web3/token_kline", response_model=BinanceWeb3TokenKlineResponse)
+async def get_binance_web3_token_kline(
+    address: str = Query(...),
+    platform: str = Query(...),
+    interval: str = Query("15min"),
+    limit: int = Query(240, ge=1, le=1000),
     from_time: int | None = Query(None, alias="from"),
     to_time: int | None = Query(None, alias="to"),
-    pm: str | None = Query(None),
+    pm: str | None = Query("p"),
     service: BinanceWeb3Service = Depends(get_binance_web3_service),
 ):
-    return await service.get_token_kline(
-        address=address,
-        platform=platform,
-        interval=interval,
-        limit=limit,
-        from_time=from_time,
-        to_time=to_time,
-        pm=pm,
-    )
+    try:
+        return await service.get_token_kline(
+            address=address,
+            platform=platform,
+            interval=interval,
+            limit=limit,
+            from_time=from_time,
+            to_time=to_time,
+            pm=pm,
+        )
+    except Exception as exc:
+        raise internal_error("API /binance/web3/token_kline 错误", exc)
 
 
-@router.get("/binance/web3/token_audit", response_model=BinanceReservedFeatureResponse)
-async def get_reserved_binance_web3_token_audit(
-    binance_chain_id: str | None = Query(None, alias="binanceChainId"),
-    contract_address: str | None = Query(None, alias="contractAddress"),
+@router.get("/binance/web3/token_audit", response_model=BinanceWeb3TokenAuditResponse)
+async def get_binance_web3_token_audit(
+    binance_chain_id: str = Query(...),
+    contract_address: str = Query(...),
     service: BinanceWeb3Service = Depends(get_binance_web3_service),
 ):
-    return await service.audit_token(
-        binance_chain_id=binance_chain_id,
-        contract_address=contract_address,
-    )
+    try:
+        return await service.get_token_audit(binance_chain_id=binance_chain_id, contract_address=contract_address)
+    except Exception as exc:
+        raise internal_error("API /binance/web3/token_audit 错误", exc)

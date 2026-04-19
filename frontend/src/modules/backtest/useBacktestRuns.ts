@@ -1,30 +1,35 @@
 import { computed, ref, type ComputedRef } from 'vue'
 
+import type { BacktestDetailResponse, BacktestRun, StrategyVersion } from '@/types'
+
 import { useBacktestRunChart } from './useBacktestRunChart'
 import { useBacktestRunExecution } from './useBacktestRunExecution'
 import { useBacktestRunFormatting } from './useBacktestRunFormatting'
 import { useBacktestRunHistory } from './useBacktestRunHistory'
+import type { BacktestPageConfig, BacktestRunSelectionConfig } from './viewTypes'
 
 export type BacktestRunMode = 'backtest' | 'paper'
 
 interface UseBacktestRunsOptions {
   t: (key: string) => string
-  config: any
-  selectedStrategyVersions: ComputedRef<any[]>
+  config: BacktestRunSelectionConfig
+  executionConfig?: BacktestPageConfig
+  selectedStrategyVersions: ComputedRef<StrategyVersion[]>
 }
 
 export const useBacktestRuns = ({
   t,
   config,
+  executionConfig,
   selectedStrategyVersions,
 }: UseBacktestRunsOptions) => {
   const backtestLoading = ref(false)
   const paperLoading = ref(false)
   const isBusy = computed(() => backtestLoading.value || paperLoading.value)
-  const history = ref<any[]>([])
-  const paperHistory = ref<any[]>([])
+  const history = ref<BacktestRun[]>([])
+  const paperHistory = ref<BacktestRun[]>([])
   const historyMode = ref<'backtest' | 'paper'>('backtest')
-  const selectedRun = ref<any | null>(null)
+  const selectedRun = ref<BacktestDetailResponse | null>(null)
   const selectedRunMode = ref<'backtest' | 'paper' | null>(null)
   const symbolsText = ref('BTC/USDT, ETH/USDT')
   const compareRunIds = ref<number[]>([])
@@ -56,16 +61,23 @@ export const useBacktestRuns = ({
     loadChart: chart.loadChart,
     clearChart: chart.clearChart,
   })
-  const execution = useBacktestRunExecution({
-    t,
-    config,
-    backtestLoading,
-    paperLoading,
-    historyMode,
-    symbolsText,
-    fetchHistory: historyActions.fetchHistory,
-    fetchPaperHistory: historyActions.fetchPaperHistory,
-  })
+  const execution = executionConfig
+    ? useBacktestRunExecution({
+        t,
+        config: executionConfig,
+        backtestLoading,
+        paperLoading,
+        historyMode,
+        symbolsText,
+        fetchHistory: historyActions.fetchHistory,
+        fetchPaperHistory: historyActions.fetchPaperHistory,
+      })
+    : {
+        buildPayload: () => null,
+        buildPaperPayload: () => null,
+        startBacktest: async () => null,
+        startPaperRun: async () => null,
+      }
 
   return {
     backtestLoading,

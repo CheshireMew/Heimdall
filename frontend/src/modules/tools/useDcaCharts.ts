@@ -27,6 +27,8 @@ export const useDcaCharts = ({
   let priceChart: Chart | null = null
   let investmentChart: Chart | null = null
 
+  const parsedY = (value: number | null | undefined) => value ?? 0
+
   const destroyCharts = () => {
     roiChart?.destroy()
     priceChart?.destroy()
@@ -59,11 +61,11 @@ export const useDcaCharts = ({
               datasets: [{
                 label: 'ROI (%)',
                 data: roiData,
-                borderColor: (context) => (context.parsed?.y >= 0 ? 'rgb(16, 185, 129)' : 'rgb(239, 68, 68)'),
-                backgroundColor: (context) => (context.parsed?.y >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'),
+                borderColor: (context) => (parsedY(context.parsed?.y) >= 0 ? 'rgb(16, 185, 129)' : 'rgb(239, 68, 68)'),
+                backgroundColor: (context) => (parsedY(context.parsed?.y) >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'),
                 segment: {
-                  borderColor: (context) => (context.p1.parsed.y >= 0 ? 'rgb(16, 185, 129)' : 'rgb(239, 68, 68)'),
-                  backgroundColor: (context) => (context.p1.parsed.y >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'),
+                  borderColor: (context) => (parsedY(context.p1.parsed.y) >= 0 ? 'rgb(16, 185, 129)' : 'rgb(239, 68, 68)'),
+                  backgroundColor: (context) => (parsedY(context.p1.parsed.y) >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'),
                 },
                 fill: true,
                 tension: 0.4,
@@ -77,7 +79,7 @@ export const useDcaCharts = ({
                 legend: { display: false },
                 tooltip: {
                   callbacks: {
-                    label: (context) => `ROI: ${context.parsed.y.toFixed(2)}%`,
+                    label: (context) => `ROI: ${parsedY(context.parsed.y).toFixed(2)}%`,
                   },
                   backgroundColor: isDark ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
                   titleColor: isDark ? '#fff' : '#000',

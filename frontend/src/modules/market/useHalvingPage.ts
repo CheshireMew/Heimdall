@@ -256,13 +256,15 @@ export function useHalvingPage() {
           x: {
             type: 'time',
             time: { unit: 'year' },
-            grid: { color: gridColor, borderColor: gridColor },
+            grid: { color: gridColor },
+            border: { color: gridColor },
             ticks: { color: textColor },
           },
           y: {
             type: scaleType.value,
             position: 'right',
-            grid: { color: gridColor, borderColor: gridColor },
+            grid: { color: gridColor },
+            border: { color: gridColor },
             ticks: {
               color: textColor,
               callback(value) {

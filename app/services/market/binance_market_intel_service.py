@@ -1,14 +1,37 @@
 from __future__ import annotations
 
-from typing import Any
+import asyncio
+from typing import TYPE_CHECKING, Any
 
 from config import settings
+from utils.logger import logger
 
 from .binance_api_support import BinanceApiSupport, compact_query, encode_symbol_list
+from .binance_breakout_monitor import BinanceBreakoutMonitor
+from .binance_market_normalizers import (
+    normalize_basis,
+    normalize_derivatives_exchange_info,
+    normalize_derivatives_ticker_list,
+    normalize_kline_response,
+    normalize_levels,
+    normalize_mark_price_list,
+    normalize_open_interest_snapshot,
+    normalize_open_interest_stats,
+    normalize_ratio_series,
+    normalize_taker_volume,
+    normalize_ticker_item,
+    normalize_trade,
+)
+from .binance_numbers import to_float, to_int
+
+if TYPE_CHECKING:
+    from .binance_market_snapshot_service import BinanceMarketSnapshotService
 
 
 class BinanceMarketIntelService:
-    def __init__(self) -> None:
+    def __init__(self, snapshot_service: BinanceMarketSnapshotService | None = None) -> None:
+        self.snapshot_service = snapshot_service
+        self.breakout_monitor = BinanceBreakoutMonitor(self._get_market_klines)
         self.spot = BinanceApiSupport(
             base_url=settings.BINANCE_PUBLIC_BASE_URL,
             cache_namespace="binance:spot",
@@ -17,11 +40,6 @@ class BinanceMarketIntelService:
         self.usdm = BinanceApiSupport(
             base_url=settings.BINANCE_FUTURES_USDM_BASE_URL,
             cache_namespace="binance:usdm",
-            user_agent="heimdall/market-intel",
-        )
-        self.coinm = BinanceApiSupport(
-            base_url=settings.BINANCE_FUTURES_COINM_BASE_URL,
-            cache_namespace="binance:coinm",
             user_agent="heimdall/market-intel",
         )
 
@@ -69,7 +87,7 @@ class BinanceMarketIntelService:
         return {
             "exchange": "binance",
             "market": "spot",
-            "items": [self._normalize_ticker_item(item) for item in items],
+            "items": [normalize_ticker_item(item) for item in items],
         }
 
     async def get_spot_ticker_window(
@@ -92,7 +110,7 @@ class BinanceMarketIntelService:
         return {
             "exchange": "binance",
             "market": "spot",
-            "items": [self._normalize_ticker_item(item) for item in items],
+            "items": [normalize_ticker_item(item) for item in items],
         }
 
     async def get_spot_price(self, *, symbols: list[str] | None = None) -> dict[str, Any]:
@@ -108,7 +126,7 @@ class BinanceMarketIntelService:
             "items": [
                 {
                     "symbol": item.get("symbol"),
-                    "price": self._to_float(item.get("price")),
+                    "price": to_float(item.get("price")),
                 }
                 for item in items
             ],
@@ -127,10 +145,10 @@ class BinanceMarketIntelService:
             "items": [
                 {
                     "symbol": item.get("symbol"),
-                    "bid_price": self._to_float(item.get("bidPrice")),
-                    "bid_qty": self._to_float(item.get("bidQty")),
-                    "ask_price": self._to_float(item.get("askPrice")),
-                    "ask_qty": self._to_float(item.get("askQty")),
+                    "bid_price": to_float(item.get("bidPrice")),
+                    "bid_qty": to_float(item.get("bidQty")),
+                    "ask_price": to_float(item.get("askPrice")),
+                    "ask_qty": to_float(item.get("askQty")),
                 }
                 for item in items
             ],
@@ -147,8 +165,8 @@ class BinanceMarketIntelService:
             "market": "spot",
             "symbol": symbol.upper(),
             "last_update_id": payload.get("lastUpdateId"),
-            "bids": self._normalize_levels(payload.get("bids") or []),
-            "asks": self._normalize_levels(payload.get("asks") or []),
+            "bids": normalize_levels(payload.get("bids") or []),
+            "asks": normalize_levels(payload.get("asks") or []),
         }
 
     async def get_spot_trades(self, *, symbol: str, limit: int = 50) -> dict[str, Any]:
@@ -161,7 +179,7 @@ class BinanceMarketIntelService:
             "exchange": "binance",
             "market": "spot",
             "symbol": symbol.upper(),
-            "items": [self._normalize_trade(item) for item in payload],
+            "items": [normalize_trade(item) for item in payload],
         }
 
     async def get_spot_agg_trades(
@@ -188,7 +206,7 @@ class BinanceMarketIntelService:
             "exchange": "binance",
             "market": "spot",
             "symbol": symbol.upper(),
-            "items": [self._normalize_trade(item, aggregate=True) for item in payload],
+            "items": [normalize_trade(item, aggregate=True) for item in payload],
         }
 
     async def get_spot_klines(
@@ -215,15 +233,11 @@ class BinanceMarketIntelService:
             ),
             ttl=30,
         )
-        return self._normalize_kline_response("spot", symbol.upper(), interval, payload)
+        return normalize_kline_response("spot", symbol.upper(), interval, payload)
 
     async def get_usdm_exchange_info(self) -> dict[str, Any]:
         payload = await self.usdm.get_json("/fapi/v1/exchangeInfo", ttl=300)
-        return self._normalize_derivatives_exchange_info("usdm", payload)
-
-    async def get_coinm_exchange_info(self) -> dict[str, Any]:
-        payload = await self.coinm.get_json("/dapi/v1/exchangeInfo", ttl=300)
-        return self._normalize_derivatives_exchange_info("coinm", payload)
+        return normalize_derivatives_exchange_info("usdm", payload)
 
     async def get_usdm_ticker_24hr(self, *, symbol: str | None = None) -> dict[str, Any]:
         payload = await self.usdm.get_json(
@@ -231,15 +245,7 @@ class BinanceMarketIntelService:
             params=compact_query({"symbol": symbol.upper() if symbol else None}),
             ttl=10,
         )
-        return self._normalize_derivatives_ticker_list("usdm", payload)
-
-    async def get_coinm_ticker_24hr(self, *, symbol: str | None = None, pair: str | None = None) -> dict[str, Any]:
-        payload = await self.coinm.get_json(
-            "/dapi/v1/ticker/24hr",
-            params=compact_query({"symbol": symbol.upper() if symbol else None, "pair": pair.upper() if pair else None}),
-            ttl=10,
-        )
-        return self._normalize_derivatives_ticker_list("coinm", payload)
+        return normalize_derivatives_ticker_list("usdm", payload)
 
     async def get_usdm_mark_price(self, *, symbol: str | None = None) -> dict[str, Any]:
         payload = await self.usdm.get_json(
@@ -247,15 +253,31 @@ class BinanceMarketIntelService:
             params=compact_query({"symbol": symbol.upper() if symbol else None}),
             ttl=10,
         )
-        return self._normalize_mark_price_list("usdm", payload)
+        return normalize_mark_price_list("usdm", payload)
 
-    async def get_coinm_mark_price(self, *, symbol: str | None = None, pair: str | None = None) -> dict[str, Any]:
-        payload = await self.coinm.get_json(
-            "/dapi/v1/premiumIndex",
-            params=compact_query({"symbol": symbol.upper() if symbol else None, "pair": pair.upper() if pair else None}),
-            ttl=10,
+    async def get_usdm_klines(
+        self,
+        *,
+        symbol: str,
+        interval: str,
+        limit: int = 200,
+        start_time: int | None = None,
+        end_time: int | None = None,
+    ) -> dict[str, Any]:
+        payload = await self.usdm.get_json(
+            "/fapi/v1/klines",
+            params=compact_query(
+                {
+                    "symbol": symbol.upper(),
+                    "interval": interval,
+                    "limit": limit,
+                    "startTime": start_time,
+                    "endTime": end_time,
+                }
+            ),
+            ttl=30,
         )
-        return self._normalize_mark_price_list("coinm", payload)
+        return normalize_kline_response("usdm", symbol.upper(), interval, payload)
 
     async def get_usdm_funding_info(self) -> dict[str, Any]:
         payload = await self.usdm.get_json("/fapi/v1/fundingInfo", ttl=300)
@@ -265,9 +287,9 @@ class BinanceMarketIntelService:
             "items": [
                 {
                     "symbol": item.get("symbol"),
-                    "adjusted_funding_rate_cap": self._to_float(item.get("adjustedFundingRateCap")),
-                    "adjusted_funding_rate_floor": self._to_float(item.get("adjustedFundingRateFloor")),
-                    "funding_interval_hours": self._to_int(item.get("fundingIntervalHours")),
+                    "adjusted_funding_rate_cap": to_float(item.get("adjustedFundingRateCap")),
+                    "adjusted_funding_rate_floor": to_float(item.get("adjustedFundingRateFloor")),
+                    "funding_interval_hours": to_int(item.get("fundingIntervalHours")),
                     "disclaimer": bool(item.get("disclaimer")),
                 }
                 for item in payload
@@ -300,60 +322,9 @@ class BinanceMarketIntelService:
             "items": [
                 {
                     "symbol": item.get("symbol"),
-                    "funding_rate": self._to_float(item.get("fundingRate")),
-                    "mark_price": self._to_float(item.get("markPrice")),
-                    "funding_time": self._to_int(item.get("fundingTime")),
-                }
-                for item in payload
-            ],
-        }
-
-    async def get_coinm_funding_info(self) -> dict[str, Any]:
-        payload = await self.coinm.get_json("/dapi/v1/fundingInfo", ttl=300)
-        return {
-            "exchange": "binance",
-            "market": "coinm",
-            "items": [
-                {
-                    "symbol": item.get("symbol"),
-                    "adjusted_funding_rate_cap": self._to_float(item.get("adjustedFundingRateCap")),
-                    "adjusted_funding_rate_floor": self._to_float(item.get("adjustedFundingRateFloor")),
-                    "funding_interval_hours": self._to_int(item.get("fundingIntervalHours")),
-                    "disclaimer": bool(item.get("disclaimer")),
-                }
-                for item in payload
-            ],
-        }
-
-    async def get_coinm_funding_history(
-        self,
-        *,
-        symbol: str | None = None,
-        limit: int = 100,
-        start_time: int | None = None,
-        end_time: int | None = None,
-    ) -> dict[str, Any]:
-        payload = await self.coinm.get_json(
-            "/dapi/v1/fundingRate",
-            params=compact_query(
-                {
-                    "symbol": symbol.upper() if symbol else None,
-                    "limit": limit,
-                    "startTime": start_time,
-                    "endTime": end_time,
-                }
-            ),
-            ttl=30,
-        )
-        return {
-            "exchange": "binance",
-            "market": "coinm",
-            "items": [
-                {
-                    "symbol": item.get("symbol"),
-                    "funding_rate": self._to_float(item.get("fundingRate")),
-                    "mark_price": self._to_float(item.get("markPrice")),
-                    "funding_time": self._to_int(item.get("fundingTime")),
+                    "funding_rate": to_float(item.get("fundingRate")),
+                    "mark_price": to_float(item.get("markPrice")),
+                    "funding_time": to_int(item.get("fundingTime")),
                 }
                 for item in payload
             ],
@@ -361,11 +332,7 @@ class BinanceMarketIntelService:
 
     async def get_usdm_open_interest(self, *, symbol: str) -> dict[str, Any]:
         payload = await self.usdm.get_json("/fapi/v1/openInterest", params={"symbol": symbol.upper()}, ttl=10)
-        return self._normalize_open_interest_snapshot("usdm", payload)
-
-    async def get_coinm_open_interest(self, *, symbol: str) -> dict[str, Any]:
-        payload = await self.coinm.get_json("/dapi/v1/openInterest", params={"symbol": symbol.upper()}, ttl=10)
-        return self._normalize_open_interest_snapshot("coinm", payload)
+        return normalize_open_interest_snapshot("usdm", payload)
 
     async def get_usdm_open_interest_stats(
         self,
@@ -379,22 +346,7 @@ class BinanceMarketIntelService:
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
             ttl=30,
         )
-        return self._normalize_open_interest_stats("usdm", payload)
-
-    async def get_coinm_open_interest_stats(
-        self,
-        *,
-        pair: str,
-        contract_type: str,
-        period: str,
-        limit: int = 30,
-    ) -> dict[str, Any]:
-        payload = await self.coinm.get_json(
-            "/futures/data/openInterestHist",
-            params={"pair": pair.upper(), "contractType": contract_type, "period": period, "limit": limit},
-            ttl=30,
-        )
-        return self._normalize_open_interest_stats("coinm", payload)
+        return normalize_open_interest_stats("usdm", payload)
 
     async def get_usdm_long_short_ratio(self, *, symbol: str, period: str, limit: int = 30) -> dict[str, Any]:
         payload = await self.usdm.get_json(
@@ -402,15 +354,7 @@ class BinanceMarketIntelService:
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
             ttl=30,
         )
-        return self._normalize_ratio_series("usdm", payload)
-
-    async def get_coinm_long_short_ratio(self, *, pair: str, period: str, limit: int = 30) -> dict[str, Any]:
-        payload = await self.coinm.get_json(
-            "/futures/data/globalLongShortAccountRatio",
-            params={"pair": pair.upper(), "period": period, "limit": limit},
-            ttl=30,
-        )
-        return self._normalize_ratio_series("coinm", payload)
+        return normalize_ratio_series("usdm", payload)
 
     async def get_usdm_top_trader_accounts(self, *, symbol: str, period: str, limit: int = 30) -> dict[str, Any]:
         payload = await self.usdm.get_json(
@@ -418,15 +362,7 @@ class BinanceMarketIntelService:
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
             ttl=30,
         )
-        return self._normalize_ratio_series("usdm", payload)
-
-    async def get_coinm_top_trader_accounts(self, *, symbol: str, period: str, limit: int = 30) -> dict[str, Any]:
-        payload = await self.coinm.get_json(
-            "/futures/data/topLongShortAccountRatio",
-            params={"symbol": symbol.upper(), "period": period, "limit": limit},
-            ttl=30,
-        )
-        return self._normalize_ratio_series("coinm", payload)
+        return normalize_ratio_series("usdm", payload)
 
     async def get_usdm_top_trader_positions(self, *, symbol: str, period: str, limit: int = 30) -> dict[str, Any]:
         payload = await self.usdm.get_json(
@@ -434,15 +370,7 @@ class BinanceMarketIntelService:
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
             ttl=30,
         )
-        return self._normalize_ratio_series("usdm", payload)
-
-    async def get_coinm_top_trader_positions(self, *, pair: str, period: str, limit: int = 30) -> dict[str, Any]:
-        payload = await self.coinm.get_json(
-            "/futures/data/topLongShortPositionRatio",
-            params={"pair": pair.upper(), "period": period, "limit": limit},
-            ttl=30,
-        )
-        return self._normalize_ratio_series("coinm", payload)
+        return normalize_ratio_series("usdm", payload)
 
     async def get_usdm_taker_volume(self, *, symbol: str, period: str, limit: int = 30) -> dict[str, Any]:
         payload = await self.usdm.get_json(
@@ -450,22 +378,7 @@ class BinanceMarketIntelService:
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
             ttl=30,
         )
-        return self._normalize_taker_volume("usdm", payload)
-
-    async def get_coinm_taker_volume(
-        self,
-        *,
-        pair: str,
-        contract_type: str,
-        period: str,
-        limit: int = 30,
-    ) -> dict[str, Any]:
-        payload = await self.coinm.get_json(
-            "/futures/data/takerBuySellVol",
-            params={"pair": pair.upper(), "contractType": contract_type, "period": period, "limit": limit},
-            ttl=30,
-        )
-        return self._normalize_taker_volume("coinm", payload)
+        return normalize_taker_volume("usdm", payload)
 
     async def get_usdm_basis(
         self,
@@ -480,216 +393,71 @@ class BinanceMarketIntelService:
             params={"pair": pair.upper(), "contractType": contract_type, "period": period, "limit": limit},
             ttl=30,
         )
-        return self._normalize_basis("usdm", payload)
+        return normalize_basis("usdm", payload)
 
-    async def get_coinm_basis(
+    async def get_market_breakout_monitor(
         self,
         *,
-        pair: str,
-        contract_type: str,
-        period: str,
-        limit: int = 30,
+        min_rise_pct: float = 5.0,
+        limit: int = 18,
+        quote_asset: str = "USDT",
     ) -> dict[str, Any]:
-        payload = await self.coinm.get_json(
-            "/futures/data/basis",
-            params={"pair": pair.upper(), "contractType": contract_type, "period": period, "limit": limit},
-            ttl=30,
+        normalized_quote_asset = self.breakout_monitor.normalize_quote_asset(quote_asset)
+        market_snapshot = await self._load_market_page_snapshot()
+        return await self.breakout_monitor.build(
+            market_snapshot=market_snapshot,
+            min_rise_pct=min_rise_pct,
+            limit=limit,
+            quote_asset=normalized_quote_asset,
         )
-        return self._normalize_basis("coinm", payload)
 
-    def _normalize_ticker_item(self, item: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "symbol": item.get("symbol"),
-            "price_change": self._to_float(item.get("priceChange")),
-            "price_change_pct": self._to_float(item.get("priceChangePercent")),
-            "weighted_avg_price": self._to_float(item.get("weightedAvgPrice")),
-            "last_price": self._to_float(item.get("lastPrice")),
-            "last_qty": self._to_float(item.get("lastQty")),
-            "open_price": self._to_float(item.get("openPrice")),
-            "high_price": self._to_float(item.get("highPrice")),
-            "low_price": self._to_float(item.get("lowPrice")),
-            "volume": self._to_float(item.get("volume")),
-            "quote_volume": self._to_float(item.get("quoteVolume")),
-            "open_time": self._to_int(item.get("openTime")),
-            "close_time": self._to_int(item.get("closeTime")),
-            "count": self._to_int(item.get("count")),
-        }
-
-    def _normalize_levels(self, levels: list[list[Any]]) -> list[dict[str, float | None]]:
-        return [{"price": self._to_float(level[0]), "qty": self._to_float(level[1])} for level in levels]
-
-    def _normalize_trade(self, item: dict[str, Any], *, aggregate: bool = False) -> dict[str, Any]:
-        return {
-            "id": self._to_int(item.get("a") if aggregate else item.get("id")),
-            "price": self._to_float(item.get("p") if aggregate else item.get("price")),
-            "qty": self._to_float(item.get("q") if aggregate else item.get("qty")),
-            "quote_qty": self._to_float(item.get("quoteQty")),
-            "time": self._to_int(item.get("T") if aggregate else item.get("time")),
-            "is_buyer_maker": bool(item.get("m") if aggregate else item.get("isBuyerMaker")),
-        }
-
-    def _normalize_kline_response(self, market: str, symbol: str, interval: str, rows: list[list[Any]]) -> dict[str, Any]:
+    async def get_market_page_payload(
+        self,
+        *,
+        min_rise_pct: float = 5.0,
+        limit: int = 24,
+        quote_asset: str = "USDT",
+    ) -> dict[str, Any]:
+        normalized_quote_asset = self.breakout_monitor.normalize_quote_asset(quote_asset)
+        market_snapshot = await self._load_market_page_snapshot()
+        monitor = await self.breakout_monitor.build(
+            market_snapshot=market_snapshot,
+            min_rise_pct=min_rise_pct,
+            limit=limit,
+            quote_asset=normalized_quote_asset,
+        )
         return {
             "exchange": "binance",
-            "market": market,
-            "symbol": symbol,
-            "interval": interval,
-            "items": [
-                {
-                    "open_time": self._to_int(row[0]),
-                    "open": self._to_float(row[1]),
-                    "high": self._to_float(row[2]),
-                    "low": self._to_float(row[3]),
-                    "close": self._to_float(row[4]),
-                    "volume": self._to_float(row[5]),
-                    "close_time": self._to_int(row[6]),
-                    "quote_volume": self._to_float(row[7]) if len(row) > 7 else None,
-                    "trade_count": self._to_int(row[8]) if len(row) > 8 else None,
-                }
-                for row in rows
-            ],
+            "quote_asset": normalized_quote_asset,
+            "updated_at": monitor["updated_at"],
+            "monitor": monitor,
+            "spot_ticker": market_snapshot["spot_ticker"],
+            "usdm_ticker": market_snapshot["usdm_ticker"],
+            "usdm_mark": market_snapshot["usdm_mark"],
+            "load_errors": market_snapshot["load_errors"],
         }
 
-    def _normalize_derivatives_exchange_info(self, market: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "exchange": "binance",
-            "market": market,
-            "timezone": payload.get("timezone"),
-            "server_time": payload.get("serverTime"),
-            "symbols": [
-                {
-                    "symbol": item.get("symbol"),
-                    "status": item.get("status"),
-                    "pair": item.get("pair"),
-                    "contract_type": item.get("contractType"),
-                    "base_asset": item.get("baseAsset"),
-                    "quote_asset": item.get("quoteAsset"),
-                }
-                for item in payload.get("symbols", [])
-            ],
-        }
+    async def _load_market_page_snapshot(self) -> dict[str, Any]:
+        if self.snapshot_service is not None:
+            return await self.snapshot_service.get_market_page_snapshot()
 
-    def _normalize_derivatives_ticker_list(self, market: str, payload: Any) -> dict[str, Any]:
-        items = payload if isinstance(payload, list) else [payload]
-        return {
-            "exchange": "binance",
-            "market": market,
-            "items": [self._normalize_ticker_item(item) for item in items],
-        }
+        source_plan = (
+            ("spot_ticker", "现货榜单", self.get_spot_ticker_24hr, self.breakout_monitor.empty_ticker_response, "spot"),
+            ("usdm_ticker", "U本位24H", self.get_usdm_ticker_24hr, self.breakout_monitor.empty_ticker_response, "usdm"),
+            ("usdm_mark", "U本位Funding", self.get_usdm_mark_price, self.breakout_monitor.empty_mark_price_response, "usdm"),
+        )
+        raw_results = await asyncio.gather(*(loader() for _, _, loader, _, _ in source_plan), return_exceptions=True)
+        snapshot: dict[str, Any] = {"load_errors": []}
+        for (key, label, _, empty_factory, market), result in zip(source_plan, raw_results, strict=False):
+            if isinstance(result, Exception):
+                logger.warning("Binance market page source failed: %s (%s)", key, result)
+                snapshot[key] = empty_factory(market)
+                snapshot["load_errors"].append(label)
+                continue
+            snapshot[key] = result
+        return snapshot
 
-    def _normalize_mark_price_list(self, market: str, payload: Any) -> dict[str, Any]:
-        items = payload if isinstance(payload, list) else [payload]
-        return {
-            "exchange": "binance",
-            "market": market,
-            "items": [
-                {
-                    "symbol": item.get("symbol"),
-                    "pair": item.get("pair"),
-                    "mark_price": self._to_float(item.get("markPrice")),
-                    "index_price": self._to_float(item.get("indexPrice")),
-                    "estimated_settle_price": self._to_float(item.get("estimatedSettlePrice")),
-                    "last_funding_rate": self._to_float(item.get("lastFundingRate")),
-                    "next_funding_time": self._to_int(item.get("nextFundingTime")),
-                    "interest_rate": self._to_float(item.get("interestRate")),
-                    "time": self._to_int(item.get("time")),
-                }
-                for item in items
-            ],
-        }
-
-    def _normalize_open_interest_snapshot(self, market: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "exchange": "binance",
-            "market": market,
-            "symbol": payload.get("symbol"),
-            "pair": payload.get("pair"),
-            "open_interest": self._to_float(payload.get("openInterest")),
-            "contract_type": payload.get("contractType"),
-            "time": self._to_int(payload.get("time")),
-        }
-
-    def _normalize_open_interest_stats(self, market: str, payload: list[dict[str, Any]]) -> dict[str, Any]:
-        return {
-            "exchange": "binance",
-            "market": market,
-            "items": [
-                {
-                    "symbol": item.get("symbol"),
-                    "pair": item.get("pair"),
-                    "contract_type": item.get("contractType"),
-                    "sum_open_interest": self._to_float(item.get("sumOpenInterest")),
-                    "sum_open_interest_value": self._to_float(item.get("sumOpenInterestValue")),
-                    "timestamp": self._to_int(item.get("timestamp")),
-                }
-                for item in payload
-            ],
-        }
-
-    def _normalize_ratio_series(self, market: str, payload: list[dict[str, Any]]) -> dict[str, Any]:
-        return {
-            "exchange": "binance",
-            "market": market,
-            "items": [
-                {
-                    "symbol": item.get("symbol"),
-                    "pair": item.get("pair"),
-                    "long_short_ratio": self._to_float(item.get("longShortRatio")),
-                    "long_account": self._to_float(item.get("longAccount")),
-                    "short_account": self._to_float(item.get("shortAccount")),
-                    "long_position": self._to_float(item.get("longPosition")),
-                    "short_position": self._to_float(item.get("shortPosition")),
-                    "timestamp": self._to_int(item.get("timestamp")),
-                }
-                for item in payload
-            ],
-        }
-
-    def _normalize_taker_volume(self, market: str, payload: list[dict[str, Any]]) -> dict[str, Any]:
-        return {
-            "exchange": "binance",
-            "market": market,
-            "items": [
-                {
-                    "symbol": item.get("symbol"),
-                    "pair": item.get("pair"),
-                    "buy_sell_ratio": self._to_float(item.get("buySellRatio")),
-                    "buy_vol": self._to_float(item.get("buyVol")),
-                    "sell_vol": self._to_float(item.get("sellVol")),
-                    "buy_vol_value": self._to_float(item.get("buyVolValue")),
-                    "sell_vol_value": self._to_float(item.get("sellVolValue")),
-                    "timestamp": self._to_int(item.get("timestamp")),
-                }
-                for item in payload
-            ],
-        }
-
-    def _normalize_basis(self, market: str, payload: list[dict[str, Any]]) -> dict[str, Any]:
-        return {
-            "exchange": "binance",
-            "market": market,
-            "items": [
-                {
-                    "symbol": item.get("symbol"),
-                    "pair": item.get("pair"),
-                    "contract_type": item.get("contractType"),
-                    "basis": self._to_float(item.get("basis")),
-                    "basis_rate": self._to_float(item.get("basisRate")),
-                    "annualized_basis_rate": self._to_float(item.get("annualizedBasisRate")),
-                    "futures_price": self._to_float(item.get("futuresPrice")),
-                    "index_price": self._to_float(item.get("indexPrice")),
-                    "timestamp": self._to_int(item.get("timestamp")),
-                }
-                for item in payload
-            ],
-        }
-
-    def _to_float(self, value: Any) -> float | None:
-        if value in (None, ""):
-            return None
-        return float(value)
-
-    def _to_int(self, value: Any) -> int | None:
-        if value in (None, ""):
-            return None
-        return int(value)
+    async def _get_market_klines(self, market: str, symbol: str, interval: str, limit: int) -> dict[str, Any]:
+        if market == "spot":
+            return await self.get_spot_klines(symbol=symbol, interval=interval, limit=limit)
+        return await self.get_usdm_klines(symbol=symbol, interval=interval, limit=limit)

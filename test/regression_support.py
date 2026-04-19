@@ -640,6 +640,82 @@ def make_funding_rate_sync_response() -> dict:
     }
 
 
+def make_binance_breakout_monitor_response() -> dict:
+    return {
+        "exchange": "binance",
+        "min_rise_pct": 5.0,
+        "quote_asset": "USDT",
+        "updated_at": 1717243200000,
+        "summary": {
+            "monitored_count": 2,
+            "natural_count": 2,
+            "momentum_count": 1,
+            "focus_count": 1,
+            "advancing_count": 1,
+            "spot_count": 1,
+            "contract_count": 1,
+        },
+        "items": [
+            {
+                "market": "spot",
+                "market_label": "现货",
+                "symbol": "DOGEUSDT",
+                "last_price": 0.164,
+                "mark_price": None,
+                "price_change_pct": 8.6,
+                "quote_volume": 310000000.0,
+                "funding_rate_pct": None,
+                "change_15m_pct": 0.9,
+                "change_1h_pct": 2.3,
+                "change_4h_pct": 5.7,
+                "pullback_from_high_pct": -1.1,
+                "range_position_pct": 88.0,
+                "ema20_gap_15m_pct": 1.8,
+                "ema20_gap_1h_pct": 4.2,
+                "rsi_15m": 63.0,
+                "rsi_1h": 66.0,
+                "macd_hist_15m": 0.004,
+                "green_ratio_15m_pct": 66.0,
+                "natural_score": 82,
+                "momentum_score": 84,
+                "structure_ok": True,
+                "momentum_ok": True,
+                "follow_status": "继续上行",
+                "verdict": "优先关注",
+                "reasons": ["离高点不远，回撤不深", "15 分钟仍站在均线之上"],
+            },
+            {
+                "market": "usdm",
+                "market_label": "U 本位",
+                "symbol": "SUIUSDT",
+                "last_price": 1.82,
+                "mark_price": 1.81,
+                "price_change_pct": 6.2,
+                "quote_volume": 180000000.0,
+                "funding_rate_pct": 0.012,
+                "change_15m_pct": -0.2,
+                "change_1h_pct": 0.5,
+                "change_4h_pct": 3.1,
+                "pullback_from_high_pct": -2.9,
+                "range_position_pct": 71.0,
+                "ema20_gap_15m_pct": 0.5,
+                "ema20_gap_1h_pct": 2.1,
+                "rsi_15m": 57.0,
+                "rsi_1h": 59.0,
+                "macd_hist_15m": 0.001,
+                "green_ratio_15m_pct": 58.0,
+                "natural_score": 71,
+                "momentum_score": 62,
+                "structure_ok": True,
+                "momentum_ok": False,
+                "follow_status": "高位蓄势",
+                "verdict": "继续跟踪",
+                "reasons": ["价格仍压在强势区间上沿"],
+            },
+        ],
+    }
+
+
 def make_technical_metrics_response() -> dict:
     return {
         "symbol": "BTC/USDT",
@@ -895,13 +971,38 @@ class StubMarketDataService:
         self.saved_klines.append((symbol, timeframe, deepcopy(klines)))
 
 
-class StubBaseMarketAppService:
+class StubMarketQueryAppService:
     valid_symbols = ["BTC/USDT", "ETH/USDT"]
     valid_timeframes = ["1h", "4h", "1d"]
     full_history_used_external_persist_callback = False
 
     async def get_realtime(self, **kwargs):
         return make_market_realtime_response()
+
+    async def get_current_price(self, **kwargs):
+        return {
+            "symbol": kwargs.get("symbol", "BTC/USDT"),
+            "timeframe": kwargs.get("timeframe", "1d"),
+            "timestamp": "2025-06-01T12:00:00",
+            "current_price": 68000.0,
+        }
+
+    async def get_current_price_batch(self, **kwargs):
+        symbols = kwargs.get("symbols", ["BTC/USDT"])
+        timeframe = kwargs.get("timeframe", "1d")
+        return {
+            "timeframe": timeframe,
+            "items": [
+                {
+                    "symbol": symbol,
+                    "timeframe": timeframe,
+                    "timestamp": "2025-06-01T12:00:00",
+                    "current_price": 68000.0 if symbol == "BTC/USDT" else 3500.0,
+                    "source": "websocket_snapshot",
+                }
+                for symbol in symbols
+            ],
+        }
 
     def get_history(self, **kwargs):
         return make_kline_data()
@@ -913,9 +1014,31 @@ class StubBaseMarketAppService:
             persist_klines(kwargs["symbol"], kwargs["timeframe"], klines)
         return klines
 
+    async def get_technical_metrics(self, **kwargs):
+        return make_technical_metrics_response()
+
+    async def get_live_kline_tail(self, **kwargs):
+        return {
+            "symbol": kwargs.get("symbol", "BTC/USDT"),
+            "timeframe": kwargs.get("timeframe", "1h"),
+            "timestamp": "2025-06-01T12:00:00",
+            "current_price": 116.0,
+            "kline_data": make_kline_data(),
+        }
+
+
+class StubMarketInsightAppService:
     def get_indicators(self, **kwargs):
         return [make_market_indicator()]
 
+    async def get_trade_setup(self, **kwargs):
+        return make_trade_setup_response()
+
+    async def get_crypto_index(self, **kwargs):
+        return make_crypto_index_response()
+
+
+class StubFundingRateAppService:
     async def get_current_funding_rate(self, symbol: str):
         return make_funding_rate_snapshot()
 
@@ -925,18 +1048,10 @@ class StubBaseMarketAppService:
     async def get_funding_rate_history(self, **kwargs):
         return make_funding_rate_history()
 
-    async def get_technical_metrics(self, **kwargs):
-        return make_technical_metrics_response()
-
-    async def get_trade_setup(self, **kwargs):
-        return make_trade_setup_response()
-
-    async def get_crypto_index(self, **kwargs):
-        return make_crypto_index_response()
-
 
 class StubBinanceMarketService:
-    pass
+    async def get_market_breakout_monitor(self, **kwargs):
+        return make_binance_breakout_monitor_response()
 
 
 class StubBinanceWeb3Service:

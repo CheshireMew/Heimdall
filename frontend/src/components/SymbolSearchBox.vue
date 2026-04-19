@@ -7,7 +7,7 @@
       @click="openSearch"
     >
       <span class="truncate" :class="displayText ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'">
-        {{ displayText || placeholder }}
+        {{ displayText || placeholderText }}
       </span>
       <MagnifyingGlassIcon class="h-4 w-4 shrink-0 text-gray-400" />
     </button>
@@ -16,7 +16,7 @@
       <div v-if="open" class="fixed inset-0 z-50 bg-black/30 p-3 backdrop-blur-sm sm:p-6" @click.self="closeSearch">
         <section class="mx-auto flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-gray-900">
           <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-700">
-            <h2 class="text-lg font-semibold text-gray-950 dark:text-white">Symbol search</h2>
+            <h2 class="text-lg font-semibold text-gray-950 dark:text-white">{{ t('symbolSearch.title') }}</h2>
             <button type="button" class="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" @click="closeSearch">
               <XMarkIcon class="h-5 w-5" />
             </button>
@@ -30,7 +30,7 @@
                 v-model.trim="query"
                 type="text"
                 class="h-12 min-w-0 flex-1 bg-transparent px-3 text-base text-gray-950 outline-none dark:text-white"
-                :placeholder="placeholder"
+                :placeholder="placeholderText"
                 @keydown.enter.prevent="selectFirst"
                 @keydown.esc.prevent="closeSearch"
               />
@@ -74,12 +74,12 @@
               <span class="min-w-0 truncate text-gray-900 dark:text-white">{{ item.name }}</span>
               <span class="text-sm text-gray-500 dark:text-gray-400">{{ marketLabel(item) }}</span>
               <span class="justify-self-end rounded-lg bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                {{ isDisabled(item) ? disabledLabel : classLabel(item.asset_class) }}
+                {{ isDisabled(item) ? disabledText : classLabel(item.asset_class) }}
               </span>
             </button>
 
             <div v-if="!filteredSymbols.length" class="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-              No matches
+              {{ t('symbolSearch.noMatches') }}
             </div>
           </div>
         </section>
@@ -90,6 +90,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { toBaseSymbol, useSymbolCatalog } from '@/modules/market'
 import type { MarketSymbolSearchItem } from '@/types'
@@ -106,9 +107,9 @@ const props = withDefaults(defineProps<{
   multiple: false,
   allowedClasses: () => ['crypto', 'index'],
   outputMode: 'symbol',
-  placeholder: 'Search symbol',
+  placeholder: '',
   triggerClass: '',
-  disabledLabel: 'Chart only',
+  disabledLabel: '',
 })
 
 const emit = defineEmits<{
@@ -116,20 +117,23 @@ const emit = defineEmits<{
   select: [item: MarketSymbolSearchItem]
 }>()
 
+const { t } = useI18n()
 const { symbols, loadSymbols } = useSymbolCatalog()
 const open = ref(false)
 const query = ref('')
 const searchInput = ref<HTMLInputElement | null>(null)
 const activeClass = ref('all')
 
-const tabs = [
-  { value: 'all', label: 'All' },
-  { value: 'crypto', label: 'Crypto' },
-  { value: 'index', label: 'Index' },
-  { value: 'cash', label: 'Cash' },
-]
+const placeholderText = computed(() => props.placeholder || t('symbolSearch.placeholder'))
+const disabledText = computed(() => props.disabledLabel || t('symbolSearch.disabled'))
+const tabs = computed(() => [
+  { value: 'all', label: t('symbolSearch.tabs.all') },
+  { value: 'crypto', label: t('symbolSearch.tabs.crypto') },
+  { value: 'index', label: t('symbolSearch.tabs.index') },
+  { value: 'cash', label: t('symbolSearch.tabs.cash') },
+])
 
-const visibleTabs = computed(() => tabs.filter((tab) => tab.value === 'all' || props.allowedClasses.includes(tab.value)))
+const visibleTabs = computed(() => tabs.value.filter((tab) => tab.value === 'all' || props.allowedClasses.includes(tab.value)))
 
 const normalizedSelected = computed(() => {
   const value = props.modelValue
@@ -191,9 +195,9 @@ const selectFirst = () => {
 const isSelected = (item: MarketSymbolSearchItem) => normalizedSelected.value.includes(outputValue(item))
 const isDisabled = (item: MarketSymbolSearchItem) => !props.allowedClasses.includes(item.asset_class)
 const classLabel = (value: string) => {
-  if (value === 'crypto') return 'Crypto'
-  if (value === 'index') return 'Index'
-  if (value === 'cash') return 'Cash'
+  if (value === 'crypto') return t('symbolSearch.tabs.crypto')
+  if (value === 'index') return t('symbolSearch.tabs.index')
+  if (value === 'cash') return t('symbolSearch.tabs.cash')
   return value
 }
 const marketLabel = (item: MarketSymbolSearchItem) => item.exchange || item.market

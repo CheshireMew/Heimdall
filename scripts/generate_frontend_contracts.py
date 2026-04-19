@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import json
 import sys
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,7 @@ from pydantic import BaseModel
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
+from app.domain.market.symbol_catalog import get_usd_equivalent_symbols, list_market_search_items
 from app.schemas.backtest import (
     BacktestDetailResponse,
     BacktestEquityPointResponse,
@@ -34,9 +36,9 @@ from app.schemas.backtest import (
     StrategyIndicatorRegistryResponse,
     StrategyOperatorResponse,
     StrategyTemplateCapabilitiesResponse,
-    StrategyTemplateRuntimeResponse,
     StrategyTemplateCreateRequest,
     StrategyTemplateResponse,
+    StrategyTemplateRuntimeResponse,
     StrategyVersionCreateRequest,
     StrategyVersionResponse,
 )
@@ -60,6 +62,63 @@ from app.schemas.backtest_result import (
     BacktestSampleRangesResponse,
     BacktestStrategySummaryResponse,
 )
+from app.schemas.binance_market import (
+    BinanceBasisResponse,
+    BinanceBookTickerItemResponse,
+    BinanceBookTickerResponse,
+    BinanceBreakoutMonitorItemResponse,
+    BinanceBreakoutMonitorResponse,
+    BinanceBreakoutMonitorSummaryResponse,
+    BinanceExchangeInfoResponse,
+    BinanceFundingHistoryItemResponse,
+    BinanceFundingHistoryListResponse,
+    BinanceFundingInfoItemResponse,
+    BinanceFundingInfoResponse,
+    BinanceKlineItemResponse,
+    BinanceKlineResponse,
+    BinanceMarkPriceItemResponse,
+    BinanceMarkPriceResponse,
+    BinanceMarketPageResponse,
+    BinanceOpenInterestSnapshotResponse,
+    BinanceOpenInterestStatItemResponse,
+    BinanceOpenInterestStatsResponse,
+    BinanceOrderBookLevelResponse,
+    BinanceOrderBookResponse,
+    BinancePriceTickerItemResponse,
+    BinancePriceTickerResponse,
+    BinanceRatioItemResponse,
+    BinanceRatioSeriesResponse,
+    BinanceRwaDynamicResponse,
+    BinanceRwaKlineItemResponse,
+    BinanceRwaKlineResponse,
+    BinanceRwaMarketStatusResponse,
+    BinanceRwaMetaResponse,
+    BinanceRwaSymbolItemResponse,
+    BinanceRwaSymbolListResponse,
+    BinanceSymbolSummaryResponse,
+    BinanceTakerVolumeItemResponse,
+    BinanceTakerVolumeResponse,
+    BinanceTickerStatsItemResponse,
+    BinanceTickerStatsResponse,
+    BinanceTradeItemResponse,
+    BinanceTradeListResponse,
+    BinanceWeb3AddressPnlItemResponse,
+    BinanceWeb3AddressPnlResponse,
+    BinanceWeb3HeatRankItemResponse,
+    BinanceWeb3HeatRankResponse,
+    BinanceWeb3MemeRankItemResponse,
+    BinanceWeb3MemeRankResponse,
+    BinanceWeb3RankItemResponse,
+    BinanceWeb3SmartMoneyInflowItemResponse,
+    BinanceWeb3SmartMoneyInflowResponse,
+    BinanceWeb3SocialHypeItemResponse,
+    BinanceWeb3SocialHypeResponse,
+    BinanceWeb3TokenAuditResponse,
+    BinanceWeb3TokenDynamicResponse,
+    BinanceWeb3TokenKlineItemResponse,
+    BinanceWeb3TokenKlineResponse,
+    BinanceWeb3UnifiedTokenRankResponse,
+)
 from app.schemas.factor import (
     FactorBlendComponentResponse,
     FactorBlendResponse,
@@ -80,60 +139,14 @@ from app.schemas.factor import (
     FactorRollingPointResponse,
     FactorScorecardResponse,
 )
-from app.schemas.binance_market import (
-    BinanceBasisResponse,
-    BinanceBookTickerItemResponse,
-    BinanceBookTickerResponse,
-    BinanceExchangeInfoResponse,
-    BinanceFundingHistoryListResponse,
-    BinanceFundingHistoryItemResponse,
-    BinanceFundingInfoResponse,
-    BinanceFundingInfoItemResponse,
-    BinanceKlineItemResponse,
-    BinanceKlineResponse,
-    BinanceMarkPriceItemResponse,
-    BinanceMarkPriceResponse,
-    BinanceOpenInterestSnapshotResponse,
-    BinanceOpenInterestStatItemResponse,
-    BinanceOpenInterestStatsResponse,
-    BinanceOrderBookLevelResponse,
-    BinanceOrderBookResponse,
-    BinancePriceTickerItemResponse,
-    BinancePriceTickerResponse,
-    BinanceRatioItemResponse,
-    BinanceRatioSeriesResponse,
-    BinanceReservedFeatureResponse,
-    BinanceRwaDynamicResponse,
-    BinanceRwaKlineItemResponse,
-    BinanceRwaKlineResponse,
-    BinanceRwaMarketStatusResponse,
-    BinanceRwaMetaResponse,
-    BinanceRwaSymbolItemResponse,
-    BinanceRwaSymbolListResponse,
-    BinanceSymbolSummaryResponse,
-    BinanceTakerVolumeItemResponse,
-    BinanceTakerVolumeResponse,
-    BinanceTickerStatsItemResponse,
-    BinanceTickerStatsResponse,
-    BinanceTradeItemResponse,
-    BinanceTradeListResponse,
-    BinanceWeb3AddressPnlItemResponse,
-    BinanceWeb3AddressPnlResponse,
-    BinanceWeb3MemeRankItemResponse,
-    BinanceWeb3MemeRankResponse,
-    BinanceWeb3RankItemResponse,
-    BinanceWeb3SmartMoneyInflowItemResponse,
-    BinanceWeb3SmartMoneyInflowResponse,
-    BinanceWeb3SocialHypeItemResponse,
-    BinanceWeb3SocialHypeResponse,
-    BinanceWeb3UnifiedTokenRankResponse,
-)
 from app.schemas.market import (
     ApiStatusResponse,
     CryptoIndexConstituentResponse,
     CryptoIndexHistoryPointResponse,
     CryptoIndexResponse,
     CryptoIndexSummaryResponse,
+    CurrentPriceBatchItemResponse,
+    CurrentPriceBatchResponse,
     CurrentPriceResponse,
     CurrencyRatesResponse,
     DisplayCurrencyResponse,
@@ -144,10 +157,10 @@ from app.schemas.market import (
     IndicatorSummaryResponse,
     KlineTailResponse,
     MACDResponse,
+    MarketIndicatorResponse,
     MarketIndexHistoryResponse,
     MarketIndexResponse,
     MarketSymbolSearchResponse,
-    MarketIndicatorResponse,
     RealtimeResponse,
     TechnicalMetricsResponse,
     TradeSetupResponse,
@@ -167,382 +180,201 @@ from app.schemas.strategy_contract import (
     StrategyTemplateConfigResponse,
     StrategyTrailingConfigResponse,
 )
-from app.domain.market.symbol_catalog import get_usd_equivalent_symbols, list_market_search_items
-
 
 FRONTEND_TYPES_DIR = REPO_ROOT / "frontend" / "src" / "types"
 FRONTEND_MARKET_MODULE_DIR = REPO_ROOT / "frontend" / "src" / "modules" / "market"
+TARGET_FILES = ("backtest.ts", "factor.ts", "market.ts")
 
-ALIAS_MAP = {
-    "BacktestPortfolioRequest": "BacktestPortfolioConfig",
-    "BacktestResearchRequest": "BacktestResearchConfig",
-    "BacktestMetricsResponse": "BacktestMetrics",
-    "BacktestSignalResponse": "BacktestSignal",
-    "BacktestTradeResponse": "BacktestTrade",
-    "BacktestEquityPointResponse": "BacktestEquityPoint",
-    "PaginationResponse": "BacktestPagination",
-    "BacktestRunResponse": "BacktestRun",
-    "BacktestRunMetadataResponse": "BacktestRunMetadata",
-    "BacktestReportResponse": "BacktestReport",
-    "BacktestReportSnapshotResponse": "BacktestReportSnapshot",
-    "BacktestDateRangeResponse": "BacktestDateRange",
-    "BacktestPairBreakdownResponse": "BacktestPairBreakdown",
-    "BacktestStrategySummaryResponse": "BacktestStrategySummary",
-    "BacktestPortfolioSummaryResponse": "BacktestPortfolioSummary",
-    "BacktestPortfolioPayloadResponse": "BacktestPortfolioPayload",
-    "BacktestResearchPayloadResponse": "BacktestResearchPayload",
-    "BacktestOptimizationTrialResponse": "BacktestOptimizationTrial",
-    "BacktestOptimizationSummaryResponse": "BacktestOptimizationSummary",
-    "BacktestIterationSummaryResponse": "BacktestIterationSummary",
-    "BacktestRollingWindowResponse": "BacktestRollingWindow",
-    "BacktestResearchReportResponse": "BacktestResearchReport",
-    "BacktestSampleRangesResponse": "BacktestSampleRanges",
-    "BacktestPaperPositionResponse": "BacktestPaperPosition",
-    "BacktestRuntimeStateResponse": "BacktestRuntimeState",
-    "BacktestPaperLiveResponse": "BacktestPaperLive",
-    "BacktestRunDefaultsResponse": "BacktestRunDefaults",
-    "StrategyVersionResponse": "StrategyVersion",
-    "StrategyDefinitionResponse": "StrategyDefinition",
-    "StrategyIndicatorRegistryResponse": "StrategyIndicatorRegistryItem",
-    "StrategyOperatorResponse": "StrategyOperator",
-    "StrategyTemplateCapabilitiesResponse": "StrategyTemplateCapabilities",
-    "StrategyTemplateRuntimeResponse": "StrategyTemplateRuntime",
-    "StrategyGroupLogicResponse": "StrategyGroupLogic",
-    "StrategyIndicatorEngineResponse": "StrategyIndicatorEngine",
-    "StrategyTemplateResponse": "StrategyTemplate",
-    "StrategyEditorContractResponse": "StrategyEditorContract",
-    "StrategyRunProfileResponse": "StrategyRunProfile",
-    "StrategyConditionNodeResponse": "StrategyConditionNode",
-    "StrategyGroupNodeResponse": "StrategyGroupNode",
-    "StrategyIndicatorConfigResponse": "StrategyIndicatorConfig",
-    "StrategyExecutionConfigResponse": "StrategyExecutionConfig",
-    "StrategyIndicatorOutputResponse": "StrategyIndicatorOutput",
-    "StrategyIndicatorParamResponse": "StrategyIndicatorParam",
-    "StrategyPartialExitResponse": "StrategyPartialExit",
-    "StrategyRiskConfigResponse": "StrategyRiskConfig",
-    "StrategyRoiTargetResponse": "StrategyRoiTarget",
-    "StrategyRuleSourceResponse": "StrategyRuleSource",
-    "StrategyStateBranchResponse": "StrategyStateBranch",
-    "StrategyTemplateConfigResponse": "StrategyTemplateConfig",
-    "StrategyTrailingConfigResponse": "StrategyTrailingConfig",
-    "FactorCatalogItemResponse": "FactorCatalogItem",
-    "FactorResearchSummaryResponse": "FactorResearchSummary",
-    "FactorForwardMetricResponse": "FactorForwardMetric",
-    "FactorScorecardResponse": "FactorScorecard",
-    "FactorSampleRangeResponse": "FactorSampleRange",
-    "FactorLagPointResponse": "FactorLagPoint",
-    "FactorRollingPointResponse": "FactorRollingPoint",
-    "FactorQuantileBucketResponse": "FactorQuantileBucket",
-    "FactorNormalizedPointResponse": "FactorNormalizedPoint",
-    "FactorDetailResponse": "FactorDetail",
-    "FactorBlendComponentResponse": "FactorBlendComponent",
-    "FactorDroppedComponentResponse": "FactorDroppedComponent",
-    "FactorBlendResponse": "FactorBlend",
-    "MarketIndicatorResponse": "IndicatorItem",
-    "CryptoIndexConstituentResponse": "CryptoIndexConstituent",
-    "CryptoIndexHistoryPointResponse": "CryptoIndexHistoryPoint",
-}
-
-FILE_MODELS: dict[str, list[dict[str, Any]]] = {
-    "backtest.ts": [
-        {"name": "BacktestStartRequest", "model": BacktestStartRequest},
-        {"name": "BacktestStartResponse", "model": BacktestStartResponse},
-        {"name": "PaperStartRequest", "model": PaperStartRequest},
-        {"name": "PaperStartResponse", "model": PaperStartResponse},
-        {"name": "PaperStopResponse", "model": PaperStopResponse},
-        {"name": "BacktestMetrics", "model": BacktestMetricsResponse},
-        {"name": "BacktestSignal", "model": BacktestSignalResponse},
-        {"name": "BacktestTrade", "model": BacktestTradeResponse},
-        {"name": "BacktestEquityPoint", "model": BacktestEquityPointResponse},
-        {"name": "BacktestPagination", "model": PaginationResponse},
-        {"name": "BacktestRun", "model": BacktestRunResponse},
-        {"name": "BacktestDetailResponse", "model": BacktestDetailResponse},
-        {"name": "BacktestRunMetadata", "model": BacktestRunMetadataResponse},
-        {"name": "BacktestReport", "model": BacktestReportResponse},
-        {"name": "BacktestReportSnapshot", "model": BacktestReportSnapshotResponse},
-        {"name": "BacktestDateRange", "model": BacktestDateRangeResponse},
-        {"name": "BacktestPairBreakdown", "model": BacktestPairBreakdownResponse},
-        {"name": "BacktestStrategySummary", "model": BacktestStrategySummaryResponse},
-        {"name": "BacktestPortfolioSummary", "model": BacktestPortfolioSummaryResponse},
-        {"name": "BacktestPortfolioPayload", "model": BacktestPortfolioPayloadResponse},
-        {"name": "BacktestResearchPayload", "model": BacktestResearchPayloadResponse},
-        {"name": "BacktestOptimizationTrial", "model": BacktestOptimizationTrialResponse},
-        {"name": "BacktestOptimizationSummary", "model": BacktestOptimizationSummaryResponse},
-        {"name": "BacktestIterationSummary", "model": BacktestIterationSummaryResponse},
-        {"name": "BacktestRollingWindow", "model": BacktestRollingWindowResponse},
-        {"name": "BacktestResearchReport", "model": BacktestResearchReportResponse},
-        {"name": "BacktestSampleRanges", "model": BacktestSampleRangesResponse},
-        {"name": "BacktestPaperPosition", "model": BacktestPaperPositionResponse},
-        {"name": "BacktestRuntimeState", "model": BacktestRuntimeStateResponse},
-        {"name": "BacktestPaperLive", "model": BacktestPaperLiveResponse},
-        {"name": "BacktestPortfolioConfig", "model": BacktestPortfolioRequest},
-        {"name": "BacktestResearchConfig", "model": BacktestResearchRequest},
-        {"name": "StrategyVersion", "model": StrategyVersionResponse},
-        {"name": "StrategyDefinition", "model": StrategyDefinitionResponse},
-        {"name": "StrategyIndicatorRegistryItem", "model": StrategyIndicatorRegistryResponse},
-        {"name": "StrategyOperator", "model": StrategyOperatorResponse},
-        {"name": "StrategyTemplateCapabilities", "model": StrategyTemplateCapabilitiesResponse},
-        {"name": "StrategyTemplateRuntime", "model": StrategyTemplateRuntimeResponse},
-        {"name": "StrategyGroupLogic", "model": StrategyGroupLogicResponse},
-        {"name": "StrategyIndicatorEngine", "model": StrategyIndicatorEngineResponse},
-        {"name": "StrategyTemplate", "model": StrategyTemplateResponse},
-        {"name": "StrategyEditorContract", "model": StrategyEditorContractResponse},
-        {"name": "StrategyVersionCreateRequest", "model": StrategyVersionCreateRequest},
-        {"name": "IndicatorDefinitionCreateRequest", "model": IndicatorDefinitionCreateRequest},
-        {"name": "StrategyTemplateCreateRequest", "model": StrategyTemplateCreateRequest},
-        {"name": "StrategyRuleSource", "model": StrategyRuleSourceResponse},
-        {"name": "StrategyStateBranch", "model": StrategyStateBranchResponse},
-        {"name": "StrategyIndicatorConfig", "model": StrategyIndicatorConfigResponse},
-        {"name": "StrategyExecutionConfig", "model": StrategyExecutionConfigResponse},
-        {"name": "StrategyRoiTarget", "model": StrategyRoiTargetResponse},
-        {"name": "StrategyPartialExit", "model": StrategyPartialExitResponse},
-        {"name": "StrategyTrailingConfig", "model": StrategyTrailingConfigResponse},
-        {"name": "StrategyRiskConfig", "model": StrategyRiskConfigResponse},
-        {"name": "StrategyTemplateConfig", "model": StrategyTemplateConfigResponse},
-    ],
-    "factor.ts": [
-        {"name": "FactorCatalogItem", "model": FactorCatalogItemResponse},
-        {"name": "FactorCatalogResponse", "model": FactorCatalogResponse},
-        {"name": "FactorResearchRequest", "model": FactorResearchRequest},
-        {"name": "FactorForwardMetric", "model": FactorForwardMetricResponse},
-        {"name": "FactorResearchSummary", "model": FactorResearchSummaryResponse},
-        {"name": "FactorScorecard", "model": FactorScorecardResponse},
-        {"name": "FactorLagPoint", "model": FactorLagPointResponse},
-        {"name": "FactorRollingPoint", "model": FactorRollingPointResponse},
-        {"name": "FactorQuantileBucket", "model": FactorQuantileBucketResponse},
-        {"name": "FactorNormalizedPoint", "model": FactorNormalizedPointResponse},
-        {"name": "FactorDetail", "model": FactorDetailResponse},
-        {"name": "FactorBlendComponent", "model": FactorBlendComponentResponse},
-        {"name": "FactorDroppedComponent", "model": FactorDroppedComponentResponse},
-        {"name": "FactorBlend", "model": FactorBlendResponse},
-        {"name": "FactorResearchResponse", "model": FactorResearchResponse},
-        {"name": "FactorResearchRun", "model": FactorResearchRunDetailResponse, "optional_fields": {"details"}},
-        {"name": "FactorExecutionRequest", "model": FactorExecutionRequest},
-        {"name": "FactorExecutionResponse", "model": FactorExecutionResponse},
-    ],
-    "market.ts": [
-        {"name": "RealtimeResponse", "model": RealtimeResponse},
-        {"name": "KlineTailResponse", "model": KlineTailResponse},
-        {"name": "CurrentPriceResponse", "model": CurrentPriceResponse},
-        {"name": "IndicatorItem", "model": MarketIndicatorResponse},
-        {"name": "MarketIndexResponse", "model": MarketIndexResponse},
-        {"name": "MarketSymbolSearchItem", "model": MarketSymbolSearchResponse},
-        {"name": "MarketIndexHistoryResponse", "model": MarketIndexHistoryResponse},
-        {"name": "FundingRateSnapshotResponse", "model": FundingRateSnapshotResponse},
-        {"name": "FundingRateHistoryPointResponse", "model": FundingRateHistoryPointResponse},
-        {"name": "FundingRateHistoryResponse", "model": FundingRateHistoryResponse},
-        {"name": "FundingRateSyncResponse", "model": FundingRateSyncResponse},
-        {"name": "TechnicalMetricsResponse", "model": TechnicalMetricsResponse},
-        {"name": "TradeSetupResponseItem", "model": TradeSetupResponseItem},
-        {"name": "TradeSetupResponse", "model": TradeSetupResponse},
-        {"name": "ApiStatusResponse", "model": ApiStatusResponse},
-        {"name": "DisplayCurrencyResponse", "model": DisplayCurrencyResponse},
-        {"name": "CurrencyRatesResponse", "model": CurrencyRatesResponse},
-        {"name": "CryptoIndexConstituent", "model": CryptoIndexConstituentResponse},
-        {"name": "CryptoIndexHistoryPoint", "model": CryptoIndexHistoryPointResponse},
-        {"name": "CryptoIndexSummaryResponse", "model": CryptoIndexSummaryResponse},
-        {"name": "CryptoIndexResponse", "model": CryptoIndexResponse},
-        {"name": "MACDResponse", "model": MACDResponse},
-        {"name": "IndicatorSummaryResponse", "model": IndicatorSummaryResponse},
-        {"name": "BinanceSymbolSummaryResponse", "model": BinanceSymbolSummaryResponse},
-        {"name": "BinanceExchangeInfoResponse", "model": BinanceExchangeInfoResponse},
-        {"name": "BinanceTickerStatsItemResponse", "model": BinanceTickerStatsItemResponse},
-        {"name": "BinanceTickerStatsResponse", "model": BinanceTickerStatsResponse},
-        {"name": "BinancePriceTickerItemResponse", "model": BinancePriceTickerItemResponse},
-        {"name": "BinancePriceTickerResponse", "model": BinancePriceTickerResponse},
-        {"name": "BinanceBookTickerItemResponse", "model": BinanceBookTickerItemResponse},
-        {"name": "BinanceBookTickerResponse", "model": BinanceBookTickerResponse},
-        {"name": "BinanceOrderBookLevelResponse", "model": BinanceOrderBookLevelResponse},
-        {"name": "BinanceOrderBookResponse", "model": BinanceOrderBookResponse},
-        {"name": "BinanceTradeItemResponse", "model": BinanceTradeItemResponse},
-        {"name": "BinanceTradeListResponse", "model": BinanceTradeListResponse},
-        {"name": "BinanceKlineItemResponse", "model": BinanceKlineItemResponse},
-        {"name": "BinanceKlineResponse", "model": BinanceKlineResponse},
-        {"name": "BinanceMarkPriceItemResponse", "model": BinanceMarkPriceItemResponse},
-        {"name": "BinanceMarkPriceResponse", "model": BinanceMarkPriceResponse},
-        {"name": "BinanceFundingInfoItemResponse", "model": BinanceFundingInfoItemResponse},
-        {"name": "BinanceFundingInfoResponse", "model": BinanceFundingInfoResponse},
-        {"name": "BinanceFundingHistoryItemResponse", "model": BinanceFundingHistoryItemResponse},
-        {"name": "BinanceFundingHistoryListResponse", "model": BinanceFundingHistoryListResponse},
-        {"name": "BinanceOpenInterestSnapshotResponse", "model": BinanceOpenInterestSnapshotResponse},
-        {"name": "BinanceOpenInterestStatItemResponse", "model": BinanceOpenInterestStatItemResponse},
-        {"name": "BinanceOpenInterestStatsResponse", "model": BinanceOpenInterestStatsResponse},
-        {"name": "BinanceRatioItemResponse", "model": BinanceRatioItemResponse},
-        {"name": "BinanceRatioSeriesResponse", "model": BinanceRatioSeriesResponse},
-        {"name": "BinanceTakerVolumeItemResponse", "model": BinanceTakerVolumeItemResponse},
-        {"name": "BinanceTakerVolumeResponse", "model": BinanceTakerVolumeResponse},
-        {"name": "BinanceBasisResponse", "model": BinanceBasisResponse},
-        {"name": "BinanceWeb3RankItemResponse", "model": BinanceWeb3RankItemResponse},
-        {"name": "BinanceWeb3UnifiedTokenRankResponse", "model": BinanceWeb3UnifiedTokenRankResponse},
-        {"name": "BinanceWeb3SocialHypeItemResponse", "model": BinanceWeb3SocialHypeItemResponse},
-        {"name": "BinanceWeb3SocialHypeResponse", "model": BinanceWeb3SocialHypeResponse},
-        {"name": "BinanceWeb3SmartMoneyInflowItemResponse", "model": BinanceWeb3SmartMoneyInflowItemResponse},
-        {"name": "BinanceWeb3SmartMoneyInflowResponse", "model": BinanceWeb3SmartMoneyInflowResponse},
-        {"name": "BinanceWeb3MemeRankItemResponse", "model": BinanceWeb3MemeRankItemResponse},
-        {"name": "BinanceWeb3MemeRankResponse", "model": BinanceWeb3MemeRankResponse},
-        {"name": "BinanceWeb3AddressPnlItemResponse", "model": BinanceWeb3AddressPnlItemResponse},
-        {"name": "BinanceWeb3AddressPnlResponse", "model": BinanceWeb3AddressPnlResponse},
-        {"name": "BinanceRwaSymbolItemResponse", "model": BinanceRwaSymbolItemResponse},
-        {"name": "BinanceRwaSymbolListResponse", "model": BinanceRwaSymbolListResponse},
-        {"name": "BinanceRwaMetaResponse", "model": BinanceRwaMetaResponse},
-        {"name": "BinanceRwaMarketStatusResponse", "model": BinanceRwaMarketStatusResponse},
-        {"name": "BinanceRwaDynamicResponse", "model": BinanceRwaDynamicResponse},
-        {"name": "BinanceRwaKlineItemResponse", "model": BinanceRwaKlineItemResponse},
-        {"name": "BinanceRwaKlineResponse", "model": BinanceRwaKlineResponse},
-        {"name": "BinanceReservedFeatureResponse", "model": BinanceReservedFeatureResponse},
-    ],
-}
-
-FILE_EXTRAS = {
-    "backtest.ts": [
-        "export interface StrategyConditionNode {",
-        "  id: string",
-        "  node_type?: 'condition'",
-        "  label: string",
-        "  left: StrategyRuleSource",
-        "  operator: 'gt' | 'gte' | 'lt' | 'lte'",
-        "  right: StrategyRuleSource",
-        "  enabled?: boolean",
-        "}",
-        "",
-        "export interface StrategyGroupNode {",
-        "  id: string",
-        "  node_type?: 'group'",
-        "  label: string",
-        "  logic: 'and' | 'or'",
-        "  enabled?: boolean",
-        "  children?: Array<StrategyRuleNode>",
-        "}",
-        "",
-        "export type StrategyRuleNode = StrategyConditionNode | StrategyGroupNode",
-    ],
-    "factor.ts": [],
-    "market.ts": [
-        "export type OHLCVRaw = [number, number, number, number, number, number]",
-        "",
-        "export interface CandlestickData {",
-        "  time: number",
-        "  open: number",
-        "  high: number",
-        "  low: number",
-        "  close: number",
-        "}",
-        "",
-        "export interface VolumeData {",
-        "  time: number",
-        "  value: number",
-        "  color: string",
-        "}",
-        "",
-        "export interface RealtimeParams {",
-        "  symbol: string",
-        "  timeframe?: string",
-        "  limit?: number",
-        "}",
-        "",
-        "export interface HistoryParams {",
-        "  symbol: string",
-        "  timeframe: string",
-        "  end_ts: number",
-        "  limit?: number",
-        "}",
-        "",
-        "export interface LatestKlineParams {",
-        "  symbol: string",
-        "  timeframe: string",
-        "  limit?: number",
-        "}",
-        "",
-        "export interface TailKlineParams {",
-        "  symbol: string",
-        "  timeframe: string",
-        "  limit?: number",
-        "}",
-        "",
-        "export interface CurrentPriceParams {",
-        "  symbol: string",
-        "  timeframe?: string",
-        "}",
-        "",
-        "export interface FullHistoryParams {",
-        "  symbol: string",
-        "  timeframe?: string",
-        "  start_date?: string",
-        "  fetch_policy?: 'cache_only' | 'hydrate'",
-        "}",
-        "",
-        "export interface BatchFullHistoryParams {",
-        "  symbols: string[]",
-        "  timeframe?: string",
-        "  start_date?: string",
-        "  fetch_policy?: 'cache_only' | 'hydrate'",
-        "}",
-        "",
-        "export interface IndicatorParams {",
-        "  category?: string",
-        "  days?: number",
-        "}",
-        "",
-        "export interface CryptoIndexParams {",
-        "  top_n?: number",
-        "  days?: number",
-        "}",
-        "",
-        "export interface IndexHistoryParams {",
-        "  symbol: string",
-        "  timeframe?: string",
-        "  start_date?: string",
-        "  end_date?: string",
-        "}",
-        "",
-        "export type BatchFullHistoryResponse = Record<string, OHLCVRaw[]>",
-        "",
-        "export interface SentimentData {",
-        "  value: number",
-        "  label: string",
-        "  last_updated: string | null",
-        "}",
-        "",
-        "export interface KlineCacheEntry {",
-        "  data: OHLCVRaw[]",
-        "  timestamp: number",
-        "}",
-        "",
-        "export interface SentimentCache {",
-        "  value: SentimentData | null",
-        "  timestamp: number",
-        "}",
-    ],
-}
-
-SKIP_DEFINITIONS = {"StrategyConditionNode", "StrategyGroupNode", "StrategyRuleNode", *ALIAS_MAP.keys()}
+SCHEMA_MODELS: tuple[type[BaseModel], ...] = (
+    BacktestStartRequest,
+    BacktestStartResponse,
+    PaperStartRequest,
+    PaperStartResponse,
+    PaperStopResponse,
+    BacktestMetricsResponse,
+    BacktestSignalResponse,
+    BacktestTradeResponse,
+    BacktestEquityPointResponse,
+    PaginationResponse,
+    BacktestRunResponse,
+    BacktestDetailResponse,
+    BacktestRunMetadataResponse,
+    BacktestReportResponse,
+    BacktestReportSnapshotResponse,
+    BacktestDateRangeResponse,
+    BacktestPairBreakdownResponse,
+    BacktestStrategySummaryResponse,
+    BacktestPortfolioSummaryResponse,
+    BacktestPortfolioPayloadResponse,
+    BacktestResearchPayloadResponse,
+    BacktestOptimizationTrialResponse,
+    BacktestOptimizationSummaryResponse,
+    BacktestIterationSummaryResponse,
+    BacktestRollingWindowResponse,
+    BacktestResearchReportResponse,
+    BacktestSampleRangesResponse,
+    BacktestPaperPositionResponse,
+    BacktestRuntimeStateResponse,
+    BacktestPaperLiveResponse,
+    BacktestPortfolioRequest,
+    BacktestResearchRequest,
+    StrategyVersionResponse,
+    StrategyDefinitionResponse,
+    StrategyIndicatorRegistryResponse,
+    StrategyOperatorResponse,
+    StrategyTemplateCapabilitiesResponse,
+    StrategyTemplateRuntimeResponse,
+    StrategyGroupLogicResponse,
+    StrategyIndicatorEngineResponse,
+    StrategyTemplateResponse,
+    StrategyEditorContractResponse,
+    StrategyVersionCreateRequest,
+    IndicatorDefinitionCreateRequest,
+    StrategyTemplateCreateRequest,
+    StrategyRuleSourceResponse,
+    StrategyStateBranchResponse,
+    StrategyIndicatorConfigResponse,
+    StrategyExecutionConfigResponse,
+    StrategyRoiTargetResponse,
+    StrategyPartialExitResponse,
+    StrategyTrailingConfigResponse,
+    StrategyRiskConfigResponse,
+    StrategyTemplateConfigResponse,
+    StrategyGroupNodeResponse,
+    FactorCatalogItemResponse,
+    FactorCatalogResponse,
+    FactorResearchRequest,
+    FactorForwardMetricResponse,
+    FactorResearchSummaryResponse,
+    FactorScorecardResponse,
+    FactorLagPointResponse,
+    FactorRollingPointResponse,
+    FactorQuantileBucketResponse,
+    FactorNormalizedPointResponse,
+    FactorDetailResponse,
+    FactorBlendComponentResponse,
+    FactorDroppedComponentResponse,
+    FactorBlendResponse,
+    FactorResearchResponse,
+    FactorResearchRunDetailResponse,
+    FactorExecutionRequest,
+    FactorExecutionResponse,
+    RealtimeResponse,
+    KlineTailResponse,
+    CurrentPriceResponse,
+    CurrentPriceBatchItemResponse,
+    CurrentPriceBatchResponse,
+    MarketIndicatorResponse,
+    MarketIndexResponse,
+    MarketSymbolSearchResponse,
+    MarketIndexHistoryResponse,
+    FundingRateSnapshotResponse,
+    FundingRateHistoryPointResponse,
+    FundingRateHistoryResponse,
+    FundingRateSyncResponse,
+    TechnicalMetricsResponse,
+    TradeSetupResponseItem,
+    TradeSetupResponse,
+    ApiStatusResponse,
+    DisplayCurrencyResponse,
+    CurrencyRatesResponse,
+    CryptoIndexConstituentResponse,
+    CryptoIndexHistoryPointResponse,
+    CryptoIndexSummaryResponse,
+    CryptoIndexResponse,
+    MACDResponse,
+    IndicatorSummaryResponse,
+    BinanceSymbolSummaryResponse,
+    BinanceExchangeInfoResponse,
+    BinanceTickerStatsItemResponse,
+    BinanceTickerStatsResponse,
+    BinancePriceTickerItemResponse,
+    BinancePriceTickerResponse,
+    BinanceBookTickerItemResponse,
+    BinanceBookTickerResponse,
+    BinanceOrderBookLevelResponse,
+    BinanceOrderBookResponse,
+    BinanceTradeItemResponse,
+    BinanceTradeListResponse,
+    BinanceKlineItemResponse,
+    BinanceKlineResponse,
+    BinanceMarkPriceItemResponse,
+    BinanceMarkPriceResponse,
+    BinanceFundingInfoItemResponse,
+    BinanceFundingInfoResponse,
+    BinanceFundingHistoryItemResponse,
+    BinanceFundingHistoryListResponse,
+    BinanceOpenInterestSnapshotResponse,
+    BinanceOpenInterestStatItemResponse,
+    BinanceOpenInterestStatsResponse,
+    BinanceRatioItemResponse,
+    BinanceRatioSeriesResponse,
+    BinanceTakerVolumeItemResponse,
+    BinanceTakerVolumeResponse,
+    BinanceBasisResponse,
+    BinanceBreakoutMonitorSummaryResponse,
+    BinanceBreakoutMonitorItemResponse,
+    BinanceBreakoutMonitorResponse,
+    BinanceMarketPageResponse,
+    BinanceWeb3RankItemResponse,
+    BinanceWeb3UnifiedTokenRankResponse,
+    BinanceWeb3SocialHypeItemResponse,
+    BinanceWeb3SocialHypeResponse,
+    BinanceWeb3SmartMoneyInflowItemResponse,
+    BinanceWeb3SmartMoneyInflowResponse,
+    BinanceWeb3MemeRankItemResponse,
+    BinanceWeb3MemeRankResponse,
+    BinanceWeb3AddressPnlItemResponse,
+    BinanceWeb3AddressPnlResponse,
+    BinanceWeb3HeatRankItemResponse,
+    BinanceWeb3HeatRankResponse,
+    BinanceWeb3TokenDynamicResponse,
+    BinanceWeb3TokenKlineItemResponse,
+    BinanceWeb3TokenKlineResponse,
+    BinanceWeb3TokenAuditResponse,
+    BinanceRwaSymbolItemResponse,
+    BinanceRwaSymbolListResponse,
+    BinanceRwaMetaResponse,
+    BinanceRwaMarketStatusResponse,
+    BinanceRwaDynamicResponse,
+    BinanceRwaKlineItemResponse,
+    BinanceRwaKlineResponse,
+)
 
 
 def main() -> None:
-    for filename, entries in FILE_MODELS.items():
-        content = render_file(filename, entries, FILE_EXTRAS[filename])
+    grouped_models: dict[str, list[type[BaseModel]]] = defaultdict(list)
+    for model in SCHEMA_MODELS:
+        grouped_models[resolve_target_file(model)].append(model)
+
+    for filename in TARGET_FILES:
+        content = render_file(grouped_models.get(filename, []))
         (FRONTEND_TYPES_DIR / filename).write_text(content, encoding="utf-8")
     (FRONTEND_MARKET_MODULE_DIR / "generatedSymbolCatalog.ts").write_text(render_symbol_catalog_module(), encoding="utf-8")
 
 
-def render_file(filename: str, entries: list[dict[str, Any]], extra_lines: list[str]) -> str:
+def resolve_target_file(model: type[BaseModel]) -> str:
+    module_name = model.__module__
+    if module_name.endswith(".factor"):
+        return "factor.ts"
+    if module_name.endswith(".market") or module_name.endswith(".binance_market"):
+        return "market.ts"
+    return "backtest.ts"
+
+
+def render_file(models: list[type[BaseModel]]) -> str:
     definitions: dict[str, dict[str, Any]] = {}
     root_names: list[str] = []
-    for entry in entries:
-        alias = entry["name"]
-        model: type[BaseModel] = entry["model"]
+    for model in models:
+        name = model.__name__
         schema = copy.deepcopy(model.model_json_schema(ref_template="#/$defs/{model}"))
         schema = remap_schema(schema)
-        if entry.get("optional_fields"):
-            required = [item for item in schema.get("required", []) if item not in entry["optional_fields"]]
-            if required:
-                schema["required"] = required
-            elif "required" in schema:
-                del schema["required"]
-        definitions[alias] = strip_defs(schema)
-        root_names.append(alias)
+        definitions[name] = strip_defs(schema)
+        root_names.append(name)
         for def_name, def_schema in schema.get("$defs", {}).items():
-            definitions.setdefault(def_name, def_schema)
+            normalized_def_schema = strip_defs(def_schema)
+            if def_name not in definitions or is_self_reference_schema(definitions[def_name], def_name):
+                definitions[def_name] = normalized_def_schema
 
     lines = [
         "// This file is generated from backend Pydantic schemas.",
@@ -554,21 +386,11 @@ def render_file(filename: str, entries: list[dict[str, Any]], extra_lines: list[
     for name in root_names + sorted(definitions.keys()):
         if name in emitted:
             continue
-        if name in SKIP_DEFINITIONS:
-            emitted.add(name)
-            continue
         lines.extend(emit_named_definition(name, definitions[name]))
         lines.append("")
         emitted.add(name)
 
-    lines.extend(extra_lines)
-    lines.append("")
-    content = "\n".join(lines)
-    for original, alias in ALIAS_MAP.items():
-        content = content.replace(original, alias)
-    if filename == "market.ts":
-        content = content.replace("Array<Array<number>>", "Array<OHLCVRaw>")
-    return content
+    return "\n".join(lines)
 
 
 def remap_schema(value: Any) -> Any:
@@ -576,13 +398,10 @@ def remap_schema(value: Any) -> Any:
         remapped: dict[str, Any] = {}
         for key, item in value.items():
             if key == "$defs":
-                nested_defs: dict[str, Any] = {}
-                for def_name, def_schema in item.items():
-                    nested_defs[canonical_name(def_name)] = remap_schema(def_schema)
-                remapped[key] = nested_defs
+                remapped[key] = {def_name: remap_schema(def_schema) for def_name, def_schema in item.items()}
                 continue
             if key == "$ref" and isinstance(item, str):
-                remapped[key] = f"#/$defs/{canonical_name(item.split('/')[-1])}"
+                remapped[key] = f"#/$defs/{item.split('/')[-1]}"
                 continue
             remapped[key] = remap_schema(item)
         return remapped
@@ -591,15 +410,15 @@ def remap_schema(value: Any) -> Any:
     return value
 
 
-def canonical_name(name: str) -> str:
-    return ALIAS_MAP.get(name, name)
-
-
 def strip_defs(schema: dict[str, Any]) -> dict[str, Any]:
     result = copy.deepcopy(schema)
     result.pop("$defs", None)
     result.pop("title", None)
     return result
+
+
+def is_self_reference_schema(schema: dict[str, Any], name: str) -> bool:
+    return isinstance(schema, dict) and schema.get("$ref") == f"#/$defs/{name}"
 
 
 def emit_named_definition(name: str, schema: dict[str, Any]) -> list[str]:
@@ -678,11 +497,11 @@ def render_symbol_catalog_module() -> str:
             "// This file is generated from backend market symbol contracts.",
             "// Do not edit manually.",
             "",
-            "import type { MarketSymbolSearchItem } from '@/types'",
+            "import type { MarketSymbolSearchResponse } from '@/types'",
             "",
             f"export const USD_EQUIVALENT_SYMBOLS = {json.dumps(usd_equivalent_symbols, ensure_ascii=False, indent=2)} as const",
             "",
-            f"export const FALLBACK_SYMBOLS: MarketSymbolSearchItem[] = {json.dumps(fallback_symbols, ensure_ascii=False, indent=2)}",
+            f"export const FALLBACK_SYMBOLS: MarketSymbolSearchResponse[] = {json.dumps(fallback_symbols, ensure_ascii=False, indent=2)}",
             "",
         ]
     )

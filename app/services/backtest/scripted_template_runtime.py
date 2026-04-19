@@ -3,6 +3,12 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from app.services.backtest.freqtrade_exit_codegen import render_threshold_custom_exit
+from app.services.backtest.freqtrade_strategy_runtime import (
+    render_freqtrade_strategy_runtime,
+    resolve_freqtrade_strategy_runtime,
+)
+
 
 RULES_TEMPLATE_RUNTIME: dict[str, Any] = {
     "builder_kind": "rules",
@@ -92,6 +98,22 @@ def scripted_trade_settings(template: str, _config: dict[str, Any]) -> dict[str,
 
 
 def _build_btc_regime_pulse_supertrend(strategy_class_name: str, timeframe: str) -> str:
+    runtime_block = render_freqtrade_strategy_runtime(
+        resolve_freqtrade_strategy_runtime(
+            can_short=True,
+            timeframe=timeframe,
+            startup_candle_count=220,
+            risk={
+                "stoploss": -0.99,
+                "trailing": {"enabled": False, "positive": 0.0, "offset": 0.0, "only_offset_reached": True},
+            },
+            roi_targets={"0": 99.0},
+            order_types={"entry": "market", "exit": "market", "stoploss": "market", "stoploss_on_exchange": False},
+            has_exit_signals=False,
+            has_custom_exit=True,
+            position_adjustment_enable=False,
+        )
+    )
     return f"""import numpy as np
 import pandas as pd
 import talib.abstract as ta
@@ -100,18 +122,7 @@ from freqtrade.strategy import IStrategy
 
 
 class {strategy_class_name}(IStrategy):
-    INTERFACE_VERSION = 3
-    can_short = True
-    timeframe = "{timeframe}"
-    process_only_new_candles = True
-    startup_candle_count = 220
-    use_exit_signal = False
-    exit_profit_only = False
-    ignore_roi_if_entry_signal = False
-    minimal_roi = {{"0": 99.0}}
-    stoploss = -0.99
-    trailing_stop = False
-    order_types = {{"entry": "market", "exit": "market", "stoploss": "market", "stoploss_on_exchange": False}}
+{runtime_block}
 
     atr_length = 10
     base_multiplier = 3.0
@@ -297,6 +308,7 @@ class {strategy_class_name}(IStrategy):
         dataframe["enter_short"] = dataframe["signal_enter_short"].fillna(0).astype(int)
         dataframe["enter_tag"] = dataframe["signal_long_tag"]
         dataframe["enter_short_tag"] = dataframe["signal_short_tag"]
+        dataframe.loc[dataframe["enter_short"] > 0, "enter_tag"] = dataframe.loc[dataframe["enter_short"] > 0, "signal_short_tag"]
         return dataframe
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
@@ -306,38 +318,33 @@ class {strategy_class_name}(IStrategy):
         dataframe["exit_short_tag"] = None
         return dataframe
 
-    def custom_exit(self, pair, trade, current_time, current_rate, current_profit, **kwargs):
-        dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
+    def _resolve_exit_plan(self, pair, trade, dataframe: DataFrame | None = None):
+        cached_plan = trade.get_custom_data("pulse_exit_plan")
+        if cached_plan:
+            return cached_plan
+        if dataframe is None:
+            dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
         if dataframe is None or dataframe.empty:
             return None
-        now = pd.Timestamp(current_time)
-        current_frame = dataframe.loc[dataframe["date"] <= now]
-        if current_frame.empty:
-            return None
-        current_candle = current_frame.iloc[-1]
         entry_frame = dataframe.loc[dataframe["date"] <= pd.Timestamp(trade.open_date_utc)]
         if entry_frame.empty:
             return None
         entry_candle = entry_frame.iloc[-1]
-        atr_value = float(entry_candle.get("atr") or 0.0)
+        atr_raw = entry_candle.get("atr")
+        atr_value = float(atr_raw) if pd.notna(atr_raw) else 0.0
         entry_price = float(trade.open_rate)
         stop_distance = max(atr_value * self.stoploss_atr_multiplier, entry_price * 0.0005)
         target_distance = stop_distance * self.takeprofit_rr
-        current_high = float(current_candle["high"])
-        current_low = float(current_candle["low"])
         if trade.is_short:
-            stop_price = entry_price + stop_distance
-            target_price = entry_price - target_distance
-            if current_high >= stop_price:
-                return "atr_stop"
-            if current_low <= target_price:
-                return "rr_target"
-            return None
-        stop_price = entry_price - stop_distance
-        target_price = entry_price + target_distance
-        if current_low <= stop_price:
-            return "atr_stop"
-        if current_high >= target_price:
-            return "rr_target"
-        return None
-"""
+            resolved_plan = {{"stop": entry_price + stop_distance, "target": entry_price - target_distance}}
+        else:
+            resolved_plan = {{"stop": entry_price - stop_distance, "target": entry_price + target_distance}}
+        if getattr(trade, "id", None) is not None:
+            trade.set_custom_data("pulse_exit_plan", resolved_plan)
+        return resolved_plan
+{render_threshold_custom_exit(
+    plan_var_name="exit_plan",
+    resolve_plan_expression="self._resolve_exit_plan(pair, trade, dataframe)",
+    stop_reason="atr_stop",
+    target_reason="rr_target",
+)}"""

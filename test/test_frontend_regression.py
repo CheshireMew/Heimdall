@@ -84,14 +84,15 @@ def test_page_snapshot_registry_and_helpers_are_stable():
 def test_market_store_cache_contract_is_stable():
     source = read_frontend("modules/market/store.ts")
 
-    assert "heimdall_market_cache" in source
+    assert "heimdall_market_cache" not in source
+    assert "localStorage" not in source
+    assert "sessionStorage" not in source
     assert "_readKlineSlice" in source
     assert "cachedData.length >= limit" in source
     assert "return this._readKlineSlice(cachedData, limit)" in source
     assert "10000" in source
     assert "300000" in source
     assert "60000" in source
-    assert "7 * 24 * 60 * 60 * 1000" in source
     assert "marketApi.getLatestKlines" in source
     assert "marketApi.getIndicators" in source
     assert "Extreme Greed" in source

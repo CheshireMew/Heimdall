@@ -4,6 +4,7 @@ import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, rea
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
 import { marketApi } from './api'
+import type { CryptoIndexConstituent, CryptoIndexHistoryPoint, CryptoIndexResponse } from '@/types'
 
 interface CryptoIndexSnapshot {
   topN: number
@@ -36,7 +37,7 @@ export function useCryptoIndexPage() {
   const days = ref(restoredSnapshot.days)
   const loading = ref(false)
   const error = ref('')
-  const data = ref<any | null>(null)
+  const data = ref<CryptoIndexResponse | null>(null)
 
   const chartColors = computed(() => {
     const isDark = theme.value === 'dark'
@@ -53,7 +54,7 @@ export function useCryptoIndexPage() {
   const constituents = computed(() => data.value?.constituents || [])
   const basketMarketCap = computed(() => summary.value?.current_basket_market_cap || 0)
   const chartData = computed(() =>
-    (data.value?.history || []).map((point) => ({
+    (data.value?.history || []).map((point: CryptoIndexHistoryPoint) => ({
       time: point.timestamp,
       value: point.index_value,
     })))
@@ -94,7 +95,7 @@ export function useCryptoIndexPage() {
     return value >= 0 ? 'text-emerald-500' : 'text-rose-500'
   }
 
-  const weightOf = (coin) => {
+  const weightOf = (coin: CryptoIndexConstituent) => {
     if (!basketMarketCap.value || !coin.market_cap) {
       return 0
     }

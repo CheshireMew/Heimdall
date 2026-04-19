@@ -13,7 +13,7 @@ import pandas as pd
 from freqtrade.data.history.datahandlers.jsondatahandler import JsonDataHandler
 from freqtrade.enums import CandleType
 
-from app.services.backtest.models import (
+from app.contracts.backtest import (
     BacktestExecutionResult,
     PortfolioConfigRecord,
     ResearchConfigRecord,

@@ -97,7 +97,6 @@
             <SymbolSearchBox
               v-model="page.currentSymbol"
               class="w-72"
-              placeholder="Search symbol"
               @select="page.handleSymbolSelect"
             />
             <div class="flex space-x-1 bg-gray-200 dark:bg-gray-900 rounded-lg p-1 transition-colors">

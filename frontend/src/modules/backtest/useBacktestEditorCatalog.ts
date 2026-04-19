@@ -1,21 +1,7 @@
-import type { ComputedRef, Ref } from 'vue'
-
 import type { StrategyEditorContract } from '@/types'
 
 import { backtestApi } from './api'
-
-
-interface UseBacktestEditorCatalogOptions {
-  t: (key: string) => string
-  config: any
-  strategies: Ref<any[]>
-  templates: Ref<any[]>
-  indicators: Ref<any[]>
-  indicatorEngines: Ref<any[]>
-  editorContract: Ref<StrategyEditorContract | null>
-  selectedStrategyVersions: ComputedRef<any[]>
-  editor: any
-}
+import type { UseBacktestEditorCatalogOptions } from './editorTypes'
 
 export const useBacktestEditorCatalog = ({
   t,
@@ -39,8 +25,8 @@ export const useBacktestEditorCatalog = ({
   const syncStrategyVersion = () => {
     const versions = selectedStrategyVersions.value
     if (!versions.length) return
-    if (!versions.find((item: any) => item.version === config.strategy_version)) {
-      const fallback = versions.find((item: any) => item.is_default) || versions[0]
+    if (!versions.find((item) => item.version === config.strategy_version)) {
+      const fallback = versions.find((item) => item.is_default) || versions[0]
       config.strategy_version = fallback.version
     }
   }
@@ -64,7 +50,7 @@ export const useBacktestEditorCatalog = ({
       templates.value = res.data
       if (!templates.value.length) return
       const editableTemplates = Array.isArray(editor.editableTemplates?.value) ? editor.editableTemplates.value : templates.value
-      const matchedTemplate = editableTemplates.find((item: any) => item.template === editor.versionDraft.template) || editableTemplates[0]
+      const matchedTemplate = editableTemplates.find((item) => item.template === editor.versionDraft.template) || editableTemplates[0]
       if (!matchedTemplate) return
       if (!editor.versionDraft.template) return
       if (!Object.keys(editor.versionDraft.config?.indicators || {}).length) {

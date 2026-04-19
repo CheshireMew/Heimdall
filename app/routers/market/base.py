@@ -7,9 +7,11 @@ from typing import TYPE_CHECKING, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 
 from app.dependencies import (
-    get_base_market_app_service,
+    get_funding_rate_app_service,
     get_index_data_service,
     get_market_data_service,
+    get_market_insight_app_service,
+    get_market_query_app_service,
 )
 from app.domain.market.symbol_catalog import list_market_search_items
 from app.rate_limit import limiter
@@ -17,6 +19,7 @@ from app.routers.market.common import internal_error
 from app.schemas.market import (
     ApiStatusResponse,
     CryptoIndexResponse,
+    CurrentPriceBatchResponse,
     CurrentPriceResponse,
     FundingRateHistoryResponse,
     FundingRateSnapshotResponse,
@@ -35,9 +38,11 @@ from config import settings
 from utils.logger import logger
 
 if TYPE_CHECKING:
-    from app.services.market.base_app_service import BaseMarketAppService
+    from app.services.market.funding_rate_app_service import FundingRateAppService
     from app.services.market.index_data_service import IndexDataService
+    from app.services.market.insight_app_service import MarketInsightAppService
     from app.services.market.market_data_service import MarketDataService
+    from app.services.market.query_app_service import MarketQueryAppService
 
 
 router = APIRouter(tags=["Market Data"])
@@ -55,7 +60,7 @@ async def get_realtime_analysis(
     timeframe: str | None = Query(default=None),
     limit: int | None = Query(default=None, ge=1, le=settings.API_MAX_LIMIT),
     market_data_service: MarketDataService = Depends(get_market_data_service),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
         return await service.get_realtime(
@@ -78,7 +83,7 @@ async def get_realtime_analysis(
 async def websocket_realtime(
     websocket: WebSocket,
     market_data_service: MarketDataService = Depends(get_market_data_service),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     await websocket.accept()
     try:
@@ -119,7 +124,7 @@ async def get_market_history(
     end_ts: int = Query(..., description="End Timestamp (ms)", gt=0),
     limit: int = Query(settings.HISTORY_DEFAULT_LIMIT, description="Limit", ge=1, le=settings.API_MAX_LIMIT),
     market_data_service: MarketDataService = Depends(get_market_data_service),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
         return service.get_history(
@@ -141,7 +146,7 @@ async def get_latest_klines(
     timeframe: str = Query(..., description="Timeframe eg 5m"),
     limit: int = Query(settings.LIMIT, description="Limit", ge=1, le=settings.API_MAX_LIMIT),
     market_data_service: MarketDataService = Depends(get_market_data_service),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
         return service.get_recent_klines(
@@ -162,7 +167,7 @@ async def get_kline_tail(
     timeframe: str = Query(..., description="Timeframe eg 5m"),
     limit: int = Query(2, description="Tail size", ge=1, le=20),
     market_data_service: MarketDataService = Depends(get_market_data_service),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
         return await service.get_live_kline_tail(
@@ -182,7 +187,7 @@ async def get_current_price(
     symbol: str = Query(..., description="Symbol eg BTC/USDT"),
     timeframe: str = Query("1d", description="Timeframe eg 1d"),
     market_data_service: MarketDataService = Depends(get_market_data_service),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
         return await service.get_current_price(
@@ -196,6 +201,25 @@ async def get_current_price(
         raise internal_error("Current price API Error", exc)
 
 
+@router.get("/price/current/batch", response_model=CurrentPriceBatchResponse)
+async def get_current_price_batch(
+    symbols: list[str] = Query(..., description="Symbols eg BTC/USDT"),
+    timeframe: str = Query("1d", description="Timeframe eg 1d"),
+    market_data_service: MarketDataService = Depends(get_market_data_service),
+    service: MarketQueryAppService = Depends(get_market_query_app_service),
+):
+    try:
+        return await service.get_current_price_batch(
+            market_data_service=market_data_service,
+            symbols=symbols,
+            timeframe=timeframe,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise internal_error("Current price batch API Error", exc)
+
+
 @router.get("/full_history", response_model=list[list[float]])
 @limiter.limit(settings.RATE_LIMIT_HISTORY)
 async def get_market_full_history(
@@ -205,7 +229,7 @@ async def get_market_full_history(
     start_date: str = Query("2010-01-01", description="Start Date YYYY-MM-DD"),
     fetch_policy: Literal["cache_only", "hydrate"] = Query("hydrate", description="History source policy"),
     market_data_service: MarketDataService = Depends(get_market_data_service),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
         return await service.get_full_history(
@@ -230,7 +254,7 @@ async def get_market_full_history_batch(
     start_date: str = Query("2010-01-01", description="Start Date YYYY-MM-DD"),
     fetch_policy: Literal["cache_only", "hydrate"] = Query("hydrate", description="History source policy"),
     market_data_service: MarketDataService = Depends(get_market_data_service),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
         return await service.get_full_history_batch(
@@ -250,7 +274,7 @@ async def get_market_full_history_batch(
 async def get_market_indicators(
     category: str | None = Query(None, description="过滤分类, 如 Macro, Onchain, Sentiment, General"),
     days: int = Query(settings.INDICATORS_DEFAULT_DAYS, description="历史数据天数"),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: MarketInsightAppService = Depends(get_market_insight_app_service),
 ):
     try:
         return service.get_indicators(category=category, days=days)
@@ -346,7 +370,7 @@ async def get_latest_index_pricing(
 async def get_current_funding_rate(
     request: Request,
     symbol: str = Query(..., description="合约 symbol，例如 BTCUSDT 或 BTC/USDT:USDT"),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: FundingRateAppService = Depends(get_funding_rate_app_service),
 ):
     try:
         return await service.get_current_funding_rate(symbol)
@@ -363,7 +387,7 @@ async def sync_funding_rate_history(
     symbol: str = Query(..., description="合约 symbol，例如 BTCUSDT"),
     start_date: str = Query("2019-09-01", description="开始日期 YYYY-MM-DD"),
     end_date: str | None = Query(None, description="结束日期 YYYY-MM-DD，默认当前时间"),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: FundingRateAppService = Depends(get_funding_rate_app_service),
 ):
     try:
         return await service.sync_funding_rate_history(
@@ -383,7 +407,7 @@ async def get_funding_rate_history(
     start_date: str | None = Query(None, description="开始日期 YYYY-MM-DD"),
     end_date: str | None = Query(None, description="结束日期 YYYY-MM-DD"),
     limit: int | None = Query(None, ge=1, le=20000),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: FundingRateAppService = Depends(get_funding_rate_app_service),
 ):
     try:
         return await service.get_funding_rate_history(
@@ -406,7 +430,7 @@ async def get_technical_metrics(
     atr_period: int = Query(14, ge=2, le=200),
     volatility_period: int = Query(20, ge=2, le=365),
     market_data_service: MarketDataService = Depends(get_market_data_service),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
         return await service.get_technical_metrics(
@@ -433,7 +457,7 @@ async def get_trade_setup(
     strategy: str = Query("最大收益"),
     mode: str = Query("rules", pattern="^(rules|ai)$"),
     market_data_service: MarketDataService = Depends(get_market_data_service),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: MarketInsightAppService = Depends(get_market_insight_app_service),
 ):
     try:
         return await service.get_trade_setup(
@@ -469,7 +493,7 @@ async def get_crypto_index(
     request: Request,
     top_n: int = Query(20, ge=5, le=100, description="Current top N market cap assets"),
     days: int = Query(90, ge=30, le=365, description="Historical days"),
-    service: BaseMarketAppService = Depends(get_base_market_app_service),
+    service: MarketInsightAppService = Depends(get_market_insight_app_service),
 ):
     try:
         return await service.get_crypto_index(top_n=top_n, days=days)

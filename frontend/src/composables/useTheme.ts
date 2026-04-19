@@ -2,13 +2,24 @@ import { ref, watchEffect, type Ref } from 'vue'
 
 type Theme = 'light' | 'dark'
 
-const theme: Ref<Theme> = ref((localStorage.getItem('theme') as Theme) || 'dark')
+const canUseStorage = () => typeof window !== 'undefined' && !!window.localStorage
+
+const readStoredTheme = (): Theme => {
+    if (!canUseStorage()) return 'dark'
+    const stored = window.localStorage.getItem('theme')
+    return stored === 'light' ? 'light' : 'dark'
+}
+
+const theme: Ref<Theme> = ref(readStoredTheme())
 
 watchEffect(() => {
+    if (typeof window === 'undefined') return
     const root = window.document.documentElement
     root.classList.remove('light', 'dark')
     root.classList.add(theme.value)
-    localStorage.setItem('theme', theme.value)
+    if (canUseStorage()) {
+        window.localStorage.setItem('theme', theme.value)
+    }
 })
 
 export function useTheme() {

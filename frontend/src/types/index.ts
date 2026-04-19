@@ -1,4 +1,7 @@
 export * from './market'
+export * from './market-frontend'
 export * from './backtest'
+export * from './backtest-frontend'
 export * from './tools'
 export * from './factor'
+export * from './factor-frontend'

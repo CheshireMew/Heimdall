@@ -8,7 +8,11 @@ import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 
+import app.lifecycle as lifecycle_module
 import app.main as main_module
+import app.web as web_module
+import app.background_runtime as background_runtime_module
+from app.runtime import AppRuntimeServices
 from app.infra.db.database import _build_kline_symbol_contract_statements
 
 
@@ -29,35 +33,66 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
         def shutdown(self):
             events.append("scheduler_shutdown")
 
+    class FakeSnapshot:
+        async def start(self, **kwargs):
+            events.append("snapshot_start")
+
+        async def shutdown(self):
+            events.append("snapshot_shutdown")
+
+    class FakeBinanceMarket:
+        async def get_spot_ticker_24hr(self):
+            return {}
+
+        async def get_usdm_ticker_24hr(self):
+            return {}
+
+        async def get_usdm_mark_price(self):
+            return {}
+
     paper_manager = FakeManager()
     factor_manager = FakeManager()
+    snapshot = FakeSnapshot()
+    binance_market = FakeBinanceMarket()
 
-    monkeypatch.setattr(main_module, "_init_db", lambda: events.append("init_db"))
-    monkeypatch.setattr(main_module, "get_paper_run_manager", lambda: paper_manager)
-    monkeypatch.setattr(main_module, "get_factor_paper_run_manager", lambda: factor_manager)
+    monkeypatch.setattr(lifecycle_module, "_init_db", lambda: events.append("init_db"))
     monkeypatch.setattr(
-        main_module,
-        "_import_market_cron_module",
-        lambda: SimpleNamespace(
+        lifecycle_module,
+        "build_app_runtime_services",
+        lambda: AppRuntimeServices(
+            binance_market_snapshot=snapshot,
+            binance_market_intel=binance_market,
+            paper_run_manager=paper_manager,
+            factor_paper_run_manager=factor_manager,
+        ),
+    )
+    monkeypatch.setattr(background_runtime_module._ProcessFileLock, "acquire", lambda self: True)
+    monkeypatch.setattr(background_runtime_module._ProcessFileLock, "release", lambda self: None)
+    monkeypatch.setattr(
+        background_runtime_module.importlib,
+        "import_module",
+        lambda name: SimpleNamespace(
             start_scheduler=lambda: events.append("start_scheduler"),
             scheduler=FakeScheduler(),
         ),
     )
 
-    async with main_module.lifespan(main_module.app):
+    async with lifecycle_module.lifespan(main_module.app):
         events.append("inside")
         await main_module.app.state.database_task
         await main_module.app.state.background_services_task
+        await main_module.app.state.background_runtime.wait_until_started()
 
     assert events[0] == "inside"
     assert events.index("init_db") < events.index("start_scheduler")
+    assert events.index("snapshot_start") < events.index("restore")
     assert events.count("restore") == 2
-    assert events[-3:] == ["shutdown", "shutdown", "scheduler_shutdown"]
+    assert events[-4:] == ["snapshot_shutdown", "shutdown", "shutdown", "scheduler_shutdown"]
 
 
 def test_root_returns_frontend_boot_payload_when_build_missing(api_harness, monkeypatch):
-    monkeypatch.setattr(main_module, "FRONTEND_DIST_DIR", Path("Z:/missing"))
-    monkeypatch.setattr(main_module, "FRONTEND_INDEX_FILE", Path("Z:/missing/index.html"))
+    monkeypatch.setattr(web_module, "FRONTEND_DIST_DIR", Path("Z:/missing"))
+    monkeypatch.setattr(web_module, "FRONTEND_INDEX_FILE", Path("Z:/missing/index.html"))
 
     response = api_harness["client"].get("/")
 
@@ -74,7 +109,7 @@ def test_kline_symbol_contract_migrates_short_postgres_column():
 
 
 def test_root_and_spa_fallback_serve_built_frontend(api_harness, monkeypatch):
-    dist_dir = main_module.BASE_DIR / "frontend" / "dist"
+    dist_dir = web_module.BASE_DIR / "frontend" / "dist"
     assets_dir = dist_dir / "assets"
     dist_dir.mkdir(parents=True, exist_ok=True)
     assets_dir.mkdir(parents=True, exist_ok=True)
@@ -87,8 +122,8 @@ def test_root_and_spa_fallback_serve_built_frontend(api_harness, monkeypatch):
         index_file.write_text("<html><body>frontend</body></html>", encoding="utf-8")
         asset_file.write_text("console.log('ok')", encoding="utf-8")
 
-        monkeypatch.setattr(main_module, "FRONTEND_DIST_DIR", dist_dir)
-        monkeypatch.setattr(main_module, "FRONTEND_INDEX_FILE", index_file)
+        monkeypatch.setattr(web_module, "FRONTEND_DIST_DIR", dist_dir)
+        monkeypatch.setattr(web_module, "FRONTEND_INDEX_FILE", index_file)
 
         root_response = api_harness["client"].get("/")
         route_response = api_harness["client"].get("/backtest")
@@ -127,7 +162,7 @@ async def test_global_exception_handler_returns_internal_server_error():
         }
     )
 
-    response = await main_module.global_exception_handler(request, RuntimeError("boom"))
+    response = await web_module.global_exception_handler(request, RuntimeError("boom"))
 
     assert response.status_code == 500
     assert response.body == b'{"detail":"Internal server error"}'

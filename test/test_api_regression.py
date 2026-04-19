@@ -95,10 +95,13 @@ def make_factor_execution_payload() -> dict[str, Any]:
         ("get", "/api/v1/currencies", {}, lambda data: data["rates"]["CNY"] == 7.2 and data["supported"][0]["code"] == "USD"),
         ("get", "/api/v1/llm-config", {}, lambda data: "deepseek" in [item["id"] for item in data["presets"]] and "apiKeyPreview" in data),
         ("get", "/api/v1/realtime", {"params": {"symbol": "BTC/USDT"}}, lambda data: data["symbol"] == "BTC/USDT"),
+        ("get", "/api/v1/price/current", {"params": {"symbol": "BTC/USDT"}}, lambda data: data["current_price"] == 68000.0),
+        ("get", "/api/v1/price/current/batch", {"params": [("symbols", "BTC/USDT"), ("symbols", "ETH/USDT")]}, lambda data: len(data["items"]) == 2 and data["items"][0]["source"] == "websocket_snapshot"),
         ("get", "/api/v1/history", {"params": {"symbol": "BTC/USDT", "timeframe": "1h", "end_ts": 1710007200000}}, lambda data: len(data) == 3),
         ("get", "/api/v1/full_history", {"params": {"symbol": "BTC/USDT", "timeframe": "1d", "start_date": "2025-01-01"}}, lambda data: len(data) == 3),
         ("get", "/api/v1/indicators", {}, lambda data: data[0]["indicator_id"] == "FEAR_GREED"),
         ("get", "/api/v1/funding-rate/current", {"params": {"symbol": "BTCUSDT"}}, lambda data: data["symbol"] == "BTCUSDT"),
+        ("get", "/api/v1/binance/market/breakout_monitor", {}, lambda data: data["summary"]["focus_count"] == 1 and data["items"][0]["verdict"] == "优先关注"),
         ("post", "/api/v1/funding-rate/sync", {"params": {"symbol": "BTCUSDT", "start_date": "2025-01-01"}}, lambda data: data["inserted"] == 50),
         ("get", "/api/v1/funding-rate/history", {"params": {"symbol": "BTCUSDT"}}, lambda data: data["count"] == 1),
         ("get", "/api/v1/technical-metrics", {"params": {"symbol": "BTC/USDT"}}, lambda data: data["sample_size"] == 120),
@@ -136,7 +139,7 @@ def test_full_history_uses_service_level_cache_write(api_harness):
 
     assert response.status_code == 200
     assert api_harness["market_data"].saved_klines == []
-    assert api_harness["base_market_app"].full_history_used_external_persist_callback is False
+    assert api_harness["market_query_app"].full_history_used_external_persist_callback is False
 
 
 def test_backtest_mutation_routes_normalize_contracts(api_harness):
@@ -222,7 +225,7 @@ def test_value_errors_are_mapped_to_bad_request(api_harness, monkeypatch):
     def fail_factor(**kwargs):
         raise ValueError("bad factor input")
 
-    monkeypatch.setattr(api_harness["base_market_app"], "get_realtime", fail_market)
+    monkeypatch.setattr(api_harness["market_query_app"], "get_realtime", fail_market)
     monkeypatch.setattr(api_harness["factor_research"], "analyze", fail_factor)
 
     realtime_response = api_harness["client"].get("/api/v1/realtime", params={"symbol": "BTC/USDT"})

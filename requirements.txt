@@ -16,6 +16,7 @@ uvicorn>=0.20.0          # ASGI服务器
 pydantic>=2.0.0          # 数据验证
 pydantic-settings>=2.0.0 # 配置管理
 slowapi>=0.1.9           # API速率限制
+websockets>=15.0.0       # Binance WebSocket 行情快照
 
 # 数据库
 sqlalchemy>=2.0.0        # ORM

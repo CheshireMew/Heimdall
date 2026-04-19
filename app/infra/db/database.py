@@ -51,16 +51,19 @@ def init_db():
     if _initialized:
         return
     Base.metadata.create_all(engine)
-    _ensure_backtest_run_contract_columns()
-    _ensure_kline_symbol_contract()
-    try:
-        from app.services.backtest.strategy_defaults_service import StrategyDefaultsService
-
-        StrategyDefaultsService().ensure_defaults()
-    except Exception as exc:
-        db_logger.warning(f"策略库初始化失败: {exc}")
     _initialized = True
     db_logger.info(f"数据库初始化完成: {DB_URL}")
+
+
+def prepare_db() -> None:
+    """
+    显式执行数据库结构准备。
+    仅供启动脚本/部署脚本调用，不在应用启动链路中隐式触发。
+    """
+    init_db()
+    _ensure_backtest_run_contract_columns()
+    _ensure_kline_symbol_contract()
+    db_logger.info(f"数据库结构准备完成: {DB_URL}")
 
 def get_session():
     """

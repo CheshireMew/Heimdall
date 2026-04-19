@@ -221,7 +221,7 @@
                         :allowed-classes="['crypto', 'index', 'cash']"
                         :placeholder="$t('portfolioBalance.emptySymbol')"
                         trigger-class="!w-32 !rounded-xl !bg-slate-50 dark:!bg-slate-900"
-                        disabled-label="Unavailable"
+                        :disabled-label="$t('symbolSearch.unavailable')"
                         @update:model-value="updateAssetSymbol(asset.id, String($event))"
                       />
                     </td>

@@ -12,15 +12,16 @@ from app.schemas.strategy_contract import (
     StrategyIndicatorParamResponse,
     StrategyTemplateConfigResponse,
 )
-from app.schemas.backtest_result import BacktestReportResponse, BacktestRunMetadataResponse
-from app.services.backtest.contracts import (
+from app.contracts.backtest import (
     BacktestStartCommand,
     CreateIndicatorDefinitionCommand,
     CreateStrategyTemplateCommand,
     CreateStrategyVersionCommand,
     PaperStartCommand,
+    PortfolioConfigRecord,
+    ResearchConfigRecord,
 )
-from app.services.backtest.models import PortfolioConfigRecord, ResearchConfigRecord
+from app.schemas.backtest_result import BacktestReportResponse, BacktestRunMetadataResponse
 from app.services.backtest.run_form_contract import (
     DEFAULT_FEE_RATE,
     DEFAULT_HISTORY_MODE,

@@ -1,18 +1,5 @@
-import type { ComputedRef, Ref } from 'vue'
-
 import { supportsVersionEditing } from './templateRuntime'
-
-
-interface UseBacktestEditorSeedsOptions {
-  route: any
-  router: any
-  config: any
-  strategies: Ref<any[]>
-  selectedStrategy: ComputedRef<any | null>
-  selectedVersion: ComputedRef<any | null>
-  editor: any
-  syncStrategyVersion: () => void
-}
+import type { UseBacktestEditorSeedsOptions } from './editorTypes'
 
 export const useBacktestEditorSeeds = ({
   route,

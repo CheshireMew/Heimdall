@@ -1,7 +1,7 @@
 // This file is generated from backend Pydantic schemas.
 // Do not edit manually.
 
-export interface FactorCatalogItem {
+export interface FactorCatalogItemResponse {
   factor_id: string
   name: string
   category: string
@@ -15,7 +15,7 @@ export interface FactorCatalogResponse {
   symbols: Array<string>
   timeframes: Array<string>
   categories: Array<string>
-  factors: Array<FactorCatalogItem>
+  factors: Array<FactorCatalogItemResponse>
   forward_horizons: Array<number>
   cleaning: { [key: string]: unknown }
 }
@@ -30,7 +30,7 @@ export interface FactorResearchRequest {
   factor_ids?: Array<string>
 }
 
-export interface FactorForwardMetric {
+export interface FactorForwardMetricResponse {
   horizon: number
   sample_size: number
   target_mean?: number | null
@@ -45,7 +45,7 @@ export interface FactorForwardMetric {
   hit_rate: number
 }
 
-export interface FactorResearchSummary {
+export interface FactorResearchSummaryResponse {
   symbol: string
   timeframe: string
   days: number
@@ -54,12 +54,12 @@ export interface FactorResearchSummary {
   factor_count: number
   dataset_id: number
   forward_horizons: Array<number>
-  sample_range: FactorSampleRange
+  sample_range: FactorSampleRangeResponse
   target_label: string
   blend_factor_count: number
 }
 
-export interface FactorScorecard {
+export interface FactorScorecardResponse {
   factor_id: string
   name: string
   category: string
@@ -79,38 +79,38 @@ export interface FactorScorecard {
   score: number
 }
 
-export interface FactorLagPoint {
+export interface FactorLagPointResponse {
   lag: number
   correlation: number
 }
 
-export interface FactorRollingPoint {
+export interface FactorRollingPointResponse {
   date: string
   value: number
 }
 
-export interface FactorQuantileBucket {
+export interface FactorQuantileBucketResponse {
   bucket: number
   label: string
   avg_future_return: number
   count: number
 }
 
-export interface FactorNormalizedPoint {
+export interface FactorNormalizedPointResponse {
   date: string
   price_z: number
   factor_z: number
   future_return: number
 }
 
-export interface FactorDetail {
+export interface FactorDetailResponse {
   factor_id: string
   name: string
   category: string
   unit?: string | null
   feature_mode: string
   description?: string | null
-  sample_range: FactorSampleRange
+  sample_range: FactorSampleRangeResponse
   sample_size: number
   latest_raw_value: number
   latest_feature_value: number
@@ -128,14 +128,14 @@ export interface FactorDetail {
   ic_std: number
   ic_ir: number
   ic_t_stat: number
-  forward_metrics: Array<FactorForwardMetric>
-  lag_profile: Array<FactorLagPoint>
-  rolling_correlation: Array<FactorRollingPoint>
-  quantiles: Array<FactorQuantileBucket>
-  normalized_series: Array<FactorNormalizedPoint>
+  forward_metrics: Array<FactorForwardMetricResponse>
+  lag_profile: Array<FactorLagPointResponse>
+  rolling_correlation: Array<FactorRollingPointResponse>
+  quantiles: Array<FactorQuantileBucketResponse>
+  normalized_series: Array<FactorNormalizedPointResponse>
 }
 
-export interface FactorBlendComponent {
+export interface FactorBlendComponentResponse {
   factor_id: string
   name: string
   category: string
@@ -146,19 +146,19 @@ export interface FactorBlendComponent {
   weight: number
 }
 
-export interface FactorDroppedComponent {
+export interface FactorDroppedComponentResponse {
   factor_id: string
   name: string
   reason: string
 }
 
-export interface FactorBlend {
-  selected_factors: Array<FactorBlendComponent>
-  dropped_factors: Array<FactorDroppedComponent>
-  weights: Array<FactorBlendComponent>
-  forward_metrics: Array<FactorForwardMetric>
-  quantiles: Array<FactorQuantileBucket>
-  normalized_series: Array<FactorNormalizedPoint>
+export interface FactorBlendResponse {
+  selected_factors: Array<FactorBlendComponentResponse>
+  dropped_factors: Array<FactorDroppedComponentResponse>
+  weights: Array<FactorBlendComponentResponse>
+  forward_metrics: Array<FactorForwardMetricResponse>
+  quantiles: Array<FactorQuantileBucketResponse>
+  normalized_series: Array<FactorNormalizedPointResponse>
   entry_threshold: number
   exit_threshold: number
   score_std: number
@@ -168,23 +168,23 @@ export interface FactorBlend {
 export interface FactorResearchResponse {
   run_id: number
   dataset_id: number
-  summary: FactorResearchSummary
-  ranking: Array<FactorScorecard>
-  details: Array<FactorDetail>
-  blend: FactorBlend
+  summary: FactorResearchSummaryResponse
+  ranking: Array<FactorScorecardResponse>
+  details: Array<FactorDetailResponse>
+  blend: FactorBlendResponse
 }
 
-export interface FactorResearchRun {
+export interface FactorResearchRunDetailResponse {
   id: number
   dataset_id: number
   status: string
   request: FactorResearchRequest
-  summary: FactorResearchSummary
-  ranking: Array<FactorScorecard>
-  blend: FactorBlend
+  summary: FactorResearchSummaryResponse
+  ranking: Array<FactorScorecardResponse>
+  blend: FactorBlendResponse
   error?: string | null
   created_at: string | null
-  details?: Array<FactorDetail>
+  details: Array<FactorDetailResponse>
 }
 
 export interface FactorExecutionRequest {
@@ -205,8 +205,7 @@ export interface FactorExecutionResponse {
   message: string
 }
 
-export interface FactorSampleRange {
+export interface FactorSampleRangeResponse {
   start: string
   end: string
 }
-

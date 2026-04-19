@@ -1,4 +1,4 @@
-import type { CandlestickData } from './market'
+import type { CandlestickData } from './market-frontend'
 
 export interface DCASimulationConfig {
   symbol?: string

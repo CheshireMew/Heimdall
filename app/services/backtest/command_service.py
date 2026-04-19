@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from app.services.backtest.contracts import (
+from app.contracts.backtest import (
     BacktestStartCommand,
     CreateIndicatorDefinitionCommand,
     CreateStrategyTemplateCommand,

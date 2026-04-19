@@ -2,12 +2,13 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, type WatchS
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import type { BacktestRunDefaults, StrategyEditorContract } from '@/types'
+import type { BacktestRun, BacktestRunDefaults, StrategyDefinition, StrategyEditorContract, StrategyVersion } from '@/types'
 import { bindPageSnapshot, createPageSnapshot, isRecord, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
 import { backtestApi } from './api'
 import { asNumber } from './format'
 import { supportsPaperTrading, supportsVersionEditing } from './templateRuntime'
 import { useBacktestRuns } from './useBacktestRuns'
+import { defineReactiveView, type BacktestControlPanelView, type BacktestHistoryPanelView } from './viewTypes'
 
 interface BacktestPageSnapshot {
   config: {
@@ -21,13 +22,13 @@ interface BacktestPageSnapshot {
     portfolio: {
       max_open_trades: number
       position_size_pct: number
-      stake_mode: string
+      stake_mode: 'fixed' | 'unlimited'
     }
     research: {
       slippage_bps: number
       funding_rate_daily: number
       in_sample_ratio: number
-      optimize_metric: string
+      optimize_metric: 'sharpe' | 'profit_pct' | 'calmar' | 'profit_factor'
       optimize_trials: number
       rolling_windows: number
     }
@@ -67,13 +68,13 @@ const createEmptySnapshot = (): BacktestPageSnapshot => ({
 
 const createSnapshotDefaults = (runDefaults: BacktestRunDefaults): BacktestPageSnapshot => ({
   config: {
-    strategy_key: runDefaults.strategy_key,
+    strategy_key: runDefaults.strategy_key ?? '',
     strategy_version: 1,
-    timeframe: runDefaults.timeframe,
-    start_date: runDefaults.start_date,
-    end_date: runDefaults.end_date,
-    initial_cash: runDefaults.initial_cash,
-    fee_rate: runDefaults.fee_rate,
+    timeframe: runDefaults.timeframe ?? '1h',
+    start_date: runDefaults.start_date ?? todayIso(),
+    end_date: runDefaults.end_date ?? todayIso(),
+    initial_cash: runDefaults.initial_cash ?? 10000,
+    fee_rate: runDefaults.fee_rate ?? 0,
     portfolio: {
       max_open_trades: runDefaults.portfolio?.max_open_trades ?? 1,
       position_size_pct: runDefaults.portfolio?.position_size_pct ?? 0,
@@ -83,7 +84,7 @@ const createSnapshotDefaults = (runDefaults: BacktestRunDefaults): BacktestPageS
       slippage_bps: runDefaults.research?.slippage_bps ?? 0,
       funding_rate_daily: runDefaults.research?.funding_rate_daily ?? 0,
       in_sample_ratio: runDefaults.research?.in_sample_ratio ?? 100,
-      optimize_metric: runDefaults.research?.optimize_metric ?? 'sharpe',
+      optimize_metric: readOptimizeMetric(runDefaults.research?.optimize_metric, 'sharpe'),
       optimize_trials: runDefaults.research?.optimize_trials ?? 0,
       rolling_windows: runDefaults.research?.rolling_windows ?? 0,
     },
@@ -111,13 +112,13 @@ const normalizeSnapshot = (value: unknown, defaults: BacktestPageSnapshot): Back
       portfolio: {
         max_open_trades: readNumber(portfolio.max_open_trades, defaults.config.portfolio.max_open_trades),
         position_size_pct: readNumber(portfolio.position_size_pct, defaults.config.portfolio.position_size_pct),
-        stake_mode: readString(portfolio.stake_mode, defaults.config.portfolio.stake_mode),
+        stake_mode: readStakeMode(portfolio.stake_mode, defaults.config.portfolio.stake_mode),
       },
       research: {
         slippage_bps: readNumber(research.slippage_bps, defaults.config.research.slippage_bps),
         funding_rate_daily: readNumber(research.funding_rate_daily, defaults.config.research.funding_rate_daily),
         in_sample_ratio: readNumber(research.in_sample_ratio, defaults.config.research.in_sample_ratio),
-        optimize_metric: readString(research.optimize_metric, defaults.config.research.optimize_metric),
+        optimize_metric: readOptimizeMetric(research.optimize_metric, defaults.config.research.optimize_metric),
         optimize_trials: readNumber(research.optimize_trials, defaults.config.research.optimize_trials),
         rolling_windows: readNumber(research.rolling_windows, defaults.config.research.rolling_windows),
       },
@@ -146,6 +147,14 @@ const applySnapshot = (
   historyMode.value = snapshot.historyMode
 }
 
+const readStakeMode = (value: unknown, fallback: 'fixed' | 'unlimited') => (
+  value === 'unlimited' ? 'unlimited' : fallback
+)
+
+const readOptimizeMetric = (value: unknown, fallback: 'sharpe' | 'profit_pct' | 'calmar' | 'profit_factor') => (
+  value === 'sharpe' || value === 'profit_pct' || value === 'calmar' || value === 'profit_factor' ? value : fallback
+)
+
 export const useBacktestPage = () => {
   const { t } = useI18n()
   const router = useRouter()
@@ -154,17 +163,17 @@ export const useBacktestPage = () => {
 
   const ready = ref(false)
   const editorContract = ref<StrategyEditorContract | null>(null)
-  const strategies = ref<any[]>([])
+  const strategies = ref<StrategyDefinition[]>([])
   const config = reactive(createEmptySnapshot().config)
 
-  const selectedStrategy = computed(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
-  const selectedStrategyVersions = computed(() => {
+  const selectedStrategy = computed<StrategyDefinition | null>(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
+  const selectedStrategyVersions = computed<StrategyVersion[]>(() => {
     const versions = selectedStrategy.value?.versions
     return Array.isArray(versions) ? versions.filter(Boolean) : []
   })
-  const selectedVersion = computed(() => selectedStrategyVersions.value.find((item: any) => item.version === config.strategy_version) || null)
-  const canCopyCurrentStrategy = computed(() => Boolean(selectedVersion.value) && supportsVersionEditing(selectedStrategy.value))
-  const canStartPaperRun = computed(() => supportsPaperTrading(selectedStrategy.value))
+  const selectedVersion = computed<StrategyVersion | null>(() => selectedStrategyVersions.value.find((item) => item.version === config.strategy_version) || null)
+  const canCopyCurrentStrategy = computed(() => Boolean(selectedVersion.value) && Boolean(supportsVersionEditing(selectedStrategy.value)))
+  const canStartPaperRun = computed(() => Boolean(supportsPaperTrading(selectedStrategy.value)))
   const strategyCapabilityHint = computed(() => {
     if (!selectedStrategy.value) return ''
     if (!supportsVersionEditing(selectedStrategy.value) && !supportsPaperTrading(selectedStrategy.value)) {
@@ -179,6 +188,7 @@ export const useBacktestPage = () => {
   const runs = useBacktestRuns({
     t,
     config,
+    executionConfig: config,
     selectedStrategyVersions,
   })
 
@@ -212,8 +222,8 @@ export const useBacktestPage = () => {
   const syncStrategyVersion = () => {
     const versions = selectedStrategyVersions.value
     if (!versions.length) return
-    if (!versions.find((item: any) => item.version === config.strategy_version)) {
-      const fallback = versions.find((item: any) => item.is_default) || versions[0]
+    if (!versions.find((item) => item.version === config.strategy_version)) {
+      const fallback = versions.find((item) => item.is_default) || versions[0]
       config.strategy_version = fallback.version
     }
     syncRunTimeframe()
@@ -244,13 +254,13 @@ export const useBacktestPage = () => {
           portfolio: {
             max_open_trades: readNumber(config.portfolio.max_open_trades, defaults.config.portfolio.max_open_trades),
             position_size_pct: readNumber(config.portfolio.position_size_pct, defaults.config.portfolio.position_size_pct),
-            stake_mode: readString(config.portfolio.stake_mode, defaults.config.portfolio.stake_mode),
+            stake_mode: readStakeMode(config.portfolio.stake_mode, defaults.config.portfolio.stake_mode),
           },
           research: {
             slippage_bps: readNumber(config.research.slippage_bps, defaults.config.research.slippage_bps),
             funding_rate_daily: readNumber(config.research.funding_rate_daily, defaults.config.research.funding_rate_daily),
             in_sample_ratio: readNumber(config.research.in_sample_ratio, defaults.config.research.in_sample_ratio),
-            optimize_metric: readString(config.research.optimize_metric, defaults.config.research.optimize_metric),
+            optimize_metric: readOptimizeMetric(config.research.optimize_metric, defaults.config.research.optimize_metric),
             optimize_trials: readNumber(config.research.optimize_trials, defaults.config.research.optimize_trials),
             rolling_windows: readNumber(config.research.rolling_windows, defaults.config.research.rolling_windows),
           },
@@ -302,7 +312,7 @@ export const useBacktestPage = () => {
     })
   }
 
-  const openRunDetail = (run: any, mode: 'backtest' | 'paper' = runs.historyMode.value) => {
+  const openRunDetail = (run: BacktestRun, mode: 'backtest' | 'paper' = runs.historyMode.value) => {
     if (!run?.id) return
     router.push(mode === 'paper' ? `/backtest/paper/${run.id}` : `/backtest/runs/${run.id}`)
   }
@@ -365,7 +375,7 @@ export const useBacktestPage = () => {
     }
   })
 
-  const controlPanel = reactive({
+  const controlPanel = defineReactiveView<BacktestControlPanelView>({
     config,
     today: todayIso(),
     ready,
@@ -389,7 +399,7 @@ export const useBacktestPage = () => {
     startPaperRun,
   })
 
-  const historyPanel = reactive({
+  const historyPanel = defineReactiveView<BacktestHistoryPanelView>({
     historyMode: runs.historyMode,
     enableHistoryCompare: false,
     visibleHistory: runs.visibleHistory,

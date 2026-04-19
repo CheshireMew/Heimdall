@@ -1,7 +1,10 @@
 import type { ComputedRef, Ref } from 'vue'
 
+import type { BacktestDetailResponse, BacktestRun } from '@/types'
+
 import { backtestApi } from './api'
 import type { BacktestRunMode } from './useBacktestRuns'
+import type { BacktestVersionCompareOption } from './viewTypes'
 
 
 interface BacktestRunTarget {
@@ -11,15 +14,15 @@ interface BacktestRunTarget {
 
 interface UseBacktestRunHistoryOptions {
   t: (key: string) => string
-  history: Ref<any[]>
-  paperHistory: Ref<any[]>
+  history: Ref<BacktestRun[]>
+  paperHistory: Ref<BacktestRun[]>
   historyMode: Ref<'backtest' | 'paper'>
-  selectedRun: Ref<any | null>
+  selectedRun: Ref<BacktestDetailResponse | null>
   selectedRunMode: Ref<'backtest' | 'paper' | null>
   compareRunIds: Ref<number[]>
   versionCompareSelections: Ref<number[]>
-  versionCompareOptions: ComputedRef<any[]>
-  loadChart: (run: any) => Promise<void>
+  versionCompareOptions: ComputedRef<BacktestVersionCompareOption[]>
+  loadChart: (run: BacktestDetailResponse) => Promise<void>
   clearChart: () => void
 }
 
@@ -105,8 +108,9 @@ export const useBacktestRunHistory = ({
       if (selectedRunMode.value === 'paper' && selectedRun.value?.id === runId) {
         await loadPaperResult(runId)
       }
-    } catch (error: any) {
-      alert(`${t('backtest.paperStopFailed')}: ${error.message}`)
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      alert(`${t('backtest.paperStopFailed')}: ${detail}`)
     }
   }
 
@@ -138,11 +142,12 @@ export const useBacktestRunHistory = ({
       await backtestApi.deleteRun(runId)
       clearDeletedSelection(runId, 'backtest')
       await fetchHistory()
-    } catch (error: any) {
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
       alert(
         mode === 'paper'
-          ? `${t('backtest.deletePaperRunFailed')}: ${error.message}`
-          : `${t('backtest.deleteRunFailed')}: ${error.message}`
+          ? `${t('backtest.deletePaperRunFailed')}: ${detail}`
+          : `${t('backtest.deleteRunFailed')}: ${detail}`
       )
     }
   }

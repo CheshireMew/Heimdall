@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "sync:contracts": "python ../scripts/generate_frontend_contracts.py",
-    "build": "npm run sync:contracts && vite build",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run sync:contracts && npm run typecheck && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
+    "typescript": "^5.9.3",
     "vite": "^7.2.4"
   }
 }

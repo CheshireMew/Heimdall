@@ -1,6 +1,7 @@
 import type {
   PortfolioBalanceAssetInput,
   PortfolioBalancePlan,
+  PortfolioBalanceAssetPlan,
   PortfolioBalanceStrategyConfig,
   PortfolioBalanceTrackingConfig,
   PortfolioSuggestedAction,
@@ -90,6 +91,7 @@ export const computePortfolioBalancePlan = (
     const driftWeight = normalizedTargetWeight - currentWeight
     const rebalanceAmount = Math.abs(driftValue) >= strategy.minTradeAmount ? driftValue : 0
     const rebalanceUnits = asset.currentPrice > 0 ? rebalanceAmount / asset.currentPrice : 0
+    const primaryAction: PortfolioBalanceAssetPlan['primaryAction'] = rebalanceAmount > 0 ? 'buy' : rebalanceAmount < 0 ? 'sell' : 'hold'
     const bandLowerWeight = clamp(normalizedTargetWeight - rebalanceBand, 0, 1)
     const bandUpperWeight = clamp(normalizedTargetWeight + rebalanceBand, 0, 1)
 
@@ -108,7 +110,7 @@ export const computePortfolioBalancePlan = (
       driftWeight,
       rebalanceAmount: round(rebalanceAmount, 2),
       rebalanceUnits: round(rebalanceUnits, 6),
-      primaryAction: rebalanceAmount > 0 ? 'buy' : rebalanceAmount < 0 ? 'sell' : 'hold',
+      primaryAction,
       bandLowerWeight,
       bandUpperWeight,
       bandLowerValue: round(totalValue * bandLowerWeight, 2),

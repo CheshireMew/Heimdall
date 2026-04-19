@@ -1,7 +1,20 @@
 import { computed, reactive, ref, type ComputedRef, type Ref } from 'vue'
 
 import { isRecord, readBoolean, readString } from '@/composables/pageSnapshot'
-import type { StrategyEditorContract, StrategyTemplateConfig } from '@/types'
+import type {
+  EditableStrategyTemplateConfig,
+  StrategyDefinition,
+  StrategyEditorContract,
+  StrategyIndicatorConfig,
+  StrategyIndicatorRegistryItem,
+  StrategyOperator,
+  StrategyPartialExit,
+  StrategyRoiTarget,
+  StrategyStateBranch,
+  StrategyTemplate,
+  StrategyTemplateConfig,
+  StrategyVersion,
+} from '@/types'
 
 import {
   buildId,
@@ -11,20 +24,15 @@ import {
   createBlankIndicatorDraft,
   createBlankTemplateDraft,
   createBlankVersionDraft,
+  normalizeEditableStrategyConfig,
   pruneTreeByIndicator,
 } from './editorContract'
+import type { IndicatorCard, OptimizableTarget, SourceOption, UseBacktestEditorOptions } from './editorTypes'
 import { supportsVersionEditing } from './templateRuntime'
 
-
-interface UseBacktestEditorOptions {
-  t: (key: string) => string
-  editorContract: Ref<StrategyEditorContract | null>
-  templates: Ref<any[]>
-  indicators: Ref<any[]>
-  indicatorEngines: Ref<any[]>
-  selectedStrategy: ComputedRef<any | null>
-  selectedVersion: ComputedRef<any | null>
-}
+type StrategyBranchKey = 'trend' | 'range'
+type StrategyBranchSignalKey = 'long_entry' | 'long_exit' | 'short_entry' | 'short_exit'
+type DraftOverrides = { description?: string }
 
 
 export const useBacktestEditor = ({
@@ -36,10 +44,10 @@ export const useBacktestEditor = ({
   selectedStrategy,
   selectedVersion,
 }: UseBacktestEditorOptions) => {
-  const normalizedTemplates = computed(() => (Array.isArray(templates.value) ? templates.value.filter((item) => item?.template) : []))
-  const editableTemplates = computed(() => normalizedTemplates.value.filter((item: any) => supportsVersionEditing(item)))
-  const normalizedIndicators = computed(() => (Array.isArray(indicators.value) ? indicators.value.filter((item) => item?.key) : []))
-  const normalizedIndicatorEngines = computed(() => (Array.isArray(indicatorEngines.value) ? indicatorEngines.value.filter((item) => item?.key) : []))
+  const normalizedTemplates = computed<StrategyTemplate[]>(() => templates.value.filter((item) => Boolean(item?.template)))
+  const editableTemplates = computed<StrategyTemplate[]>(() => normalizedTemplates.value.filter((item) => supportsVersionEditing(item)))
+  const normalizedIndicators = computed<StrategyIndicatorRegistryItem[]>(() => indicators.value.filter((item) => Boolean(item?.key)))
+  const normalizedIndicatorEngines = computed(() => indicatorEngines.value.filter((item) => Boolean(item?.key)))
   const showVersionEditor = ref(false)
   const showIndicatorCreator = ref(false)
   const showTemplateCreator = ref(false)
@@ -54,35 +62,36 @@ export const useBacktestEditor = ({
     category: 'custom',
     description: '',
     notes: '',
-    config: null as StrategyTemplateConfig | null,
+    config: null as EditableStrategyTemplateConfig | null,
     parameterSpaceValues: {} as Record<string, string>,
     make_default: true,
   })
   const indicatorDraft = reactive(createBlankIndicatorDraft())
   const templateDraft = reactive(createBlankTemplateDraft())
 
-  const editorTemplate = computed(() => normalizedTemplates.value.find((item) => item.template === versionDraft.template) || null)
-  const availableIndicators = computed(() => (
+  const editorTemplate = computed<StrategyTemplate | null>(() => normalizedTemplates.value.find((item) => item.template === versionDraft.template) || null)
+  const availableIndicators = computed<StrategyIndicatorRegistryItem[]>(() => (
     useGlobalIndicatorCatalog.value
       ? normalizedIndicators.value
-      : ((Array.isArray(editorTemplate.value?.indicator_registry) ? editorTemplate.value?.indicator_registry.filter((item: any) => item?.key) : normalizedIndicators.value))
-  ).filter((item: any) => item?.key))
-  const operatorOptions = computed(() => editorTemplate.value?.operators || editorContract.value?.operators || [])
+      : (editorTemplate.value?.indicator_registry || normalizedIndicators.value).filter((item) => Boolean(item?.key))
+  ).filter((item) => Boolean(item?.key)))
+  const operatorOptions = computed<StrategyOperator[]>(() => editorTemplate.value?.operators || editorContract.value?.operators || [])
   const groupLogicOptions = computed(() => editorTemplate.value?.group_logics || editorContract.value?.group_logics || [])
-  const indicatorCards = computed(() => Object.entries(versionDraft.config?.indicators || {}).map(([id, indicator]: any) => {
-    const spec = availableIndicators.value.find((item: any) => item?.key === indicator.type) || normalizedIndicators.value.find((item: any) => item?.key === indicator.type)
-    const timeframeLabel = editorContract.value?.timeframe_options?.find((item: any) => item?.key === (indicator.timeframe || 'base'))?.label || indicator.timeframe || 'base'
+  const indicatorCards = computed<IndicatorCard[]>(() => Object.entries(versionDraft.config?.indicators || {}).map(([id, indicator]) => {
+    const config = indicator as StrategyIndicatorConfig
+    const spec = availableIndicators.value.find((item) => item.key === config.type) || normalizedIndicators.value.find((item) => item.key === config.type)
+    const timeframeLabel = editorContract.value?.timeframe_options?.find((item) => item.key === (config.timeframe || 'base'))?.label || config.timeframe || 'base'
     return {
       id,
-      label: indicator.label || spec?.name || id,
-      typeLabel: spec?.name || indicator.type,
+      label: config.label || spec?.name || id,
+      typeLabel: spec?.name || config.type,
       timeframeLabel,
-      params: Array.isArray(spec?.params) ? spec.params.filter((item: any) => item?.key) : [],
+      params: Array.isArray(spec?.params) ? spec.params.filter((item) => Boolean(item?.key)) : [],
     }
   }))
 
-  const sourceOptions = computed(() => {
-    const base = [
+  const sourceOptions = computed<SourceOption[]>(() => {
+    const base: SourceOption[] = [
       { value: 'price:open:0', label: `Price · Open · ${t('backtest.currentBar')}` },
       { value: 'price:high:0', label: `Price · High · ${t('backtest.currentBar')}` },
       { value: 'price:low:0', label: `Price · Low · ${t('backtest.currentBar')}` },
@@ -94,26 +103,27 @@ export const useBacktestEditor = ({
       { value: 'price:close:1', label: `Price · Close · ${t('backtest.previousBar')}` },
       { value: 'price:volume:1', label: `Price · Volume · ${t('backtest.previousBar')}` },
     ]
-    const extra = []
+    const extra: SourceOption[] = []
     for (const [indicatorId, indicator] of Object.entries(versionDraft.config?.indicators || {})) {
-      const spec = availableIndicators.value.find((item: any) => item?.key === (indicator as any).type) || normalizedIndicators.value.find((item: any) => item?.key === (indicator as any).type)
+      const config = indicator as StrategyIndicatorConfig
+      const spec = availableIndicators.value.find((item) => item.key === config.type) || normalizedIndicators.value.find((item) => item.key === config.type)
       for (const output of spec?.outputs || []) {
-        const timeframeLabel = editorContract.value?.timeframe_options?.find((item: any) => item?.key === ((indicator as any).timeframe || 'base'))?.label || ((indicator as any).timeframe || 'base')
+        const timeframeLabel = editorContract.value?.timeframe_options?.find((item) => item.key === (config.timeframe || 'base'))?.label || (config.timeframe || 'base')
         extra.push({
           value: `indicator:${indicatorId}:${output.key}:0`,
-          label: `${(indicator as any).label || indicatorId} · ${output.label} · ${timeframeLabel} · ${t('backtest.currentBar')}`,
+          label: `${config.label || indicatorId} · ${output.label} · ${timeframeLabel} · ${t('backtest.currentBar')}`,
         })
         extra.push({
           value: `indicator:${indicatorId}:${output.key}:1`,
-          label: `${(indicator as any).label || indicatorId} · ${output.label} · ${timeframeLabel} · ${t('backtest.previousBar')}`,
+          label: `${config.label || indicatorId} · ${output.label} · ${timeframeLabel} · ${t('backtest.previousBar')}`,
         })
       }
     }
     return [...base, ...extra]
   })
   const indicatorSourceOptions = computed(() => sourceOptions.value.filter((item) => item.value.startsWith('indicator:')))
-  const branchKeys = ['trend', 'range'] as const
-  const branchSignalKeys = ['long_entry', 'long_exit', 'short_entry', 'short_exit'] as const
+  const branchKeys: StrategyBranchKey[] = ['trend', 'range']
+  const branchSignalKeys: StrategyBranchSignalKey[] = ['long_entry', 'long_exit', 'short_entry', 'short_exit']
 
   const resolveDraftSeed = () => {
     const strategy = selectedStrategy.value
@@ -131,27 +141,28 @@ export const useBacktestEditor = ({
     }
   }
 
-  const optimizableTargets = computed(() => {
-    const targets: Array<{ path: string; label: string; type: string; fallback: number }> = []
+  const optimizableTargets = computed<OptimizableTarget[]>(() => {
+    const targets: OptimizableTarget[] = []
     for (const [indicatorId, indicator] of Object.entries(versionDraft.config?.indicators || {})) {
-      const spec = availableIndicators.value.find((item: any) => item?.key === (indicator as any).type) || normalizedIndicators.value.find((item: any) => item?.key === (indicator as any).type)
+      const config = indicator as StrategyIndicatorConfig
+      const spec = availableIndicators.value.find((item) => item.key === config.type) || normalizedIndicators.value.find((item) => item.key === config.type)
       for (const param of spec?.params || []) {
         if (param.type === 'bool') continue
-        targets.push({ path: `indicators.${indicatorId}.params.${param.key}`, label: `${(indicator as any).label || indicatorId} · ${param.label}`, type: param.type, fallback: param.default })
+        targets.push({ path: `indicators.${indicatorId}.params.${param.key}`, label: `${config.label || indicatorId} · ${param.label}`, type: param.type, fallback: Number(param.default) })
       }
     }
     for (const branchKey of branchKeys) {
-      const branch = (versionDraft.config as any)?.[branchKey]
+      const branch = versionDraft.config?.[branchKey] as StrategyStateBranch | undefined
       if (!branch) continue
       collectRuleTargets(branch.regime, `${branchKey}.regime`, targets, t('backtest.constantValue'), t('backtest.multiplier'))
       for (const signalKey of branchSignalKeys) {
         collectRuleTargets(branch[signalKey], `${branchKey}.${signalKey}`, targets, t('backtest.constantValue'), t('backtest.multiplier'))
       }
     }
-    for (const target of versionDraft.config?.risk?.roi_targets || []) {
+    for (const target of (versionDraft.config?.risk?.roi_targets || []) as StrategyRoiTarget[]) {
       targets.push({ path: `risk.roi_targets.${target.id}.profit`, label: `ROI · ${target.minutes}m`, type: 'float', fallback: target.profit || 0 })
     }
-    for (const item of versionDraft.config?.risk?.partial_exits || []) {
+    for (const item of (versionDraft.config?.risk?.partial_exits || []) as StrategyPartialExit[]) {
       targets.push({ path: `risk.partial_exits.${item.id}.profit`, label: `Partial Exit · ${item.id}`, type: 'float', fallback: item.profit || 0 })
     }
     targets.push({ path: 'risk.stoploss', label: t('backtest.stoplossLabel'), type: 'float', fallback: versionDraft.config?.risk?.stoploss || -0.1 })
@@ -173,14 +184,22 @@ export const useBacktestEditor = ({
     indicatorDraft.params = clone(engine?.params || [])
   }
 
-  const applyDraftFromTemplate = (templateKey: string, configValues = {}, parameterSpaceValues = {}, overrides = {}) => {
+  const applyDraftFromTemplate = (
+    templateKey: string,
+    configValues: Partial<StrategyTemplateConfig> = {},
+    parameterSpaceValues: Record<string, unknown[]> = {},
+    overrides: DraftOverrides = {},
+  ) => {
     const templateSpec = editableTemplates.value.find((item) => item.template === templateKey)
     if (!templateSpec) return
     useGlobalIndicatorCatalog.value = false
     versionDraft.template = templateSpec.template
     versionDraft.category = templateSpec.category
-    versionDraft.description = (overrides as any).description ?? templateSpec.description ?? ''
-    versionDraft.config = clone(Object.keys(configValues).length ? configValues : templateSpec.default_config)
+    versionDraft.description = overrides.description ?? templateSpec.description ?? ''
+    versionDraft.config = normalizeEditableStrategyConfig(Object.keys(configValues).length ? {
+      ...templateSpec.default_config,
+      ...configValues,
+    } : templateSpec.default_config)
 
     const nextParameterSpaceValues: Record<string, string> = {}
     const source = Object.keys(parameterSpaceValues).length ? parameterSpaceValues : templateSpec.default_parameter_space
@@ -188,7 +207,7 @@ export const useBacktestEditor = ({
       nextParameterSpaceValues[key] = Array.isArray(values) ? values.join(', ') : ''
     }
     versionDraft.parameterSpaceValues = nextParameterSpaceValues
-    newIndicatorType.value = templateSpec.indicator_registry?.find((item: any) => item?.key)?.key || normalizedIndicators.value[0]?.key || 'ema'
+    newIndicatorType.value = templateSpec.indicator_registry?.find((item) => item?.key)?.key || normalizedIndicators.value[0]?.key || 'ema'
   }
 
   const syncVersionDraftTemplate = () => {
@@ -215,7 +234,7 @@ export const useBacktestEditor = ({
     if (!versionDraft.config) return
     delete versionDraft.config.indicators[indicatorId]
     for (const branchKey of branchKeys) {
-      const branch = (versionDraft.config as any)?.[branchKey]
+      const branch = versionDraft.config?.[branchKey] as StrategyStateBranch | undefined
       if (!branch) continue
       pruneTreeByIndicator(branch.regime, indicatorId)
       for (const signalKey of branchSignalKeys) {
@@ -344,6 +363,8 @@ export const useBacktestEditor = ({
         : {}
       if (!versionDraft.config && editorContract.value) {
         versionDraft.config = createBlankConfig(editorContract.value)
+      } else if (versionDraft.config) {
+        versionDraft.config = normalizeEditableStrategyConfig(versionDraft.config)
       }
     }
 

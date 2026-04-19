@@ -73,6 +73,44 @@
   "dashboard": {
     "loadingHistory": "Loading History..."
   },
+  "symbolSearch": {
+    "title": "Symbol Search",
+    "placeholder": "Search symbol or index",
+    "noMatches": "No matches",
+    "disabled": "Chart only",
+    "unavailable": "Unavailable",
+    "tabs": {
+      "all": "All",
+      "crypto": "Crypto",
+      "index": "Index",
+      "cash": "Cash"
+    }
+  },
+  "binanceMarket": {
+    "eyebrow": "BINANCE",
+    "title": "Binance Market Board",
+    "subtitle": "View spot leaders and perpetual structure on the same page.",
+    "refresh": "Refresh",
+    "loading": "Loading...",
+    "loadFailed": "Failed to load Binance market data.",
+    "summary": {
+      "spotGainer": "Top Spot Gainer",
+      "spotLoser": "Top Spot Loser",
+      "usdmFunding": "USDM Funding"
+    },
+    "tables": {
+      "spotGainers": "Spot Gainers",
+      "spotLosers": "Spot Losers",
+      "usdmPerpetual": "USDM Perpetuals"
+    },
+    "columns": {
+      "symbol": "Symbol",
+      "change24h": "24H",
+      "price": "Price",
+      "quoteVolume": "Quote Volume",
+      "funding": "Funding"
+    }
+  },
   "cryptoIndex": {
     "eyebrow": "Market Breadth",
     "title": "Crypto Market Cap Index",

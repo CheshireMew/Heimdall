@@ -73,6 +73,44 @@
   "dashboard": {
     "loadingHistory": "加载历史数据中..."
   },
+  "symbolSearch": {
+    "title": "搜索标的",
+    "placeholder": "搜索交易对或指数",
+    "noMatches": "没有匹配结果",
+    "disabled": "仅看图",
+    "unavailable": "不可用",
+    "tabs": {
+      "all": "全部",
+      "crypto": "加密货币",
+      "index": "指数",
+      "cash": "现金"
+    }
+  },
+  "binanceMarket": {
+    "eyebrow": "BINANCE",
+    "title": "Binance 市场看板",
+    "subtitle": "现货强弱和永续结构放在一页里看。",
+    "refresh": "刷新",
+    "loading": "加载中...",
+    "loadFailed": "加载币安市场数据失败。",
+    "summary": {
+      "spotGainer": "现货涨幅第一",
+      "spotLoser": "现货跌幅第一",
+      "usdmFunding": "U 本位资金费率"
+    },
+    "tables": {
+      "spotGainers": "现货涨幅榜",
+      "spotLosers": "现货跌幅榜",
+      "usdmPerpetual": "U 本位永续"
+    },
+    "columns": {
+      "symbol": "交易对",
+      "change24h": "24 小时",
+      "price": "价格",
+      "quoteVolume": "成交额",
+      "funding": "资金费率"
+    }
+  },
   "cryptoIndex": {
     "eyebrow": "Market Breadth",
     "title": "加密市值指数",

@@ -55,12 +55,6 @@ const routes = [
         meta: { title: '代币化美股' }
     },
     {
-        path: '/indicators/token-research',
-        name: 'BinanceTokenResearch',
-        component: () => import('@/views/indicators/BinanceTokenResearch.vue'),
-        meta: { title: 'Token 研究占位' }
-    },
-    {
         path: '/tools/compare',
         name: 'Compare',
         component: () => import('@/views/tools/Compare.vue'),

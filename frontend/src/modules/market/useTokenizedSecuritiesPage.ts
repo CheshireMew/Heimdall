@@ -2,6 +2,13 @@ import { computed, onMounted, ref, watch } from 'vue'
 
 import { useMoney } from '@/composables/useMoney'
 import { marketApi } from './api'
+import type {
+  BinanceRwaDynamicResponse,
+  BinanceRwaKlineItemResponse,
+  BinanceRwaMarketStatusResponse,
+  BinanceRwaMetaResponse,
+  BinanceRwaSymbolItemResponse,
+} from '@/types'
 
 const formatPercent = (value: number | string | null | undefined, digits = 2) => {
   if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) return '--'
@@ -14,23 +21,23 @@ export function useTokenizedSecuritiesPage() {
   const loading = ref(false)
   const detailLoading = ref(false)
   const error = ref('')
-  const rows = ref([])
+  const rows = ref<BinanceRwaSymbolItemResponse[]>([])
   const selectedKey = ref('')
-  const marketStatus = ref(null)
-  const meta = ref(null)
-  const assetStatus = ref(null)
-  const dynamic = ref(null)
-  const kline = ref([])
+  const marketStatus = ref<BinanceRwaMarketStatusResponse | null>(null)
+  const meta = ref<BinanceRwaMetaResponse | null>(null)
+  const assetStatus = ref<BinanceRwaMarketStatusResponse | null>(null)
+  const dynamic = ref<BinanceRwaDynamicResponse | null>(null)
+  const kline = ref<BinanceRwaKlineItemResponse[]>([])
 
   const selectedItem = computed(() => rows.value.find((item) => `${item.chain_id}:${item.contract_address}` === selectedKey.value) || null)
 
   const chartData = computed(() =>
     (kline.value || []).map((item) => ({
       time: Math.floor((item.open_time || 0) / 1000),
-      open: item.open,
-      high: item.high,
-      low: item.low,
-      close: item.close,
+      open: Number(item.open || 0),
+      high: Number(item.high || 0),
+      low: Number(item.low || 0),
+      close: Number(item.close || 0),
     })))
 
   const summaryCards = computed(() => [
@@ -41,13 +48,13 @@ export function useTokenizedSecuritiesPage() {
     },
     {
       label: 'Token Price',
-      value: formatPrice(dynamic.value?.token_info?.price),
-      hint: formatPercent(dynamic.value?.token_info?.priceChangePct24h),
+      value: formatPrice(readDynamicNumber('token_info', 'price')),
+      hint: formatPercent(readDynamicNumber('token_info', 'priceChangePct24h')),
     },
     {
       label: 'Stock Market Cap',
-      value: formatCompact(dynamic.value?.stock_info?.marketCap),
-      hint: formatPrice(dynamic.value?.stock_info?.price),
+      value: formatCompact(readDynamicNumber('stock_info', 'marketCap')),
+      hint: formatPrice(readDynamicNumber('stock_info', 'price')),
     },
     {
       label: 'Session',
@@ -58,11 +65,14 @@ export function useTokenizedSecuritiesPage() {
 
   const fetchDetail = async () => {
     if (!selectedItem.value) return
+    const chainId = selectedItem.value.chain_id || ''
+    const contractAddress = selectedItem.value.contract_address || ''
+    if (!chainId || !contractAddress) return
     detailLoading.value = true
     try {
       const params = {
-        chain_id: selectedItem.value.chain_id,
-        contract_address: selectedItem.value.contract_address,
+        chain_id: chainId,
+        contract_address: contractAddress,
       }
       const [metaRes, assetStatusRes, dynamicRes, klineRes] = await Promise.all([
         marketApi.getBinanceRwaMeta(params),
@@ -80,6 +90,12 @@ export function useTokenizedSecuritiesPage() {
     } finally {
       detailLoading.value = false
     }
+  }
+
+  const readDynamicNumber = (section: 'token_info' | 'stock_info', key: string) => {
+    const value = dynamic.value?.[section]?.[key]
+    const numeric = Number(value)
+    return Number.isFinite(numeric) ? numeric : null
   }
 
   const fetchData = async () => {

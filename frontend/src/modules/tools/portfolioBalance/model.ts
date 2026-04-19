@@ -209,8 +209,12 @@ export const normalizePortfolioBacktestSummary = (value: unknown): PortfolioBack
   }
 }
 
+type PortfolioBalancePortfolioOverrides = Omit<Partial<PortfolioBalancePortfolio>, 'assets'> & {
+  assets?: Partial<PortfolioBalanceAssetInput>[]
+}
+
 export const createPortfolioBalancePortfolio = (
-  overrides: Partial<PortfolioBalancePortfolio> = {},
+  overrides: PortfolioBalancePortfolioOverrides = {},
 ): PortfolioBalancePortfolio => {
   const timestamp = todayIso()
   const holdingsSource: PortfolioHoldingsSource | null =

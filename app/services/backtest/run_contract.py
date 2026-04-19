@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from app.services.backtest.models import PortfolioConfigRecord, ResearchConfigRecord, StrategyVersionRecord
+from app.contracts.backtest import PortfolioConfigRecord, ResearchConfigRecord, StrategyVersionRecord
 
 
 CURRENT_BACKTEST_RUN_SCHEMA_VERSION = 4
@@ -83,6 +83,38 @@ def build_backtest_metadata(
             "research": build_research_payload(research),
         }
     )
+
+
+def serialize_run_metadata(metadata: dict[str, Any] | None, *, execution_mode: str, engine: str) -> dict[str, Any]:
+    payload = dict(metadata or {})
+    payload["execution_mode"] = execution_mode
+    payload["engine"] = engine
+    return make_json_safe(payload)
+
+
+def build_completed_run_metadata(
+    metadata: dict[str, Any] | None,
+    *,
+    result_metadata: dict[str, Any] | None,
+    report: dict[str, Any],
+) -> dict[str, Any]:
+    payload = dict(metadata or {})
+    if result_metadata:
+        payload.update(result_metadata)
+    payload["schema_version"] = CURRENT_BACKTEST_RUN_SCHEMA_VERSION
+    payload["report"] = report
+    return make_json_safe(payload)
+
+
+def build_failed_run_metadata(
+    metadata: dict[str, Any] | None,
+    *,
+    error: str,
+) -> dict[str, Any]:
+    payload = dict(metadata or {})
+    payload["schema_version"] = CURRENT_BACKTEST_RUN_SCHEMA_VERSION
+    payload["error"] = error
+    return make_json_safe(payload)
 
 
 def build_paper_metadata(

@@ -6,13 +6,13 @@ from typing import TYPE_CHECKING, Any
 
 from app.infra.db.database import session_scope
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun
-from app.services.backtest.models import BacktestEquityPointRecord, PortfolioConfigRecord, StrategyVersionRecord
+from app.contracts.backtest import BacktestEquityPointRecord, PortfolioConfigRecord, StrategyVersionRecord
 from app.services.backtest.run_contract import FACTOR_BLEND_PAPER_ENGINE, PAPER_LIVE_EXECUTION_MODE, build_paper_metadata, ensure_paper_runtime_state, update_paper_metadata
 from app.services.backtest.run_repository import BacktestRunRepository
+from app.services.run_task_manager import RunTaskManager
 from app.services.factors.signal_execution_core import FactorSignalContext, FactorSignalExecutionCore
 from config import settings
 from utils.time_utils import utc_now_naive
-from utils.logger import logger
 
 if TYPE_CHECKING:
     from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
@@ -34,21 +34,19 @@ class FactorPaperRunManager:
         self.report_builder = report_builder
         self.execution_core = execution_core
         self.persistence_service = persistence_service
-        self._tasks: dict[int, asyncio.Task[Any]] = {}
+        self._task_manager = RunTaskManager(
+            list_active_run_ids=self._list_active_run_ids,
+            tick=self._tick,
+            mark_failed=lambda run_id, reason: self._mark_stopped(run_id, "failed", reason),
+            interval_seconds=lambda: float(settings.WS_UPDATE_INTERVAL),
+            error_label="因子模拟盘运行失败",
+        )
 
     async def restore_active_runs(self) -> None:
-        loop = asyncio.get_running_loop()
-        run_ids = await loop.run_in_executor(None, self._list_active_run_ids)
-        for run_id in run_ids:
-            self._ensure_task(run_id, initial_delay=float(settings.WS_UPDATE_INTERVAL))
+        await self._task_manager.restore_active_runs()
 
     async def shutdown(self) -> None:
-        tasks = list(self._tasks.values())
-        self._tasks.clear()
-        for task in tasks:
-            task.cancel()
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
+        await self._task_manager.shutdown()
 
     async def start_run(
         self,
@@ -80,33 +78,8 @@ class FactorPaperRunManager:
                 max_hold_bars=max_hold_bars,
             ),
         )
-        self._ensure_task(run_id)
+        self._task_manager.ensure_task(run_id)
         return {"success": True, "run_id": run_id, "message": "因子模拟盘已启动"}
-
-    def _ensure_task(self, run_id: int, *, initial_delay: float = 0.0) -> None:
-        task = self._tasks.get(run_id)
-        if task and not task.done():
-            return
-        self._tasks[run_id] = asyncio.create_task(self._run_loop(run_id, initial_delay=initial_delay))
-
-    async def _run_loop(self, run_id: int, *, initial_delay: float = 0.0) -> None:
-        try:
-            if initial_delay > 0:
-                await asyncio.sleep(initial_delay)
-            while True:
-                loop = asyncio.get_running_loop()
-                should_continue = await loop.run_in_executor(None, lambda: self._tick(run_id))
-                if not should_continue:
-                    self._tasks.pop(run_id, None)
-                    return
-                await asyncio.sleep(settings.WS_UPDATE_INTERVAL)
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            logger.error(f"因子模拟盘运行失败 run_id={run_id}: {exc}", exc_info=True)
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, lambda: self._mark_stopped(run_id, "failed", str(exc)))
-            self._tasks.pop(run_id, None)
 
     def _tick(self, run_id: int) -> bool:
         with session_scope() as session:

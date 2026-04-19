@@ -1,16 +1,68 @@
 #!/bin/bash
 
-echo "Stopping Heimdall services..."
+set -euo pipefail
 
-API_PORT=8000
-FRONTEND_PORT=4173
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$SCRIPT_DIR/.."
+PYTHON_EXE="${PYTHON_EXE:-python}"
 
-if command -v lsof >/dev/null 2>&1; then
-    lsof -Pi :"$API_PORT" -sTCP:LISTEN -t | xargs -r kill
-    lsof -Pi :"$FRONTEND_PORT" -sTCP:LISTEN -t | xargs -r kill
-else
-    pkill -f "uvicorn app.main:app --reload --port $API_PORT" 2>/dev/null
-    pkill -f "vite" 2>/dev/null
+if [ -x "$PROJECT_ROOT/venv/bin/python" ]; then
+    PYTHON_EXE="$PROJECT_ROOT/venv/bin/python"
 fi
 
-echo "Services stopped."
+resolve_runtime_path() {
+    local attribute="$1"
+    (
+        cd "$PROJECT_ROOT" &&
+        "$PYTHON_EXE" -c "from config import settings; print(settings.${attribute})"
+    )
+}
+
+read_pid_file() {
+    local path="$1"
+    if [ -f "$path" ]; then
+        tr -d '[:space:]' < "$path"
+    fi
+}
+
+stop_pid_file() {
+    local path="$1"
+    local pid
+    pid="$(read_pid_file "$path")"
+    rm -f "$path"
+    if [ -n "${pid:-}" ] && kill -0 "$pid" 2>/dev/null; then
+        kill "$pid" 2>/dev/null || true
+        wait "$pid" 2>/dev/null || true
+        return 0
+    fi
+    return 1
+}
+
+echo "Stopping Heimdall services..."
+
+TEMP_DIR="$(resolve_runtime_path TEMP_DIR)"
+BACKEND_PID_FILE="$TEMP_DIR/backend.pid"
+FRONTEND_PID_FILE="$TEMP_DIR/frontend.pid"
+
+FRONTEND_STOPPED=0
+BACKEND_STOPPED=0
+
+if stop_pid_file "$FRONTEND_PID_FILE"; then
+    FRONTEND_STOPPED=1
+fi
+
+if stop_pid_file "$BACKEND_PID_FILE"; then
+    BACKEND_STOPPED=1
+fi
+
+if [ "$FRONTEND_STOPPED" -eq 1 ]; then
+    echo "Frontend stopped."
+else
+    echo "Frontend was not running."
+fi
+
+if [ "$BACKEND_STOPPED" -eq 1 ]; then
+    echo "Backend stopped."
+else
+    echo "Backend was not running."
+fi

@@ -63,6 +63,7 @@ class AppSettings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
     FRONTEND_DEV_PORT: int = 4173
+    APP_RUNTIME_ROLE: str = "all"
 
     RATE_LIMIT_DEFAULT: str = "60/minute"
     RATE_LIMIT_HEAVY: str = "10/minute"
@@ -127,6 +128,10 @@ class AppSettings(BaseSettings):
     BINANCE_PUBLIC_CACHE_TTL: int = 120
     BINANCE_PUBLIC_MAX_RETRIES: int = 2
     BINANCE_PUBLIC_RETRY_DELAY: float = 1.0
+    BINANCE_SPOT_WS_URL: str = "wss://stream.binance.com:9443/ws/!ticker@arr"
+    BINANCE_FUTURES_USDM_TICKER_WS_URL: str = "wss://fstream.binance.com/ws/!ticker@arr"
+    BINANCE_FUTURES_USDM_MARK_WS_URL: str = "wss://fstream.binance.com/ws/!markPrice@arr"
+    BINANCE_MARKET_SNAPSHOT_RECONNECT_DELAY: float = 3.0
 
     CURRENCY_RATES_URL: str = "https://open.er-api.com/v6/latest/USD"
     CURRENCY_RATES_TIMEOUT: float = 5.0
@@ -149,6 +154,10 @@ class AppSettings(BaseSettings):
     BACKTEST_INITIAL_CASH: float = 100000.0
     BACKTEST_DEFAULT_FEE_RATE: float = 0.1
 
+    RUNTIME_ROOT_DIR: Path = Field(default_factory=_default_runtime_root)
+    LOG_DIR: Path = Field(default_factory=lambda: _default_runtime_root() / "logs")
+    TEMP_DIR: Path = Field(default_factory=lambda: _default_runtime_root() / "tmp")
+    BACKGROUND_RUNTIME_LOCK_PATH: Path = Field(default_factory=lambda: _default_runtime_root() / "runtime" / "background.lock")
     FREQTRADE_BACKTEST_TIMEOUT_SECONDS: int = 600
     FREQTRADE_WORKSPACE_DIR: Path = Field(default_factory=lambda: _default_runtime_root() / "freqtrade")
 
@@ -172,6 +181,14 @@ class AppSettings(BaseSettings):
         if isinstance(value, str):
             return [currency.strip().upper() for currency in value.split(",") if currency.strip()]
         return value
+
+    @field_validator("APP_RUNTIME_ROLE", mode="before")
+    @classmethod
+    def parse_app_runtime_role(cls, value: Any) -> str:
+        normalized = str(value or "all").strip().lower()
+        if normalized not in {"all", "api", "background"}:
+            raise ValueError("APP_RUNTIME_ROLE 只支持 all、api、background")
+        return normalized
 
 
 settings = AppSettings()

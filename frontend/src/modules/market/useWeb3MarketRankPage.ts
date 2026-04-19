@@ -1,6 +1,13 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 import { marketApi } from './api'
+import type {
+  BinanceWeb3AddressPnlItemResponse,
+  BinanceWeb3MemeRankItemResponse,
+  BinanceWeb3RankItemResponse,
+  BinanceWeb3SmartMoneyInflowItemResponse,
+  BinanceWeb3SocialHypeItemResponse,
+} from '@/types'
 
 const UNIFIED_OPTIONS = [
   { label: 'Trending', value: 10 },
@@ -36,11 +43,11 @@ export function useWeb3MarketRankPage() {
   const error = ref('')
   const chainId = ref('56')
   const rankType = ref(10)
-  const socialHype = ref([])
-  const unifiedRank = ref([])
-  const smartMoney = ref([])
-  const memeRank = ref([])
-  const addressPnl = ref([])
+  const socialHype = ref<BinanceWeb3SocialHypeItemResponse[]>([])
+  const unifiedRank = ref<BinanceWeb3RankItemResponse[]>([])
+  const smartMoney = ref<BinanceWeb3SmartMoneyInflowItemResponse[]>([])
+  const memeRank = ref<BinanceWeb3MemeRankItemResponse[]>([])
+  const addressPnl = ref<BinanceWeb3AddressPnlItemResponse[]>([])
 
   const summaryCards = computed(() => [
     {

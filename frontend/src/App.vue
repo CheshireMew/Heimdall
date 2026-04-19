@@ -34,18 +34,12 @@
         <router-link to="/indicators/binance-market" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
           <ChartBarSquareIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.binanceMarket') }}
         </router-link>
-        <!-- Web3 榜单、代币化美股、Token 研究先保留路由和接口，但暂时不展示在侧边栏。 -->
-        <template v-if="showBinanceExperimentalPages">
-          <router-link to="/indicators/web3-rank" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-            <CubeTransparentIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.web3Rank') }}
-          </router-link>
-          <router-link to="/indicators/tokenized-securities" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-            <BuildingLibraryIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.tokenizedSecurities') }}
-          </router-link>
-          <router-link to="/indicators/token-research" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-            <HeartIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.tokenResearch') }}
-          </router-link>
-        </template>
+        <router-link to="/indicators/web3-rank" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+          <CubeTransparentIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.web3Rank') }}
+        </router-link>
+        <router-link to="/indicators/tokenized-securities" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+          <BuildingLibraryIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.tokenizedSecurities') }}
+        </router-link>
 
         <div class="px-3 py-2 text-xs text-gray-500 font-bold uppercase mt-3">{{ $t('nav.tools') }}</div>
 
@@ -130,24 +124,19 @@ import {
 } from '@heroicons/vue/24/outline'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
-import { useMarketStore, useSymbolCatalog } from '@/modules/market'
+import { useSymbolCatalog } from '@/modules/market'
+import { setAppLocale, toggleAppLocale } from '@/i18n/config'
 
 const { locale } = useI18n()
 const { theme, toggleTheme } = useTheme()
 const { loadCurrencyRates } = useMoney()
-const marketStore = useMarketStore()
 const { loadSymbols } = useSymbolCatalog()
 
-// 临时隐藏还没进入主流程的 Binance Web3 / RWA / Token 研究入口；路由和接口保留，后续确认需要时再打开。
-const showBinanceExperimentalPages = false
-
 const toggleLocale = () => {
-  locale.value = locale.value === 'zh-CN' ? 'en' : 'zh-CN'
-  localStorage.setItem('locale', locale.value)
+  setAppLocale(locale, toggleAppLocale(locale.value))
 }
 
 onMounted(() => {
-    marketStore.init()
     loadSymbols()
     loadCurrencyRates()
 })

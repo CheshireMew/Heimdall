@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from app.services.backtest.freqtrade_execution import FreqtradeIterationExecutor
 from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBuilder
-from app.services.backtest.models import PortfolioConfigRecord, ResearchConfigRecord, StrategyVersionRecord
+from app.contracts.backtest import PortfolioConfigRecord
+from config import settings
 
 
 class _DummyStrategyBuilder:
@@ -21,7 +20,7 @@ class _DummyResultBuilder:
 
 def _make_executor() -> FreqtradeIterationExecutor:
     return FreqtradeIterationExecutor(
-        workspace_root=Path("E:/Work/Code/Heimdall/.codex_tmp_freqtrade"),
+        workspace_root=settings.TEMP_DIR / "tests" / "freqtrade-config",
         strategy_class_name="HeimdallStrategy",
         market_data_service=object(),
         strategy_builder=_DummyStrategyBuilder(),

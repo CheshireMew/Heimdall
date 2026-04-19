@@ -7,9 +7,7 @@
           v-model="selectedSymbols"
           multiple
           :allowed-classes="['crypto']"
-          placeholder="Search crypto"
           trigger-class="!bg-white dark:!bg-gray-900"
-          disabled-label="Chart only"
         />
       </div>
       <div class="grid grid-cols-2 gap-3">

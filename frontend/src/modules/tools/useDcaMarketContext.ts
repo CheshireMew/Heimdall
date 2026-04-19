@@ -59,7 +59,7 @@ export const useDcaMarketContext = ({
 
       marketData.rsi = isIndexSymbol(currentSymbol)
         ? '--'
-        : marketRes.data?.indicators?.rsi?.toFixed(2) || '--'
+        : ('indicators' in marketRes.data ? marketRes.data.indicators?.rsi?.toFixed(2) : '--') || '--'
       const fearGreed = (indicatorsRes.data || []).find((item) => item.indicator_id === 'FEAR_GREED')
       if (!fearGreed || fearGreed.current_value === null) {
         return

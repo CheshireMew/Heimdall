@@ -1,5 +1,5 @@
-import logging
 import asyncio
+import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -8,8 +8,6 @@ from app.infra.db.schema import MarketIndicatorMeta, MarketIndicatorData
 from config import settings
 from app.services.data_retention import cleanup_old_data
 
-# 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # 指标元数据配置: indicator_id -> (display_name, category, unit)
@@ -134,6 +132,10 @@ def _schedule_deferred_start(callback, *, delay_seconds: float = 1.0) -> None:
 
 def start_scheduler():
     """启动全局异步定时器"""
+    if scheduler.running:
+        logger.info("Market Indicator Scheduler already running, skip duplicate start.")
+        return
+
     job = MarketIndicatorCronJob()
 
     # 避免首轮后台任务与 API 启动争抢导入和网络资源

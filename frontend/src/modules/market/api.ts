@@ -1,11 +1,12 @@
 import request, { longTaskRequest } from '@/api/request'
 import type { AxiosResponse } from 'axios'
 import type {
+  BinanceBreakoutMonitorResponse,
   BinanceExchangeInfoResponse,
   BinanceMarkPriceResponse,
+  BinanceMarketPageResponse,
   BinancePriceTickerResponse,
   BinanceRatioSeriesResponse,
-  BinanceReservedFeatureResponse,
   BinanceRwaDynamicResponse,
   BinanceRwaKlineResponse,
   BinanceRwaMarketStatusResponse,
@@ -13,11 +14,16 @@ import type {
   BinanceRwaSymbolListResponse,
   BinanceTickerStatsResponse,
   BinanceWeb3AddressPnlResponse,
+  BinanceWeb3HeatRankResponse,
   BinanceWeb3MemeRankResponse,
   BinanceWeb3SmartMoneyInflowResponse,
   BinanceWeb3SocialHypeResponse,
+  BinanceWeb3TokenAuditResponse,
+  BinanceWeb3TokenDynamicResponse,
+  BinanceWeb3TokenKlineResponse,
   BinanceWeb3UnifiedTokenRankResponse,
   CurrentPriceParams,
+  CurrentPriceBatchResponse,
   CurrentPriceResponse,
   RealtimeParams,
   RealtimeResponse,
@@ -99,7 +105,7 @@ const loadHistoryResponse = <T>(
   return rememberHistoryResponse(key, loader)
 }
 
-const historyKey = (scope: string, params: Record<string, unknown>) => {
+const historyKey = (scope: string, params: object) => {
   const query = new URLSearchParams()
   Object.entries(params)
     .sort(([left], [right]) => left.localeCompare(right))
@@ -177,9 +183,16 @@ export const marketApi = {
     return request.get('/price/current', { params })
   },
 
+  getCurrentPriceBatch(params: { symbols: string[]; timeframe?: string }): Promise<AxiosResponse<CurrentPriceBatchResponse>> {
+    return request.get('/price/current/batch', {
+      params,
+      paramsSerializer: () => serializeArrayParams(params),
+    })
+  },
+
   getPriceHistory(params: FullHistoryParams): Promise<AxiosResponse<OHLCVRaw[]>> {
     const query = normalizePriceHistoryParams(params)
-    const key = historyKey('full_history', query as Record<string, unknown>)
+    const key = historyKey('full_history', query)
     return loadHistoryResponse(
       key,
       () => request.get('/full_history', { params: query }),
@@ -205,7 +218,7 @@ export const marketApi = {
   },
 
   getIndexHistory(params: IndexHistoryParams): Promise<AxiosResponse<MarketIndexHistoryResponse>> {
-    const key = historyKey('indexes_history', params as Record<string, unknown>)
+    const key = historyKey('indexes_history', params)
     return loadHistoryResponse(
       key,
       () => request.get('/indexes/history', { params }),
@@ -214,7 +227,7 @@ export const marketApi = {
   },
 
   getIndexPricingHistory(params: IndexHistoryParams): Promise<AxiosResponse<MarketIndexHistoryResponse>> {
-    const key = historyKey('indexes_pricing_history', params as Record<string, unknown>)
+    const key = historyKey('indexes_pricing_history', params)
     return loadHistoryResponse(
       key,
       () => request.get('/indexes/pricing/history', { params }),
@@ -224,6 +237,14 @@ export const marketApi = {
 
   getBinanceSpotTicker24h(params = {}): Promise<AxiosResponse<BinanceTickerStatsResponse>> {
     return request.get('/binance/spot/ticker_24hr', { params, paramsSerializer: () => serializeArrayParams(params) })
+  },
+
+  getBinanceBreakoutMonitor(params: { min_rise_pct?: number; limit?: number; quote_asset?: string } = {}): Promise<AxiosResponse<BinanceBreakoutMonitorResponse>> {
+    return request.get('/binance/market/breakout_monitor', { params })
+  },
+
+  getBinanceMarketPage(params: { min_rise_pct?: number; limit?: number; quote_asset?: string } = {}): Promise<AxiosResponse<BinanceMarketPageResponse>> {
+    return request.get('/binance/market/page', { params, timeout: 30000 })
   },
 
   getBinanceSpotPrice(params = {}): Promise<AxiosResponse<BinancePriceTickerResponse>> {
@@ -238,28 +259,12 @@ export const marketApi = {
     return request.get('/binance/futures/usdm/mark_price', { params })
   },
 
-  getBinanceCoinmTicker24h(params = {}): Promise<AxiosResponse<BinanceTickerStatsResponse>> {
-    return request.get('/binance/futures/coinm/ticker_24hr', { params })
-  },
-
-  getBinanceCoinmMarkPrice(params = {}): Promise<AxiosResponse<BinanceMarkPriceResponse>> {
-    return request.get('/binance/futures/coinm/mark_price', { params })
-  },
-
   getBinanceUsdmTopTraderAccounts(params: { symbol: string; period: string; limit?: number }): Promise<AxiosResponse<BinanceRatioSeriesResponse>> {
     return request.get('/binance/futures/usdm/top_trader_accounts', { params })
   },
 
   getBinanceUsdmTopTraderPositions(params: { symbol: string; period: string; limit?: number }): Promise<AxiosResponse<BinanceRatioSeriesResponse>> {
     return request.get('/binance/futures/usdm/top_trader_positions', { params })
-  },
-
-  getBinanceCoinmTopTraderAccounts(params: { symbol: string; period: string; limit?: number }): Promise<AxiosResponse<BinanceRatioSeriesResponse>> {
-    return request.get('/binance/futures/coinm/top_trader_accounts', { params })
-  },
-
-  getBinanceCoinmTopTraderPositions(params: { pair: string; period: string; limit?: number }): Promise<AxiosResponse<BinanceRatioSeriesResponse>> {
-    return request.get('/binance/futures/coinm/top_trader_positions', { params })
   },
 
   getBinanceWeb3SocialHype(params: { chain_id: string; target_language?: string; time_range?: number; sentiment?: string; social_language?: string }): Promise<AxiosResponse<BinanceWeb3SocialHypeResponse>> {
@@ -280,6 +285,22 @@ export const marketApi = {
 
   getBinanceWeb3AddressPnlRank(params: { chain_id: string; period?: string; tag?: string; page_no?: number; page_size?: number }): Promise<AxiosResponse<BinanceWeb3AddressPnlResponse>> {
     return request.get('/binance/web3/address_pnl_rank', { params })
+  },
+
+  getBinanceWeb3HeatRank(params: { chain_id?: string; size?: number } = {}): Promise<AxiosResponse<BinanceWeb3HeatRankResponse>> {
+    return request.get('/binance/web3/heat_rank', { params, timeout: 30000 })
+  },
+
+  getBinanceWeb3TokenDynamic(params: { chain_id: string; contract_address: string }): Promise<AxiosResponse<BinanceWeb3TokenDynamicResponse>> {
+    return request.get('/binance/web3/token_dynamic', { params })
+  },
+
+  getBinanceWeb3TokenKline(params: { address: string; platform: string; interval?: string; limit?: number; from?: number; to?: number; pm?: string }): Promise<AxiosResponse<BinanceWeb3TokenKlineResponse>> {
+    return request.get('/binance/web3/token_kline', { params })
+  },
+
+  getBinanceWeb3TokenAudit(params: { binance_chain_id: string; contract_address: string }): Promise<AxiosResponse<BinanceWeb3TokenAuditResponse>> {
+    return request.get('/binance/web3/token_audit', { params })
   },
 
   getBinanceRwaSymbols(params: { platform_type?: number | null } = {}): Promise<AxiosResponse<BinanceRwaSymbolListResponse>> {
@@ -306,23 +327,4 @@ export const marketApi = {
     return request.get('/binance/rwa/kline', { params })
   },
 
-  getReservedBinanceTokenInfoSearch(params: { keyword?: string; chainIds?: string; orderBy?: string } = {}): Promise<AxiosResponse<BinanceReservedFeatureResponse>> {
-    return request.get('/binance/web3/token_info/search', { params })
-  },
-
-  getReservedBinanceTokenInfoMetadata(params: { chainId?: string; contractAddress?: string } = {}): Promise<AxiosResponse<BinanceReservedFeatureResponse>> {
-    return request.get('/binance/web3/token_info/metadata', { params })
-  },
-
-  getReservedBinanceTokenInfoDynamic(params: { chainId?: string; contractAddress?: string } = {}): Promise<AxiosResponse<BinanceReservedFeatureResponse>> {
-    return request.get('/binance/web3/token_info/dynamic', { params })
-  },
-
-  getReservedBinanceTokenInfoKline(params: { address?: string; platform?: string; interval?: string; limit?: number; from?: number; to?: number; pm?: string } = {}): Promise<AxiosResponse<BinanceReservedFeatureResponse>> {
-    return request.get('/binance/web3/token_info/kline', { params })
-  },
-
-  getReservedBinanceTokenAudit(params: { binanceChainId?: string; contractAddress?: string } = {}): Promise<AxiosResponse<BinanceReservedFeatureResponse>> {
-    return request.get('/binance/web3/token_audit', { params })
-  },
 }

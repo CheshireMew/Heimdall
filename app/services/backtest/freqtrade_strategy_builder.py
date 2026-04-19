@@ -12,6 +12,11 @@ from app.services.backtest.scripted_template_runtime import (
     scripted_warmup_bars,
     template_builder_kind,
 )
+from app.services.backtest.freqtrade_exit_codegen import render_threshold_custom_exit
+from app.services.backtest.freqtrade_strategy_runtime import (
+    render_freqtrade_strategy_runtime,
+    resolve_freqtrade_strategy_runtime,
+)
 from app.services.backtest.strategy_catalog import get_indicator_registry_map
 from app.services.backtest.strategy_contract import set_by_path
 from app.services.backtest.strategy_runtime import StrategyRuntime
@@ -55,11 +60,23 @@ class FreqtradeStrategyBuilder:
         }
         if uses_trade_plan:
             roi_targets = {"0": 99.0}
-        trailing = risk.get("trailing") or {}
         partial_exits = [item for item in risk.get("partial_exits") or [] if item.get("enabled", True)]
         partial_exit_block = self._build_partial_exit_block(partial_exits)
         trade_plan_block = self._build_trade_plan_block(trade_plan) if uses_trade_plan else ""
         warmup_bars = self.warmup_bars(template, normalized_config, timeframe)
+        runtime_block = render_freqtrade_strategy_runtime(
+            resolve_freqtrade_strategy_runtime(
+                can_short=can_short,
+                timeframe=timeframe,
+                startup_candle_count=warmup_bars,
+                risk=risk,
+                roi_targets=roi_targets,
+                order_types=trade_settings["order_types"],
+                has_exit_signals=True,
+                has_custom_exit=uses_trade_plan,
+                position_adjustment_enable=bool(partial_exits),
+            )
+        )
         return f"""import pandas as pd
 import talib.abstract as ta
 from pandas import DataFrame
@@ -67,22 +84,7 @@ from freqtrade.strategy import IStrategy
 
 
 class {self.strategy_class_name}(IStrategy):
-    INTERFACE_VERSION = 3
-    can_short = {can_short}
-    timeframe = "{timeframe}"
-    process_only_new_candles = True
-    startup_candle_count = {warmup_bars}
-    use_exit_signal = True
-    exit_profit_only = False
-    ignore_roi_if_entry_signal = False
-    minimal_roi = {repr(roi_targets)}
-    stoploss = {float(risk.get("stoploss", -0.1))}
-    trailing_stop = {bool(trailing.get("enabled", False))}
-    trailing_stop_positive = {float(trailing.get("positive", 0.0))}
-    trailing_stop_positive_offset = {float(trailing.get("offset", 0.0))}
-    trailing_only_offset_is_reached = {bool(trailing.get("only_offset_reached", True))}
-    position_adjustment_enable = {bool(partial_exits)}
-    order_types = {repr(trade_settings["order_types"])}
+{runtime_block}
 
     def _resample_ohlcv(self, dataframe: DataFrame, timeframe: str) -> DataFrame:
         rule_map = {{"1m": "1min", "5m": "5min", "15m": "15min", "1h": "1h", "4h": "4h", "1d": "1D"}}
@@ -376,8 +378,12 @@ class {self.strategy_class_name}(IStrategy):
             short_tree = "short_entry" if signal_kind == "entry" else "short_exit"
             short_column = "enter_short" if signal_kind == "entry" else "exit_short"
             short_tag = "enter_short_tag" if signal_kind == "entry" else "exit_short_tag"
+            shared_tag = "enter_tag" if signal_kind == "entry" else "exit_tag"
             short_condition = f"(({branch_masks[branch_key]}) & ({self._compile_rule_tree(branch.get(short_tree) or {})}))"
-            lines.append(f'        dataframe.loc[{short_condition}, ["{short_column}", "{short_tag}"]] = (1, "{branch_key}_short_{signal_kind}")')
+            lines.append(
+                f'        dataframe.loc[{short_condition}, ["{short_column}", "{short_tag}", "{shared_tag}"]] = '
+                f'(1, "{branch_key}_short_{signal_kind}", "{branch_key}_short_{signal_kind}")'
+            )
         if not can_short:
             if signal_kind == "entry":
                 lines = ['        dataframe["enter_short"] = 0', '        dataframe["enter_short_tag"] = None', *lines[2:]]
@@ -419,6 +425,9 @@ class {self.strategy_class_name}(IStrategy):
         reward_multiplier = float(trade_plan.get("reward_multiplier") or 2.0)
         return f"""
     def _resolve_trade_plan(self, pair, trade):
+        cached_plan = trade.get_custom_data("trade_plan")
+        if cached_plan:
+            return cached_plan
         dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
         if dataframe is None or dataframe.empty:
             return None
@@ -438,34 +447,16 @@ class {self.strategy_class_name}(IStrategy):
             structure = float(entry_candle.get("{support_indicator}__value") or (entry_price - stop_distance))
             stop_price = min(entry_price - stop_distance, structure)
             target_price = entry_price + abs(entry_price - stop_price) * {reward_multiplier}
-        return {{"target": float(target_price), "stop": float(stop_price)}}
-
-    def custom_exit(self, pair, trade, current_time, current_rate, current_profit, **kwargs):
-        dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
-        if dataframe is None or dataframe.empty:
-            return None
-        now = pd.Timestamp(current_time)
-        current_frame = dataframe.loc[dataframe["date"] <= now]
-        if current_frame.empty:
-            return None
-        current_candle = current_frame.iloc[-1]
-        trade_plan = self._resolve_trade_plan(pair, trade)
-        if not trade_plan:
-            return None
-        current_high = float(current_candle["high"])
-        current_low = float(current_candle["low"])
-        if trade.is_short:
-            if current_high >= trade_plan["stop"]:
-                return "trade_plan_stop"
-            if current_low <= trade_plan["target"]:
-                return "trade_plan_target"
-            return None
-        if current_low <= trade_plan["stop"]:
-            return "trade_plan_stop"
-        if current_high >= trade_plan["target"]:
-            return "trade_plan_target"
-        return None
-"""
+        resolved_plan = {{"target": float(target_price), "stop": float(stop_price)}}
+        if getattr(trade, "id", None) is not None:
+            trade.set_custom_data("trade_plan", resolved_plan)
+        return resolved_plan
+{render_threshold_custom_exit(
+    plan_var_name="trade_plan",
+    resolve_plan_expression="self._resolve_trade_plan(pair, trade)",
+    stop_reason="trade_plan_stop",
+    target_reason="trade_plan_target",
+)}"""
 
     def _build_partial_exit_block(self, partial_exits: list[dict[str, Any]]) -> str:
         if not partial_exits:

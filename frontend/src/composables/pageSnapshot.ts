@@ -9,6 +9,7 @@ export const PAGE_SNAPSHOT_KEYS = {
   factorResearch: 'tools:factor-research',
   halving: 'tools:halving',
   cryptoIndex: 'indicators:crypto-index',
+  binanceMarket: 'indicators:binance-market',
   backtest: 'backtest:center',
   backtestEditor: 'backtest:editor',
 } as const

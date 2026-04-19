@@ -8,16 +8,21 @@ import { useMoney } from '@/composables/useMoney'
 import { useUserPreferences } from '@/composables/useUserPreferences'
 import type { DCASimulationConfig, DCASimulationResponse } from '@/types'
 import { toolsApi } from './api'
-import { createEmptyMarketData, normalizeMarketData, useDcaMarketContext, type DcaMarketState } from './useDcaMarketContext'
+import { createEmptyMarketData, useDcaMarketContext } from './useDcaMarketContext'
 import { useDcaCharts } from './useDcaCharts'
 
 interface DcaPageSnapshot {
   config: DCASimulationConfig
-  result: DCASimulationResponse | null
-  marketData: DcaMarketState
 }
 
-const createDefaultConfig = (): Required<Pick<DCASimulationConfig, 'symbol' | 'amount' | 'start_date' | 'investment_time' | 'timezone' | 'strategy' | 'strategy_params'>> => ({
+type DcaPageConfig = Required<Pick<DCASimulationConfig, 'symbol' | 'amount' | 'investment_time' | 'timezone' | 'strategy'>> & {
+  start_date: string
+  strategy_params: {
+    multiplier: number
+  }
+}
+
+const createDefaultConfig = (): DcaPageConfig => ({
   symbol: 'BTC/USDT',
   amount: 100,
   start_date: '2025-04-25',
@@ -29,7 +34,7 @@ const createDefaultConfig = (): Required<Pick<DCASimulationConfig, 'symbol' | 'a
   },
 })
 
-const normalizeConfig = (value: unknown) => {
+const normalizeConfig = (value: unknown): DcaPageConfig => {
   const defaults = createDefaultConfig()
   if (!isRecord(value)) return defaults
 
@@ -52,14 +57,10 @@ const normalizeSnapshot = (value: unknown): DcaPageSnapshot => {
   if (!isRecord(value)) {
     return {
       config: createDefaultConfig(),
-      result: null,
-      marketData: createEmptyMarketData(),
     }
   }
   return {
     config: normalizeConfig(value.config),
-    result: value.result && isRecord(value.result) ? value.result as DCASimulationResponse : null,
-    marketData: normalizeMarketData(value.marketData),
   }
 }
 
@@ -74,8 +75,6 @@ export function useDcaPage() {
     normalizeSnapshot,
     {
       config: createDefaultConfig(),
-      result: null,
-      marketData: createEmptyMarketData(),
     },
   )
   const restoredSnapshot = pageSnapshot.load()
@@ -84,11 +83,11 @@ export function useDcaPage() {
   config.timezone = timezone.value
 
   const loading = ref(false)
-  const result = ref<DCASimulationResponse | null>(restoredSnapshot?.result ?? null)
+  const result = ref<DCASimulationResponse | null>(null)
   const { marketData, fetchMarketIndicators } = useDcaMarketContext({
     symbol: () => config.symbol,
     t,
-    initialValue: restoredSnapshot?.marketData,
+    initialValue: createEmptyMarketData(),
   })
   const {
     roiChartCanvas,
@@ -167,11 +166,9 @@ export function useDcaPage() {
   })
 
   bindPageSnapshot(
-    [config, result, marketData],
+    config,
     () => ({
       config: normalizeConfig(config),
-      result: result.value,
-      marketData: normalizeMarketData(marketData),
     }),
     pageSnapshot.save,
   )
