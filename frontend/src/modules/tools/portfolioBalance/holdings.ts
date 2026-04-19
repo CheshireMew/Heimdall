@@ -1,4 +1,4 @@
-import type { BacktestPaperPosition, BacktestRun, PortfolioBalancePortfolio, PortfolioHoldingsSource } from '@/types'
+import type { BacktestPaperPosition, BacktestRun, PortfolioBalancePortfolio, PortfolioHoldingsSource } from './contracts'
 
 import {
   buildNormalizedPortfolioWeights,

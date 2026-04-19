@@ -4,7 +4,7 @@ import type {
   BinanceMarkPriceItemResponse,
   BinanceTickerStatsItemResponse,
   BinanceWeb3HeatRankItemResponse,
-} from '@/types'
+} from './contracts'
 import { isRecord, readBoolean, readNumber, readString } from '@/composables/pageSnapshot'
 import { toBaseSymbol } from './symbolCatalog'
 
@@ -113,8 +113,11 @@ export const normalizeSortDirection = (value: unknown): SortDirection => (
     : 'desc'
 )
 
-export const normalizeSnapshot = (value: unknown): BinanceMarketSnapshot => {
-  const defaults = createDefaultSnapshot()
+export const normalizeSnapshot = (
+  value: unknown,
+  fallback = createDefaultSnapshot(),
+): BinanceMarketSnapshot => {
+  const defaults = fallback
   if (!isRecord(value)) return defaults
   return {
     minRisePct: readNumber(value.minRisePct, defaults.minRisePct),
@@ -128,6 +131,10 @@ export const normalizeSnapshot = (value: unknown): BinanceMarketSnapshot => {
     web3ChainId: readString(value.web3ChainId, defaults.web3ChainId),
   }
 }
+
+export const buildBinanceMarketSnapshot = (snapshot: BinanceMarketSnapshot): BinanceMarketSnapshot => (
+  normalizeSnapshot(snapshot)
+)
 
 export const formatSigned = (value: number | null | undefined, digits = 2, suffix = '%', withSign = true) => {
   if (value === null || value === undefined || Number.isNaN(value)) return '--'

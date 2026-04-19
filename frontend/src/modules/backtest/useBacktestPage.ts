@@ -2,17 +2,16 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, type WatchS
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import type { BacktestRun, StrategyDefinition, StrategyEditorContract, StrategyVersion } from '@/types'
-import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
+import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
+import type { BacktestRun, StrategyDefinition, StrategyEditorContract, StrategyVersion } from './contracts'
 import { backtestApi } from './api'
 import { asNumber } from './format'
 import {
   applyBacktestPageSnapshot,
+  buildBacktestPageSnapshot,
   createBacktestPageSnapshotDefaults,
   createEmptyBacktestPageSnapshot,
   normalizeBacktestPageSnapshot,
-  readOptimizeMetric,
-  readStakeMode,
 } from './pageSnapshots'
 import { supportsPaperTrading, supportsVersionEditing } from './templateRuntime'
 import { useBacktestRuns } from './useBacktestRuns'
@@ -98,42 +97,16 @@ export const useBacktestPage = () => {
 
   const bindSnapshot = (contract: StrategyEditorContract) => {
     const defaults = createBacktestPageSnapshotDefaults(contract.run_defaults)
-    const pageSnapshot = createPageSnapshot(
+    const pageSnapshot = createPersistentPageSnapshot(
       PAGE_SNAPSHOT_KEYS.backtest,
       (value) => normalizeBacktestPageSnapshot(value, defaults),
       defaults,
     )
-    applyBacktestPageSnapshot(config, pageSnapshot.load(), runs.symbolsText, runs.historyMode)
+    applyBacktestPageSnapshot(config, pageSnapshot.initial, runs.symbolsText, runs.historyMode)
     snapshotStopHandle?.()
-    snapshotStopHandle = bindPageSnapshot(
+    snapshotStopHandle = pageSnapshot.bind(
       [config, runs.symbolsText, runs.historyMode],
-      () => ({
-        config: {
-          strategy_key: readString(config.strategy_key, defaults.config.strategy_key),
-          strategy_version: readNumber(config.strategy_version, defaults.config.strategy_version),
-          timeframe: readString(config.timeframe, defaults.config.timeframe),
-          start_date: readString(config.start_date, defaults.config.start_date),
-          end_date: readString(config.end_date, defaults.config.end_date),
-          initial_cash: readNumber(config.initial_cash, defaults.config.initial_cash),
-          fee_rate: readNumber(config.fee_rate, defaults.config.fee_rate),
-          portfolio: {
-            max_open_trades: readNumber(config.portfolio.max_open_trades, defaults.config.portfolio.max_open_trades),
-            position_size_pct: readNumber(config.portfolio.position_size_pct, defaults.config.portfolio.position_size_pct),
-            stake_mode: readStakeMode(config.portfolio.stake_mode, defaults.config.portfolio.stake_mode),
-          },
-          research: {
-            slippage_bps: readNumber(config.research.slippage_bps, defaults.config.research.slippage_bps),
-            funding_rate_daily: readNumber(config.research.funding_rate_daily, defaults.config.research.funding_rate_daily),
-            in_sample_ratio: readNumber(config.research.in_sample_ratio, defaults.config.research.in_sample_ratio),
-            optimize_metric: readOptimizeMetric(config.research.optimize_metric, defaults.config.research.optimize_metric),
-            optimize_trials: readNumber(config.research.optimize_trials, defaults.config.research.optimize_trials),
-            rolling_windows: readNumber(config.research.rolling_windows, defaults.config.research.rolling_windows),
-          },
-        },
-        symbolsText: readString(runs.symbolsText.value, defaults.symbolsText),
-        historyMode: runs.historyMode.value,
-      }),
-      pageSnapshot.save,
+      () => buildBacktestPageSnapshot(config, runs.symbolsText.value, runs.historyMode.value, defaults),
     )
   }
 

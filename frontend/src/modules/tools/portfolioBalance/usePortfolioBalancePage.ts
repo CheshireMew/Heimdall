@@ -1,8 +1,8 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 
-import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
+import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { backtestApi } from '@/modules/backtest'
-import type { BacktestRun, PortfolioBacktestSummary, PortfolioBalancePortfolio } from '@/types'
+import type { BacktestRun, PortfolioBacktestSummary, PortfolioBalancePortfolio } from './contracts'
 
 import { buildPortfolioBacktestSummary } from './backtest'
 import { fetchPortfolioPriceMap, loadPortfolioBacktestHistory } from './data'
@@ -27,6 +27,7 @@ import {
 import { computePortfolioBalancePlan } from './plan'
 import {
   createDefaultPortfolioBalanceSnapshot,
+  buildPortfolioBalanceSnapshot,
   hasActiveAssets,
   hasMarketGap,
   normalizePortfolioBalanceSnapshot,
@@ -43,12 +44,12 @@ type RequestError = {
 }
 
 export function usePortfolioBalancePage() {
-  const pageSnapshot = createPageSnapshot(
+  const pageSnapshot = createPersistentPageSnapshot(
     PAGE_SNAPSHOT_KEYS.portfolioBalance,
     normalizePortfolioBalanceSnapshot,
     createDefaultPortfolioBalanceSnapshot(),
   )
-  const restoredSnapshot = pageSnapshot.load()
+  const restoredSnapshot = pageSnapshot.initial
   const fallbackPortfolio = createPortfolioBalancePortfolio()
 
   const portfolios = reactive(restoredSnapshot.portfolios)
@@ -336,13 +337,12 @@ export function usePortfolioBalancePage() {
     }
   }
 
-  bindPageSnapshot(
+  pageSnapshot.bind(
     [portfolios, activePortfolioId],
-    () => ({
+    () => buildPortfolioBalanceSnapshot({
       activePortfolioId: activePortfolioId.value,
       portfolios: portfolios.map((portfolio) => normalizePortfolioBalancePortfolio(portfolio)),
     }),
-    pageSnapshot.save,
   )
 
   watch(assets, () => {

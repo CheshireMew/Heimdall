@@ -124,15 +124,15 @@ class BackgroundRuntimeController:
 
     async def _bootstrap(self) -> None:
         try:
-            scheduler_runtime = self.runtime_services.market_scheduler_runtime
+            scheduler_runtime = self.runtime_services.system.market_scheduler_runtime
             if scheduler_runtime is None:
                 raise RuntimeError("Background scheduler runtime is not initialized")
             scheduler_runtime.start()
 
-            binance_snapshot = self.runtime_services.binance_market_snapshot
-            binance_market = self.runtime_services.binance_market_intel
-            paper_manager = self.runtime_services.paper_run_manager
-            factor_paper_manager = self.runtime_services.factor_paper_run_manager
+            binance_snapshot = self.runtime_services.market.binance_market_snapshot
+            binance_market = self.runtime_services.market.binance_market_intel
+            paper_manager = self.runtime_services.backtest.paper_run_manager
+            factor_paper_manager = self.runtime_services.factors.factor_paper_run_manager
             if any(service is None for service in (binance_snapshot, binance_market, paper_manager, factor_paper_manager)):
                 raise RuntimeError("Background runtime services are incomplete")
 
@@ -153,12 +153,11 @@ class BackgroundRuntimeController:
 
     async def _shutdown_runtime_services(self) -> None:
         runtime_services = self.runtime_services
-        if runtime_services.binance_market_snapshot is not None:
-            await runtime_services.binance_market_snapshot.shutdown()
-        if runtime_services.factor_paper_run_manager is not None:
-            await runtime_services.factor_paper_run_manager.shutdown()
-        if runtime_services.paper_run_manager is not None:
-            await runtime_services.paper_run_manager.shutdown()
-
-        if runtime_services.market_scheduler_runtime is not None:
-            await runtime_services.market_scheduler_runtime.shutdown()
+        if runtime_services.market.binance_market_snapshot is not None:
+            await runtime_services.market.binance_market_snapshot.shutdown()
+        if runtime_services.factors.factor_paper_run_manager is not None:
+            await runtime_services.factors.factor_paper_run_manager.shutdown()
+        if runtime_services.backtest.paper_run_manager is not None:
+            await runtime_services.backtest.paper_run_manager.shutdown()
+        if runtime_services.system.market_scheduler_runtime is not None:
+            await runtime_services.system.market_scheduler_runtime.shutdown()

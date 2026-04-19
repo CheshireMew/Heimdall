@@ -78,7 +78,9 @@ def test_page_snapshot_registry_and_helpers_are_stable():
         assert re.search(rf"\b{key}:", source), key
     assert "readStringArray" in source
     assert "readEnum" in source
-    assert "bindPageSnapshot" in source
+    assert "createPersistentPageSnapshot" in source
+    assert "bind(sources:" in source
+    assert "data: normalize(snapshot, fallback)" in source
     assert "{ deep: true, immediate: true }" in source
 
 
@@ -86,15 +88,27 @@ def test_generated_frontend_contracts_include_route_models():
     backtest_types = read_frontend("types/backtest.ts")
     factor_types = read_frontend("types/factor.ts")
     market_types = read_frontend("types/market.ts")
-    market_frontend_types = read_frontend("types/market-frontend.ts")
 
     assert "interface BacktestDeleteResponse" in backtest_types
     assert "interface FactorResearchRunListItemResponse" in factor_types
     assert "interface MarketHistoryResponse" in market_types
     assert "interface MarketHistoryBatchResponse" in market_types
     assert "interface OhlcvPointResponse" in market_types
-    assert "OHLCVRaw" not in market_frontend_types
-    assert "BatchFullHistoryResponse" not in market_frontend_types
+    assert not any(path.name.endswith("-frontend.ts") for path in (FRONTEND_DIR / "types").glob("*.ts"))
+
+
+def test_frontend_business_code_uses_module_contract_boundaries():
+    offenders = []
+    for path in FRONTEND_DIR.rglob("*"):
+        if path.suffix not in {".ts", ".vue"}:
+            continue
+        if path.name == "contracts.ts" or path.parent == FRONTEND_DIR / "types":
+            continue
+        source = path.read_text(encoding="utf-8")
+        if "@/types" in source:
+            offenders.append(path.relative_to(FRONTEND_DIR).as_posix())
+
+    assert offenders == []
 
 
 def test_market_store_cache_contract_is_stable():
@@ -116,15 +130,18 @@ def test_market_store_cache_contract_is_stable():
 
 def test_symbol_search_supports_usd_equivalent_cash_assets():
     catalog_source = read_frontend("modules/market/symbolCatalog.ts")
-    generated_catalog_source = read_frontend("modules/market/generatedSymbolCatalog.ts")
+    base_catalog_source = read_frontend("modules/market/baseSymbolCatalog.ts")
     portfolio_source = read_frontend("views/tools/PortfolioBalance.vue")
     shared_source = read_frontend("modules/tools/portfolioBalance/shared.ts")
+    generator_source = (ROOT_DIR / "scripts" / "generate_frontend_contracts.py").read_text(encoding="utf-8")
 
-    assert "generatedSymbolCatalog" in catalog_source
+    assert "baseSymbolCatalog" in catalog_source
+    assert not any(path.name.startswith("generated") and path.name.endswith("Catalog.ts") for path in (FRONTEND_DIR / "modules" / "market").glob("*.ts"))
     for symbol in ["USD", "USDT", "USDC"]:
-        assert symbol in generated_catalog_source
+        assert symbol in base_catalog_source
 
-    assert '"asset_class": "cash"' in generated_catalog_source
+    assert "list_market_search_items" not in generator_source
+    assert "asset_class: 'cash'" in base_catalog_source
     assert "USD_EQUIVALENT_SYMBOLS" in shared_source
     assert "['crypto', 'index', 'cash']" in portfolio_source
 

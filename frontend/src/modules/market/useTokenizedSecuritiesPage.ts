@@ -8,7 +8,7 @@ import type {
   BinanceRwaMarketStatusResponse,
   BinanceRwaMetaResponse,
   BinanceRwaSymbolItemResponse,
-} from '@/types'
+} from './contracts'
 
 const formatPercent = (value: number | string | null | undefined, digits = 2) => {
   if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) return '--'

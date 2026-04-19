@@ -4,7 +4,7 @@ import type {
   BinanceBreakoutMonitorResponse,
   BinanceMarkPriceItemResponse,
   BinanceTickerStatsItemResponse,
-} from '@/types'
+} from './contracts'
 import { marketApi } from './api'
 import type { BinanceMarketSnapshot, ContractBoardRow, ContractSortField, ContractSortState, MarketFilter, MonitorMode, SortDirection } from './binanceMarketShared'
 import {

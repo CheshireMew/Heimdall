@@ -1,6 +1,6 @@
 import type { ComputedRef, Ref } from 'vue'
 
-import type { BacktestDetailResponse, BacktestRun } from '@/types'
+import type { BacktestDetailResponse, BacktestRun } from './contracts'
 
 import { backtestApi } from './api'
 import type { BacktestRunMode } from './useBacktestRuns'

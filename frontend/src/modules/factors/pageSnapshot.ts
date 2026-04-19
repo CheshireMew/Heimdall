@@ -16,8 +16,11 @@ export const createDefaultFactorResearchSnapshot = (): FactorResearchSnapshot =>
   selectedFactorId: '',
 })
 
-export const normalizeFactorResearchSnapshot = (value: unknown): FactorResearchSnapshot => {
-  const defaults = createDefaultFactorResearchSnapshot()
+export const normalizeFactorResearchSnapshot = (
+  value: unknown,
+  fallback = createDefaultFactorResearchSnapshot(),
+): FactorResearchSnapshot => {
+  const defaults = fallback
   if (!isRecord(value)) return defaults
 
   const form = isRecord(value.form) ? value.form : {}
@@ -50,3 +53,7 @@ export const normalizeFactorResearchSnapshot = (value: unknown): FactorResearchS
     selectedFactorId: readString(value.selectedFactorId, defaults.selectedFactorId),
   }
 }
+
+export const buildFactorResearchSnapshot = (snapshot: FactorResearchSnapshot): FactorResearchSnapshot => (
+  normalizeFactorResearchSnapshot(snapshot)
+)

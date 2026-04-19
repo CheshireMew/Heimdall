@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.infra.db.database import session_scope
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade
+from app.schemas.backtest import BacktestDetailResponse, BacktestRunResponse
 from app.services.backtest.serializers import (
     serialize_backtest_equity_point,
     serialize_backtest_run,
@@ -11,7 +12,7 @@ from app.services.backtest.serializers import (
 
 
 class BacktestRunRepository:
-    def list_runs(self, execution_mode: str = "backtest") -> list[dict]:
+    def list_runs(self, execution_mode: str = "backtest") -> list[BacktestRunResponse]:
         with session_scope() as session:
             runs = (
                 session.query(BacktestRun)
@@ -19,9 +20,20 @@ class BacktestRunRepository:
                 .order_by(BacktestRun.created_at.desc())
                 .all()
             )
-            return [serialize_backtest_run(run, include_signals=False) for run in runs]
+            return [
+                BacktestRunResponse.model_validate(
+                    serialize_backtest_run(run, include_signals=False)
+                )
+                for run in runs
+            ]
 
-    def get_run(self, backtest_id: int, page: int, page_size: int, execution_mode: str | None = None) -> dict | None:
+    def get_run(
+        self,
+        backtest_id: int,
+        page: int,
+        page_size: int,
+        execution_mode: str | None = None,
+    ) -> BacktestDetailResponse | None:
         with session_scope() as session:
             query = session.query(BacktestRun).filter(BacktestRun.id == backtest_id)
             if execution_mode:
@@ -62,7 +74,7 @@ class BacktestRunRepository:
                 "total": total,
                 "total_pages": (total + page_size - 1) // page_size,
             }
-            return payload
+            return BacktestDetailResponse.model_validate(payload)
 
     def delete_run(self, backtest_id: int, execution_mode: str | None = None) -> bool:
         with session_scope() as session:

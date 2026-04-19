@@ -1,5 +1,5 @@
-import type { PortfolioReviewFrequency } from '@/types'
-import { USD_EQUIVALENT_SYMBOLS } from '@/modules/market/generatedSymbolCatalog'
+import type { PortfolioReviewFrequency } from './contracts'
+import { USD_EQUIVALENT_SYMBOLS } from '@/modules/market/baseSymbolCatalog'
 
 export const PERCENT_BASE = 100
 export const DEFAULT_REVIEW_FREQUENCY: PortfolioReviewFrequency = 'weekly'

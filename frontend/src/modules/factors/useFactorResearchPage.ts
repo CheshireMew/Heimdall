@@ -3,15 +3,12 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import {
-  bindPageSnapshot,
-  createPageSnapshot,
+  createPersistentPageSnapshot,
   PAGE_SNAPSHOT_KEYS,
-  readNumber,
-  readString,
 } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
 
-import { createDefaultFactorResearchSnapshot, normalizeFactorResearchSnapshot } from './pageSnapshot'
+import { buildFactorResearchSnapshot, createDefaultFactorResearchSnapshot, normalizeFactorResearchSnapshot } from './pageSnapshot'
 import { createFactorResearchState } from './state'
 import { useFactorResearchData } from './useFactorResearchData'
 import { useFactorResearchFormatting } from './useFactorResearchFormatting'
@@ -22,12 +19,12 @@ export const useFactorResearchPage = () => {
   const { t } = useI18n()
   const { theme } = useTheme()
   const router = useRouter()
-  const pageSnapshot = createPageSnapshot(
+  const pageSnapshot = createPersistentPageSnapshot(
     PAGE_SNAPSHOT_KEYS.factorResearch,
     normalizeFactorResearchSnapshot,
     createDefaultFactorResearchSnapshot(),
   )
-  const restoredSnapshot = pageSnapshot.load()
+  const restoredSnapshot = pageSnapshot.initial
 
   const state = createFactorResearchState()
   Object.assign(state.form, restoredSnapshot.form)
@@ -93,33 +90,32 @@ export const useFactorResearchPage = () => {
     formatDate: formatting.formatDate,
   })
 
-  bindPageSnapshot(
+  pageSnapshot.bind(
     [state.form, state.executionForm, state.selectedRunId, state.selectedFactorId],
-    () => ({
+    () => buildFactorResearchSnapshot({
       form: {
-        symbol: readString(state.form.symbol, 'BTC/USDT'),
+        symbol: state.form.symbol,
         timeframe: state.form.timeframe,
-        days: readNumber(state.form.days, 365),
-        horizon_bars: readNumber(state.form.horizon_bars, 3),
-        max_lag_bars: readNumber(state.form.max_lag_bars, 7),
+        days: state.form.days,
+        horizon_bars: state.form.horizon_bars,
+        max_lag_bars: state.form.max_lag_bars,
         categories: [...state.form.categories],
         factor_ids: [...state.form.factor_ids],
       },
       executionForm: {
-        initial_cash: readNumber(state.executionForm.initial_cash, 100000),
-        fee_rate: readNumber(state.executionForm.fee_rate, 0.1),
-        position_size_pct: readNumber(state.executionForm.position_size_pct, 25),
+        initial_cash: state.executionForm.initial_cash,
+        fee_rate: state.executionForm.fee_rate,
+        position_size_pct: state.executionForm.position_size_pct,
         stake_mode: state.executionForm.stake_mode,
         entry_threshold: state.executionForm.entry_threshold,
         exit_threshold: state.executionForm.exit_threshold,
-        stoploss_pct: readNumber(state.executionForm.stoploss_pct, -0.08),
-        takeprofit_pct: readNumber(state.executionForm.takeprofit_pct, 0.16),
-        max_hold_bars: readNumber(state.executionForm.max_hold_bars, 20),
+        stoploss_pct: state.executionForm.stoploss_pct,
+        takeprofit_pct: state.executionForm.takeprofit_pct,
+        max_hold_bars: state.executionForm.max_hold_bars,
       },
       selectedRunId: state.selectedRunId.value,
-      selectedFactorId: readString(state.selectedFactorId.value, ''),
+      selectedFactorId: state.selectedFactorId.value,
     }),
-    pageSnapshot.save,
   )
 
   return reactive({

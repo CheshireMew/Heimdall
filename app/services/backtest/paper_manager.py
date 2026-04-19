@@ -14,9 +14,21 @@ from app.contracts.backtest import (
     PortfolioConfigRecord,
     ResearchConfigRecord,
 )
+from app.schemas.backtest import (
+    BacktestDeleteResponse,
+    PaperStartResponse,
+    PaperStopResponse,
+)
+from app.schemas.backtest_result import BacktestPortfolioSummaryResponse, BacktestStrategySummaryResponse
 from app.services.run_task_manager import RunTaskManager
 from app.services.backtest.result_store import replace_run_rows, result_signal_counts
-from app.services.backtest.run_contract import PAPER_LIVE_ENGINE, PAPER_LIVE_EXECUTION_MODE, build_paper_metadata, update_paper_metadata
+from app.services.backtest.run_contract import (
+    PAPER_LIVE_ENGINE,
+    PAPER_LIVE_EXECUTION_MODE,
+    build_paper_metadata,
+    parse_run_metadata,
+    update_paper_metadata,
+)
 from config import settings
 from utils.time_utils import utc_now_naive
 
@@ -61,19 +73,19 @@ class PaperRunManager:
     async def shutdown(self) -> None:
         await self._task_manager.shutdown()
 
-    async def start_run(self, command: PaperStartCommand) -> dict[str, Any]:
+    async def start_run(self, command: PaperStartCommand) -> PaperStartResponse:
         loop = asyncio.get_running_loop()
         run_id = await loop.run_in_executor(None, lambda: self._create_run(command))
         self._task_manager.ensure_task(run_id)
-        return {"success": True, "run_id": run_id, "message": "模拟盘已启动"}
+        return PaperStartResponse(success=True, run_id=run_id, message="模拟盘已启动")
 
-    async def stop_run(self, run_id: int) -> dict[str, Any]:
+    async def stop_run(self, run_id: int) -> PaperStopResponse:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, lambda: self._mark_stopped(run_id, "stopped", "manual_stop"))
         await self._task_manager.cancel_task(run_id)
-        return {"success": True, "run_id": run_id, "message": "模拟盘已停止"}
+        return PaperStopResponse(success=True, run_id=run_id, message="模拟盘已停止")
 
-    async def delete_run(self, run_id: int) -> dict[str, Any]:
+    async def delete_run(self, run_id: int) -> BacktestDeleteResponse:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, lambda: self._mark_stopped(run_id, "stopped", "manual_delete"))
         await self._task_manager.cancel_task(run_id)
@@ -84,18 +96,18 @@ class PaperRunManager:
         )
         if not deleted:
             raise ValueError(f"模拟盘记录不存在: {run_id}")
-        return {"success": True, "run_id": run_id, "message": "模拟盘记录已删除"}
+        return BacktestDeleteResponse(success=True, run_id=run_id, message="模拟盘记录已删除")
 
     def _tick(self, run_id: int) -> bool:
         with session_scope() as session:
             run = session.query(BacktestRun).filter(BacktestRun.id == run_id).first()
             if not run:
                 return False
-            metadata = dict(run.metadata_info or {})
+            metadata = parse_run_metadata(run.metadata_info)
             if run.execution_mode != PAPER_LIVE_EXECUTION_MODE or run.engine != PAPER_LIVE_ENGINE or run.status != "running":
                 return False
 
-            symbols = [str(symbol).strip().upper() for symbol in (metadata.get("symbols") or []) if str(symbol).strip()]
+            symbols = [str(symbol).strip().upper() for symbol in metadata.symbols if str(symbol).strip()]
             if not symbols:
                 raise ValueError("模拟盘缺少 symbols 配置")
 
@@ -103,12 +115,14 @@ class PaperRunManager:
             if sync_window.end_at is None or sync_window.synced_end_ms is None:
                 return True
 
-            runtime_state = dict(metadata.get("runtime_state") or {})
-            last_synced_end_ms = self._optional_int(runtime_state.get("last_synced_end"))
+            runtime_state = metadata.runtime_state
+            last_synced_end_ms = self._optional_int(runtime_state.last_synced_end if runtime_state else None)
             if last_synced_end_ms is not None and sync_window.synced_end_ms <= last_synced_end_ms:
                 return True
 
-            strategy = self.strategy_query_service.get_strategy_version(metadata["strategy_key"], metadata.get("strategy_version"))
+            if not metadata.strategy_key:
+                raise ValueError("模拟盘缺少 strategy_key")
+            strategy = self.strategy_query_service.get_strategy_version(metadata.strategy_key, metadata.strategy_version)
             portfolio = self._portfolio_from_metadata(metadata, symbols)
             result = self.freqtrade_service.execute(
                 strategy=strategy,
@@ -117,8 +131,8 @@ class PaperRunManager:
                 start_date=self._naive_utc(run.start_date or utc_now_naive()),
                 end_date=sync_window.end_at,
                 timeframe=run.timeframe,
-                initial_cash=float(metadata.get("initial_cash", 0.0) or 0.0),
-                fee_rate=float(metadata.get("fee_rate", 0.0) or 0.0),
+                initial_cash=float(metadata.initial_cash or 0.0),
+                fee_rate=float(metadata.fee_rate or 0.0),
             )
             self._replace_run_snapshot(
                 session=session,
@@ -142,19 +156,23 @@ class PaperRunManager:
             start_date=now,
             end_date=now,
         )
-        initial_report["strategy"] = {
-            "key": strategy.strategy_key,
-            "name": strategy.strategy_name,
-            "version": strategy.version,
-            "template": strategy.template,
-        }
-        initial_report["portfolio"] = {
-            "symbols": symbols,
-            "max_open_trades": command.portfolio.max_open_trades,
-            "position_size_pct": command.portfolio.position_size_pct,
-            "stake_mode": command.portfolio.stake_mode,
-            "stake_currency": self.report_builder.quote_currency(symbols[0]),
-        }
+        initial_report = initial_report.model_copy(
+            update={
+                "strategy": BacktestStrategySummaryResponse(
+                    key=strategy.strategy_key,
+                    name=strategy.strategy_name,
+                    version=strategy.version,
+                    template=strategy.template,
+                ),
+                "portfolio": BacktestPortfolioSummaryResponse(
+                    symbols=symbols,
+                    max_open_trades=command.portfolio.max_open_trades,
+                    position_size_pct=command.portfolio.position_size_pct,
+                    stake_mode=command.portfolio.stake_mode,
+                    stake_currency=self.report_builder.quote_currency(symbols[0]),
+                ),
+            }
+        )
         runtime_state = {
             "cash_balance": command.initial_cash,
             "last_processed": sync_window.last_processed,
@@ -197,7 +215,7 @@ class PaperRunManager:
         *,
         session,
         run: BacktestRun,
-        metadata: dict[str, Any],
+        metadata,
         result,
         timeframe: str,
         sync_window: PaperSyncWindow,
@@ -212,7 +230,7 @@ class PaperRunManager:
 
         positions = self._build_open_positions(result.trades, timeframe=timeframe, end_at=sync_window.end_at)
         cash_balance = self._cash_balance(
-            initial_cash=float(metadata.get("initial_cash", 0.0) or 0.0),
+            initial_cash=float(metadata.initial_cash or 0.0),
             trades=result.trades,
         )
         runtime_state = {
@@ -224,8 +242,8 @@ class PaperRunManager:
 
         buy_count, sell_count, hold_count = result_signal_counts(result)
         merged_metadata = {
-            **metadata,
-            **dict(result.metadata or {}),
+            **metadata.model_dump(),
+            **(result.metadata.model_dump() if result.metadata else {}),
             "engine": PAPER_LIVE_ENGINE,
             "execution_model": "freqtrade_replay",
             "research": None,
@@ -300,13 +318,13 @@ class PaperRunManager:
         reserved_cost = sum(item.stake_amount for item in trades if item.closed_at is None)
         return initial_cash + realized_profit - reserved_cost
 
-    def _portfolio_from_metadata(self, metadata: dict[str, Any], symbols: list[str]) -> PortfolioConfigRecord:
-        portfolio = dict(metadata.get("portfolio") or {})
+    def _portfolio_from_metadata(self, metadata, symbols: list[str]) -> PortfolioConfigRecord:
+        portfolio = metadata.portfolio
         return PortfolioConfigRecord(
             symbols=symbols,
-            max_open_trades=int(portfolio.get("max_open_trades", 1) or 1),
-            position_size_pct=float(portfolio.get("position_size_pct", 0.0) or 0.0),
-            stake_mode=str(portfolio.get("stake_mode") or "fixed"),
+            max_open_trades=int(portfolio.max_open_trades if portfolio and portfolio.max_open_trades is not None else 1),
+            position_size_pct=float(portfolio.position_size_pct if portfolio and portfolio.position_size_pct is not None else 0.0),
+            stake_mode=str(portfolio.stake_mode if portfolio and portfolio.stake_mode else "fixed"),
         )
 
     def _mark_stopped(self, run_id: int, status: str, reason: str) -> None:
@@ -314,13 +332,13 @@ class PaperRunManager:
             run = session.query(BacktestRun).filter(BacktestRun.id == run_id).first()
             if not run:
                 return
-            metadata = dict(run.metadata_info or {})
+            metadata = parse_run_metadata(run.metadata_info)
             if run.execution_mode != PAPER_LIVE_EXECUTION_MODE or run.engine != PAPER_LIVE_ENGINE:
                 return
             run.status = status
             run.metadata_info = update_paper_metadata(
                 metadata,
-                runtime_state=dict(metadata.get("runtime_state") or {}),
+                runtime_state=metadata.runtime_state.model_dump() if metadata.runtime_state else {},
                 last_updated=utc_now_naive().isoformat(),
                 stop_reason=reason,
             )

@@ -7,7 +7,7 @@ import type {
   PortfolioSuggestedAction,
   PortfolioSuggestedReason,
   PortfolioReviewFrequency,
-} from '@/types'
+} from './contracts'
 
 import {
   buildNormalizedPortfolioWeights,

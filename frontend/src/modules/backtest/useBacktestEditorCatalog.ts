@@ -1,4 +1,4 @@
-import type { StrategyEditorContract } from '@/types'
+import type { StrategyEditorContract } from './contracts'
 
 import { backtestApi } from './api'
 import type { UseBacktestEditorCatalogOptions } from './editorTypes'

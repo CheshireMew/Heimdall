@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { marketApi } from './api'
 import { resolveSentimentBucket } from './sentiment'
-import type { KlineCacheEntry, MarketIndicatorResponse, OhlcvPointResponse, SentimentCache, SentimentData } from '@/types'
+import type { MarketIndicatorResponse, OhlcvPointResponse } from './contracts'
+import type { KlineCacheEntry, SentimentCache, SentimentData } from './contracts'
 
 interface MarketState {
   klineCache: Record<string, KlineCacheEntry>

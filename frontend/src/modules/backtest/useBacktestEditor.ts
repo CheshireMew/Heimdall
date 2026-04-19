@@ -14,7 +14,7 @@ import type {
   StrategyTemplate,
   StrategyTemplateConfig,
   StrategyVersion,
-} from '@/types'
+} from './contracts'
 
 import {
   buildId,
@@ -340,7 +340,7 @@ export const useBacktestEditor = ({
     templateDraft: clone(templateDraft),
   })
 
-  const restoreSnapshot = (snapshot: BacktestEditorSnapshot) => {
+  const applySnapshot = (snapshot: BacktestEditorSnapshot) => {
     showVersionEditor.value = readBoolean(snapshot.showVersionEditor, showVersionEditor.value)
     showIndicatorCreator.value = readBoolean(snapshot.showIndicatorCreator, showIndicatorCreator.value)
     showTemplateCreator.value = readBoolean(snapshot.showTemplateCreator, showTemplateCreator.value)
@@ -424,6 +424,6 @@ export const useBacktestEditor = ({
     toggleTemplateIndicator,
     initializeDraftFromContract,
     buildSnapshot,
-    restoreSnapshot,
+    applySnapshot,
   }
 }

@@ -15,7 +15,8 @@ from app.contracts.backtest import (
     ResearchConfigRecord,
     StrategyVersionRecord,
 )
-from app.services.backtest.run_contract import BACKTEST_EXECUTION_MODE, FACTOR_BLEND_ENGINE, build_backtest_metadata
+from app.services.backtest.run_contract import BACKTEST_EXECUTION_MODE, FACTOR_BLEND_ENGINE, build_backtest_metadata, parse_run_metadata
+from app.services.backtest.strategy_support import blank_strategy_version_config_model
 from app.services.factors.service import FactorResearchService
 from app.services.factors.signal_execution_core import FactorSignalContext, FactorSignalExecutionCore
 
@@ -102,30 +103,35 @@ class FactorExecutionService:
             strategy_name="Factor Blend",
             version=research_run_id,
             template="factor_blend",
-            config={"research_run_id": research_run_id},
+            config=blank_strategy_version_config_model(),
             version_name=f"Research {research_run_id}",
         )
         portfolio = PortfolioConfigRecord(symbols=[symbol], max_open_trades=1, position_size_pct=position_size_pct, stake_mode=stake_mode)
         research = ResearchConfigRecord()
-        metadata = build_backtest_metadata(
-            strategy=strategy,
-            symbols=[symbol],
-            initial_cash=initial_cash,
-            fee_rate=fee_rate,
-            portfolio=portfolio,
-            research=research,
-        )
-        metadata["factor_research"] = {
-            "run_id": research_run_id,
-            "dataset_id": research_run["dataset_id"],
-            "entry_threshold": entry_threshold,
-            "exit_threshold": exit_threshold,
-            "stoploss_pct": stoploss_pct,
-            "takeprofit_pct": takeprofit_pct,
-            "max_hold_bars": max_hold_bars,
-            "blend": blend,
-        }
-        metadata["report"] = report
+        metadata = parse_run_metadata(
+            build_backtest_metadata(
+                strategy=strategy,
+                symbols=[symbol],
+                initial_cash=initial_cash,
+                fee_rate=fee_rate,
+                portfolio=portfolio,
+                research=research,
+            )
+        ).model_copy(
+            update={
+                "factor_research": {
+                    "run_id": research_run_id,
+                    "dataset_id": research_run["dataset_id"],
+                    "entry_threshold": entry_threshold,
+                    "exit_threshold": exit_threshold,
+                    "stoploss_pct": stoploss_pct,
+                    "takeprofit_pct": takeprofit_pct,
+                    "max_hold_bars": max_hold_bars,
+                    "blend": blend,
+                },
+                "report": report,
+            }
+        ).model_dump()
 
         return self._persist_backtest_run(
             symbol=symbol,

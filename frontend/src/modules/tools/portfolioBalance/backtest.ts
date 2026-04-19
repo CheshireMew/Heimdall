@@ -4,7 +4,7 @@ import type {
   PortfolioBacktestEquityPoint,
   PortfolioBalanceBacktestConfig,
   PortfolioBalanceStrategyConfig,
-} from '@/types'
+} from './contracts'
 
 import {
   buildNormalizedPortfolioWeights,

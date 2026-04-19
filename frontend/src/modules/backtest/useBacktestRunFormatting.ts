@@ -7,7 +7,7 @@ import type {
   BacktestRollingWindow,
   BacktestRun,
   StrategyVersion,
-} from '@/types'
+} from './contracts'
 
 import { asNumber } from './format'
 import type {

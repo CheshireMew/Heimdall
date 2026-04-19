@@ -22,28 +22,30 @@ import type {
   BinanceWeb3TokenDynamicResponse,
   BinanceWeb3TokenKlineResponse,
   BinanceWeb3UnifiedTokenRankResponse,
-  CurrentPriceParams,
   CurrentPriceBatchResponse,
   CurrentPriceResponse,
-  RealtimeParams,
   RealtimeResponse,
   KlineTailResponse,
   TradeSetupResponse,
   MarketHistoryResponse,
-  HistoryParams,
-  LatestKlineParams,
-  TailKlineParams,
-  FullHistoryParams,
-  BatchFullHistoryParams,
-  IndicatorParams,
   MarketHistoryBatchResponse,
   MarketIndicatorResponse,
-  CryptoIndexParams,
   CryptoIndexResponse,
-  IndexHistoryParams,
   MarketIndexHistoryResponse,
   MarketSymbolSearchResponse,
-} from '@/types'
+} from './contracts'
+import type {
+  BatchFullHistoryParams,
+  CryptoIndexParams,
+  CurrentPriceParams,
+  FullHistoryParams,
+  HistoryParams,
+  IndexHistoryParams,
+  IndicatorParams,
+  LatestKlineParams,
+  RealtimeParams,
+  TailKlineParams,
+} from './contracts'
 
 const serializeBatchFullHistoryParams = (params: BatchFullHistoryParams) => {
   const query = new URLSearchParams()

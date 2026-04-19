@@ -5,7 +5,7 @@ import type {
   DCAResponse,
   PairCompareRequestSchema,
   PairCompareToolResponse,
-} from '@/types'
+} from './contracts'
 
 export const toolsApi = {
   runSimulation(config: DCARequestSchema): Promise<AxiosResponse<DCAResponse>> {

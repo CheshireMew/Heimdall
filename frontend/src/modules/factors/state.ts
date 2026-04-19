@@ -1,5 +1,5 @@
 import { computed, reactive, ref } from 'vue'
-import type { FactorBlend, FactorCatalogItem, FactorCatalogResponse, FactorResearchSummary, FactorResearchRun, FactorScorecard, FactorDetail } from '@/types'
+import type { FactorBlend, FactorCatalogItem, FactorCatalogResponse, FactorDetail, FactorResearchRun, FactorResearchSummary, FactorScorecard } from './contracts'
 
 export const createFactorResearchForm = () => ({
   symbol: 'BTC/USDT',

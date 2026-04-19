@@ -1,18 +1,19 @@
 import { computed, onMounted, ref } from 'vue'
 
-import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS, readNumber } from '@/composables/pageSnapshot'
+import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
 import { marketApi } from './api'
-import type { CryptoIndexConstituent, CryptoIndexHistoryPoint, CryptoIndexResponse } from '@/types'
-import { createDefaultCryptoIndexSnapshot, normalizeCryptoIndexSnapshot } from './pageSnapshots'
+import type { CryptoIndexResponse } from './contracts'
+import type { CryptoIndexConstituent, CryptoIndexHistoryPoint } from './contracts'
+import { buildCryptoIndexSnapshot, createDefaultCryptoIndexSnapshot, normalizeCryptoIndexSnapshot } from './pageSnapshots'
 
 
 export function useCryptoIndexPage() {
   const { theme } = useTheme()
   const { formatMoney, formatCompactMoney } = useMoney()
-  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.cryptoIndex, normalizeCryptoIndexSnapshot, createDefaultCryptoIndexSnapshot())
-  const restoredSnapshot = pageSnapshot.load()
+  const pageSnapshot = createPersistentPageSnapshot(PAGE_SNAPSHOT_KEYS.cryptoIndex, normalizeCryptoIndexSnapshot, createDefaultCryptoIndexSnapshot())
+  const restoredSnapshot = pageSnapshot.initial
 
   const basketSizes = [10, 20, 50]
   const topN = ref(restoredSnapshot.topN)
@@ -135,13 +136,12 @@ export function useCryptoIndexPage() {
     fetchData()
   })
 
-  bindPageSnapshot(
+  pageSnapshot.bind(
     [topN, days],
-    () => ({
-      topN: readNumber(topN.value, 20),
-      days: readNumber(days.value, 90),
+    () => buildCryptoIndexSnapshot({
+      topN: topN.value,
+      days: days.value,
     }),
-    pageSnapshot.save,
   )
 
   return {

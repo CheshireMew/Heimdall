@@ -6,6 +6,14 @@ from typing import Any
 from app.infra.db.database import session_scope
 from app.infra.db.schema import StrategyDefinition, StrategyVersion
 from app.contracts.backtest import StrategyVersionRecord
+from app.schemas.backtest import (
+    StrategyDefinitionResponse,
+    StrategyEditorContractResponse,
+    StrategyIndicatorEngineResponse,
+    StrategyIndicatorRegistryResponse,
+    StrategyTemplateResponse,
+    StrategyVersionResponse,
+)
 from app.services.backtest.strategy_catalog import (
     get_builtin_strategy_definitions,
     get_indicator_catalog,
@@ -18,26 +26,36 @@ from app.services.backtest.strategy_contract import editor_contract
 
 from .strategy_support import (
     build_strategy_version_response_payload,
+    normalize_strategy_version_config_model,
     normalize_strategy_version_payload,
 )
 
 
 class StrategyQueryService:
-    def get_editor_contract(self) -> dict[str, Any]:
+    def get_editor_contract(self) -> StrategyEditorContractResponse:
         contract = editor_contract()
         contract["run_defaults"] = backtest_run_defaults()
-        return contract
+        return StrategyEditorContractResponse.model_validate(contract)
 
-    def list_templates(self) -> list[dict[str, Any]]:
-        return get_template_catalog()
+    def list_templates(self) -> list[StrategyTemplateResponse]:
+        return [
+            StrategyTemplateResponse.model_validate(item)
+            for item in get_template_catalog()
+        ]
 
-    def list_indicators(self) -> list[dict[str, Any]]:
-        return get_indicator_catalog()
+    def list_indicators(self) -> list[StrategyIndicatorRegistryResponse]:
+        return [
+            StrategyIndicatorRegistryResponse.model_validate(item)
+            for item in get_indicator_catalog()
+        ]
 
-    def list_indicator_engines(self) -> list[dict[str, Any]]:
-        return get_indicator_engine_catalog()
+    def list_indicator_engines(self) -> list[StrategyIndicatorEngineResponse]:
+        return [
+            StrategyIndicatorEngineResponse.model_validate(item)
+            for item in get_indicator_engine_catalog()
+        ]
 
-    def list_strategies(self) -> list[dict[str, Any]]:
+    def list_strategies(self) -> list[StrategyDefinitionResponse]:
         with session_scope() as session:
             definitions = [
                 self._definition_snapshot(row)
@@ -83,7 +101,9 @@ class StrategyQueryService:
                             strategy_name=builtin["name"],
                             version=version_payload["version"],
                             template=builtin["template"],
-                            config=version_payload["config"] or {},
+                            config=normalize_strategy_version_config_model(
+                                builtin["template"], version_payload["config"] or {}
+                            ),
                             parameter_space=version_payload.get("parameter_space")
                             or {},
                             notes=version_payload.get("notes"),
@@ -134,7 +154,13 @@ class StrategyQueryService:
                 }
             )
 
-        return sorted(result, key=lambda item: (item["category"], item["name"].lower()))
+        sorted_rows = sorted(
+            result,
+            key=lambda item: (item["category"], item["name"].lower()),
+        )
+        return [
+            StrategyDefinitionResponse.model_validate(item) for item in sorted_rows
+        ]
 
     def get_strategy_version(
         self, strategy_key: str, version: int | None = None
@@ -218,20 +244,22 @@ class StrategyQueryService:
 
     def _build_db_versions(
         self, template: str, versions: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    ) -> list[StrategyVersionResponse]:
         return [
-            build_strategy_version_response_payload(
-                StrategyVersionRecord(
-                    strategy_key=version["strategy_key"],
-                    strategy_name=version["name"],
-                    version=version["version"],
-                    template=template,
-                    config=version["config"] or {},
-                    parameter_space=version["parameter_space"] or {},
-                    notes=version["notes"],
-                    version_name=version["name"],
-                    id=version["id"],
-                    is_default=version["is_default"],
+            StrategyVersionResponse.model_validate(
+                build_strategy_version_response_payload(
+                    StrategyVersionRecord(
+                        strategy_key=version["strategy_key"],
+                        strategy_name=version["name"],
+                        version=version["version"],
+                        template=template,
+                        config=normalize_strategy_version_config_model(template, version["config"] or {}),
+                        parameter_space=version["parameter_space"] or {},
+                        notes=version["notes"],
+                        version_name=version["name"],
+                        id=version["id"],
+                        is_default=version["is_default"],
+                    )
                 )
             )
             for version in versions
@@ -254,7 +282,7 @@ class StrategyQueryService:
             strategy_name=definition["name"],
             version=version_payload["version"],
             template=definition["template"],
-            config=normalized_config,
+            config=normalize_strategy_version_config_model(template, normalized_config),
             parameter_space=normalized_parameter_space,
             description=definition.get("description"),
             notes=version_payload.get("notes"),
@@ -285,7 +313,7 @@ class StrategyQueryService:
             strategy_name=definition_name,
             version=strategy_version["version"],
             template=template,
-            config=normalized_config,
+            config=normalize_strategy_version_config_model(template, normalized_config),
             parameter_space=normalized_parameter_space,
             description=description,
             notes=strategy_version["notes"],

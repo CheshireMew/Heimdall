@@ -1,14 +1,14 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
+import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { isIndexSymbol } from '@/modules/market'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
 import { useUserPreferences } from '@/composables/useUserPreferences'
-import type { DCAResponse } from '@/types'
+import type { DCAResponse } from './contracts'
 import { toolsApi } from './api'
-import { createDefaultDcaSnapshot, normalizeDcaConfig, normalizeDcaSnapshot } from './pageSnapshots'
+import { buildDcaSnapshot, createDefaultDcaSnapshot, normalizeDcaConfig, normalizeDcaSnapshot } from './pageSnapshots'
 import { createEmptyMarketData, useDcaMarketContext } from './useDcaMarketContext'
 import { useDcaCharts } from './useDcaCharts'
 
@@ -26,12 +26,12 @@ export function useDcaPage() {
   const { t } = useI18n()
   const { timezone, setTimezone } = useUserPreferences()
   const { displayCurrency, fromDisplayAmount, formatDisplayNumber, formatMoney } = useMoney()
-  const pageSnapshot = createPageSnapshot(
+  const pageSnapshot = createPersistentPageSnapshot(
     PAGE_SNAPSHOT_KEYS.dca,
     normalizeDcaSnapshot,
     createDefaultDcaSnapshot(),
   )
-  const restoredSnapshot = pageSnapshot.load()
+  const restoredSnapshot = pageSnapshot.initial
 
   const config = reactive(normalizeDcaConfig(restoredSnapshot?.config))
   config.timezone = timezone.value
@@ -120,12 +120,9 @@ export function useDcaPage() {
     }
   })
 
-  bindPageSnapshot(
+  pageSnapshot.bind(
     config,
-    () => ({
-      config: normalizeDcaConfig(config),
-    }),
-    pageSnapshot.save,
+    () => buildDcaSnapshot(normalizeDcaConfig(config)),
   )
 
   onMounted(() => {

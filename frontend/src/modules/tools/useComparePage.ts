@@ -1,11 +1,12 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 
-import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
+import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { isIndexSymbol } from '@/modules/market'
+import type { CandlestickData } from '@/modules/market/contracts'
+import type { MarketSymbolSearchResponse } from '@/modules/market/contracts'
 import { useTheme } from '@/composables/useTheme'
 import { toolsApi } from './api'
-import type { CandlestickData, MarketSymbolSearchResponse } from '@/types'
-import { createDefaultCompareSnapshot, normalizeCompareSnapshot } from './pageSnapshots'
+import { buildCompareSnapshot, createDefaultCompareSnapshot, normalizeCompareSnapshot } from './pageSnapshots'
 
 interface CompareLinePoint {
   time: number
@@ -26,8 +27,8 @@ interface ChartComponentRef {
 
 export function useComparePage() {
   const { theme } = useTheme()
-  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.compare, normalizeCompareSnapshot, createDefaultCompareSnapshot())
-  const restoredSnapshot = pageSnapshot.load()
+  const pageSnapshot = createPersistentPageSnapshot(PAGE_SNAPSHOT_KEYS.compare, normalizeCompareSnapshot, createDefaultCompareSnapshot())
+  const restoredSnapshot = pageSnapshot.initial
 
   const chartColors = computed(() => {
     const isDark = theme.value === 'dark'
@@ -121,17 +122,9 @@ export function useComparePage() {
     fetchComparisonData()
   })
 
-  bindPageSnapshot(
+  pageSnapshot.bind(
     config,
-    () => ({
-      config: {
-        symbolA: readString(config.symbolA, 'BTC'),
-        symbolB: readString(config.symbolB, 'ETH'),
-        days: readNumber(config.days, 30),
-        timeframe: readString(config.timeframe, '1h'),
-      },
-    }),
-    pageSnapshot.save,
+    () => buildCompareSnapshot(config),
   )
 
   onBeforeUnmount(() => {

@@ -20,6 +20,7 @@ from app.contracts.backtest import (
     ResearchConfigRecord,
     StrategyVersionRecord,
 )
+from app.schemas.strategy_contract import StrategyTemplateConfigResponse
 from app.services.backtest.symbol_contract import sanitize_backtest_run_fragment
 from app.services.market.market_data_service import MarketDataService
 from config import settings
@@ -47,7 +48,7 @@ class IterationResult:
     label: str
     start_date: datetime
     end_date: datetime
-    config: dict[str, Any]
+    config: StrategyTemplateConfigResponse
     execution: BacktestExecutionResult
 
 
@@ -80,7 +81,7 @@ class FreqtradeIterationExecutor:
         *,
         label: str,
         context: FreqtradeExecutionContext,
-        strategy_config: dict[str, Any],
+        strategy_config: StrategyTemplateConfigResponse,
         start_date: datetime,
         end_date: datetime,
     ) -> IterationResult:
@@ -213,7 +214,7 @@ class FreqtradeIterationExecutor:
             label=label,
             start_date=start_date,
             end_date=end_date,
-            config=dict(strategy_config),
+            config=strategy_config,
             execution=execution,
         )
 

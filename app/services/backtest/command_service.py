@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
-
 from app.contracts.backtest import (
     BacktestStartCommand,
     CreateIndicatorDefinitionCommand,
     CreateStrategyTemplateCommand,
     CreateStrategyVersionCommand,
     PaperStartCommand,
+)
+from app.schemas.backtest import (
+    BacktestDeleteResponse,
+    BacktestStartResponse,
+    PaperStartResponse,
+    PaperStopResponse,
+    StrategyIndicatorRegistryResponse,
+    StrategyTemplateResponse,
+    StrategyVersionResponse,
 )
 from app.services.backtest.paper_manager import PaperRunManager
 from app.services.backtest.run_repository import BacktestRunRepository
@@ -39,7 +46,7 @@ class BacktestCommandService:
         self.paper_manager = paper_manager
         self.run_repository = run_repository
 
-    async def start_backtest(self, command: BacktestStartCommand) -> dict[str, Any]:
+    async def start_backtest(self, command: BacktestStartCommand) -> BacktestStartResponse:
         strategy = self.strategy_query_service.get_strategy_version(
             command.strategy_key, command.strategy_version
         )
@@ -66,9 +73,9 @@ class BacktestCommandService:
         )
         if not backtest_id:
             raise RuntimeError("回测执行失败")
-        return {"success": True, "backtest_id": backtest_id, "message": "回测已完成"}
+        return BacktestStartResponse(success=True, backtest_id=backtest_id, message="回测已完成")
 
-    async def start_paper_run(self, command: PaperStartCommand) -> dict[str, Any]:
+    async def start_paper_run(self, command: PaperStartCommand) -> PaperStartResponse:
         strategy = self.strategy_query_service.get_strategy_version(
             command.strategy_key, command.strategy_version
         )
@@ -82,11 +89,11 @@ class BacktestCommandService:
         )
         return await self.paper_manager.start_run(command)
 
-    async def stop_paper_run(self, run_id: int) -> dict[str, Any]:
+    async def stop_paper_run(self, run_id: int) -> PaperStopResponse:
         logger.info(f"停止模拟盘: run_id={run_id}")
         return await self.paper_manager.stop_run(run_id)
 
-    async def delete_backtest(self, backtest_id: int) -> dict[str, Any]:
+    async def delete_backtest(self, backtest_id: int) -> BacktestDeleteResponse:
         logger.info(f"删除回测记录: backtest_id={backtest_id}")
         loop = asyncio.get_running_loop()
         deleted = await loop.run_in_executor(
@@ -95,15 +102,15 @@ class BacktestCommandService:
         )
         if not deleted:
             raise ValueError(f"回测记录不存在: {backtest_id}")
-        return {"success": True, "run_id": backtest_id, "message": "回测记录已删除"}
+        return BacktestDeleteResponse(success=True, run_id=backtest_id, message="回测记录已删除")
 
-    async def delete_paper_run(self, run_id: int) -> dict[str, Any]:
+    async def delete_paper_run(self, run_id: int) -> BacktestDeleteResponse:
         logger.info(f"删除模拟盘记录: run_id={run_id}")
         return await self.paper_manager.delete_run(run_id)
 
     async def create_template(
         self, command: CreateStrategyTemplateCommand
-    ) -> dict[str, Any]:
+    ) -> StrategyTemplateResponse:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
@@ -120,7 +127,7 @@ class BacktestCommandService:
 
     async def create_indicator(
         self, command: CreateIndicatorDefinitionCommand
-    ) -> dict[str, Any]:
+    ) -> StrategyIndicatorRegistryResponse:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
@@ -135,7 +142,7 @@ class BacktestCommandService:
 
     async def create_strategy_version(
         self, command: CreateStrategyVersionCommand
-    ) -> dict[str, Any]:
+    ) -> StrategyVersionResponse:
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(
             None,
@@ -151,4 +158,6 @@ class BacktestCommandService:
                 make_default=command.make_default,
             ),
         )
-        return build_strategy_version_response_payload(result)
+        return StrategyVersionResponse.model_validate(
+            build_strategy_version_response_payload(result)
+        )

@@ -13,6 +13,7 @@ from freqtrade.data.btanalysis.bt_fileutils import (
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
 from app.services.backtest.freqtrade_trade_mapper import FreqtradeTradeMapper
 from app.contracts.backtest import BacktestExecutionResult, ResearchConfigRecord
+from app.schemas.backtest_result import BacktestReportResponse, BacktestReportSnapshotResponse, BacktestRunMetadataResponse
 from config import settings
 
 
@@ -66,21 +67,21 @@ class FreqtradeResultBuilder:
             start_date=start_date,
             end_date=end_date,
         )
-        report["symbols"] = list(data_symbols)
-        report["timeframe"] = timeframe
-        metadata = {
-            "engine": "Freqtrade",
-            "exchange": settings.EXCHANGE_ID,
-            "stake_currency": self.report_builder.quote_currency(data_symbols[0]),
-            "initial_cash": initial_cash,
-            "fee_rate": fee_rate,
-            "fee_ratio": fee_ratio,
-            "symbols": list(data_symbols),
-            "execution_symbols": list(execution_symbols),
-            "price_source": "spot_ohlcv",
-            "timeframe": timeframe,
-            "raw_stats": self.report_snapshot(strategy_stats),
-        }
+        report.symbols = list(data_symbols)
+        report.timeframe = timeframe
+        metadata = BacktestRunMetadataResponse(
+            engine="Freqtrade",
+            exchange=settings.EXCHANGE_ID,
+            stake_currency=self.report_builder.quote_currency(data_symbols[0]),
+            initial_cash=initial_cash,
+            fee_rate=fee_rate,
+            fee_ratio=fee_ratio,
+            symbols=list(data_symbols),
+            execution_symbols=list(execution_symbols),
+            price_source="spot_ohlcv",
+            timeframe=timeframe,
+            raw_stats=self.report_snapshot(strategy_stats),
+        )
         return BacktestExecutionResult(
             total_candles=total_candles,
             signals=signals,
@@ -90,8 +91,8 @@ class FreqtradeResultBuilder:
             metadata=metadata,
         )
 
-    def extract_metric(self, report: dict[str, Any], metric: str) -> float:
+    def extract_metric(self, report: BacktestReportResponse | dict[str, Any], metric: str) -> float | None:
         return self.report_builder.extract_metric(report, metric)
 
-    def report_snapshot(self, report: dict[str, Any] | None) -> dict[str, Any] | None:
+    def report_snapshot(self, report: BacktestReportResponse | dict[str, Any] | None) -> BacktestReportSnapshotResponse | None:
         return self.report_builder.report_snapshot(report)

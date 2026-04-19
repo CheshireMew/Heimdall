@@ -7,12 +7,20 @@ from typing import Any
 import pandas as pd
 import talib.abstract as ta
 
+from app.schemas.strategy_contract import (
+    StrategyConditionNodeResponse,
+    StrategyGroupNodeResponse,
+    StrategyIndicatorConfigResponse,
+    StrategyRuleSourceResponse,
+    StrategyStateBranchResponse,
+    StrategyTemplateConfigResponse,
+)
 from app.services.backtest.scripted_template_runtime import get_template_runtime, template_supports_signal_runtime
 from app.services.backtest.strategy_catalog import get_indicator_registry_map, get_template_spec
 from app.services.backtest.strategy_contract import (
     allowed_run_timeframes,
     explicit_indicator_timeframes,
-    normalize_strategy_payload,
+    normalize_strategy_config_model,
     preferred_run_timeframe,
     timeframe_to_minutes,
 )
@@ -31,40 +39,41 @@ class StrategySignalSnapshot:
 
 
 class StrategyRuntime:
-    def normalized_config(self, template: str, config: dict[str, Any]) -> dict[str, Any]:
-        normalized_config, _ = normalize_strategy_payload(
-            template_spec=get_template_spec(template),
+    def normalized_config(self, template: str, config: dict[str, Any] | StrategyTemplateConfigResponse) -> StrategyTemplateConfigResponse:
+        if isinstance(config, StrategyTemplateConfigResponse):
+            return config
+        return normalize_strategy_config_model(
             config=dict(config or {}),
-            parameter_space={},
+            default_config=get_template_spec(template)["default_config"],
         )
-        return normalized_config
 
-    def validate_timeframe_compatibility(self, template: str, config: dict[str, Any], base_timeframe: str) -> dict[str, Any]:
+    def validate_timeframe_compatibility(self, template: str, config: dict[str, Any] | StrategyTemplateConfigResponse, base_timeframe: str) -> StrategyTemplateConfigResponse:
         normalized_config = self.normalized_config(template, config)
-        if base_timeframe not in allowed_run_timeframes(normalized_config):
+        config_payload = normalized_config.model_dump()
+        if base_timeframe not in allowed_run_timeframes(config_payload):
             indicator_details = []
-            for indicator_id, indicator in (normalized_config.get("indicators") or {}).items():
+            for indicator_id, indicator in normalized_config.indicators.items():
                 indicator_timeframe = self._resolve_indicator_timeframe(indicator, base_timeframe)
-                label = str(indicator.get("label") or indicator_id)
+                label = str(indicator.label or indicator_id)
                 indicator_details.append(f"{label}({indicator_timeframe})")
-            joined = ", ".join(indicator_details) if indicator_details else ", ".join(explicit_indicator_timeframes(normalized_config))
+            joined = ", ".join(indicator_details) if indicator_details else ", ".join(explicit_indicator_timeframes(config_payload))
             raise ValueError(
                 f"运行周期 {base_timeframe} 与策略指标周期不兼容。"
                 f"当前策略包含更细周期或非整倍数周期指标: {joined}。"
-                f"请把运行周期调到 {preferred_run_timeframe(normalized_config)}，或改掉对应指标周期。"
+                f"请把运行周期调到 {preferred_run_timeframe(config_payload)}，或改掉对应指标周期。"
             )
         return normalized_config
 
-    def warmup_bars(self, template: str, config: dict[str, Any], base_timeframe: str) -> int:
+    def warmup_bars(self, template: str, config: dict[str, Any] | StrategyTemplateConfigResponse, base_timeframe: str) -> int:
         normalized_config = self.validate_timeframe_compatibility(template, config, base_timeframe)
         indicator_registry = get_indicator_registry_map()
         base_minutes = timeframe_to_minutes(base_timeframe)
         warmups = [5]
-        for indicator in (normalized_config.get("indicators") or {}).values():
-            indicator_type = indicator.get("type")
+        for indicator in normalized_config.indicators.values():
+            indicator_type = indicator.type
             indicator_spec = indicator_registry.get(indicator_type) or {}
             engine = indicator_spec.get("engine", indicator_type)
-            params = indicator.get("params") or {}
+            params = indicator.params
             indicator_timeframe = self._resolve_indicator_timeframe(indicator, base_timeframe)
             scale = max(timeframe_to_minutes(indicator_timeframe) // base_minutes, 1)
             if engine in {"ema", "sma", "roc"}:
@@ -92,7 +101,7 @@ class StrategyRuntime:
     def build_signal_snapshots(
         self,
         template: str,
-        config: dict[str, Any],
+        config: dict[str, Any] | StrategyTemplateConfigResponse,
         candles: list[list[float]],
         timeframe: str,
         *,
@@ -109,7 +118,7 @@ class StrategyRuntime:
         if frame.empty:
             return []
         snapshots: list[StrategySignalSnapshot] = []
-        indicators = self.normalized_config(template, config).get("indicators") or {}
+        indicators = self.normalized_config(template, config).indicators
         for _, row in frame.iterrows():
             snapshots.append(
                 StrategySignalSnapshot(
@@ -128,7 +137,7 @@ class StrategyRuntime:
     def build_frame(
         self,
         template: str,
-        config: dict[str, Any],
+        config: dict[str, Any] | StrategyTemplateConfigResponse,
         candles: list[list[float]],
         timeframe: str,
     ) -> pd.DataFrame:
@@ -147,19 +156,18 @@ class StrategyRuntime:
         frame["long_exit_signal"] = pd.Series(False, index=frame.index, dtype=bool)
         frame["short_entry_signal"] = pd.Series(False, index=frame.index, dtype=bool)
         frame["short_exit_signal"] = pd.Series(False, index=frame.index, dtype=bool)
-        execution = normalized_config.get("execution") or {}
-        allow_short = execution.get("direction") == "long_short"
-        for branch_key in normalized_config.get("regime_priority") or ["trend", "range"]:
-            branch = normalized_config.get(branch_key) or {}
+        allow_short = normalized_config.execution.direction == "long_short"
+        for branch_key in normalized_config.regime_priority or ["trend", "range"]:
+            branch = self._branch(normalized_config, branch_key)
             mask = branch_masks.get(branch_key)
             if mask is None:
                 continue
             frame.loc[mask, "active_regime"] = branch_key
-            frame["long_entry_signal"] = frame["long_entry_signal"] | (mask & self._evaluate_rule_tree(frame, branch.get("long_entry") or {}))
-            frame["long_exit_signal"] = frame["long_exit_signal"] | (mask & self._evaluate_rule_tree(frame, branch.get("long_exit") or {}))
+            frame["long_entry_signal"] = frame["long_entry_signal"] | (mask & self._evaluate_rule_tree(frame, branch.long_entry))
+            frame["long_exit_signal"] = frame["long_exit_signal"] | (mask & self._evaluate_rule_tree(frame, branch.long_exit))
             if allow_short:
-                frame["short_entry_signal"] = frame["short_entry_signal"] | (mask & self._evaluate_rule_tree(frame, branch.get("short_entry") or {}))
-                frame["short_exit_signal"] = frame["short_exit_signal"] | (mask & self._evaluate_rule_tree(frame, branch.get("short_exit") or {}))
+                frame["short_entry_signal"] = frame["short_entry_signal"] | (mask & self._evaluate_rule_tree(frame, branch.short_entry))
+                frame["short_exit_signal"] = frame["short_exit_signal"] | (mask & self._evaluate_rule_tree(frame, branch.short_exit))
         return frame
 
     def _base_frame(self, candles: list[list[float]]) -> pd.DataFrame:
@@ -173,20 +181,20 @@ class StrategyRuntime:
     def _merge_indicator_frames(
         self,
         frame: pd.DataFrame,
-        config: dict[str, Any],
+        config: StrategyTemplateConfigResponse,
         indicator_registry: dict[str, dict[str, Any]],
         base_timeframe: str,
     ) -> pd.DataFrame:
         timeframe_frames: dict[str, pd.DataFrame] = {base_timeframe: frame.copy()}
-        for indicator in (config.get("indicators") or {}).values():
+        for indicator in config.indicators.values():
             indicator_timeframe = self._resolve_indicator_timeframe(indicator, base_timeframe)
             if indicator_timeframe not in timeframe_frames:
                 timeframe_frames[indicator_timeframe] = self._resample_frame(frame, indicator_timeframe, base_timeframe)
-        for indicator_id, indicator in (config.get("indicators") or {}).items():
+        for indicator_id, indicator in config.indicators.items():
             indicator_timeframe = self._resolve_indicator_timeframe(indicator, base_timeframe)
             self._apply_indicator(timeframe_frames[indicator_timeframe], indicator_id, indicator, indicator_registry)
         merged = frame.copy()
-        for indicator_id, indicator in (config.get("indicators") or {}).items():
+        for indicator_id, indicator in config.indicators.items():
             indicator_timeframe = self._resolve_indicator_timeframe(indicator, base_timeframe)
             source_frame = timeframe_frames[indicator_timeframe]
             output_columns = [column for column in source_frame.columns if column.startswith(f"{indicator_id}__")]
@@ -236,21 +244,21 @@ class StrategyRuntime:
             raise ValueError(f"不支持的重采样周期: {timeframe}")
         return mapping[timeframe]
 
-    def _resolve_indicator_timeframe(self, indicator: dict[str, Any], base_timeframe: str) -> str:
-        configured = str(indicator.get("timeframe") or "base")
+    def _resolve_indicator_timeframe(self, indicator: StrategyIndicatorConfigResponse, base_timeframe: str) -> str:
+        configured = str(indicator.timeframe or "base")
         return base_timeframe if configured == "base" else configured
 
     def _apply_indicator(
         self,
         frame: pd.DataFrame,
         indicator_id: str,
-        indicator: dict[str, Any],
+        indicator: StrategyIndicatorConfigResponse,
         indicator_registry: dict[str, dict[str, Any]],
     ) -> None:
-        indicator_type = indicator.get("type")
+        indicator_type = indicator.type
         indicator_spec = indicator_registry.get(indicator_type) or {}
         engine = indicator_spec.get("engine", indicator_type)
-        params = indicator.get("params") or {}
+        params = indicator.params
         if engine == "ema":
             frame[f"{indicator_id}__value"] = ta.EMA(frame, timeperiod=int(params.get("period", 20)))
             return
@@ -321,13 +329,17 @@ class StrategyRuntime:
             return
         raise ValueError(f"不支持的指标类型: {indicator_type}")
 
-    def _evaluate_rule_tree(self, frame: pd.DataFrame, node: dict[str, Any]) -> pd.Series:
-        if not node or not node.get("enabled", True):
+    def _evaluate_rule_tree(
+        self,
+        frame: pd.DataFrame,
+        node: StrategyGroupNodeResponse | StrategyConditionNodeResponse,
+    ) -> pd.Series:
+        if not node.enabled:
             return pd.Series(True, index=frame.index, dtype=bool)
-        if node.get("node_type") == "condition":
+        if isinstance(node, StrategyConditionNodeResponse):
             return self._evaluate_condition(frame, node)
-        logic = node.get("logic", "and")
-        children = [child for child in node.get("children") or [] if child.get("enabled", True)]
+        logic = node.logic
+        children = [child for child in node.children if child.enabled]
         if not children:
             return pd.Series(True, index=frame.index, dtype=bool)
         evaluated = [self._evaluate_rule_tree(frame, child) for child in children]
@@ -336,10 +348,10 @@ class StrategyRuntime:
             result = result & item if logic == "and" else result | item
         return result.fillna(False)
 
-    def _evaluate_condition(self, frame: pd.DataFrame, node: dict[str, Any]) -> pd.Series:
-        left = self._resolve_source(frame, node.get("left") or {})
-        right = self._resolve_source(frame, node.get("right") or {})
-        operator = node.get("operator")
+    def _evaluate_condition(self, frame: pd.DataFrame, node: StrategyConditionNodeResponse) -> pd.Series:
+        left = self._resolve_source(frame, node.left)
+        right = self._resolve_source(frame, node.right)
+        operator = node.operator
         if operator == "gt":
             return (left > right).fillna(False)
         if operator == "gte":
@@ -350,40 +362,40 @@ class StrategyRuntime:
             return (left <= right).fillna(False)
         raise ValueError(f"不支持的条件操作符: {operator}")
 
-    def _resolve_source(self, frame: pd.DataFrame, source: dict[str, Any]) -> pd.Series:
-        kind = source.get("kind")
-        bars_ago = max(int(source.get("bars_ago", 0) or 0), 0)
+    def _resolve_source(self, frame: pd.DataFrame, source: StrategyRuleSourceResponse) -> pd.Series:
+        kind = source.kind
+        bars_ago = max(int(source.bars_ago or 0), 0)
         if kind == "price":
-            field = source.get("field", "close")
+            field = source.field or "close"
             return frame[field].shift(bars_ago)
         if kind == "indicator":
-            return frame[f'{source.get("indicator")}__{source.get("output", "value")}'].shift(bars_ago)
+            return frame[f"{source.indicator}__{source.output or 'value'}"].shift(bars_ago)
         if kind == "value":
-            return pd.Series(float(source.get("value", 0)), index=frame.index, dtype=float)
+            return pd.Series(float(source.value or 0), index=frame.index, dtype=float)
         if kind == "indicator_multiplier":
-            base = frame[f'{source.get("indicator")}__{source.get("output", "value")}']
-            return (base * float(source.get("multiplier", 1.0))).shift(bars_ago)
+            base = frame[f"{source.indicator}__{source.output or 'value'}"]
+            return (base * float(source.multiplier or 1.0)).shift(bars_ago)
         if kind == "indicator_offset":
-            base = frame[f'{source.get("base_indicator")}__{source.get("base_output", "value")}']
-            offset = frame[f'{source.get("offset_indicator")}__{source.get("offset_output", "value")}']
-            return (base - (offset * float(source.get("offset_multiplier", 1.0)))).shift(bars_ago)
+            base = frame[f"{source.base_indicator}__{source.base_output or 'value'}"]
+            offset = frame[f"{source.offset_indicator}__{source.offset_output or 'value'}"]
+            return (base - (offset * float(source.offset_multiplier or 1.0))).shift(bars_ago)
         raise ValueError(f"不支持的条件源: {kind}")
 
-    def _resolve_branch_masks(self, frame: pd.DataFrame, config: dict[str, Any]) -> dict[str, pd.Series]:
+    def _resolve_branch_masks(self, frame: pd.DataFrame, config: StrategyTemplateConfigResponse) -> dict[str, pd.Series]:
         remaining = pd.Series(True, index=frame.index, dtype=bool)
         masks: dict[str, pd.Series] = {}
-        for branch_key in config.get("regime_priority") or ["trend", "range"]:
-            branch = config.get(branch_key) or {}
-            if not branch.get("enabled", True):
+        for branch_key in config.regime_priority or ["trend", "range"]:
+            branch = self._branch(config, branch_key)
+            if not branch.enabled:
                 masks[branch_key] = pd.Series(False, index=frame.index, dtype=bool)
                 continue
-            regime_mask = self._evaluate_rule_tree(frame, branch.get("regime") or {})
+            regime_mask = self._evaluate_rule_tree(frame, branch.regime)
             active_mask = (remaining & regime_mask).fillna(False)
             masks[branch_key] = active_mask
             remaining = (remaining & ~active_mask).fillna(False)
         return masks
 
-    def _row_indicator_snapshot(self, row: pd.Series, indicators: dict[str, Any]) -> dict[str, Any]:
+    def _row_indicator_snapshot(self, row: pd.Series, indicators: dict[str, StrategyIndicatorConfigResponse]) -> dict[str, Any]:
         snapshot: dict[str, Any] = {}
         for indicator_id, indicator in indicators.items():
             values: dict[str, Any] = {}
@@ -394,12 +406,19 @@ class StrategyRuntime:
                 output_key = str(key)[len(prefix):]
                 values[output_key] = self._coerce_scalar(row[key])
             snapshot[indicator_id] = {
-                "label": indicator.get("label") or indicator_id,
-                "type": indicator.get("type"),
-                "timeframe": indicator.get("timeframe", "base"),
+                "label": indicator.label or indicator_id,
+                "type": indicator.type,
+                "timeframe": indicator.timeframe,
                 "values": values,
             }
         return snapshot
+
+    def _branch(self, config: StrategyTemplateConfigResponse, branch_key: str) -> StrategyStateBranchResponse:
+        if branch_key == "trend":
+            return config.trend
+        if branch_key == "range":
+            return config.range
+        raise ValueError(f"不支持的策略分支: {branch_key}")
 
     def _coerce_scalar(self, value: Any) -> Any:
         if value is None or (isinstance(value, float) and pd.isna(value)):

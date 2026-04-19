@@ -7,8 +7,16 @@ from typing import TYPE_CHECKING, Any
 from app.infra.db.database import session_scope
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun
 from app.contracts.backtest import BacktestEquityPointRecord, PortfolioConfigRecord, StrategyVersionRecord
-from app.services.backtest.run_contract import FACTOR_BLEND_PAPER_ENGINE, PAPER_LIVE_EXECUTION_MODE, build_paper_metadata, ensure_paper_runtime_state, update_paper_metadata
+from app.services.backtest.run_contract import (
+    FACTOR_BLEND_PAPER_ENGINE,
+    PAPER_LIVE_EXECUTION_MODE,
+    build_paper_metadata,
+    ensure_paper_runtime_state,
+    parse_run_metadata,
+    update_paper_metadata,
+)
 from app.services.backtest.run_repository import BacktestRunRepository
+from app.services.backtest.strategy_support import blank_strategy_version_config_model
 from app.services.run_task_manager import RunTaskManager
 from app.services.factors.signal_execution_core import FactorSignalContext, FactorSignalExecutionCore
 from config import settings
@@ -86,13 +94,13 @@ class FactorPaperRunManager:
             run = session.query(BacktestRun).filter(BacktestRun.id == run_id).first()
             if not run:
                 return False
-            metadata = dict(run.metadata_info or {})
+            metadata = parse_run_metadata(run.metadata_info)
             if run.execution_mode != PAPER_LIVE_EXECUTION_MODE or run.engine != FACTOR_BLEND_PAPER_ENGINE:
                 return False
             if run.status != "running":
                 return False
 
-            research_meta = dict(metadata.get("factor_research") or {})
+            research_meta = metadata.factor_research
             factor_service = self.factor_service
             research_run, frame = factor_service.build_live_blend_frame(research_meta["run_id"])
             if frame.empty:
@@ -100,8 +108,8 @@ class FactorPaperRunManager:
 
             timeframe_delta = factor_service.timeframe_delta(run.timeframe)
             now = utc_now_naive()
-            symbol = str((metadata.get("symbols") or [run.symbol])[0])
-            runtime_state = ensure_paper_runtime_state(dict(metadata.get("runtime_state") or {}), symbols=[symbol])
+            symbol = str((metadata.symbols or [run.symbol])[0])
+            runtime_state = ensure_paper_runtime_state(metadata.runtime_state.model_dump() if metadata.runtime_state else {}, symbols=[symbol])
             last_processed = int((runtime_state.get("last_processed") or {}).get(symbol, 0) or 0)
             closed = frame.loc[frame["timestamp"].apply(lambda ts: ts + timeframe_delta <= now)].copy()
             if last_processed:
@@ -114,15 +122,15 @@ class FactorPaperRunManager:
             batch = execution_core.run_batch(
                 rows=closed.to_dict("records"),
                 state=execution_core.create_state(
-                    float(runtime_state.get("cash_balance", metadata.get("initial_cash", 0.0))),
+                    float(runtime_state.get("cash_balance", metadata.initial_cash or 0.0)),
                     position=execution_core.deserialize_position((runtime_state.get("positions") or {}).get(symbol)),
                     held_bars=int(runtime_state.get("held_bars", 0) or 0),
                 ),
                 context=FactorSignalContext(
                     symbol=symbol,
                     research_run_id=int(research_meta["run_id"]),
-                    initial_cash=float(metadata.get("initial_cash", 0.0)),
-                    fee_rate=float(metadata.get("fee_rate", 0.0)),
+                    initial_cash=float(metadata.initial_cash or 0.0),
+                    fee_rate=float(metadata.fee_rate or 0.0),
                     position_size_pct=float(research_meta["position_size_pct"]),
                     stake_mode=str(research_meta.get("stake_mode") or "fixed"),
                     entry_threshold=float(research_meta["entry_threshold"]),
@@ -186,7 +194,7 @@ class FactorPaperRunManager:
             strategy_name="Factor Blend",
             version=research_run_id,
             template="factor_blend",
-            config={"research_run_id": research_run_id},
+            config=blank_strategy_version_config_model(),
         )
         portfolio = PortfolioConfigRecord(
             symbols=[request_payload["symbol"]],
@@ -201,33 +209,38 @@ class FactorPaperRunManager:
             start_date=now,
             end_date=now,
         )
-        metadata = build_paper_metadata(
-            strategy=strategy,
-            symbols=[request_payload["symbol"]],
-            initial_cash=initial_cash,
-            fee_rate=fee_rate,
-            portfolio=portfolio,
-            runtime_state={
-                "cash_balance": initial_cash,
-                "last_processed": {request_payload["symbol"]: last_processed},
-                "positions": {},
-                "held_bars": 0,
-            },
-            paper_live={"cash_balance": initial_cash, "open_positions": 0, "positions": [], "last_updated": now.isoformat()},
-            report=report,
-        )
-        metadata["factor_research"] = {
-            "run_id": research_run_id,
-            "dataset_id": research_run["dataset_id"],
-            "entry_threshold": float(blend.get("entry_threshold", 0.0) if entry_threshold is None else entry_threshold),
-            "exit_threshold": float(blend.get("exit_threshold", 0.0) if exit_threshold is None else exit_threshold),
-            "stoploss_pct": stoploss_pct,
-            "takeprofit_pct": takeprofit_pct,
-            "max_hold_bars": max_hold_bars,
-            "position_size_pct": position_size_pct,
-            "stake_mode": stake_mode,
-            "blend": blend,
-        }
+        metadata = parse_run_metadata(
+            build_paper_metadata(
+                strategy=strategy,
+                symbols=[request_payload["symbol"]],
+                initial_cash=initial_cash,
+                fee_rate=fee_rate,
+                portfolio=portfolio,
+                runtime_state={
+                    "cash_balance": initial_cash,
+                    "last_processed": {request_payload["symbol"]: last_processed},
+                    "positions": {},
+                    "held_bars": 0,
+                },
+                paper_live={"cash_balance": initial_cash, "open_positions": 0, "positions": [], "last_updated": now.isoformat()},
+                report=report,
+            )
+        ).model_copy(
+            update={
+                "factor_research": {
+                    "run_id": research_run_id,
+                    "dataset_id": research_run["dataset_id"],
+                    "entry_threshold": float(blend.get("entry_threshold", 0.0) if entry_threshold is None else entry_threshold),
+                    "exit_threshold": float(blend.get("exit_threshold", 0.0) if exit_threshold is None else exit_threshold),
+                    "stoploss_pct": stoploss_pct,
+                    "takeprofit_pct": takeprofit_pct,
+                    "max_hold_bars": max_hold_bars,
+                    "position_size_pct": position_size_pct,
+                    "stake_mode": stake_mode,
+                    "blend": blend,
+                },
+            }
+        ).model_dump()
         with session_scope() as session:
             run = BacktestRun(
                 symbol=request_payload["symbol"],
@@ -266,12 +279,12 @@ class FactorPaperRunManager:
                 return
             if run.execution_mode != PAPER_LIVE_EXECUTION_MODE or run.engine != FACTOR_BLEND_PAPER_ENGINE:
                 return
-            metadata = dict(run.metadata_info or {})
+            metadata = parse_run_metadata(run.metadata_info)
             run.status = status
-            symbol = str((metadata.get("symbols") or [run.symbol])[0])
+            symbol = str((metadata.symbols or [run.symbol])[0])
             run.metadata_info = update_paper_metadata(
                 metadata,
-                runtime_state=ensure_paper_runtime_state(dict(metadata.get("runtime_state") or {}), symbols=[symbol]),
+                runtime_state=ensure_paper_runtime_state(metadata.runtime_state.model_dump() if metadata.runtime_state else {}, symbols=[symbol]),
                 last_updated=utc_now_naive().isoformat(),
                 stop_reason=reason,
             )

@@ -58,7 +58,11 @@ async def _shutdown_background_services(app) -> None:
 
 def _dispose_runtime_services(app) -> None:
     runtime_services = getattr(app.state, "runtime_services", None)
-    database_runtime = getattr(runtime_services, "database_runtime", None) if runtime_services is not None else None
+    database_runtime = (
+        getattr(getattr(runtime_services, "infra", None), "database_runtime", None)
+        if runtime_services is not None
+        else None
+    )
     if database_runtime is not None:
         database_runtime.dispose()
 

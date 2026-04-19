@@ -8,7 +8,7 @@ import type {
   PortfolioReviewFrequency,
   PortfolioBalanceStrategyConfig,
   PortfolioBalanceTrackingConfig,
-} from '@/types'
+} from './contracts'
 import { isRecord, readNumber, readString } from '@/composables/pageSnapshot'
 import { isIndexSymbol } from '@/modules/market'
 

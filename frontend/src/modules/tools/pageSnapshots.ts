@@ -1,9 +1,9 @@
 import { isRecord, readNumber, readString } from '@/composables/pageSnapshot'
 
-import type { DCARequestSchema } from '@/types'
+import type { DCARequestSchema } from './contracts'
 
 export interface DcaPageSnapshot {
-  config: DCARequestSchema
+  config: DcaPageConfig
 }
 
 export type DcaPageConfig = Required<Pick<DCARequestSchema, 'symbol' | 'amount' | 'investment_time' | 'timezone' | 'strategy'>> & {
@@ -34,8 +34,11 @@ export const createDefaultDcaConfig = (): DcaPageConfig => ({
   },
 })
 
-export const normalizeDcaConfig = (value: unknown): DcaPageConfig => {
-  const defaults = createDefaultDcaConfig()
+export const normalizeDcaConfig = (
+  value: unknown,
+  fallback = createDefaultDcaConfig(),
+): DcaPageConfig => {
+  const defaults = fallback
   if (!isRecord(value)) return defaults
 
   const strategyParams = isRecord(value.strategy_params) ? value.strategy_params : {}
@@ -58,12 +61,19 @@ export const createDefaultDcaSnapshot = (): DcaPageSnapshot => ({
   config: createDefaultDcaConfig(),
 })
 
-export const normalizeDcaSnapshot = (value: unknown): DcaPageSnapshot => {
-  if (!isRecord(value)) return createDefaultDcaSnapshot()
+export const normalizeDcaSnapshot = (
+  value: unknown,
+  fallback = createDefaultDcaSnapshot(),
+): DcaPageSnapshot => {
+  if (!isRecord(value)) return fallback
   return {
-    config: normalizeDcaConfig(value.config),
+    config: normalizeDcaConfig(value.config, fallback.config),
   }
 }
+
+export const buildDcaSnapshot = (config: DcaPageConfig): DcaPageSnapshot => ({
+  config: normalizeDcaConfig(config),
+})
 
 export const createDefaultCompareSnapshot = (): ComparePageSnapshot => ({
   config: {
@@ -74,8 +84,11 @@ export const createDefaultCompareSnapshot = (): ComparePageSnapshot => ({
   },
 })
 
-export const normalizeCompareSnapshot = (value: unknown): ComparePageSnapshot => {
-  const defaults = createDefaultCompareSnapshot()
+export const normalizeCompareSnapshot = (
+  value: unknown,
+  fallback = createDefaultCompareSnapshot(),
+): ComparePageSnapshot => {
+  const defaults = fallback
   if (!isRecord(value) || !isRecord(value.config)) return defaults
   return {
     config: {
@@ -86,3 +99,7 @@ export const normalizeCompareSnapshot = (value: unknown): ComparePageSnapshot =>
     },
   }
 }
+
+export const buildCompareSnapshot = (config: ComparePageSnapshot['config']): ComparePageSnapshot => (
+  normalizeCompareSnapshot({ config })
+)

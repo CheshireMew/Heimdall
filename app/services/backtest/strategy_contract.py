@@ -4,6 +4,8 @@ import re
 from copy import deepcopy
 from typing import Any
 
+from app.schemas.strategy_contract import StrategyTemplateConfigResponse
+
 STRATEGY_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 PRICE_SOURCE_FIELDS = {"open", "high", "low", "close", "volume"}
 
@@ -40,6 +42,15 @@ DIRECTION_OPTIONS: list[dict[str, str]] = [
     {"key": "long_only", "label": "只做多"},
     {"key": "long_short", "label": "多空双向"},
 ]
+
+STRATEGY_CONFIG_FIELDS = {
+    "indicators",
+    "execution",
+    "regime_priority",
+    "trend",
+    "range",
+    "risk",
+}
 
 
 def build_condition(
@@ -122,14 +133,16 @@ def risk_defaults() -> dict[str, Any]:
 
 
 def blank_strategy_config() -> dict[str, Any]:
-    return {
+    return _validate_strategy_config(
+        {
         "indicators": {},
         "execution": execution_defaults(),
         "regime_priority": ["trend", "range"],
         "trend": branch_defaults("trend", "趋势", enabled=True),
         "range": branch_defaults("range", "区间", enabled=False),
         "risk": risk_defaults(),
-    }
+        }
+    )
 
 
 def editor_contract() -> dict[str, Any]:
@@ -235,8 +248,11 @@ def normalize_indicator_params(params: list[dict[str, Any]], engine_params: list
 def normalize_strategy_config(config: dict[str, Any], default_config: dict[str, Any]) -> dict[str, Any]:
     normalized = deepcopy(default_config or blank_strategy_config())
     if not config:
-        return normalized
+        return _validate_strategy_config(normalized)
     source_config = config
+    unknown_fields = sorted(set(source_config) - STRATEGY_CONFIG_FIELDS)
+    if unknown_fields:
+        raise ValueError(f"策略配置包含未知字段: {', '.join(unknown_fields)}")
     normalized["indicators"] = normalize_indicators(source_config.get("indicators") or normalized.get("indicators") or {})
     normalized["execution"] = normalize_execution(source_config.get("execution") or normalized.get("execution") or {})
     normalized["regime_priority"] = normalize_regime_priority(
@@ -256,7 +272,7 @@ def normalize_strategy_config(config: dict[str, Any], default_config: dict[str, 
         "区间",
     )
     normalized["risk"] = normalize_risk(source_config.get("risk") or {}, normalized.get("risk") or {})
-    return normalized
+    return _validate_strategy_config(normalized)
 
 
 def normalize_indicators(indicators: dict[str, Any]) -> dict[str, Any]:
@@ -521,3 +537,18 @@ def normalize_strategy_payload(
     normalized_config = normalize_strategy_config(config or {}, default_config)
     normalized_parameter_space = normalize_parameter_space(parameter_space or default_parameter_space)
     return normalized_config, normalized_parameter_space
+
+
+def normalize_strategy_config_model(
+    config: dict[str, Any],
+    default_config: dict[str, Any],
+) -> StrategyTemplateConfigResponse:
+    return _validate_strategy_config_model(normalize_strategy_config(config, default_config))
+
+
+def _validate_strategy_config(payload: dict[str, Any]) -> dict[str, Any]:
+    return _validate_strategy_config_model(payload).model_dump()
+
+
+def _validate_strategy_config_model(payload: dict[str, Any]) -> StrategyTemplateConfigResponse:
+    return StrategyTemplateConfigResponse.model_validate(payload)

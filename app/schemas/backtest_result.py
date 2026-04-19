@@ -155,6 +155,7 @@ class BacktestRuntimeStateResponse(BaseModel):
     last_processed: dict[str, int | None] = Field(default_factory=dict)
     last_synced_end: int | None = None
     positions: dict[str, BacktestPaperPositionResponse] = Field(default_factory=dict)
+    held_bars: int = 0
 
 
 class BacktestPaperLiveResponse(BaseModel):
@@ -195,4 +196,5 @@ class BacktestRunMetadataResponse(BaseModel):
     paper_live: BacktestPaperLiveResponse | None = None
     report: BacktestReportResponse | None = None
     raw_stats: BacktestReportSnapshotResponse | None = None
+    factor_research: JsonObject = Field(default_factory=dict)
     error: str | None = None

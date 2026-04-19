@@ -9,7 +9,7 @@ import type {
   StrategyDefinition,
   StrategyVersion,
   VolumeData,
-} from '@/types'
+} from './contracts'
 
 export const defineReactiveView = <T extends object>(value: object): T => {
   // Vue templates receive unwrapped refs, while TypeScript checks this boundary

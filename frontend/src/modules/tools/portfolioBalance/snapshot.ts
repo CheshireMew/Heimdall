@@ -1,4 +1,4 @@
-import type { PortfolioBalancePortfolio } from '@/types'
+import type { PortfolioBalancePortfolio } from './contracts'
 import { isRecord, readString } from '@/composables/pageSnapshot'
 
 import {
@@ -21,8 +21,11 @@ export const createDefaultPortfolioBalanceSnapshot = (): PortfolioBalanceSnapsho
   }
 }
 
-export const normalizePortfolioBalanceSnapshot = (value: unknown): PortfolioBalanceSnapshot => {
-  const defaults = createDefaultPortfolioBalanceSnapshot()
+export const normalizePortfolioBalanceSnapshot = (
+  value: unknown,
+  fallback = createDefaultPortfolioBalanceSnapshot(),
+): PortfolioBalanceSnapshot => {
+  const defaults = fallback
   if (!isRecord(value)) return defaults
 
   const portfolios = Array.isArray(value.portfolios) && value.portfolios.length
@@ -35,6 +38,10 @@ export const normalizePortfolioBalanceSnapshot = (value: unknown): PortfolioBala
     portfolios: portfolios.length ? portfolios : [createPortfolioBalancePortfolio()],
   }
 }
+
+export const buildPortfolioBalanceSnapshot = (snapshot: PortfolioBalanceSnapshot): PortfolioBalanceSnapshot => (
+  normalizePortfolioBalanceSnapshot(snapshot)
+)
 
 export const touchPortfolio = (portfolio: PortfolioBalancePortfolio) => {
   portfolio.updatedAt = new Date().toISOString()

@@ -13,11 +13,9 @@ from pydantic import BaseModel
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from app.domain.market.symbol_catalog import get_usd_equivalent_symbols, list_market_search_items
 from app.main import app
 
 FRONTEND_TYPES_DIR = REPO_ROOT / "frontend" / "src" / "types"
-FRONTEND_MARKET_MODULE_DIR = REPO_ROOT / "frontend" / "src" / "modules" / "market"
 TARGET_FILES = ("backtest.ts", "factor.ts", "market.ts", "tools.ts", "config.ts")
 
 
@@ -29,9 +27,6 @@ def main() -> None:
     for filename in TARGET_FILES:
         content = render_file(grouped_models.get(filename, []))
         (FRONTEND_TYPES_DIR / filename).write_text(content, encoding="utf-8")
-    (FRONTEND_MARKET_MODULE_DIR / "generatedSymbolCatalog.ts").write_text(
-        render_symbol_catalog_module(), encoding="utf-8"
-    )
 
 
 def collect_route_contract_models() -> tuple[type[BaseModel], ...]:
@@ -199,25 +194,6 @@ def render_type(schema: dict[str, Any]) -> str:
 
 def is_object_schema(schema: dict[str, Any]) -> bool:
     return schema.get("type") == "object" or "properties" in schema
-
-
-def render_symbol_catalog_module() -> str:
-    fallback_symbols = list_market_search_items()
-    usd_equivalent_symbols = get_usd_equivalent_symbols()
-    return "\n".join(
-        [
-            "// This file is generated from backend market symbol contracts.",
-            "// Do not edit manually.",
-            "",
-            "import type { MarketSymbolSearchResponse } from '@/types'",
-            "",
-            f"export const USD_EQUIVALENT_SYMBOLS = {json.dumps(usd_equivalent_symbols, ensure_ascii=False, indent=2)} as const",
-            "",
-            f"export const FALLBACK_SYMBOLS: MarketSymbolSearchResponse[] = {json.dumps(fallback_symbols, ensure_ascii=False, indent=2)}",
-            "",
-        ]
-    )
-
 
 if __name__ == "__main__":
     main()

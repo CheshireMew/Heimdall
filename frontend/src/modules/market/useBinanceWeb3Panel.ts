@@ -5,11 +5,10 @@ import type {
   BinanceWeb3TokenAuditResponse,
   BinanceWeb3TokenDynamicResponse,
   BinanceWeb3TokenKlineItemResponse,
-  CandlestickData,
-  VolumeData,
-} from '@/types'
+} from './contracts'
 import { marketApi } from './api'
 import type { Web3TokenDialogState } from './binanceMarketShared'
+import type { CandlestickData, VolumeData } from './contracts'
 
 export function useBinanceWeb3Panel(initialChainId: string) {
   const web3ChainId = ref(initialChainId)

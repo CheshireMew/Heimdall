@@ -5,6 +5,10 @@ from typing import Any
 from app.infra.db.database import session_scope
 from app.infra.db.schema import StrategyDefinition, StrategyVersion
 from app.contracts.backtest import StrategyVersionRecord
+from app.schemas.backtest import (
+    StrategyIndicatorRegistryResponse,
+    StrategyTemplateResponse,
+)
 from app.services.backtest.scripted_template_runtime import template_supports_version_editing
 from app.services.backtest.strategy_catalog import (
     create_indicator_definition,
@@ -13,7 +17,7 @@ from app.services.backtest.strategy_catalog import (
     get_template_runtime_contract,
 )
 
-from .strategy_support import normalize_strategy_version_payload
+from .strategy_support import normalize_strategy_version_config_model, normalize_strategy_version_payload
 
 
 class StrategyWriteService:
@@ -25,13 +29,15 @@ class StrategyWriteService:
         engine_key: str,
         description: str | None,
         params: list[dict[str, Any]] | None,
-    ) -> dict[str, Any]:
-        return create_indicator_definition(
-            key=key,
-            name=name,
-            engine_key=engine_key,
-            description=description,
-            params=params,
+    ) -> StrategyIndicatorRegistryResponse:
+        return StrategyIndicatorRegistryResponse.model_validate(
+            create_indicator_definition(
+                key=key,
+                name=name,
+                engine_key=engine_key,
+                description=description,
+                params=params,
+            )
         )
 
     def create_template(
@@ -44,15 +50,17 @@ class StrategyWriteService:
         indicator_keys: list[str],
         default_config: dict[str, Any],
         default_parameter_space: dict[str, list[Any]] | None,
-    ) -> dict[str, Any]:
-        return create_template_definition(
-            key=key,
-            name=name,
-            category=category,
-            description=description,
-            indicator_keys=indicator_keys,
-            default_config=default_config,
-            default_parameter_space=default_parameter_space,
+    ) -> StrategyTemplateResponse:
+        return StrategyTemplateResponse.model_validate(
+            create_template_definition(
+                key=key,
+                name=name,
+                category=category,
+                description=description,
+                indicator_keys=indicator_keys,
+                default_config=default_config,
+                default_parameter_space=default_parameter_space,
+            )
         )
 
     def create_strategy_version(
@@ -117,7 +125,7 @@ class StrategyWriteService:
                 strategy_key=key,
                 version=next_version,
                 name=name,
-                config=normalized_config,
+                config=normalize_strategy_version_config_model(definition.template, normalized_config),
                 parameter_space=normalized_parameter_space,
                 notes=notes,
                 is_default=make_default or (current_max is None and builtin_definition is None),

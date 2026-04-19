@@ -2,12 +2,12 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Chart, ChartConfiguration, ChartDataset } from 'chart.js'
 
-import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
+import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
-import type { OhlcvPointResponse } from '@/types'
+import type { OhlcvPointResponse } from './contracts'
 import { marketApi } from './api'
-import { createDefaultHalvingSnapshot, normalizeHalvingSnapshot } from './pageSnapshots'
+import { buildHalvingSnapshot, createDefaultHalvingSnapshot, normalizeHalvingSnapshot } from './pageSnapshots'
 
 interface HalvingChartRuntime {
   Chart: typeof import('chart.js').Chart
@@ -63,8 +63,8 @@ export function useHalvingPage() {
   const { t } = useI18n()
   const { theme } = useTheme()
   const { displayCurrency, toDisplayAmount, formatMoney } = useMoney()
-  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.halving, normalizeHalvingSnapshot, createDefaultHalvingSnapshot())
-  const restoredSnapshot = pageSnapshot.load()
+  const pageSnapshot = createPersistentPageSnapshot(PAGE_SNAPSHOT_KEYS.halving, normalizeHalvingSnapshot, createDefaultHalvingSnapshot())
+  const restoredSnapshot = pageSnapshot.initial
 
   const loading = ref(true)
   const chartCanvas = ref<HTMLCanvasElement | null>(null)
@@ -375,13 +375,12 @@ export function useHalvingPage() {
     startPriceRefresh()
   })
 
-  bindPageSnapshot(
+  pageSnapshot.bind(
     [showPhases, scaleType],
-    () => ({
+    () => buildHalvingSnapshot({
       showPhases: showPhases.value,
       scaleType: scaleType.value,
     }),
-    pageSnapshot.save,
   )
 
   onBeforeUnmount(() => {

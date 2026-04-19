@@ -14,6 +14,7 @@ from app.services.backtest.strategy_contract import (
     build_condition,
     build_group,
     normalize_strategy_config,
+    normalize_strategy_config_model,
 )
 from app.services.backtest.strategy_query_service import StrategyQueryService
 from app.services.backtest.strategy_support import (
@@ -23,19 +24,19 @@ from app.services.backtest.strategy_runtime import StrategyRuntime
 from config.settings import AppSettings
 
 
-def test_normalize_strategy_config_does_not_migrate_old_entry_exit_shape():
-    old_shape_config = {
+def test_normalize_strategy_config_rejects_unknown_contract_shape():
+    unknown_shape_config = {
         "indicators": {
             "ema": {"label": "EMA", "type": "ema", "params": {"period": 20}},
         },
         "entry": build_group(
             "entry_root",
-            "入场条件组",
+            "未知入场条件组",
             "and",
             [
                 build_condition(
-                    "legacy_entry",
-                    "旧版入场",
+                    "unknown_entry",
+                    "未知入场",
                     {"kind": "price", "field": "close"},
                     "gt",
                     {"kind": "value", "value": 100},
@@ -44,12 +45,12 @@ def test_normalize_strategy_config_does_not_migrate_old_entry_exit_shape():
         ),
         "exit": build_group(
             "exit_root",
-            "离场条件组",
+            "未知离场条件组",
             "or",
             [
                 build_condition(
-                    "legacy_exit",
-                    "旧版离场",
+                    "unknown_exit",
+                    "未知离场",
                     {"kind": "price", "field": "close"},
                     "lt",
                     {"kind": "value", "value": 95},
@@ -59,19 +60,8 @@ def test_normalize_strategy_config_does_not_migrate_old_entry_exit_shape():
         "risk": {"stoploss": -0.05},
     }
 
-    normalized = normalize_strategy_config(old_shape_config, blank_strategy_config())
-
-    assert normalized["regime_priority"] == ["trend", "range"]
-    assert normalized["trend"]["enabled"] is True
-    assert normalized["range"]["enabled"] is False
-    assert normalized["execution"]["market_type"] == "spot"
-    assert normalized["execution"]["direction"] == "long_only"
-    assert normalized["trend"]["long_entry"]["children"] == []
-    assert normalized["trend"]["long_exit"]["children"] == []
-    assert normalized["range"]["long_entry"]["children"] == []
-    assert normalized["range"]["long_exit"]["children"] == []
-    assert normalized["trend"]["short_entry"]["enabled"] is False
-    assert normalized["trend"]["short_exit"]["enabled"] is False
+    with pytest.raises(ValueError, match="策略配置包含未知字段: entry, exit"):
+        normalize_strategy_config(unknown_shape_config, blank_strategy_config())
 
 
 def test_resolve_branch_masks_gives_trend_priority_over_range():
@@ -123,7 +113,8 @@ def test_resolve_branch_masks_gives_trend_priority_over_range():
         },
     }
 
-    masks = runtime._resolve_branch_masks(frame, config)
+    config_model = normalize_strategy_config_model(config, blank_strategy_config())
+    masks = runtime._resolve_branch_masks(frame, config_model)
 
     assert masks["trend"].tolist() == [False, True, True]
     assert masks["range"].tolist() == [True, False, False]

@@ -14,7 +14,7 @@ import type {
   StrategyTemplateConfig,
   StrategyTemplateRuntime,
   StrategyVersion,
-} from '@/types'
+} from './contracts'
 
 import type { createBlankIndicatorDraft, createBlankTemplateDraft, createBlankVersionDraft } from './editorContract'
 import type { BacktestEditorSnapshot } from './pageSnapshots'
@@ -140,7 +140,7 @@ export interface BacktestEditorState {
   toggleTemplateIndicator: (indicatorKey: string) => void
   initializeDraftFromContract: () => void
   buildSnapshot: () => BacktestEditorSnapshot
-  restoreSnapshot: (snapshot: BacktestEditorSnapshot) => void
+  applySnapshot: (snapshot: BacktestEditorSnapshot) => void
 }
 
 export interface BacktestEditorSeedPanel {

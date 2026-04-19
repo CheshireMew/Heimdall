@@ -8,7 +8,7 @@ import type {
   FactorResearchResponse,
   FactorResearchRun,
   FactorResearchRunDetail,
-} from '@/types'
+} from './contracts'
 
 export const factorApi = {
   getCatalog(): Promise<AxiosResponse<FactorCatalogResponse>> {

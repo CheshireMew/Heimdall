@@ -52,9 +52,9 @@ def test_repository_filters_by_execution_mode_in_query(db_session, monkeypatch):
     runs = repository.list_runs("paper_live")
 
     assert len(runs) == 1
-    assert runs[0]["symbol"] == "ETH/USDT"
-    assert runs[0]["metadata"]["execution_mode"] == "paper_live"
-    assert runs[0]["metadata"]["engine"] == "FreqtradePaper"
+    assert runs[0].symbol == "ETH/USDT"
+    assert runs[0].metadata.execution_mode == "paper_live"
+    assert runs[0].metadata.engine == "FreqtradePaper"
 
 
 def test_serializer_projects_mode_and_engine_from_columns():
@@ -68,7 +68,7 @@ def test_serializer_projects_mode_and_engine_from_columns():
         status="completed",
         execution_mode="paper_live",
         engine="FactorBlendPaper",
-        metadata_info={"strategy_key": "factor_blend", "report": {"profit_pct": 12.5}},
+        metadata_info={"strategy_key": "factor_blend", "raw_stats": {"profit_pct": 12.5}},
     )
 
     payload = serialize_backtest_run(run)
@@ -76,7 +76,8 @@ def test_serializer_projects_mode_and_engine_from_columns():
     assert payload["metadata"]["strategy_key"] == "factor_blend"
     assert payload["metadata"]["execution_mode"] == "paper_live"
     assert payload["metadata"]["engine"] == "FactorBlendPaper"
-    assert payload["report"] == {"profit_pct": 12.5}
+    assert payload["report"] is None
+    assert payload["metadata"]["raw_stats"]["profit_pct"] == 12.5
 
 
 def test_update_paper_metadata_preserves_last_synced_end():

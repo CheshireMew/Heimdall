@@ -1,14 +1,10 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 
-import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS, readBoolean, readNumber, readString } from '@/composables/pageSnapshot'
+import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { useMoney } from '@/composables/useMoney'
-import type { BinanceBreakoutMonitorItemResponse } from '@/types'
+import type { BinanceBreakoutMonitorItemResponse } from './contracts'
 import {
-  normalizeContractSortField,
-  normalizeMarketFilter,
-  normalizeMode,
   normalizeSnapshot,
-  normalizeSortDirection,
   toItemKey,
   WEB3_CHAIN_OPTIONS,
   WEB3_KLINE_INTERVALS,
@@ -19,6 +15,7 @@ import {
   valueTone,
   verdictTone,
   createDefaultSnapshot,
+  buildBinanceMarketSnapshot,
 } from './binanceMarketShared'
 import { useBinanceMarketMonitor } from './useBinanceMarketMonitor'
 import { useBinanceSymbolChart } from './useBinanceSymbolChart'
@@ -26,8 +23,8 @@ import { useBinanceWeb3Panel } from './useBinanceWeb3Panel'
 
 export function useBinanceMarketPage() {
   const { formatMoney, formatCompactMoney } = useMoney()
-  const pageSnapshot = createPageSnapshot(PAGE_SNAPSHOT_KEYS.binanceMarket, normalizeSnapshot, createDefaultSnapshot())
-  const restoredSnapshot = pageSnapshot.load()
+  const pageSnapshot = createPersistentPageSnapshot(PAGE_SNAPSHOT_KEYS.binanceMarket, normalizeSnapshot, createDefaultSnapshot())
+  const restoredSnapshot = pageSnapshot.initial
   const market = useBinanceMarketMonitor(restoredSnapshot)
   const web3 = useBinanceWeb3Panel(restoredSnapshot.web3ChainId)
   const chart = useBinanceSymbolChart()
@@ -68,7 +65,7 @@ export function useBinanceMarketPage() {
     market.stopAutoRefresh()
   })
 
-  bindPageSnapshot(
+  pageSnapshot.bind(
     [
       market.minRisePct,
       market.mode,
@@ -79,18 +76,17 @@ export function useBinanceMarketPage() {
       market.selectedKey,
       web3.web3ChainId,
     ],
-    () => ({
-      minRisePct: readNumber(market.minRisePct.value, 5),
-      mode: normalizeMode(market.mode.value),
-      marketFilter: normalizeMarketFilter(market.marketFilter.value),
-      autoRefresh: readBoolean(market.autoRefresh.value, true),
-      spotSortDirection: normalizeSortDirection(market.spotSortDirection.value),
-      contractSortField: normalizeContractSortField(market.contractSort.value.field),
-      contractSortDirection: normalizeSortDirection(market.contractSort.value.direction),
-      selectedKey: readString(market.selectedKey.value, ''),
-      web3ChainId: readString(web3.web3ChainId.value, '56'),
+    () => buildBinanceMarketSnapshot({
+      minRisePct: market.minRisePct.value,
+      mode: market.mode.value,
+      marketFilter: market.marketFilter.value,
+      autoRefresh: market.autoRefresh.value,
+      spotSortDirection: market.spotSortDirection.value,
+      contractSortField: market.contractSort.value.field,
+      contractSortDirection: market.contractSort.value.direction,
+      selectedKey: market.selectedKey.value,
+      web3ChainId: web3.web3ChainId.value,
     }),
-    pageSnapshot.save,
   )
 
   const formatPrice = (value: number | null | undefined) => {

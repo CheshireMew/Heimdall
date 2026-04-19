@@ -7,6 +7,7 @@ from typing import Any
 import pandas as pd
 
 from app.contracts.backtest import BacktestEquityPointRecord, BacktestTradeRecord
+from app.schemas.backtest_result import BacktestPairBreakdownResponse, BacktestReportResponse, BacktestReportSnapshotResponse
 
 
 class FreqtradeReportBuilder:
@@ -22,13 +23,15 @@ class FreqtradeReportBuilder:
         "total_trades",
     )
 
-    def report_snapshot(self, report: dict[str, Any] | None) -> dict[str, Any] | None:
+    def report_snapshot(self, report: BacktestReportResponse | dict[str, Any] | None) -> BacktestReportSnapshotResponse | None:
         if not report:
             return None
-        return {key: report.get(key) for key in self.SNAPSHOT_KEYS}
+        payload = report.model_dump() if isinstance(report, BacktestReportResponse) else report
+        return BacktestReportSnapshotResponse.model_validate({key: payload.get(key) for key in self.SNAPSHOT_KEYS})
 
-    def extract_metric(self, report: dict[str, Any], metric: str) -> float | None:
-        value = report.get(metric)
+    def extract_metric(self, report: BacktestReportResponse | dict[str, Any], metric: str) -> float | None:
+        payload = report.model_dump() if isinstance(report, BacktestReportResponse) else report
+        value = payload.get(metric)
         if value is None:
             return None
         numeric = float(value)
@@ -86,7 +89,7 @@ class FreqtradeReportBuilder:
         initial_cash: float,
         start_date: datetime,
         end_date: datetime,
-    ) -> dict[str, Any]:
+    ) -> BacktestReportResponse:
         profit_abs = sum(trade.profit_abs for trade in trades)
         final_balance = initial_cash + profit_abs
         wins = [trade for trade in trades if trade.profit_abs > 0]
@@ -97,29 +100,29 @@ class FreqtradeReportBuilder:
         max_drawdown_pct = max((point.drawdown_pct for point in equity_curve), default=0.0)
         annualized = self._annualized_return_pct(initial_cash, final_balance, start_date, end_date)
         returns = self._equity_returns(equity_curve)
-        return {
-            "initial_cash": initial_cash,
-            "final_balance": final_balance,
-            "profit_abs": profit_abs,
-            "profit_pct": ((final_balance / initial_cash - 1.0) * 100.0) if initial_cash else 0.0,
-            "annualized_return_pct": annualized,
-            "max_drawdown_pct": max_drawdown_pct,
-            "sharpe": self._sharpe_ratio(returns),
-            "sortino": self._sortino_ratio(returns),
-            "calmar": (annualized / max_drawdown_pct) if annualized is not None and max_drawdown_pct > 0 else None,
-            "profit_factor": (gross_profit / gross_loss_abs) if gross_loss_abs else None,
-            "expectancy_ratio": self._expectancy_ratio(wins, losses),
-            "win_rate": (len(wins) / len(trades) * 100.0) if trades else 0.0,
-            "total_trades": len(trades),
-            "wins": len(wins),
-            "losses": len(losses),
-            "draws": len(draws),
-            "avg_trade_pct": (sum(trade.profit_pct for trade in trades) / len(trades)) if trades else None,
-            "avg_trade_duration_minutes": int(sum(trade.duration_minutes or 0 for trade in trades) / len(trades)) if trades else None,
-            "best_trade_pct": max((trade.profit_pct for trade in trades), default=None),
-            "worst_trade_pct": min((trade.profit_pct for trade in trades), default=None),
-            "pair_breakdown": self._pair_breakdown(trades, initial_cash),
-        }
+        return BacktestReportResponse(
+            initial_cash=initial_cash,
+            final_balance=final_balance,
+            profit_abs=profit_abs,
+            profit_pct=((final_balance / initial_cash - 1.0) * 100.0) if initial_cash else 0.0,
+            annualized_return_pct=annualized,
+            max_drawdown_pct=max_drawdown_pct,
+            sharpe=self._sharpe_ratio(returns),
+            sortino=self._sortino_ratio(returns),
+            calmar=(annualized / max_drawdown_pct) if annualized is not None and max_drawdown_pct > 0 else None,
+            profit_factor=(gross_profit / gross_loss_abs) if gross_loss_abs else None,
+            expectancy_ratio=self._expectancy_ratio(wins, losses),
+            win_rate=(len(wins) / len(trades) * 100.0) if trades else 0.0,
+            total_trades=len(trades),
+            wins=len(wins),
+            losses=len(losses),
+            draws=len(draws),
+            avg_trade_pct=(sum(trade.profit_pct for trade in trades) / len(trades)) if trades else None,
+            avg_trade_duration_minutes=int(sum(trade.duration_minutes or 0 for trade in trades) / len(trades)) if trades else None,
+            best_trade_pct=max((trade.profit_pct for trade in trades), default=None),
+            worst_trade_pct=min((trade.profit_pct for trade in trades), default=None),
+            pair_breakdown=self._pair_breakdown(trades, initial_cash),
+        )
 
     def quote_currency(self, symbol: str) -> str:
         parts = symbol.split("/")
@@ -127,7 +130,7 @@ class FreqtradeReportBuilder:
             raise ValueError(f"无效交易对: {symbol}")
         return parts[1].split(":")[0]
 
-    def _pair_breakdown(self, trades: list[BacktestTradeRecord], initial_cash: float) -> list[dict[str, Any]]:
+    def _pair_breakdown(self, trades: list[BacktestTradeRecord], initial_cash: float) -> list[BacktestPairBreakdownResponse]:
         grouped: dict[str, list[BacktestTradeRecord]] = {}
         for trade in trades:
             grouped.setdefault(trade.pair or "UNKNOWN", []).append(trade)
@@ -136,15 +139,15 @@ class FreqtradeReportBuilder:
             profit_abs = sum(item.profit_abs for item in items)
             wins = sum(1 for item in items if item.profit_abs > 0)
             result.append(
-                {
-                    "pair": pair,
-                    "trades": len(items),
-                    "profit_abs": profit_abs,
-                    "profit_pct": (profit_abs / initial_cash * 100.0) if initial_cash else 0.0,
-                    "win_rate": (wins / len(items) * 100.0) if items else 0.0,
-                }
+                BacktestPairBreakdownResponse(
+                    pair=pair,
+                    trades=len(items),
+                    profit_abs=profit_abs,
+                    profit_pct=(profit_abs / initial_cash * 100.0) if initial_cash else 0.0,
+                    win_rate=(wins / len(items) * 100.0) if items else 0.0,
+                )
             )
-        return sorted(result, key=lambda item: item["profit_abs"], reverse=True)
+        return sorted(result, key=lambda item: item.profit_abs, reverse=True)
 
     def _equity_returns(self, equity_curve: list[BacktestEquityPointRecord]) -> list[float]:
         returns = []

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import pytest
 
+from app.schemas.backtest import PaperStartResponse
 from app.services.backtest.command_service import BacktestCommandService
 from app.contracts.backtest import PaperStartCommand
 from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBuilder
 from app.contracts.backtest import PortfolioConfigRecord, StrategyVersionRecord
+from app.services.backtest.strategy_support import normalize_strategy_version_config_model
 
 
 def test_scripted_strategy_builder_emits_backtest_only_freqtrade_code():
@@ -31,7 +33,7 @@ class _StrategyQueryServiceStub:
             strategy_name="BTC Regime Pulse SuperTrend",
             version=version or 1,
             template="btc_regime_pulse_supertrend",
-            config={},
+            config=normalize_strategy_version_config_model("btc_regime_pulse_supertrend", {}),
         )
 
 
@@ -41,7 +43,7 @@ class _PaperManagerStub:
 
     async def start_run(self, command: PaperStartCommand):  # pragma: no cover
         self.command = command
-        return {"success": True, "run_id": 88, "message": "模拟盘已启动"}
+        return PaperStartResponse(success=True, run_id=88, message="模拟盘已启动")
 
 
 @pytest.mark.asyncio
@@ -71,5 +73,5 @@ async def test_command_service_routes_scripted_strategy_to_paper_manager():
 
     result = await service.start_paper_run(command)
 
-    assert result == {"success": True, "run_id": 88, "message": "模拟盘已启动"}
+    assert result == PaperStartResponse(success=True, run_id=88, message="模拟盘已启动")
     assert paper_manager.command == command

@@ -1,5 +1,5 @@
 import { watch } from 'vue'
-import type { FactorResearchRunDetail } from '@/types'
+import type { FactorResearchRunDetail } from './contracts'
 
 import type { FactorResearchState } from './state'
 

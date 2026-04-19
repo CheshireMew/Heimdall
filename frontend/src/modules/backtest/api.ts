@@ -18,7 +18,7 @@ import type {
   StrategyTemplateCreateRequest,
   StrategyVersion,
   StrategyVersionCreateRequest,
-} from '@/types'
+} from './contracts'
 
 export const backtestApi = {
   listRuns(): Promise<AxiosResponse<BacktestRun[]>> {

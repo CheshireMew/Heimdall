@@ -1,4 +1,4 @@
-import type { StrategyTemplateRuntime } from '@/types'
+import type { StrategyTemplateRuntime } from './contracts'
 
 import type { EditorTemplateRuntimeCarrier } from './editorTypes'
 

@@ -2,7 +2,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, type WatchS
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
-import { bindPageSnapshot, createPageSnapshot, PAGE_SNAPSHOT_KEYS, readNumber, readString } from '@/composables/pageSnapshot'
+import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import type {
   StrategyDefinition,
   StrategyEditorContract,
@@ -10,10 +10,14 @@ import type {
   StrategyIndicatorRegistryItem,
   StrategyTemplate,
   StrategyVersion,
-} from '@/types'
+} from './contracts'
 
 import type { BacktestEditorSeedPanel, BacktestVersionEditorPanel, StrategySelectionConfig } from './editorTypes'
-import { createDefaultBacktestEditorPageSnapshot, normalizeBacktestEditorPageSnapshot } from './pageSnapshots'
+import {
+  buildBacktestEditorPageSnapshot,
+  createDefaultBacktestEditorPageSnapshot,
+  normalizeBacktestEditorPageSnapshot,
+} from './pageSnapshots'
 import { defineReactiveView } from './viewTypes'
 import { useBacktestEditor } from './useBacktestEditor'
 import { useBacktestEditorActions } from './useBacktestEditorActions'
@@ -25,12 +29,12 @@ export const useBacktestEditorPage = () => {
   const { t } = useI18n()
   const route = useRoute()
   const router = useRouter()
-  const pageSnapshot = createPageSnapshot(
+  const pageSnapshot = createPersistentPageSnapshot(
     PAGE_SNAPSHOT_KEYS.backtestEditor,
     normalizeBacktestEditorPageSnapshot,
     createDefaultBacktestEditorPageSnapshot(),
   )
-  const restoredSnapshot = pageSnapshot.load()
+  const restoredSnapshot = pageSnapshot.initial
 
   const editorContract = ref<StrategyEditorContract | null>(null)
   const strategies = ref<StrategyDefinition[]>([])
@@ -111,7 +115,7 @@ export const useBacktestEditorPage = () => {
 
   const startSnapshotSync = () => {
     snapshotStopHandle?.()
-    snapshotStopHandle = bindPageSnapshot(
+    snapshotStopHandle = pageSnapshot.bind(
       [
         config,
         editor.showVersionEditor,
@@ -123,14 +127,7 @@ export const useBacktestEditorPage = () => {
         editor.indicatorDraft,
         editor.templateDraft,
       ],
-      () => ({
-        config: {
-          strategy_key: readString(config.strategy_key, ''),
-          strategy_version: readNumber(config.strategy_version, 0),
-        },
-        editor: editor.buildSnapshot(),
-      }),
-      pageSnapshot.save,
+      () => buildBacktestEditorPageSnapshot(config, editor.buildSnapshot()),
     )
   }
 
@@ -142,7 +139,7 @@ export const useBacktestEditorPage = () => {
     if (hasExplicitSeed()) {
       seeds.applyRouteSeed()
     } else if (restoredSnapshot.editor) {
-      editor.restoreSnapshot(restoredSnapshot.editor)
+      editor.applySnapshot(restoredSnapshot.editor)
     } else {
       seeds.applyRouteSeed()
     }

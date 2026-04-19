@@ -4,6 +4,14 @@ from datetime import datetime
 
 import pandas as pd
 
+from app.schemas.backtest_result import (
+    BacktestPortfolioSummaryResponse,
+    BacktestResearchReportResponse,
+    BacktestRunMetadataResponse,
+    BacktestSampleRangesResponse,
+    BacktestStrategySummaryResponse,
+)
+from app.schemas.strategy_contract import StrategyTemplateConfigResponse
 from app.services.backtest.freqtrade_execution import FreqtradeExecutionContext, IterationResult
 from app.services.backtest.freqtrade_execution import FreqtradeIterationExecutor
 from app.services.backtest.freqtrade_research import FreqtradeResearchService
@@ -54,15 +62,13 @@ class FreqtradeBacktestService:
         end_date = self._ensure_utc(end_date)
         data_symbols = self._normalize_symbols(portfolio.symbols)
         fee_ratio = self._fee_ratio(fee_rate)
-        selected_config = dict(strategy.config or {})
-        execution = dict(selected_config.get("execution") or {})
-        market_type = str(execution.get("market_type") or "spot")
-        direction = str(execution.get("direction") or "long_only")
-        self.strategy_builder.runtime.validate_timeframe_compatibility(
+        selected_config = self.strategy_builder.runtime.validate_timeframe_compatibility(
             strategy.template,
-            selected_config,
+            strategy.config,
             timeframe,
         )
+        market_type = selected_config.execution.market_type
+        direction = selected_config.execution.direction
         execution_symbols = self._build_execution_symbols(data_symbols, market_type)
         stake_currency = self._validate_stake_currency(execution_symbols)
         context = FreqtradeExecutionContext(
@@ -103,7 +109,7 @@ class FreqtradeBacktestService:
                     label="in_sample",
                     start_date=optimization_best.start_date,
                     end_date=optimization_best.end_date,
-                    config=dict(optimization_best.config),
+                    config=optimization_best.config,
                     execution=optimization_best.execution,
                 )
             else:
@@ -134,42 +140,48 @@ class FreqtradeBacktestService:
                 end_date=end_date,
             )
 
-        research_report = {
-            "selected_config": dict(selected_config),
-            "in_sample_ratio": research.in_sample_ratio,
-            "slippage_bps": research.slippage_bps,
-            "funding_rate_daily": research.funding_rate_daily,
-            "optimization": optimization_summary,
-            "in_sample": self.research_service.serialize_iteration(in_sample_result),
-            "out_of_sample": self.research_service.serialize_iteration(out_of_sample_result),
-            "rolling_windows": self.research_service.run_rolling_windows(
+        research_report = BacktestResearchReportResponse(
+            selected_config=selected_config.model_dump(),
+            in_sample_ratio=research.in_sample_ratio,
+            slippage_bps=research.slippage_bps,
+            funding_rate_daily=research.funding_rate_daily,
+            optimization=optimization_summary,
+            in_sample=self.research_service.serialize_iteration(in_sample_result),
+            out_of_sample=self.research_service.serialize_iteration(out_of_sample_result),
+            rolling_windows=self.research_service.run_rolling_windows(
                 context=context,
                 base_config=selected_config,
                 start_date=start_date,
                 end_date=end_date,
             ),
-        }
+        )
 
-        report = dict(primary_result.execution.report)
-        report["strategy"] = {
-            "key": strategy.strategy_key,
-            "name": strategy.strategy_name,
-            "version": strategy.version,
-            "template": strategy.template,
-        }
-        report["portfolio"] = {
-            "symbols": data_symbols,
-            "max_open_trades": portfolio.max_open_trades,
-            "position_size_pct": portfolio.position_size_pct,
-            "stake_mode": portfolio.stake_mode,
-            "stake_currency": stake_currency,
-        }
-        report["research"] = research_report
+        if primary_result.execution.report is None:
+            raise RuntimeError("回测执行结果缺少报告")
+        report = primary_result.execution.report.model_copy(
+            update={
+                "strategy": BacktestStrategySummaryResponse(
+                    key=strategy.strategy_key,
+                    name=strategy.strategy_name,
+                    version=strategy.version,
+                    template=strategy.template,
+                ),
+                "portfolio": BacktestPortfolioSummaryResponse(
+                    symbols=data_symbols,
+                    max_open_trades=portfolio.max_open_trades,
+                    position_size_pct=portfolio.position_size_pct,
+                    stake_mode=portfolio.stake_mode,
+                    stake_currency=stake_currency,
+                ),
+                "research": research_report,
+            }
+        )
 
-        metadata = dict(primary_result.execution.metadata)
+        if primary_result.execution.metadata is None:
+            raise RuntimeError("回测执行结果缺少元数据")
         execution_model = self._execution_model(strategy.template, selected_config)
-        metadata.update(
-            {
+        metadata = primary_result.execution.metadata.model_copy(
+            update={
                 "engine": "Freqtrade",
                 "execution_model": execution_model,
                 "strategy_key": strategy.strategy_key,
@@ -177,7 +189,7 @@ class FreqtradeBacktestService:
                 "strategy_version": strategy.version,
                 "strategy_template": strategy.template,
                 "strategy_notes": strategy.notes,
-                "selected_config": dict(selected_config),
+                "selected_config": selected_config.model_dump(),
                 "symbols": data_symbols,
                 "execution_symbols": execution_symbols,
                 "price_source": "spot_ohlcv",
@@ -190,12 +202,12 @@ class FreqtradeBacktestService:
                 "market_type": market_type,
                 "direction": direction,
                 "research": research_report,
-                "sample_ranges": {
-                    "requested": self._range_payload(start_date, end_date),
-                    "displayed": self._range_payload(primary_result.start_date, primary_result.end_date),
-                    "in_sample": self._range_payload(train_start, train_end),
-                    "out_of_sample": self._range_payload(test_start, test_end),
-                },
+                "sample_ranges": BacktestSampleRangesResponse(
+                    requested=self._range_payload(start_date, end_date),
+                    displayed=self._range_payload(primary_result.start_date, primary_result.end_date),
+                    in_sample=self._range_payload(train_start, train_end),
+                    out_of_sample=self._range_payload(test_start, test_end),
+                ),
             }
         )
 
@@ -208,7 +220,7 @@ class FreqtradeBacktestService:
             metadata=metadata,
         )
 
-    def _range_payload(self, start_date: datetime | None, end_date: datetime | None) -> dict[str, str] | None:
+    def _range_payload(self, start_date: datetime | None, end_date: datetime | None):
         return self.research_service.range_payload(start_date, end_date)
 
     def _validate_timeframe(self, timeframe: str) -> None:
@@ -256,10 +268,8 @@ class FreqtradeBacktestService:
     def _fee_ratio(self, fee_rate: float) -> float:
         return fee_rate / 100.0
 
-    def _execution_model(self, template: str, selected_config: dict[str, object]) -> str:
-        risk = dict((selected_config or {}).get("risk") or {})
-        trade_plan = dict(risk.get("trade_plan") or {})
-        if bool(trade_plan.get("enabled")):
+    def _execution_model(self, template: str, selected_config: StrategyTemplateConfigResponse) -> str:
+        if selected_config.risk.trade_plan.enabled:
             return "trade_plan"
         if template_builder_kind(get_template_runtime(template)) == "scripted":
             return "scripted_template"

@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 
-import type { CurrencyRatesResponse, DisplayCurrencyResponse } from '@/types'
+import type { CurrencyRatesResponse, DisplayCurrencyResponse } from './contracts'
 
 import { systemApi } from './api'
 

@@ -390,6 +390,7 @@ export interface BacktestRunMetadataResponse {
   paper_live?: BacktestPaperLiveResponse | null
   report?: BacktestReportResponse | null
   raw_stats?: BacktestReportSnapshotResponse | null
+  factor_research?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
   error?: string | null
 }
 
@@ -398,6 +399,7 @@ export interface BacktestRuntimeStateResponse {
   last_processed?: { [key: string]: number | null }
   last_synced_end?: number | null
   positions?: { [key: string]: BacktestPaperPositionResponse }
+  held_bars?: number
 }
 
 export interface BacktestSampleRangesResponse {

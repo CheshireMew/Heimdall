@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from app.schemas.backtest_result import BacktestReportResponse, BacktestRunMetadataResponse
+from app.schemas.strategy_contract import StrategyTemplateConfigResponse
 
 @dataclass(slots=True)
 class StrategyVersionRecord:
@@ -11,7 +13,7 @@ class StrategyVersionRecord:
     strategy_name: str
     version: int
     template: str
-    config: dict[str, Any]
+    config: StrategyTemplateConfigResponse
     parameter_space: dict[str, list[Any]] = field(default_factory=dict)
     description: str | None = None
     notes: str | None = None
@@ -81,8 +83,8 @@ class BacktestExecutionResult:
     signals: list[BacktestSignalRecord] = field(default_factory=list)
     trades: list[BacktestTradeRecord] = field(default_factory=list)
     equity_curve: list[BacktestEquityPointRecord] = field(default_factory=list)
-    report: dict[str, Any] = field(default_factory=dict)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    report: BacktestReportResponse | None = None
+    metadata: BacktestRunMetadataResponse | None = None
 
 
 @dataclass(slots=True)

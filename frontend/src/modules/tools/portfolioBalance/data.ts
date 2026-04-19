@@ -1,5 +1,6 @@
 import { isIndexSymbol, marketApi } from '@/modules/market'
-import type { MarketHistoryBatchItemResponse, OhlcvPointResponse, PortfolioBalancePortfolio } from '@/types'
+import type { MarketHistoryBatchItemResponse, OhlcvPointResponse } from '@/modules/market/contracts'
+import type { PortfolioBalancePortfolio } from './contracts'
 
 import { buildPortfolioSyntheticHistory } from './backtest'
 import { collectPortfolioMarketTargets, normalizePortfolioAssetSymbol, readPortfolioSyntheticPrice } from './model'

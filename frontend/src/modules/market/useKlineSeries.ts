@@ -2,7 +2,7 @@ import { computed, onUnmounted, ref, watch, type Ref } from 'vue'
 import { marketApi } from './api'
 import { useMarketStore } from './store'
 import { isIndexSymbol } from './symbolCatalog'
-import type { OhlcvPointResponse } from '@/types'
+import type { OhlcvPointResponse } from './contracts'
 
 const REFRESH_INTERVAL_MS = 5000
 const LIVE_TAIL_LIMIT = 16

@@ -1,5 +1,7 @@
 import type {
   BacktestDateRangeResponse,
+  BacktestDeleteResponse,
+  BacktestDetailResponse,
   BacktestEquityPointResponse,
   BacktestIterationSummaryResponse,
   BacktestMetricsResponse,
@@ -17,19 +19,24 @@ import type {
   BacktestResearchReportResponse,
   BacktestResearchRequest,
   BacktestRollingWindowResponse,
-  BacktestRunMetadataResponse,
   BacktestRunDefaultsResponse,
+  BacktestRunMetadataResponse,
   BacktestRunResponse,
   BacktestRuntimeStateResponse,
   BacktestSampleRangesResponse,
   BacktestSignalResponse,
+  BacktestStartRequest,
+  BacktestStartResponse,
   BacktestStrategySummaryResponse,
   BacktestTradeResponse,
+  IndicatorDefinitionCreateRequest,
   PaginationResponse,
-  StrategyDefinitionResponse,
+  PaperStartRequest,
+  PaperStartResponse,
+  PaperStopResponse,
+  StrategyConditionNodeResponse,
   StrategyEditorContractResponse,
   StrategyExecutionConfigResponse,
-  StrategyConditionNodeResponse,
   StrategyGroupLogicResponse,
   StrategyGroupNodeResponse,
   StrategyIndicatorConfigResponse,
@@ -45,11 +52,15 @@ import type {
   StrategyStateBranchResponse,
   StrategyTemplateCapabilitiesResponse,
   StrategyTemplateConfigResponse,
+  StrategyTemplateCreateRequest,
   StrategyTemplateResponse,
   StrategyTemplateRuntimeResponse,
   StrategyTrailingConfigResponse,
+  StrategyVersionCreateRequest,
   StrategyVersionResponse,
-} from './backtest'
+  StrategyDefinitionResponse,
+  OhlcvPointResponse,
+} from '@/types'
 
 export type BacktestPortfolioConfig = BacktestPortfolioRequest
 export type BacktestResearchConfig = BacktestResearchRequest
@@ -111,6 +122,34 @@ export type EditableStrategyTemplateConfig = Omit<StrategyTemplateConfig, 'indic
     roi_targets: StrategyRoiTarget[]
     partial_exits: StrategyPartialExit[]
   }
+}
+
+export interface CandlestickData {
+  time: number
+  open: number
+  high: number
+  low: number
+  close: number
+}
+
+export interface VolumeData {
+  time: number
+  value: number
+  color: string
+}
+
+export type {
+  BacktestDeleteResponse,
+  BacktestDetailResponse,
+  BacktestStartRequest,
+  BacktestStartResponse,
+  IndicatorDefinitionCreateRequest,
+  OhlcvPointResponse,
+  PaperStartRequest,
+  PaperStartResponse,
+  PaperStopResponse,
+  StrategyTemplateCreateRequest,
+  StrategyVersionCreateRequest,
 }
 
 export const isStrategyConditionNode = (node: StrategyRuleNode | null | undefined): node is StrategyConditionNode => (

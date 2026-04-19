@@ -10,7 +10,9 @@ from app.contracts.backtest import (
     ResearchConfigRecord,
     StrategyVersionRecord,
 )
+from app.schemas.backtest_result import BacktestReportResponse, BacktestRunMetadataResponse
 from app.services.backtest.run_service import BacktestRunService
+from app.services.backtest.strategy_support import normalize_strategy_version_config_model
 
 
 def _scoped_session(session):
@@ -33,9 +35,21 @@ class _SuccessfulExecutionEngine:
             signals=[],
             trades=[],
             equity_curve=[],
-            report={"profit_pct": 3.5, "total_trades": 0},
-            metadata={
-                "sample_ranges": {
+            report=BacktestReportResponse(
+                initial_cash=100000,
+                final_balance=103500,
+                profit_abs=3500,
+                profit_pct=3.5,
+                max_drawdown_pct=0,
+                win_rate=0,
+                total_trades=0,
+                wins=0,
+                losses=0,
+                draws=0,
+            ),
+            metadata=BacktestRunMetadataResponse.model_validate(
+                {
+                    "sample_ranges": {
                     "requested": {
                         "start": "2024-04-01T00:00:00",
                         "end": "2024-06-01T23:59:59.999999",
@@ -45,7 +59,8 @@ class _SuccessfulExecutionEngine:
                         "end": "2024-06-01T23:59:59.999999",
                     },
                 }
-            },
+                }
+            ),
         )
 
 
@@ -55,7 +70,7 @@ def _strategy() -> StrategyVersionRecord:
         strategy_name="Demo",
         version=1,
         template="ema_rsi_macd",
-        config={},
+        config=normalize_strategy_version_config_model("ema_rsi_macd", {}),
     )
 
 

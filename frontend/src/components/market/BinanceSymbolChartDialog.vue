@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import TradingViewChart from '@/components/TradingViewChart.vue'
-import type { CandlestickData, VolumeData } from '@/types'
+import type { CandlestickData, VolumeData } from '@/modules/market/contracts'
 
 defineProps<{
   open: boolean

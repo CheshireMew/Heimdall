@@ -3,7 +3,7 @@ import type { Router } from 'vue-router'
 
 import { factorApi } from './api'
 import type { FactorResearchState } from './state'
-import type { FactorResearchRunDetail } from '@/types'
+import type { FactorResearchRunDetail } from './contracts'
 
 const responseErrorDetail = (error: unknown): string | null => {
   if (!error || typeof error !== 'object' || !('response' in error)) return null

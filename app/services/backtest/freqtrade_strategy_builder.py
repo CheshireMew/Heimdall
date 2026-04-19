@@ -5,6 +5,16 @@ from copy import deepcopy
 from itertools import islice, product
 from typing import Any
 
+from app.schemas.strategy_contract import (
+    StrategyConditionNodeResponse,
+    StrategyGroupNodeResponse,
+    StrategyIndicatorConfigResponse,
+    StrategyPartialExitResponse,
+    StrategyRuleSourceResponse,
+    StrategyStateBranchResponse,
+    StrategyTemplateConfigResponse,
+    StrategyTradePlanConfigResponse,
+)
 from app.services.backtest.scripted_template_runtime import (
     build_scripted_strategy_code,
     get_template_runtime,
@@ -27,7 +37,7 @@ class FreqtradeStrategyBuilder:
         self.strategy_class_name = strategy_class_name
         self.runtime = StrategyRuntime()
 
-    def build_code(self, template: str, timeframe: str, config: dict[str, Any]) -> str:
+    def build_code(self, template: str, timeframe: str, config: dict[str, Any] | StrategyTemplateConfigResponse) -> str:
         runtime_contract = get_template_runtime(template)
         if template_builder_kind(runtime_contract) == "scripted":
             return build_scripted_strategy_code(
@@ -38,13 +48,12 @@ class FreqtradeStrategyBuilder:
         normalized_config = self.runtime.normalized_config(template, config)
         trade_settings = self.trade_settings(template, normalized_config)
         indicator_registry = get_indicator_registry_map()
-        risk = normalized_config.get("risk") or {}
-        trade_plan = risk.get("trade_plan") or {}
-        uses_trade_plan = bool(trade_plan.get("enabled"))
-        execution = normalized_config.get("execution") or {}
-        can_short = execution.get("direction") == "long_short"
+        risk = normalized_config.risk
+        trade_plan = risk.trade_plan
+        uses_trade_plan = bool(trade_plan.enabled)
+        can_short = normalized_config.execution.direction == "long_short"
         indicator_script = self._build_indicator_script(normalized_config, indicator_registry, timeframe)
-        regime_priority = normalized_config.get("regime_priority") or ["trend", "range"]
+        regime_priority = normalized_config.regime_priority or ["trend", "range"]
         branch_masks = self._build_branch_masks(normalized_config, regime_priority)
         entry_assignments = self._build_signal_assignments(normalized_config, regime_priority, branch_masks, signal_kind="entry", can_short=can_short)
         exit_assignments = self._build_exit_assignments(
@@ -55,12 +64,12 @@ class FreqtradeStrategyBuilder:
             uses_trade_plan=uses_trade_plan,
         )
         roi_targets = {
-            str(int(item.get("minutes", 0))): float(item.get("profit", 0))
-            for item in sorted([item for item in risk.get("roi_targets") or [] if item.get("enabled", True)], key=lambda item: int(item.get("minutes", 0)), reverse=True)
+            str(int(item.minutes)): float(item.profit)
+            for item in sorted([item for item in risk.roi_targets if item.enabled], key=lambda item: int(item.minutes), reverse=True)
         }
         if uses_trade_plan:
             roi_targets = {"0": 99.0}
-        partial_exits = [item for item in risk.get("partial_exits") or [] if item.get("enabled", True)]
+        partial_exits = [item for item in risk.partial_exits if item.enabled]
         partial_exit_block = self._build_partial_exit_block(partial_exits)
         trade_plan_block = self._build_trade_plan_block(trade_plan) if uses_trade_plan else ""
         warmup_bars = self.warmup_bars(template, normalized_config, timeframe)
@@ -69,7 +78,7 @@ class FreqtradeStrategyBuilder:
                 can_short=can_short,
                 timeframe=timeframe,
                 startup_candle_count=warmup_bars,
-                risk=risk,
+                risk=risk.model_dump(),
                 roi_targets=roi_targets,
                 order_types=trade_settings["order_types"],
                 has_exit_signals=True,
@@ -128,18 +137,21 @@ class {self.strategy_class_name}(IStrategy):
 {trade_plan_block}
 """
 
-    def warmup_bars(self, template: str, config: dict[str, Any], timeframe: str) -> int:
+    def warmup_bars(self, template: str, config: dict[str, Any] | StrategyTemplateConfigResponse, timeframe: str) -> int:
         runtime_contract = get_template_runtime(template)
         if template_builder_kind(runtime_contract) == "scripted":
-            return scripted_warmup_bars(template, config, timeframe)
-        return self.runtime.warmup_bars(template, config, timeframe)
+            payload = config.model_dump() if isinstance(config, StrategyTemplateConfigResponse) else config
+            return scripted_warmup_bars(template, payload, timeframe)
+        payload = config.model_dump() if isinstance(config, StrategyTemplateConfigResponse) else config
+        return self.runtime.warmup_bars(template, payload, timeframe)
 
-    def trade_settings(self, template: str, config: dict[str, Any]) -> dict[str, Any]:
+    def trade_settings(self, template: str, config: dict[str, Any] | StrategyTemplateConfigResponse) -> dict[str, Any]:
         runtime_contract = get_template_runtime(template)
         if template_builder_kind(runtime_contract) == "scripted":
-            return scripted_trade_settings(template, config)
-        normalized_config = self.runtime.normalized_config(template, config)
-        partial_exits = [item for item in (normalized_config.get("risk") or {}).get("partial_exits") or [] if item.get("enabled", True)]
+            payload = config.model_dump() if isinstance(config, StrategyTemplateConfigResponse) else config
+            return scripted_trade_settings(template, payload)
+        normalized_config = config if isinstance(config, StrategyTemplateConfigResponse) else self.runtime.normalized_config(template, config)
+        partial_exits = [item for item in normalized_config.risk.partial_exits if item.enabled]
         order_types = {
             "entry": "market",
             "exit": "market",
@@ -185,16 +197,16 @@ class {self.strategy_class_name}(IStrategy):
 
     def _build_indicator_script(
         self,
-        normalized_config: dict[str, Any],
+        normalized_config: StrategyTemplateConfigResponse,
         indicator_registry: dict[str, dict[str, Any]],
         base_timeframe: str,
     ) -> str:
-        indicators = normalized_config.get("indicators") or {}
-        timeframes: dict[str, list[tuple[str, dict[str, Any], dict[str, Any]]]] = {}
+        indicators = normalized_config.indicators
+        timeframes: dict[str, list[tuple[str, StrategyIndicatorConfigResponse, dict[str, Any]]]] = {}
         for indicator_id, indicator in indicators.items():
-            indicator_timeframe = indicator.get("timeframe") or "base"
+            indicator_timeframe = indicator.timeframe or "base"
             resolved_timeframe = base_timeframe if indicator_timeframe == "base" else indicator_timeframe
-            indicator_spec = indicator_registry.get(indicator.get("type")) or {}
+            indicator_spec = indicator_registry.get(indicator.type) or {}
             timeframes.setdefault(resolved_timeframe, []).append((indicator_id, indicator, indicator_spec))
 
         lines = ["        dataframe = dataframe.sort_values(\"date\").copy()"]
@@ -225,10 +237,10 @@ class {self.strategy_class_name}(IStrategy):
         outputs = indicator_spec.get("outputs") or [{"key": "value"}]
         return [f'{indicator_id}__{output.get("key", "value")}' for output in outputs]
 
-    def _render_indicator_block(self, frame_var: str, indicator_id: str, indicator: dict[str, Any], indicator_spec: dict[str, Any]) -> list[str]:
-        indicator_type = indicator.get("type")
+    def _render_indicator_block(self, frame_var: str, indicator_id: str, indicator: StrategyIndicatorConfigResponse, indicator_spec: dict[str, Any]) -> list[str]:
+        indicator_type = indicator.type
         engine = indicator_spec.get("engine", indicator_type)
-        params = indicator.get("params") or {}
+        params = indicator.params
         if engine == "ema":
             return [f'        {frame_var}["{indicator_id}__value"] = ta.EMA({frame_var}, timeperiod={int(params.get("period", 20))})']
         if engine == "sma":
@@ -287,52 +299,52 @@ class {self.strategy_class_name}(IStrategy):
             ]
         raise ValueError(f"不支持的指标类型: {indicator_type}")
 
-    def _compile_rule_tree(self, node: dict[str, Any]) -> str:
-        if not node or not node.get("enabled", True):
+    def _compile_rule_tree(self, node: StrategyGroupNodeResponse | StrategyConditionNodeResponse) -> str:
+        if not node.enabled:
             return '(dataframe["volume"] >= 0)'
-        if node.get("node_type") == "condition":
+        if isinstance(node, StrategyConditionNodeResponse):
             return self._compile_single_rule(node)
-        logic = node.get("logic", "and")
-        enabled_children = [child for child in node.get("children") or [] if child.get("enabled", True)]
+        logic = node.logic
+        enabled_children = [child for child in node.children if child.enabled]
         if not enabled_children:
             return '(dataframe["volume"] >= 0)'
         compiled = [self._compile_rule_tree(child) for child in enabled_children]
         glue = " & " if logic == "and" else " | "
         return "(" + glue.join(compiled) + ")"
 
-    def _compile_single_rule(self, rule: dict[str, Any]) -> str:
+    def _compile_single_rule(self, rule: StrategyConditionNodeResponse) -> str:
         operator_map = {"gt": ">", "gte": ">=", "lt": "<", "lte": "<="}
-        operator = operator_map.get(rule.get("operator"))
+        operator = operator_map.get(rule.operator)
         if not operator:
-            raise ValueError(f"不支持的条件操作符: {rule.get('operator')}")
-        return f"({self._compile_source(rule.get('left') or {})} {operator} {self._compile_source(rule.get('right') or {})})"
+            raise ValueError(f"不支持的条件操作符: {rule.operator}")
+        return f"({self._compile_source(rule.left)} {operator} {self._compile_source(rule.right)})"
 
-    def _compile_source(self, source: dict[str, Any]) -> str:
-        kind = source.get("kind")
-        bars_ago = max(int(source.get("bars_ago", 0) or 0), 0)
+    def _compile_source(self, source: StrategyRuleSourceResponse) -> str:
+        kind = source.kind
+        bars_ago = max(int(source.bars_ago or 0), 0)
         if kind == "price":
-            expression = f'dataframe["{source.get("field", "close")}"]'
+            expression = f'dataframe["{source.field or "close"}"]'
             return self._apply_shift(expression, bars_ago)
         if kind == "indicator":
-            normalize_strategy_identifier(source.get("indicator"), "指标标识")
-            normalize_strategy_identifier(source.get("output") or "value", "指标输出")
-            expression = f'dataframe["{source.get("indicator")}__{source.get("output", "value")}"]'
+            normalize_strategy_identifier(source.indicator, "指标标识")
+            normalize_strategy_identifier(source.output or "value", "指标输出")
+            expression = f'dataframe["{source.indicator}__{source.output or "value"}"]'
             return self._apply_shift(expression, bars_ago)
         if kind == "value":
-            return repr(float(source.get("value", 0)))
+            return repr(float(source.value or 0))
         if kind == "indicator_multiplier":
-            normalize_strategy_identifier(source.get("indicator"), "指标标识")
-            normalize_strategy_identifier(source.get("output") or "value", "指标输出")
-            expression = f'(dataframe["{source.get("indicator")}__{source.get("output", "value")}"] * {float(source.get("multiplier", 1.0))})'
+            normalize_strategy_identifier(source.indicator, "指标标识")
+            normalize_strategy_identifier(source.output or "value", "指标输出")
+            expression = f'(dataframe["{source.indicator}__{source.output or "value"}"] * {float(source.multiplier or 1.0)})'
             return self._apply_shift(expression, bars_ago)
         if kind == "indicator_offset":
-            normalize_strategy_identifier(source.get("base_indicator"), "基础指标标识")
-            normalize_strategy_identifier(source.get("base_output") or "value", "基础指标输出")
-            normalize_strategy_identifier(source.get("offset_indicator"), "偏移指标标识")
-            normalize_strategy_identifier(source.get("offset_output") or "value", "偏移指标输出")
+            normalize_strategy_identifier(source.base_indicator, "基础指标标识")
+            normalize_strategy_identifier(source.base_output or "value", "基础指标输出")
+            normalize_strategy_identifier(source.offset_indicator, "偏移指标标识")
+            normalize_strategy_identifier(source.offset_output or "value", "偏移指标输出")
             expression = (
-                f'(dataframe["{source.get("base_indicator")}__{source.get("base_output", "value")}"] '
-                f'- dataframe["{source.get("offset_indicator")}__{source.get("offset_output", "value")}"] * {float(source.get("offset_multiplier", 1.0))})'
+                f'(dataframe["{source.base_indicator}__{source.base_output or "value"}"] '
+                f'- dataframe["{source.offset_indicator}__{source.offset_output or "value"}"] * {float(source.offset_multiplier or 1.0)})'
             )
             return self._apply_shift(expression, bars_ago)
         raise ValueError(f"不支持的条件源: {kind}")
@@ -342,16 +354,16 @@ class {self.strategy_class_name}(IStrategy):
             return expression
         return f"({expression}).shift({bars_ago})"
 
-    def _build_branch_masks(self, normalized_config: dict[str, Any], regime_priority: list[str]) -> dict[str, str]:
+    def _build_branch_masks(self, normalized_config: StrategyTemplateConfigResponse, regime_priority: list[str]) -> dict[str, str]:
         masks: dict[str, str] = {}
         remaining = '(dataframe["volume"] >= 0)'
         false_mask = '(dataframe["volume"] < 0)'
         for branch_key in regime_priority:
-            branch = normalized_config.get(branch_key) or {}
-            if not branch.get("enabled", True):
+            branch = self._branch(normalized_config, branch_key)
+            if not branch.enabled:
                 masks[branch_key] = false_mask
                 continue
-            regime_mask = self._compile_rule_tree(branch.get("regime") or {})
+            regime_mask = self._compile_rule_tree(branch.regime)
             active_mask = f"(({remaining}) & ({regime_mask}))"
             masks[branch_key] = active_mask
             remaining = f"(({remaining}) & ~({active_mask}))"
@@ -359,7 +371,7 @@ class {self.strategy_class_name}(IStrategy):
 
     def _build_signal_assignments(
         self,
-        normalized_config: dict[str, Any],
+        normalized_config: StrategyTemplateConfigResponse,
         regime_priority: list[str],
         branch_masks: dict[str, str],
         *,
@@ -374,21 +386,21 @@ class {self.strategy_class_name}(IStrategy):
             lines.append('        dataframe["exit_short"] = 0')
             lines.append('        dataframe["exit_short_tag"] = None')
         for branch_key in regime_priority:
-            branch = normalized_config.get(branch_key) or {}
-            if not branch.get("enabled", True):
+            branch = self._branch(normalized_config, branch_key)
+            if not branch.enabled:
                 continue
-            long_tree = "long_entry" if signal_kind == "entry" else "long_exit"
+            long_tree = branch.long_entry if signal_kind == "entry" else branch.long_exit
             long_column = "enter_long" if signal_kind == "entry" else "exit_long"
             long_tag = "enter_tag" if signal_kind == "entry" else "exit_tag"
-            long_condition = f"(({branch_masks[branch_key]}) & ({self._compile_rule_tree(branch.get(long_tree) or {})}))"
+            long_condition = f"(({branch_masks[branch_key]}) & ({self._compile_rule_tree(long_tree)}))"
             lines.append(f'        dataframe.loc[{long_condition}, ["{long_column}", "{long_tag}"]] = (1, "{branch_key}_long_{signal_kind}")')
             if not can_short:
                 continue
-            short_tree = "short_entry" if signal_kind == "entry" else "short_exit"
+            short_tree = branch.short_entry if signal_kind == "entry" else branch.short_exit
             short_column = "enter_short" if signal_kind == "entry" else "exit_short"
             short_tag = "enter_short_tag" if signal_kind == "entry" else "exit_short_tag"
             shared_tag = "enter_tag" if signal_kind == "entry" else "exit_tag"
-            short_condition = f"(({branch_masks[branch_key]}) & ({self._compile_rule_tree(branch.get(short_tree) or {})}))"
+            short_condition = f"(({branch_masks[branch_key]}) & ({self._compile_rule_tree(short_tree)}))"
             lines.append(
                 f'        dataframe.loc[{short_condition}, ["{short_column}", "{short_tag}", "{shared_tag}"]] = '
                 f'(1, "{branch_key}_short_{signal_kind}", "{branch_key}_short_{signal_kind}")'
@@ -402,7 +414,7 @@ class {self.strategy_class_name}(IStrategy):
 
     def _build_exit_assignments(
         self,
-        normalized_config: dict[str, Any],
+        normalized_config: StrategyTemplateConfigResponse,
         regime_priority: list[str],
         branch_masks: dict[str, str],
         *,
@@ -423,18 +435,25 @@ class {self.strategy_class_name}(IStrategy):
         ]
         return "\n".join(lines)
 
-    def _build_trade_plan_block(self, trade_plan: dict[str, Any]) -> str:
-        atr_indicator = str(trade_plan.get("atr_indicator") or "").strip()
-        support_indicator = str(trade_plan.get("support_indicator") or "").strip()
-        resistance_indicator = str(trade_plan.get("resistance_indicator") or "").strip()
+    def _branch(self, config: StrategyTemplateConfigResponse, branch_key: str) -> StrategyStateBranchResponse:
+        if branch_key == "trend":
+            return config.trend
+        if branch_key == "range":
+            return config.range
+        raise ValueError(f"不支持的策略分支: {branch_key}")
+
+    def _build_trade_plan_block(self, trade_plan: StrategyTradePlanConfigResponse) -> str:
+        atr_indicator = str(trade_plan.atr_indicator or "").strip()
+        support_indicator = str(trade_plan.support_indicator or "").strip()
+        resistance_indicator = str(trade_plan.resistance_indicator or "").strip()
         if not atr_indicator or not support_indicator or not resistance_indicator:
             raise ValueError("trade_plan 已启用，但缺少 ATR / 支撑 / 阻力指标")
         normalize_strategy_identifier(atr_indicator, "ATR 指标标识")
         normalize_strategy_identifier(support_indicator, "支撑指标标识")
         normalize_strategy_identifier(resistance_indicator, "阻力指标标识")
-        stop_multiplier = float(trade_plan.get("stop_multiplier") or 1.0)
-        min_stop_pct = float(trade_plan.get("min_stop_pct") or 0.01)
-        reward_multiplier = float(trade_plan.get("reward_multiplier") or 2.0)
+        stop_multiplier = float(trade_plan.stop_multiplier or 1.0)
+        min_stop_pct = float(trade_plan.min_stop_pct or 0.01)
+        reward_multiplier = float(trade_plan.reward_multiplier or 2.0)
         return f"""
     def _resolve_trade_plan(self, pair, trade):
         cached_plan = trade.get_custom_data("trade_plan")
@@ -470,10 +489,14 @@ class {self.strategy_class_name}(IStrategy):
     target_reason="trade_plan_target",
 )}"""
 
-    def _build_partial_exit_block(self, partial_exits: list[dict[str, Any]]) -> str:
+    def _build_partial_exit_block(self, partial_exits: list[StrategyPartialExitResponse]) -> str:
         if not partial_exits:
             return ""
-        steps = [{"profit": float(item.get("profit", 0)), "size_pct": float(item.get("size_pct", 0))} for item in sorted(partial_exits, key=lambda item: float(item.get("profit", 0))) if float(item.get("size_pct", 0)) > 0]
+        steps = [
+            {"profit": float(item.profit), "size_pct": float(item.size_pct)}
+            for item in sorted(partial_exits, key=lambda item: float(item.profit))
+            if float(item.size_pct) > 0
+        ]
         if not steps:
             return ""
         return f"""

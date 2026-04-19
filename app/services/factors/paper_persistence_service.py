@@ -8,6 +8,7 @@ from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilde
 from app.services.backtest.result_store import build_signal_rows, build_trade_rows
 from app.contracts.backtest import BacktestEquityPointRecord, BacktestSignalRecord, BacktestTradeRecord
 from app.services.backtest.run_contract import update_paper_metadata
+from app.schemas.backtest_result import BacktestRunMetadataResponse
 
 from .signal_execution_core import FactorSignalExecutionCore, FactorSignalPosition
 
@@ -27,7 +28,7 @@ class FactorPaperPersistenceService:
         *,
         session,
         run: BacktestRun,
-        metadata: dict[str, Any],
+        metadata: BacktestRunMetadataResponse,
         runtime_state: dict[str, Any],
         position: FactorSignalPosition | None,
         cash_balance: float,
@@ -49,7 +50,7 @@ class FactorPaperPersistenceService:
                     .filter(BacktestEquityPoint.backtest_id == run.id)
                     .all()
                 ],
-                default=float(metadata.get("initial_cash", 0.0)),
+                default=float(metadata.initial_cash or 0.0),
             )
             persisted = []
             for item in new_equity_points:
@@ -117,11 +118,11 @@ class FactorPaperPersistenceService:
         report = self.report_builder.build_report(
             trades=trade_records,
             equity_curve=equity_records,
-            initial_cash=float(metadata.get("initial_cash", 0.0)),
+            initial_cash=float(metadata.initial_cash or 0.0),
             start_date=run.start_date,
             end_date=run.end_date or now,
         )
-        symbol = str((metadata.get("symbols") or [run.symbol])[0])
+        symbol = str((metadata.symbols or [run.symbol])[0])
         serialized_position = self.execution_core.serialize_position(position, symbol=symbol)
         runtime_payload = {
             **{

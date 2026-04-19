@@ -1,6 +1,6 @@
 import { computed, ref, type ComputedRef } from 'vue'
 
-import type { BacktestDetailResponse, BacktestRun, StrategyVersion } from '@/types'
+import type { BacktestDetailResponse, BacktestRun, StrategyVersion } from './contracts'
 
 import { useBacktestRunChart } from './useBacktestRunChart'
 import { useBacktestRunExecution } from './useBacktestRunExecution'

@@ -1,6 +1,6 @@
 import request from '@/api/request'
 import type { AxiosResponse } from 'axios'
-import type { CurrencyRatesResponse, LlmProviderConfigResponse, LlmProviderConfigUpdateRequest, SystemConfigResponse } from '@/types'
+import type { CurrencyRatesResponse, LlmProviderConfigResponse, LlmProviderConfigUpdateRequest, SystemConfigResponse } from './contracts'
 
 export const systemApi = {
   getConfig(): Promise<AxiosResponse<SystemConfigResponse>> {

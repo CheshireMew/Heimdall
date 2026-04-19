@@ -1,9 +1,9 @@
 import { computed, ref } from 'vue'
 import { marketApi } from './api'
-import { FALLBACK_SYMBOLS, USD_EQUIVALENT_SYMBOLS } from './generatedSymbolCatalog'
-import type { MarketSymbolSearchResponse } from '@/types'
+import { BASE_SYMBOLS, USD_EQUIVALENT_SYMBOLS } from './baseSymbolCatalog'
+import type { MarketSymbolSearchResponse } from './contracts'
 
-const symbols = ref<MarketSymbolSearchResponse[]>([...FALLBACK_SYMBOLS])
+const symbols = ref<MarketSymbolSearchResponse[]>([...BASE_SYMBOLS])
 const usdEquivalentSymbolSet = new Set<string>(USD_EQUIVALENT_SYMBOLS)
 const loading = ref(false)
 let loaded = false

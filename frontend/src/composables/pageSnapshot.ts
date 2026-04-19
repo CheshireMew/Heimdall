@@ -46,46 +46,50 @@ const readSnapshotEnvelopeData = (value: unknown): unknown | null => {
   return value.data
 }
 
-export const createPageSnapshot = <TSnapshot>(
+export interface PersistentPageSnapshot<TSnapshot> {
+  initial: TSnapshot
+  bind: (sources: WatchSource | WatchSource[] | object, buildSnapshot: () => TSnapshot) => WatchStopHandle
+  clear: () => void
+}
+
+export const createPersistentPageSnapshot = <TSnapshot>(
   key: string,
-  normalize: (value: unknown) => TSnapshot,
+  normalize: (value: unknown, fallback: TSnapshot) => TSnapshot,
   fallback: TSnapshot,
-) => {
+): PersistentPageSnapshot<TSnapshot> => {
   const storageKey = `${PAGE_SNAPSHOT_PREFIX}${key}`
+  const load = (): TSnapshot => {
+    if (typeof window === 'undefined') return fallback
+    try {
+      const stored = window.localStorage.getItem(storageKey)
+      if (!stored) return fallback
+      const data = readSnapshotEnvelopeData(JSON.parse(stored))
+      return data === null ? fallback : normalize(data, fallback)
+    } catch (error) {
+      console.warn(`Failed to load page snapshot: ${storageKey}`, error)
+      return fallback
+    }
+  }
+
+  const save = (snapshot: TSnapshot) => {
+    if (typeof window === 'undefined') return
+    try {
+      // 本地快照跟随页面结构变化；版本不匹配时直接丢弃，避免旧字段重新灌回新页面。
+      window.localStorage.setItem(storageKey, JSON.stringify({
+        version: PAGE_SNAPSHOT_VERSION,
+        savedAt: Date.now(),
+        data: normalize(snapshot, fallback),
+      }))
+    } catch (error) {
+      console.warn(`Failed to save page snapshot: ${storageKey}`, error)
+    }
+  }
 
   return {
-    exists() {
-      if (typeof window === 'undefined') return false
-      return window.localStorage.getItem(storageKey) !== null
+    initial: load(),
+    bind(sources: WatchSource | WatchSource[] | object, buildSnapshot: () => TSnapshot) {
+      return watch(sources, () => save(buildSnapshot()), { deep: true, immediate: true })
     },
-
-    load(): TSnapshot {
-      if (typeof window === 'undefined') return fallback
-      try {
-        const stored = window.localStorage.getItem(storageKey)
-        if (!stored) return fallback
-        const data = readSnapshotEnvelopeData(JSON.parse(stored))
-        return data === null ? fallback : normalize(data)
-      } catch (error) {
-        console.warn(`Failed to load page snapshot: ${storageKey}`, error)
-        return fallback
-      }
-    },
-
-    save(snapshot: TSnapshot) {
-      if (typeof window === 'undefined') return
-      try {
-        // 本地快照会跟随页面结构变化，版本不匹配时直接丢弃，避免把旧字段重新灌回新页面。
-        window.localStorage.setItem(storageKey, JSON.stringify({
-          version: PAGE_SNAPSHOT_VERSION,
-          savedAt: Date.now(),
-          data: snapshot,
-        }))
-      } catch (error) {
-        console.warn(`Failed to save page snapshot: ${storageKey}`, error)
-      }
-    },
-
     clear() {
       if (typeof window === 'undefined') return
       try {
@@ -96,9 +100,3 @@ export const createPageSnapshot = <TSnapshot>(
     },
   }
 }
-
-export const bindPageSnapshot = <TSnapshot>(
-  sources: WatchSource | WatchSource[] | object,
-  buildSnapshot: () => TSnapshot,
-  saveSnapshot: (snapshot: TSnapshot) => void,
-): WatchStopHandle => watch(sources, () => saveSnapshot(buildSnapshot()), { deep: true, immediate: true })

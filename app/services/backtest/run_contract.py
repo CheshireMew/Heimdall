@@ -3,7 +3,16 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from pydantic import BaseModel
+
 from app.contracts.backtest import PortfolioConfigRecord, ResearchConfigRecord, StrategyVersionRecord
+from app.schemas.backtest_result import (
+    BacktestPaperLiveResponse,
+    BacktestPortfolioPayloadResponse,
+    BacktestResearchPayloadResponse,
+    BacktestRunMetadataResponse,
+    BacktestRuntimeStateResponse,
+)
 
 
 CURRENT_BACKTEST_RUN_SCHEMA_VERSION = 4
@@ -14,28 +23,27 @@ FREQTRADE_ENGINE = "Freqtrade"
 PAPER_LIVE_ENGINE = "FreqtradePaper"
 FACTOR_BLEND_ENGINE = "FactorBlend"
 FACTOR_BLEND_PAPER_ENGINE = "FactorBlendPaper"
-
 _MISSING = object()
 
 
 def build_portfolio_payload(portfolio: PortfolioConfigRecord) -> dict[str, Any]:
-    return {
-        "symbols": list(portfolio.symbols),
-        "max_open_trades": portfolio.max_open_trades,
-        "position_size_pct": portfolio.position_size_pct,
-        "stake_mode": portfolio.stake_mode,
-    }
+    return BacktestPortfolioPayloadResponse(
+        symbols=list(portfolio.symbols),
+        max_open_trades=portfolio.max_open_trades,
+        position_size_pct=portfolio.position_size_pct,
+        stake_mode=portfolio.stake_mode,
+    ).model_dump()
 
 
 def build_research_payload(research: ResearchConfigRecord) -> dict[str, Any]:
-    return {
-        "slippage_bps": research.slippage_bps,
-        "funding_rate_daily": research.funding_rate_daily,
-        "in_sample_ratio": research.in_sample_ratio,
-        "optimize_metric": research.optimize_metric,
-        "optimize_trials": research.optimize_trials,
-        "rolling_windows": research.rolling_windows,
-    }
+    return BacktestResearchPayloadResponse(
+        slippage_bps=research.slippage_bps,
+        funding_rate_daily=research.funding_rate_daily,
+        in_sample_ratio=research.in_sample_ratio,
+        optimize_metric=research.optimize_metric,
+        optimize_trials=research.optimize_trials,
+        rolling_windows=research.rolling_windows,
+    ).model_dump()
 
 
 def build_base_metadata(
@@ -85,36 +93,41 @@ def build_backtest_metadata(
     )
 
 
-def serialize_run_metadata(metadata: dict[str, Any] | None, *, execution_mode: str, engine: str) -> dict[str, Any]:
-    payload = dict(metadata or {})
+def parse_run_metadata(metadata: BaseModel | dict[str, Any] | None) -> BacktestRunMetadataResponse:
+    payload = metadata.model_dump() if isinstance(metadata, BaseModel) else dict(metadata or {})
+    return BacktestRunMetadataResponse.model_validate(make_json_safe(payload))
+
+
+def serialize_run_metadata(metadata: BaseModel | dict[str, Any] | None, *, execution_mode: str, engine: str) -> dict[str, Any]:
+    payload = parse_run_metadata(metadata).model_dump()
     payload["execution_mode"] = execution_mode
     payload["engine"] = engine
-    return make_json_safe(payload)
+    return _validate_run_metadata(payload)
 
 
 def build_completed_run_metadata(
-    metadata: dict[str, Any] | None,
+    metadata: BaseModel | dict[str, Any] | None,
     *,
-    result_metadata: dict[str, Any] | None,
-    report: dict[str, Any],
+    result_metadata: BaseModel | dict[str, Any] | None,
+    report: BaseModel | dict[str, Any],
 ) -> dict[str, Any]:
-    payload = dict(metadata or {})
+    payload = parse_run_metadata(metadata).model_dump()
     if result_metadata:
-        payload.update(result_metadata)
+        payload.update(_dump_model(result_metadata))
     payload["schema_version"] = CURRENT_BACKTEST_RUN_SCHEMA_VERSION
-    payload["report"] = report
-    return make_json_safe(payload)
+    payload["report"] = _dump_model(report)
+    return _validate_run_metadata(payload)
 
 
 def build_failed_run_metadata(
-    metadata: dict[str, Any] | None,
+    metadata: BaseModel | dict[str, Any] | None,
     *,
     error: str,
 ) -> dict[str, Any]:
-    payload = dict(metadata or {})
+    payload = parse_run_metadata(metadata).model_dump()
     payload["schema_version"] = CURRENT_BACKTEST_RUN_SCHEMA_VERSION
     payload["error"] = error
-    return make_json_safe(payload)
+    return _validate_run_metadata(payload)
 
 
 def build_paper_metadata(
@@ -159,25 +172,26 @@ def ensure_paper_runtime_state(runtime_state: dict[str, Any], *, symbols: list[s
     normalized = {
         key: value
         for key, value in runtime_state.items()
-        if key not in {"cash_balance", "last_processed", "last_synced_end", "positions"}
+        if key not in {"cash_balance", "last_processed", "last_synced_end", "positions", "held_bars"}
     }
 
     normalized["cash_balance"] = float(runtime_state.get("cash_balance", 0.0) or 0.0)
     normalized["last_processed"] = _normalize_last_processed_map(runtime_state.get("last_processed"), symbols=symbols)
     normalized["last_synced_end"] = _normalize_optional_timestamp_ms(runtime_state.get("last_synced_end"))
     normalized["positions"] = _normalize_paper_positions(runtime_state.get("positions"), symbols=symbols)
-    return normalized
+    normalized["held_bars"] = int(runtime_state.get("held_bars", 0) or 0)
+    return BacktestRuntimeStateResponse.model_validate(make_json_safe(normalized)).model_dump()
 
 
 def update_paper_metadata(
-    metadata: dict[str, Any] | None,
+    metadata: BaseModel | dict[str, Any] | None,
     *,
     runtime_state: dict[str, Any],
     last_updated: str,
-    report: dict[str, Any] | object = _MISSING,
+    report: BaseModel | dict[str, Any] | object = _MISSING,
     stop_reason: str | None | object = _MISSING,
 ) -> dict[str, Any]:
-    payload = dict(metadata or {})
+    payload = parse_run_metadata(metadata).model_dump()
     symbols = [str(symbol) for symbol in (payload.get("symbols") or []) if symbol]
     normalized_runtime_state = ensure_paper_runtime_state(runtime_state, symbols=symbols)
     existing_paper_live = dict(payload.get("paper_live") or {}) if isinstance(payload.get("paper_live"), dict) else {}
@@ -191,8 +205,8 @@ def update_paper_metadata(
         stop_reason=stop_reason,
     )
     if report is not _MISSING:
-        payload["report"] = report
-    return make_json_safe(payload)
+        payload["report"] = _dump_model(report)
+    return _validate_run_metadata(payload)
 
 
 def _build_paper_live_state(
@@ -216,7 +230,7 @@ def _build_paper_live_state(
         paper_live["stop_reason"] = stop_reason
     elif "stop_reason" in current_paper_live:
         paper_live["stop_reason"] = current_paper_live["stop_reason"]
-    return paper_live
+    return BacktestPaperLiveResponse.model_validate(make_json_safe(paper_live)).model_dump()
 
 
 def _normalize_last_processed_map(value: Any, *, symbols: list[str]) -> dict[str, int | None]:
@@ -294,6 +308,8 @@ def _normalize_optional_timestamp_ms(value: Any) -> int | None:
 
 
 def make_json_safe(value: Any) -> Any:
+    if isinstance(value, BaseModel):
+        return make_json_safe(value.model_dump())
     if isinstance(value, dict):
         return {key: make_json_safe(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
@@ -301,3 +317,12 @@ def make_json_safe(value: Any) -> Any:
     if isinstance(value, float):
         return value if math.isfinite(value) else None
     return value
+
+
+def _dump_model(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
+    return value.model_dump() if isinstance(value, BaseModel) else dict(value)
+
+
+def _validate_run_metadata(payload: dict[str, Any]) -> dict[str, Any]:
+    safe_payload = make_json_safe(payload)
+    return BacktestRunMetadataResponse.model_validate(safe_payload).model_dump()

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
@@ -21,9 +21,9 @@ if TYPE_CHECKING:
     from app.services.factors.repository import FactorResearchRepository
     from app.services.factors.service import FactorResearchService
     from app.services.factors.signal_execution_core import FactorSignalExecutionCore
-    from app.services.market.binance_web3_service import BinanceWeb3Service
     from app.services.market.binance_market_intel_service import BinanceMarketIntelService
     from app.services.market.binance_market_snapshot_service import BinanceMarketSnapshotService
+    from app.services.market.binance_web3_service import BinanceWeb3Service
     from app.services.market.crypto_index_service import CryptoIndexService
     from app.services.market.exchange_gateway import ExchangeGateway
     from app.services.market.funding_rate_app_service import FundingRateAppService
@@ -38,8 +38,8 @@ if TYPE_CHECKING:
     from app.services.market.market_data_service import MarketDataService
     from app.services.market.query_app_service import MarketQueryAppService
     from app.services.market.realtime_service import RealtimeService
-    from app.services.market_scheduler_runtime import MarketSchedulerRuntime
     from app.services.market.websocket_service import MarketWebSocketService
+    from app.services.market_scheduler_runtime import MarketSchedulerRuntime
     from app.services.sentiment_client import SentimentApiClient
     from app.services.sentiment_repository import SentimentRepository
     from app.services.sentiment_service import SentimentService
@@ -49,11 +49,33 @@ if TYPE_CHECKING:
 
 
 @dataclass(slots=True)
-class AppRuntimeServices:
-    REQUIRED_SERVICE_FIELDS: ClassVar[tuple[str, ...]] = (
+class RuntimeSection:
+    REQUIRED_FIELDS: ClassVar[tuple[str, ...]] = ()
+
+    def missing_required_services(self) -> list[str]:
+        missing: list[str] = []
+        for field_name in self.REQUIRED_FIELDS:
+            if getattr(self, field_name) is None:
+                missing.append(field_name)
+        return missing
+
+
+@dataclass(slots=True)
+class InfraRuntime(RuntimeSection):
+    REQUIRED_FIELDS: ClassVar[tuple[str, ...]] = (
         "exchange_gateway",
         "database_runtime",
         "kline_store",
+    )
+
+    exchange_gateway: ExchangeGateway | None = None
+    database_runtime: DatabaseRuntime | None = None
+    kline_store: KlineStore | None = None
+
+
+@dataclass(slots=True)
+class MarketRuntime(RuntimeSection):
+    REQUIRED_FIELDS: ClassVar[tuple[str, ...]] = (
         "market_data_service",
         "realtime_service",
         "market_indicator_repository",
@@ -70,34 +92,8 @@ class AppRuntimeServices:
         "binance_market_snapshot",
         "binance_market_intel",
         "binance_web3_service",
-        "sentiment_api_client",
-        "sentiment_repository",
-        "sentiment_service",
-        "dca_service",
-        "pair_compare_service",
-        "tools_app_service",
-        "backtest_run_repository",
-        "freqtrade_backtest_service",
-        "backtest_run_service",
-        "strategy_query_service",
-        "strategy_write_service",
-        "freqtrade_report_builder",
-        "paper_run_manager",
-        "backtest_command_service",
-        "backtest_query_service",
-        "factor_research_repository",
-        "factor_research_service",
-        "factor_execution_service",
-        "factor_signal_execution_core",
-        "factor_paper_persistence_service",
-        "factor_paper_run_manager",
-        "currency_rate_service",
-        "market_scheduler_runtime",
     )
 
-    exchange_gateway: ExchangeGateway | None = None
-    database_runtime: DatabaseRuntime | None = None
-    kline_store: KlineStore | None = None
     market_data_service: MarketDataService | None = None
     realtime_service: RealtimeService | None = None
     market_indicator_repository: MarketIndicatorRepository | None = None
@@ -114,12 +110,41 @@ class AppRuntimeServices:
     binance_market_snapshot: BinanceMarketSnapshotService | None = None
     binance_market_intel: BinanceMarketIntelService | None = None
     binance_web3_service: BinanceWeb3Service | None = None
+
+
+@dataclass(slots=True)
+class ToolsRuntime(RuntimeSection):
+    REQUIRED_FIELDS: ClassVar[tuple[str, ...]] = (
+        "sentiment_api_client",
+        "sentiment_repository",
+        "sentiment_service",
+        "dca_service",
+        "pair_compare_service",
+        "tools_app_service",
+    )
+
     sentiment_api_client: SentimentApiClient | None = None
     sentiment_repository: SentimentRepository | None = None
     sentiment_service: SentimentService | None = None
     dca_service: DCAService | None = None
     pair_compare_service: PairCompareService | None = None
     tools_app_service: ToolsAppService | None = None
+
+
+@dataclass(slots=True)
+class BacktestRuntime(RuntimeSection):
+    REQUIRED_FIELDS: ClassVar[tuple[str, ...]] = (
+        "backtest_run_repository",
+        "freqtrade_backtest_service",
+        "backtest_run_service",
+        "strategy_query_service",
+        "strategy_write_service",
+        "freqtrade_report_builder",
+        "paper_run_manager",
+        "backtest_command_service",
+        "backtest_query_service",
+    )
+
     backtest_run_repository: BacktestRunRepository | None = None
     freqtrade_backtest_service: FreqtradeBacktestService | None = None
     backtest_run_service: BacktestRunService | None = None
@@ -129,17 +154,56 @@ class AppRuntimeServices:
     paper_run_manager: PaperRunManager | None = None
     backtest_command_service: BacktestCommandService | None = None
     backtest_query_service: BacktestQueryService | None = None
+
+
+@dataclass(slots=True)
+class FactorRuntime(RuntimeSection):
+    REQUIRED_FIELDS: ClassVar[tuple[str, ...]] = (
+        "factor_research_repository",
+        "factor_research_service",
+        "factor_execution_service",
+        "factor_signal_execution_core",
+        "factor_paper_persistence_service",
+        "factor_paper_run_manager",
+    )
+
     factor_research_repository: FactorResearchRepository | None = None
     factor_research_service: FactorResearchService | None = None
     factor_execution_service: FactorExecutionService | None = None
     factor_signal_execution_core: FactorSignalExecutionCore | None = None
     factor_paper_persistence_service: FactorPaperPersistenceService | None = None
     factor_paper_run_manager: FactorPaperRunManager | None = None
+
+
+@dataclass(slots=True)
+class SystemRuntime(RuntimeSection):
+    REQUIRED_FIELDS: ClassVar[tuple[str, ...]] = (
+        "currency_rate_service",
+        "market_scheduler_runtime",
+    )
+
     currency_rate_service: CurrencyRateService | None = None
     market_scheduler_runtime: MarketSchedulerRuntime | None = None
 
+
+@dataclass(slots=True)
+class AppRuntimeServices:
+    infra: InfraRuntime
+    market: MarketRuntime
+    tools: ToolsRuntime
+    backtest: BacktestRuntime
+    factors: FactorRuntime
+    system: SystemRuntime
+
     def missing_required_services(self) -> list[str]:
-        return [name for name in self.REQUIRED_SERVICE_FIELDS if getattr(self, name) is None]
+        missing: list[str] = []
+        for section_field in fields(self):
+            section = getattr(self, section_field.name)
+            if not isinstance(section, RuntimeSection):
+                continue
+            for service_name in section.missing_required_services():
+                missing.append(f"{section_field.name}.{service_name}")
+        return missing
 
     def validate_required_services(self) -> None:
         missing = self.missing_required_services()

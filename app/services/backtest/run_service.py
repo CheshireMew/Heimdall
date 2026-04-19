@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from app.schemas.backtest_result import BacktestRunMetadataResponse
 from app.services.backtest.freqtrade_service import FreqtradeBacktestService
 from app.contracts.backtest import PortfolioConfigRecord, ResearchConfigRecord, StrategyVersionRecord
 from app.services.backtest.result_store import replace_run_rows, result_signal_counts
@@ -166,14 +167,13 @@ class BacktestRunService:
     def _resolve_displayed_range(
         self,
         *,
-        metadata: dict,
+        metadata: BacktestRunMetadataResponse,
         fallback_start: datetime,
         fallback_end: datetime,
     ) -> tuple[datetime, datetime]:
-        sample_ranges = dict((metadata or {}).get("sample_ranges") or {})
-        displayed = dict(sample_ranges.get("displayed") or {})
-        start_text = displayed.get("start")
-        end_text = displayed.get("end")
+        displayed = metadata.sample_ranges.displayed if metadata.sample_ranges else None
+        start_text = displayed.start if displayed else None
+        end_text = displayed.end if displayed else None
         if not start_text or not end_text:
             return fallback_start, fallback_end
         return datetime.fromisoformat(start_text), datetime.fromisoformat(end_text)

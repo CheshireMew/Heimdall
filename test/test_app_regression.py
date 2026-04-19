@@ -11,7 +11,15 @@ import app.lifecycle as lifecycle_module
 import app.main as main_module
 import app.web as web_module
 import app.background_runtime as background_runtime_module
-from app.runtime import AppRuntimeServices
+from app.runtime import (
+    AppRuntimeServices,
+    BacktestRuntime,
+    FactorRuntime,
+    InfraRuntime,
+    MarketRuntime,
+    SystemRuntime,
+    ToolsRuntime,
+)
 
 
 @pytest.mark.asyncio
@@ -59,11 +67,15 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
         lifecycle_module,
         "build_app_runtime_services",
         lambda: AppRuntimeServices(
-            binance_market_snapshot=snapshot,
-            binance_market_intel=binance_market,
-            paper_run_manager=paper_manager,
-            factor_paper_run_manager=factor_manager,
-            market_scheduler_runtime=FakeSchedulerRuntime(),
+            infra=InfraRuntime(),
+            market=MarketRuntime(
+                binance_market_snapshot=snapshot,
+                binance_market_intel=binance_market,
+            ),
+            tools=ToolsRuntime(),
+            backtest=BacktestRuntime(paper_run_manager=paper_manager),
+            factors=FactorRuntime(factor_paper_run_manager=factor_manager),
+            system=SystemRuntime(market_scheduler_runtime=FakeSchedulerRuntime()),
         ),
     )
     monkeypatch.setattr(

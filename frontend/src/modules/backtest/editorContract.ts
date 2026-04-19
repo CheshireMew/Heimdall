@@ -6,8 +6,8 @@ import type {
   StrategyIndicatorEngine,
   StrategyRuleNode,
   StrategyTemplateConfig,
-} from '@/types'
-import { isStrategyConditionNode, isStrategyGroupNode } from '@/types'
+} from './contracts'
+import { isStrategyConditionNode, isStrategyGroupNode } from './contracts'
 
 export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
 

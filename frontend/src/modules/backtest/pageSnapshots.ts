@@ -1,5 +1,5 @@
 import { isRecord, readBoolean, readEnum, readNumber, readString } from '@/composables/pageSnapshot'
-import type { BacktestRunDefaults } from '@/types'
+import type { BacktestRunDefaults } from './contracts'
 
 export interface BacktestPageSnapshot {
   config: {
@@ -173,6 +173,17 @@ export const applyBacktestPageSnapshot = (
   historyMode.value = snapshot.historyMode
 }
 
+export const buildBacktestPageSnapshot = (
+  config: BacktestPageSnapshot['config'],
+  symbolsText: string,
+  historyMode: 'backtest' | 'paper',
+  defaults: BacktestPageSnapshot,
+): BacktestPageSnapshot => normalizeBacktestPageSnapshot({
+  config,
+  symbolsText,
+  historyMode,
+}, defaults)
+
 export const createDefaultBacktestEditorPageSnapshot = (): BacktestEditorPageSnapshot => ({
   config: {
     strategy_key: '',
@@ -181,8 +192,11 @@ export const createDefaultBacktestEditorPageSnapshot = (): BacktestEditorPageSna
   editor: null,
 })
 
-export const normalizeBacktestEditorPageSnapshot = (value: unknown): BacktestEditorPageSnapshot => {
-  const defaults = createDefaultBacktestEditorPageSnapshot()
+export const normalizeBacktestEditorPageSnapshot = (
+  value: unknown,
+  fallback = createDefaultBacktestEditorPageSnapshot(),
+): BacktestEditorPageSnapshot => {
+  const defaults = fallback
   if (!isRecord(value) || !isRecord(value.config)) return defaults
 
   const editor = isRecord(value.editor)
@@ -206,3 +220,11 @@ export const normalizeBacktestEditorPageSnapshot = (value: unknown): BacktestEdi
     editor,
   }
 }
+
+export const buildBacktestEditorPageSnapshot = (
+  config: BacktestEditorPageSnapshot['config'],
+  editor: BacktestEditorSnapshot,
+): BacktestEditorPageSnapshot => normalizeBacktestEditorPageSnapshot({
+  config,
+  editor,
+})

@@ -137,13 +137,12 @@
 
 <script setup lang="ts">
 import TradingViewChart from '@/components/TradingViewChart.vue'
+import type { CandlestickData, VolumeData } from '@/modules/market/contracts'
 import type {
   BinanceWeb3HeatRankItemResponse,
   BinanceWeb3TokenAuditResponse,
   BinanceWeb3TokenDynamicResponse,
-  CandlestickData,
-  VolumeData,
-} from '@/types'
+} from '@/modules/market/contracts'
 
 defineProps<{
   open: boolean

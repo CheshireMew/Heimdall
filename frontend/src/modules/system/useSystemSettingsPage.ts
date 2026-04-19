@@ -1,6 +1,6 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 
-import type { LlmProviderConfigResponse, LlmProviderPresetResponse, SystemConfigResponse } from '@/types'
+import type { LlmProviderConfigResponse, LlmProviderPresetResponse, SystemConfigResponse } from './contracts'
 import { systemApi } from './api'
 
 interface LlmConfigForm {

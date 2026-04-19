@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from datetime import datetime
 
 from app.infra.db.schema import BacktestRun
+from app.schemas.backtest import BacktestDeleteResponse
 from app.services.backtest.paper_manager import PaperRunManager
 from app.services.backtest.run_repository import BacktestRunRepository
 
@@ -58,5 +59,5 @@ def test_delete_paper_run_updates_stop_state_and_removes_row(db_session, monkeyp
 
     result = asyncio.run(manager.delete_run(run.id))
 
-    assert result == {"success": True, "run_id": run.id, "message": "模拟盘记录已删除"}
+    assert result == BacktestDeleteResponse(success=True, run_id=run.id, message="模拟盘记录已删除")
     assert db_session.get(BacktestRun, run.id) is None

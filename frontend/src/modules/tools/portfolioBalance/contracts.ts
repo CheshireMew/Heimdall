@@ -1,3 +1,5 @@
+import type { BacktestPaperPosition, BacktestRun } from '@/modules/backtest/contracts'
+
 export type PortfolioReviewFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly'
 export type PortfolioSuggestedAction = 'wait' | 'cashflow' | 'full'
 export type PortfolioSuggestedReason = 'on_track' | 'scheduled_review' | 'band_breach' | 'cashflow_first' | 'full_rebalance' | 'below_threshold'
@@ -112,4 +114,9 @@ export interface PortfolioBacktestEquityPoint {
   equity: number
   pnl_abs: number
   drawdown_pct: number
+}
+
+export type {
+  BacktestPaperPosition,
+  BacktestRun,
 }

@@ -15,8 +15,11 @@ export const createDefaultCryptoIndexSnapshot = (): CryptoIndexSnapshot => ({
   days: 90,
 })
 
-export const normalizeCryptoIndexSnapshot = (value: unknown): CryptoIndexSnapshot => {
-  const defaults = createDefaultCryptoIndexSnapshot()
+export const normalizeCryptoIndexSnapshot = (
+  value: unknown,
+  fallback = createDefaultCryptoIndexSnapshot(),
+): CryptoIndexSnapshot => {
+  const defaults = fallback
   if (!isRecord(value)) return defaults
   return {
     topN: readNumber(value.topN, defaults.topN),
@@ -24,16 +27,27 @@ export const normalizeCryptoIndexSnapshot = (value: unknown): CryptoIndexSnapsho
   }
 }
 
+export const buildCryptoIndexSnapshot = (snapshot: CryptoIndexSnapshot): CryptoIndexSnapshot => (
+  normalizeCryptoIndexSnapshot(snapshot)
+)
+
 export const createDefaultHalvingSnapshot = (): HalvingPageSnapshot => ({
   showPhases: true,
   scaleType: 'logarithmic',
 })
 
-export const normalizeHalvingSnapshot = (value: unknown): HalvingPageSnapshot => {
-  const defaults = createDefaultHalvingSnapshot()
+export const normalizeHalvingSnapshot = (
+  value: unknown,
+  fallback = createDefaultHalvingSnapshot(),
+): HalvingPageSnapshot => {
+  const defaults = fallback
   if (!isRecord(value)) return defaults
   return {
     showPhases: readBoolean(value.showPhases, defaults.showPhases),
     scaleType: readEnum(value.scaleType, ['logarithmic', 'linear'] as const, defaults.scaleType),
   }
 }
+
+export const buildHalvingSnapshot = (snapshot: HalvingPageSnapshot): HalvingPageSnapshot => (
+  normalizeHalvingSnapshot(snapshot)
+)

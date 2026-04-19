@@ -1,10 +1,18 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 from starlette.requests import HTTPConnection
 
-from app.runtime import AppRuntimeServices
+from app.runtime import (
+    AppRuntimeServices,
+    BacktestRuntime,
+    FactorRuntime,
+    InfraRuntime,
+    MarketRuntime,
+    SystemRuntime,
+    ToolsRuntime,
+)
 from config import settings
 
 if TYPE_CHECKING:
@@ -56,172 +64,234 @@ def _get_runtime_services(connection: HTTPConnection) -> AppRuntimeServices:
     return cast(AppRuntimeServices, runtime_services)
 
 
-def _require_runtime_service(connection: HTTPConnection, name: str) -> Any:
-    runtime_services = _get_runtime_services(connection)
-    service = getattr(runtime_services, name, None)
+def _require_runtime_service(service, label: str):
     if service is None:
-        raise RuntimeError(f"Runtime service is not initialized: {name}")
+        raise RuntimeError(f"Runtime service is not initialized: {label}")
     return service
 
 
+def _get_infra_runtime(connection: HTTPConnection) -> InfraRuntime:
+    return _get_runtime_services(connection).infra
+
+
+def _get_market_runtime(connection: HTTPConnection) -> MarketRuntime:
+    return _get_runtime_services(connection).market
+
+
+def _get_tools_runtime(connection: HTTPConnection) -> ToolsRuntime:
+    return _get_runtime_services(connection).tools
+
+
+def _get_backtest_runtime(connection: HTTPConnection) -> BacktestRuntime:
+    return _get_runtime_services(connection).backtest
+
+
+def _get_factor_runtime(connection: HTTPConnection) -> FactorRuntime:
+    return _get_runtime_services(connection).factors
+
+
+def _get_system_runtime(connection: HTTPConnection) -> SystemRuntime:
+    return _get_runtime_services(connection).system
+
+
 def get_exchange_gateway(connection: HTTPConnection) -> ExchangeGateway:
-    return _require_runtime_service(connection, "exchange_gateway")
+    runtime = _get_infra_runtime(connection)
+    return _require_runtime_service(runtime.exchange_gateway, "infra.exchange_gateway")
 
 
 def get_kline_store(connection: HTTPConnection) -> KlineStore:
-    return _require_runtime_service(connection, "kline_store")
+    runtime = _get_infra_runtime(connection)
+    return _require_runtime_service(runtime.kline_store, "infra.kline_store")
 
 
 def get_market_data_service(connection: HTTPConnection) -> MarketDataService:
-    return _require_runtime_service(connection, "market_data_service")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.market_data_service, "market.market_data_service")
 
 
 def get_realtime_service(connection: HTTPConnection) -> RealtimeService:
-    return _require_runtime_service(connection, "realtime_service")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.realtime_service, "market.realtime_service")
 
 
 def get_market_indicator_repository(connection: HTTPConnection) -> MarketIndicatorRepository:
-    return _require_runtime_service(connection, "market_indicator_repository")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.market_indicator_repository, "market.market_indicator_repository")
 
 
 def get_indicator_service(connection: HTTPConnection) -> IndicatorService:
-    return _require_runtime_service(connection, "indicator_service")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.indicator_service, "market.indicator_service")
 
 
 def get_history_service(connection: HTTPConnection) -> HistoryService:
-    return _require_runtime_service(connection, "history_service")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.history_service, "market.history_service")
 
 
 def get_funding_rate_store(connection: HTTPConnection) -> FundingRateStore:
-    return _require_runtime_service(connection, "funding_rate_store")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.funding_rate_store, "market.funding_rate_store")
 
 
 def get_funding_rate_service(connection: HTTPConnection) -> FundingRateService:
-    return _require_runtime_service(connection, "funding_rate_service")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.funding_rate_service, "market.funding_rate_service")
 
 
 def get_funding_rate_app_service(connection: HTTPConnection) -> FundingRateAppService:
-    return _require_runtime_service(connection, "funding_rate_app_service")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.funding_rate_app_service, "market.funding_rate_app_service")
 
 
 def get_crypto_index_service(connection: HTTPConnection) -> CryptoIndexService:
-    return _require_runtime_service(connection, "crypto_index_service")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.crypto_index_service, "market.crypto_index_service")
 
 
 def get_market_query_app_service(connection: HTTPConnection) -> MarketQueryAppService:
-    return _require_runtime_service(connection, "market_query_app_service")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.market_query_app_service, "market.market_query_app_service")
 
 
 def get_market_insight_app_service(connection: HTTPConnection) -> MarketInsightAppService:
-    return _require_runtime_service(connection, "market_insight_app_service")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.market_insight_app_service, "market.market_insight_app_service")
 
 
 def get_market_websocket_service(connection: HTTPConnection) -> MarketWebSocketService:
-    return _require_runtime_service(connection, "market_websocket_service")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.market_websocket_service, "market.market_websocket_service")
 
 
 def get_index_data_service(connection: HTTPConnection) -> IndexDataService:
-    return _require_runtime_service(connection, "index_data_service")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.index_data_service, "market.index_data_service")
 
 
 def get_binance_market_snapshot_service(connection: HTTPConnection) -> BinanceMarketSnapshotService:
-    return _require_runtime_service(connection, "binance_market_snapshot")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.binance_market_snapshot, "market.binance_market_snapshot")
 
 
 def get_binance_market_intel_service(connection: HTTPConnection) -> BinanceMarketIntelService:
-    return _require_runtime_service(connection, "binance_market_intel")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.binance_market_intel, "market.binance_market_intel")
 
 
 def get_binance_web3_service(connection: HTTPConnection) -> BinanceWeb3Service:
-    return _require_runtime_service(connection, "binance_web3_service")
+    runtime = _get_market_runtime(connection)
+    return _require_runtime_service(runtime.binance_web3_service, "market.binance_web3_service")
 
 
 def get_sentiment_api_client(connection: HTTPConnection) -> SentimentApiClient:
-    return _require_runtime_service(connection, "sentiment_api_client")
+    runtime = _get_tools_runtime(connection)
+    return _require_runtime_service(runtime.sentiment_api_client, "tools.sentiment_api_client")
 
 
 def get_sentiment_repository(connection: HTTPConnection) -> SentimentRepository:
-    return _require_runtime_service(connection, "sentiment_repository")
+    runtime = _get_tools_runtime(connection)
+    return _require_runtime_service(runtime.sentiment_repository, "tools.sentiment_repository")
 
 
 def get_sentiment_service(connection: HTTPConnection) -> SentimentService:
-    return _require_runtime_service(connection, "sentiment_service")
+    runtime = _get_tools_runtime(connection)
+    return _require_runtime_service(runtime.sentiment_service, "tools.sentiment_service")
 
 
 def get_dca_service(connection: HTTPConnection) -> DCAService:
-    return _require_runtime_service(connection, "dca_service")
+    runtime = _get_tools_runtime(connection)
+    return _require_runtime_service(runtime.dca_service, "tools.dca_service")
 
 
 def get_pair_compare_service(connection: HTTPConnection) -> PairCompareService:
-    return _require_runtime_service(connection, "pair_compare_service")
+    runtime = _get_tools_runtime(connection)
+    return _require_runtime_service(runtime.pair_compare_service, "tools.pair_compare_service")
 
 
 def get_tools_app_service(connection: HTTPConnection) -> ToolsAppService:
-    return _require_runtime_service(connection, "tools_app_service")
+    runtime = _get_tools_runtime(connection)
+    return _require_runtime_service(runtime.tools_app_service, "tools.tools_app_service")
 
 
 def get_backtest_run_repository(connection: HTTPConnection) -> BacktestRunRepository:
-    return _require_runtime_service(connection, "backtest_run_repository")
+    runtime = _get_backtest_runtime(connection)
+    return _require_runtime_service(runtime.backtest_run_repository, "backtest.backtest_run_repository")
 
 
 def get_freqtrade_backtest_service(connection: HTTPConnection) -> FreqtradeBacktestService:
-    return _require_runtime_service(connection, "freqtrade_backtest_service")
+    runtime = _get_backtest_runtime(connection)
+    return _require_runtime_service(runtime.freqtrade_backtest_service, "backtest.freqtrade_backtest_service")
 
 
 def get_backtest_run_service(connection: HTTPConnection) -> BacktestRunService:
-    return _require_runtime_service(connection, "backtest_run_service")
+    runtime = _get_backtest_runtime(connection)
+    return _require_runtime_service(runtime.backtest_run_service, "backtest.backtest_run_service")
 
 
 def get_strategy_query_service(connection: HTTPConnection) -> StrategyQueryService:
-    return _require_runtime_service(connection, "strategy_query_service")
+    runtime = _get_backtest_runtime(connection)
+    return _require_runtime_service(runtime.strategy_query_service, "backtest.strategy_query_service")
 
 
 def get_strategy_write_service(connection: HTTPConnection) -> StrategyWriteService:
-    return _require_runtime_service(connection, "strategy_write_service")
+    runtime = _get_backtest_runtime(connection)
+    return _require_runtime_service(runtime.strategy_write_service, "backtest.strategy_write_service")
 
 
 def get_freqtrade_report_builder(connection: HTTPConnection):
-    return _require_runtime_service(connection, "freqtrade_report_builder")
+    runtime = _get_backtest_runtime(connection)
+    return _require_runtime_service(runtime.freqtrade_report_builder, "backtest.freqtrade_report_builder")
 
 
 def get_paper_run_manager(connection: HTTPConnection) -> PaperRunManager:
-    return _require_runtime_service(connection, "paper_run_manager")
+    runtime = _get_backtest_runtime(connection)
+    return _require_runtime_service(runtime.paper_run_manager, "backtest.paper_run_manager")
 
 
 def get_backtest_command_service(connection: HTTPConnection) -> BacktestCommandService:
-    return _require_runtime_service(connection, "backtest_command_service")
+    runtime = _get_backtest_runtime(connection)
+    return _require_runtime_service(runtime.backtest_command_service, "backtest.backtest_command_service")
 
 
 def get_backtest_query_service(connection: HTTPConnection) -> BacktestQueryService:
-    return _require_runtime_service(connection, "backtest_query_service")
+    runtime = _get_backtest_runtime(connection)
+    return _require_runtime_service(runtime.backtest_query_service, "backtest.backtest_query_service")
 
 
 def get_factor_research_repository(connection: HTTPConnection) -> FactorResearchRepository:
-    return _require_runtime_service(connection, "factor_research_repository")
+    runtime = _get_factor_runtime(connection)
+    return _require_runtime_service(runtime.factor_research_repository, "factors.factor_research_repository")
 
 
 def get_factor_research_service(connection: HTTPConnection) -> FactorResearchService:
-    return _require_runtime_service(connection, "factor_research_service")
+    runtime = _get_factor_runtime(connection)
+    return _require_runtime_service(runtime.factor_research_service, "factors.factor_research_service")
 
 
 def get_factor_execution_service(connection: HTTPConnection) -> FactorExecutionService:
-    return _require_runtime_service(connection, "factor_execution_service")
+    runtime = _get_factor_runtime(connection)
+    return _require_runtime_service(runtime.factor_execution_service, "factors.factor_execution_service")
 
 
 def get_factor_signal_execution_core(connection: HTTPConnection) -> FactorSignalExecutionCore:
-    return _require_runtime_service(connection, "factor_signal_execution_core")
+    runtime = _get_factor_runtime(connection)
+    return _require_runtime_service(runtime.factor_signal_execution_core, "factors.factor_signal_execution_core")
 
 
 def get_factor_paper_persistence_service(connection: HTTPConnection) -> FactorPaperPersistenceService:
-    return _require_runtime_service(connection, "factor_paper_persistence_service")
+    runtime = _get_factor_runtime(connection)
+    return _require_runtime_service(runtime.factor_paper_persistence_service, "factors.factor_paper_persistence_service")
 
 
 def get_factor_paper_run_manager(connection: HTTPConnection) -> FactorPaperRunManager:
-    return _require_runtime_service(connection, "factor_paper_run_manager")
+    runtime = _get_factor_runtime(connection)
+    return _require_runtime_service(runtime.factor_paper_run_manager, "factors.factor_paper_run_manager")
 
 
 def get_currency_rate_service(connection: HTTPConnection) -> CurrencyRateService:
-    return _require_runtime_service(connection, "currency_rate_service")
+    runtime = _get_system_runtime(connection)
+    return _require_runtime_service(runtime.currency_rate_service, "system.currency_rate_service")
 
 
 def get_settings():
