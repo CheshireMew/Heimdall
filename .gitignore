@@ -1,5 +1,7 @@
 # User requested
 _references/
+example/
+output/
 test_output*.txt
 test_debug*.txt
 traceback.log
@@ -20,6 +22,16 @@ traceback.log
 /test_tmp_pytest/
 /frontend/.npm-cache/
 /.pytest_cache/
+/.benchmarks/
+/.coverage
+/.coverage.*
+/coverage/
+/htmlcov/
+/.mypy_cache/
+/.ruff_cache/
+/.hypothesis/
+/.tox/
+/.nox/
 
 # Python
 __pycache__/
@@ -29,11 +41,15 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
 .env
 
 # Node
 node_modules/
 dist/
+build/
+.pnpm-store/
+.yarn/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
