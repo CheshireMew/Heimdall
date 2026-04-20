@@ -16,19 +16,19 @@
         class="absolute rounded bg-gray-900 px-2 py-1 text-white shadow dark:bg-white dark:text-gray-900"
         :style="tradeOverlay.entryLabel"
       >
-        开仓 {{ formatPrice(tradeSetup.entry) }}
+        开仓 {{ chartPriceText(tradeSetup.entry) }}
       </div>
       <div
         class="absolute rounded bg-emerald-600 px-2 py-1 text-white shadow"
         :style="tradeOverlay.targetLabel"
       >
-        目标 {{ formatPrice(tradeSetup.target) }}
+        目标 {{ chartPriceText(tradeSetup.target) }}
       </div>
       <div
         class="absolute rounded bg-rose-600 px-2 py-1 text-white shadow"
         :style="tradeOverlay.stopLabel"
       >
-        止损 {{ formatPrice(tradeSetup.stop) }}
+        止损 {{ chartPriceText(tradeSetup.stop) }}
       </div>
       <div
         class="absolute rounded bg-gray-900 px-2 py-1 text-white shadow dark:bg-white dark:text-gray-900"
@@ -44,6 +44,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { createChart, CandlestickSeries, AreaSeries, HistogramSeries, LineStyle } from 'lightweight-charts'
 import { useMoney } from '@/composables/useMoney'
+import { formatAdaptivePrice } from '@/modules/format'
 
 const props = defineProps({
   data: {
@@ -79,7 +80,7 @@ const props = defineProps({
 })
 
 const chartContainer = ref(null)
-const { displayCurrency, formatMoney } = useMoney()
+const { displayCurrency } = useMoney()
 const tradeOverlay = ref(null)
 let chart = null
 let mainSeries = null
@@ -120,12 +121,7 @@ const syncAutoscale = () => {
     })
 }
 
-const formatPrice = (value) => {
-    if (!Number.isFinite(value)) return '-'
-    if (value >= 1000) return formatMoney(value, 'USDT', { maximumFractionDigits: 1 })
-    if (value >= 1) return formatMoney(value, 'USDT', { maximumFractionDigits: 3 })
-    return formatMoney(value, 'USDT', { maximumSignificantDigits: 4 })
-}
+const chartPriceText = (value) => formatAdaptivePrice(value, 'USDT', '-')
 
 const clearTradePriceLines = () => {
     if (!mainSeries) return
@@ -153,7 +149,7 @@ const syncTradeSetup = () => {
         lineWidth: 2,
         lineStyle: item.style,
         axisLabelVisible: true,
-        title: `${item.title} ${formatPrice(item.price)}`,
+        title: `${item.title} ${chartPriceText(item.price)}`,
     }))
     syncAutoscale()
     scheduleOverlayUpdate()

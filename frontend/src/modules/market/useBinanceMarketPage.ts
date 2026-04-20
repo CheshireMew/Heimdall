@@ -1,7 +1,7 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
-import { useMoney } from '@/composables/useMoney'
+import { formatAdaptivePrice, formatCompactCurrency } from '@/modules/format'
 import type { BinanceBreakoutMonitorItemResponse } from './contracts'
 import {
   normalizeSnapshot,
@@ -22,7 +22,6 @@ import { useBinanceSymbolChart } from './useBinanceSymbolChart'
 import { useBinanceWeb3Panel } from './useBinanceWeb3Panel'
 
 export function useBinanceMarketPage() {
-  const { formatMoney, formatCompactMoney } = useMoney()
   const pageSnapshot = createPersistentPageSnapshot(PAGE_SNAPSHOT_KEYS.binanceMarket, normalizeSnapshot, createDefaultSnapshot())
   const restoredSnapshot = pageSnapshot.initial
   const market = useBinanceMarketMonitor(restoredSnapshot)
@@ -89,13 +88,6 @@ export function useBinanceMarketPage() {
     }),
   )
 
-  const formatPrice = (value: number | null | undefined) => {
-    if (value === null || value === undefined || Number.isNaN(value)) return '--'
-    return formatMoney(value, 'USDT', { maximumFractionDigits: value >= 100 ? 2 : 6 })
-  }
-
-  const formatCompact = (value: number | null | undefined) => formatCompactMoney(value, 'USDT')
-
   return {
     loading: market.loading,
     error: market.error,
@@ -149,8 +141,8 @@ export function useBinanceMarketPage() {
     formatSigned,
     formatScore,
     formatTime,
-    formatPrice,
-    formatCompact,
+    formatPrice: (value: number | null | undefined) => formatAdaptivePrice(value, 'USDT', '--'),
+    formatCompact: (value: number | null | undefined) => formatCompactCurrency(value, 'USDT'),
     displaySymbol,
     valueTone,
     verdictTone,

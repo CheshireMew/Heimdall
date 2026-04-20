@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { formatMetric, formatMoney, formatNumber, formatPercent, formatRange } from '@/modules/backtest/format'
+import { formatMetric, formatMoney, formatNumber, formatPercent, formatRange } from '@/modules/format'
 import type { BacktestResultPanelView } from '@/modules/backtest/viewTypes'
 
 const props = defineProps<{ panel: BacktestResultPanelView }>()

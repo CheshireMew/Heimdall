@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { formatDateTime, formatNumber, formatPercent } from '@/modules/backtest/format'
+import { formatDateTime, formatNumber, formatPercent } from '@/modules/format'
 import type { BacktestHistoryPanelView } from '@/modules/backtest/viewTypes'
 
 const props = defineProps<{ panel: BacktestHistoryPanelView }>()

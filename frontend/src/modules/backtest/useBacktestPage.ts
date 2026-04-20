@@ -6,7 +6,7 @@ import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/
 import { addDaysToLocalIsoDate, todayLocalIsoDate } from '@/utils/localDate'
 import type { BacktestRun, StrategyDefinition, StrategyEditorContract, StrategyVersion } from './contracts'
 import { backtestApi } from './api'
-import { asNumber } from './format'
+import { asNumber } from '@/modules/format'
 import {
   applyBacktestPageSnapshot,
   buildBacktestPageSnapshot,

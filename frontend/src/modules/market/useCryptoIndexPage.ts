@@ -2,7 +2,12 @@ import { computed, onMounted, ref } from 'vue'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
-import { useMoney } from '@/composables/useMoney'
+import {
+  formatCompactCurrency,
+  formatMoney,
+  formatPercent,
+  formatSignedPercent,
+} from '@/modules/format'
 import { marketApi } from './api'
 import type { CryptoIndexResponse } from './contracts'
 import type { CryptoIndexConstituent, CryptoIndexHistoryPoint } from './contracts'
@@ -11,7 +16,6 @@ import { buildCryptoIndexSnapshot, createDefaultCryptoIndexSnapshot, normalizeCr
 
 export function useCryptoIndexPage() {
   const { theme } = useTheme()
-  const { formatMoney, formatCompactMoney } = useMoney()
   const pageSnapshot = createPersistentPageSnapshot(PAGE_SNAPSHOT_KEYS.cryptoIndex, normalizeCryptoIndexSnapshot, createDefaultCryptoIndexSnapshot())
   const restoredSnapshot = pageSnapshot.initial
 
@@ -42,34 +46,13 @@ export function useCryptoIndexPage() {
       value: point.index_value,
     })))
 
-  const formatCurrency = (value: number | null | undefined) => {
-    if (value === null || value === undefined) {
-      return '--'
-    }
-    return formatMoney(value, 'USD', { maximumFractionDigits: value >= 1000 ? 0 : 2 })
-  }
+  const formatCurrency = (value: number | null | undefined) => (
+    formatMoney(value, 'USD', { maximumFractionDigits: Number(value || 0) >= 1000 ? 0 : 2 }, '--')
+  )
 
-  const formatCompactCurrency = (value: number | null | undefined) => {
-    if (value === null || value === undefined) {
-      return '--'
-    }
-    return formatCompactMoney(value, 'USD')
-  }
+  const formatIndexCompactCurrency = (value: number | null | undefined) => formatCompactCurrency(value, 'USD')
 
-  const formatPercent = (value: number | null | undefined) => {
-    if (value === null || value === undefined) {
-      return '--'
-    }
-    return `${Number(value).toFixed(2)}%`
-  }
-
-  const formatSignedPercent = (value: number | null | undefined) => {
-    if (value === null || value === undefined) {
-      return '--'
-    }
-    const numeric = Number(value)
-    return `${numeric > 0 ? '+' : ''}${numeric.toFixed(2)}%`
-  }
+  const formatIndexPercent = (value: number | null | undefined) => formatPercent(value, 2, { empty: '--' })
 
   const changeClass = (value: number | null | undefined) => {
     if (value === null || value === undefined) {
@@ -93,7 +76,7 @@ export function useCryptoIndexPage() {
     },
     {
       label: 'Basket Cap',
-      value: formatCompactCurrency(summary.value?.current_basket_market_cap),
+      value: formatIndexCompactCurrency(summary.value?.current_basket_market_cap),
       hint: `${topN.value} assets`,
     },
     {
@@ -104,7 +87,7 @@ export function useCryptoIndexPage() {
     {
       label: 'BTC / ETH',
       value: summary.value
-        ? `${formatPercent(summary.value.btc_weight_pct)} / ${formatPercent(summary.value.eth_weight_pct)}`
+        ? `${formatIndexPercent(summary.value.btc_weight_pct)} / ${formatIndexPercent(summary.value.eth_weight_pct)}`
         : '--',
       hint: 'basket weights',
     },
@@ -160,8 +143,8 @@ export function useCryptoIndexPage() {
     fetchData,
     weightOf,
     formatCurrency,
-    formatCompactCurrency,
-    formatPercent,
+    formatCompactCurrency: formatIndexCompactCurrency,
+    formatPercent: formatIndexPercent,
     formatSignedPercent,
     changeClass,
   }

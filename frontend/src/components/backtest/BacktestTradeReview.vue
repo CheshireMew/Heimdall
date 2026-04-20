@@ -48,7 +48,7 @@
 
 <script setup lang="ts">
 import TradingViewChart from '@/components/TradingViewChart.vue'
-import { formatDateTime, formatDuration, formatMoney, formatPercent, formatPrice } from '@/modules/backtest/format'
+import { formatDateTime, formatDuration, formatMoney, formatPercent, formatPrice } from '@/modules/format'
 import type { BacktestResultPanelView } from '@/modules/backtest/viewTypes'
 
 const props = defineProps<{ panel: BacktestResultPanelView }>()

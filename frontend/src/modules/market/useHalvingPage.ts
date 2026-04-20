@@ -5,6 +5,7 @@ import type { Chart, ChartConfiguration, ChartDataset } from 'chart.js'
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
+import { formatMoney as formatDisplayMoney } from '@/modules/format'
 import type { OhlcvPointResponse } from './contracts'
 import { marketApi } from './api'
 import { buildHalvingSnapshot, createDefaultHalvingSnapshot, normalizeHalvingSnapshot } from './pageSnapshots'
@@ -95,8 +96,6 @@ export function useHalvingPage() {
       y: toDisplayAmount(row.close, 'USDT') ?? 0,
     })),
   )
-
-  const formatPrice = (price: number) => formatMoney(price, 'USDT', { maximumFractionDigits: 2 })
 
   const buildPhaseAnnotations = (isDark: boolean): HalvingAnnotationMap => {
     if (!showPhases.value) return {}
@@ -402,6 +401,6 @@ export function useHalvingPage() {
     nextHalvingDate,
     daysToHalving,
     cycleProgress,
-    formatPrice,
+    formatPrice: (price: number) => formatDisplayMoney(price, 'USDT', { maximumFractionDigits: 2 }),
   }
 }

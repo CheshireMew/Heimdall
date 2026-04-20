@@ -22,7 +22,7 @@ from app.services.backtest.strategy_catalog import (
     get_template_runtime_contract,
 )
 from app.contracts.backtest_defaults import backtest_run_defaults
-from app.services.backtest.strategy_contract import editor_contract
+from app.services.backtest.strategy_editor_contract import editor_contract
 
 from .strategy_support import (
     build_strategy_version_response_payload,

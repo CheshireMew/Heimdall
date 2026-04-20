@@ -1,9 +1,9 @@
-import { isIndexSymbol, marketApi } from '@/modules/market'
+import { isIndexSymbol, marketApi, toBaseSymbol } from '@/modules/market'
 import type { MarketHistoryBatchItemResponse, OhlcvPointResponse } from '@/modules/market/contracts'
 import type { PortfolioBalancePortfolio } from './contracts'
 
 import { buildPortfolioSyntheticHistory } from './backtest'
-import { collectPortfolioMarketTargets, normalizePortfolioAssetSymbol, readPortfolioSyntheticPrice } from './model'
+import { collectPortfolioMarketTargets, readPortfolioSyntheticPrice } from './model'
 import { localIsoDateDaysAgo, toLocalIsoDate } from '@/utils/localDate'
 
 type PortfolioHistoryPoint = { date: string; close: number }
@@ -94,7 +94,7 @@ const loadIndexHistory = async (symbol: string, startText: string) => {
 export const fetchPortfolioPriceMap = async (portfolio: PortfolioBalancePortfolio) => {
   const priceBySymbol = new Map<string, number>()
   portfolio.assets.forEach((asset) => {
-    const symbol = normalizePortfolioAssetSymbol(asset.symbol)
+    const symbol = toBaseSymbol(asset.symbol)
     const syntheticPrice = readPortfolioSyntheticPrice(symbol)
     if (!symbol || syntheticPrice === null || priceBySymbol.has(symbol)) return
     priceBySymbol.set(symbol, syntheticPrice)
@@ -166,7 +166,7 @@ export const loadPortfolioBacktestHistory = async (
   const historyBySymbol: Record<string, Array<{ date: string; close: number }>> = {}
 
   portfolio.assets.forEach((asset) => {
-    const symbol = normalizePortfolioAssetSymbol(asset.symbol)
+    const symbol = toBaseSymbol(asset.symbol)
     if (!symbol || historyBySymbol[symbol]) return
     const syntheticHistory = buildPortfolioSyntheticHistory(symbol, startText)
     if (syntheticHistory.length) historyBySymbol[symbol] = syntheticHistory

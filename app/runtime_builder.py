@@ -33,6 +33,7 @@ def build_app_runtime_services() -> AppRuntimeServices:
     from app.services.factors.repository import FactorResearchRepository
     from app.services.factors.service import FactorResearchService
     from app.services.factors.signal_execution_core import FactorSignalExecutionCore
+    from app.services.llm_config_service import read_effective_llm_config
     from app.services.market.binance_market_intel_service import BinanceMarketIntelService
     from app.services.market.binance_market_snapshot_service import BinanceMarketSnapshotService
     from app.services.market.binance_web3_service import BinanceWeb3Service
@@ -67,6 +68,10 @@ def build_app_runtime_services() -> AppRuntimeServices:
     database_runtime = build_database_runtime(settings)
     cache_service = build_cache_service(settings)
     exchange_gateway = ExchangeGateway(exchange_id=settings.EXCHANGE_ID)
+    # LLM 配置属于服务层运行时状态；infra client 只消费已经解析好的配置，避免底层反向依赖业务服务。
+    def build_llm_client() -> LLMClient:
+        return LLMClient(llm_config=read_effective_llm_config())
+
     kline_store = KlineStore(database_runtime=database_runtime)
     market_data_service = MarketDataService(
         exchange_gateway=exchange_gateway,
@@ -100,7 +105,7 @@ def build_app_runtime_services() -> AppRuntimeServices:
             realtime_service=realtime_service,
             history_service=history_service,
             binance_snapshot_service=binance_market_snapshot,
-            llm_client_factory=LLMClient,
+            llm_client_factory=build_llm_client,
         )
         if realtime_service is not None and history_service is not None
         else None
@@ -110,7 +115,7 @@ def build_app_runtime_services() -> AppRuntimeServices:
             indicator_service=indicator_service,
             crypto_index_service=crypto_index_service,
             market_query_service=market_query_app_service,
-            llm_client_factory=LLMClient,
+            llm_client_factory=build_llm_client,
         )
         if indicator_service is not None
         and crypto_index_service is not None

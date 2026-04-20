@@ -6,7 +6,7 @@ import { useTheme } from '@/composables/useTheme'
 import type { BacktestRun, StrategyDefinition, StrategyVersion } from './contracts'
 
 import { backtestApi } from './api'
-import { asNumber } from './format'
+import { asNumber } from '@/modules/format'
 import { useBacktestRuns, type BacktestRunMode } from './useBacktestRuns'
 import { defineReactiveView, type BacktestDetailHeroView, type BacktestHistoryPanelView, type BacktestResultPanelView } from './viewTypes'
 

@@ -10,7 +10,7 @@ import type {
   PortfolioBalanceTrackingConfig,
 } from './contracts'
 import { isRecord, readNumber, readString } from '@/composables/pageSnapshot'
-import { isIndexSymbol } from '@/modules/market'
+import { isIndexSymbol, toBaseSymbol } from '@/modules/market'
 
 import {
   clamp,
@@ -27,16 +27,8 @@ let portfolioSequence = 0
 const createAssetId = () => `portfolio-asset-${Date.now()}-${assetSequence++}`
 const createPortfolioId = () => `portfolio-${Date.now()}-${portfolioSequence++}`
 
-export const normalizePortfolioAssetSymbol = (value: string) => {
-  const trimmed = String(value || '').trim().toUpperCase()
-  if (!trimmed) return ''
-  const [base] = trimmed.split('/')
-  const [assetCode] = base.split(':')
-  return assetCode.trim()
-}
-
 export const readPortfolioSyntheticPrice = (value: string) => {
-  const symbol = normalizePortfolioAssetSymbol(value)
+  const symbol = toBaseSymbol(value)
   return Object.prototype.hasOwnProperty.call(PORTFOLIO_SYNTHETIC_PRICE_BY_SYMBOL, symbol)
     ? PORTFOLIO_SYNTHETIC_PRICE_BY_SYMBOL[symbol]
     : null
@@ -49,7 +41,7 @@ export const createPortfolioBalanceAsset = (
   const currentPrice = sanitizeNumber(overrides.currentPrice)
   return {
     id: overrides.id || createAssetId(),
-    symbol: normalizePortfolioAssetSymbol(overrides.symbol || ''),
+    symbol: toBaseSymbol(overrides.symbol || ''),
     targetWeight: sanitizeNumber(overrides.targetWeight),
     units: sanitizeNumber(overrides.units),
     currentPrice: syntheticPrice !== null && currentPrice <= 0 ? syntheticPrice : currentPrice,
@@ -58,7 +50,7 @@ export const createPortfolioBalanceAsset = (
 }
 
 export const toPortfolioMarketSymbol = (value: string) => {
-  const symbol = normalizePortfolioAssetSymbol(value)
+  const symbol = toBaseSymbol(value)
   if (!symbol || readPortfolioSyntheticPrice(symbol) !== null) return ''
   if (isIndexSymbol(symbol)) return symbol
   return `${symbol}/USDT`
@@ -67,7 +59,7 @@ export const toPortfolioMarketSymbol = (value: string) => {
 export const collectPortfolioMarketTargets = (rawAssets: PortfolioBalanceAssetInput[]) => {
   const uniqueTargets = new Map<string, { symbol: string; marketSymbol: string }>()
   rawAssets.forEach((asset) => {
-    const symbol = normalizePortfolioAssetSymbol(asset.symbol)
+    const symbol = toBaseSymbol(asset.symbol)
     const marketSymbol = toPortfolioMarketSymbol(asset.symbol)
     if (!symbol || !marketSymbol || uniqueTargets.has(symbol)) return
     uniqueTargets.set(symbol, { symbol, marketSymbol })
@@ -124,7 +116,7 @@ export const normalizePortfolioBalanceAsset = (value: unknown): PortfolioBalance
   if (!isRecord(value)) return createPortfolioBalanceAsset()
   return createPortfolioBalanceAsset({
     id: readString(value.id, createAssetId()),
-    symbol: normalizePortfolioAssetSymbol(readString(value.symbol, '')),
+    symbol: toBaseSymbol(readString(value.symbol, '')),
     targetWeight: sanitizeNumber(value.targetWeight),
     units: sanitizeNumber(value.units),
     currentPrice: sanitizeNumber(value.currentPrice),

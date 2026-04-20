@@ -1,10 +1,10 @@
 import type { PortfolioBalancePortfolio } from './contracts'
 import { isRecord, readString } from '@/composables/pageSnapshot'
+import { toBaseSymbol } from '@/modules/market'
 
 import {
   createDefaultPortfolioCollection,
   createPortfolioBalancePortfolio,
-  normalizePortfolioAssetSymbol,
   normalizePortfolioBalancePortfolio,
 } from './model'
 
@@ -48,9 +48,9 @@ export const touchPortfolio = (portfolio: PortfolioBalancePortfolio) => {
 }
 
 export const hasMarketGap = (portfolio: PortfolioBalancePortfolio) => (
-  portfolio.assets.some((asset) => normalizePortfolioAssetSymbol(asset.symbol) && (!asset.currentPrice || asset.currentPrice <= 0))
+  portfolio.assets.some((asset) => toBaseSymbol(asset.symbol) && (!asset.currentPrice || asset.currentPrice <= 0))
 )
 
 export const hasActiveAssets = (portfolio: PortfolioBalancePortfolio) => (
-  portfolio.assets.some((asset) => Boolean(normalizePortfolioAssetSymbol(asset.symbol)))
+  portfolio.assets.some((asset) => Boolean(toBaseSymbol(asset.symbol)))
 )

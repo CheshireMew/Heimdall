@@ -7,14 +7,14 @@ from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import IndicatorDefinition, StrategyTemplateDefinition
 from app.services.backtest.scripted_template_runtime import get_template_runtime
 from app.services.backtest.indicator_engines import BUILTIN_INDICATOR_ENGINES
-from app.services.backtest.strategy_contract import (
+from app.services.backtest.strategy_config_normalizer import (
     blank_strategy_config,
-    editor_contract,
     normalize_indicator_params,
     normalize_parameter_space,
-    normalize_strategy_identifier,
     normalize_strategy_config,
+    normalize_strategy_identifier,
 )
+from app.services.backtest.strategy_editor_contract import editor_contract
 from app.services.backtest.strategy_definitions import BUILTIN_TEMPLATE_DEFINITIONS
 
 

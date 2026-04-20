@@ -6,7 +6,6 @@ from typing import Any
 
 import httpx
 
-from app.services.llm_config_service import read_effective_llm_config
 from config import settings
 from utils.logger import logger
 
@@ -17,8 +16,13 @@ BASE_DELAY = 1.0
 
 
 class LLMClient:
-    def __init__(self) -> None:
-        llm_config = read_effective_llm_config()
+    def __init__(self, llm_config: dict[str, Any] | None = None) -> None:
+        llm_config = llm_config or {
+            "provider": "deepseek",
+            "apiKey": settings.DEEPSEEK_API_KEY,
+            "baseUrl": settings.DEEPSEEK_BASE_URL,
+            "modelId": settings.AI_MODEL,
+        }
         self.provider = llm_config["provider"]
         self.api_key = llm_config["apiKey"]
         self.base_url = llm_config["baseUrl"]

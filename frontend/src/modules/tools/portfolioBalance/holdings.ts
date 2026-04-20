@@ -3,9 +3,9 @@ import type { BacktestPaperPosition, BacktestRun, PortfolioBalancePortfolio, Por
 import {
   buildNormalizedPortfolioWeights,
   createPortfolioBalanceAsset,
-  normalizePortfolioAssetSymbol,
   readPortfolioSyntheticPrice,
 } from './model'
+import { toBaseSymbol } from '@/modules/market'
 import { round, sanitizeNumber } from './shared'
 
 export const clearPortfolioHoldings = (
@@ -13,7 +13,7 @@ export const clearPortfolioHoldings = (
   nextSource: PortfolioHoldingsSource | null = null,
 ) => {
   portfolio.assets.forEach((asset) => {
-    if (!normalizePortfolioAssetSymbol(asset.symbol)) return
+    if (!toBaseSymbol(asset.symbol)) return
     asset.units = 0
     asset.seedValue = 0
   })
@@ -29,7 +29,7 @@ export const seedPortfolioHoldingsFromMarket = (
 ) => {
   const { normalizedWeights } = buildNormalizedPortfolioWeights(portfolio.assets)
   portfolio.assets.forEach((asset, index) => {
-    const symbol = normalizePortfolioAssetSymbol(asset.symbol)
+    const symbol = toBaseSymbol(asset.symbol)
     const normalizedTargetWeight = normalizedWeights[index] || 0
     const currentPrice = sanitizeNumber(priceBySymbol.get(symbol), asset.currentPrice)
     const seedValue = round(portfolio.tracking.virtualCapital * normalizedTargetWeight, 2)
@@ -50,7 +50,7 @@ export const applyLatestMarketPrices = (
   priceBySymbol: Map<string, number>,
 ) => {
   portfolio.assets.forEach((asset) => {
-    const symbol = normalizePortfolioAssetSymbol(asset.symbol)
+    const symbol = toBaseSymbol(asset.symbol)
     asset.currentPrice = sanitizeNumber(priceBySymbol.get(symbol), asset.currentPrice)
   })
   portfolio.lastPriceUpdatedAt = new Date().toISOString()
@@ -62,7 +62,7 @@ const readPaperPositions = (run: BacktestRun) => {
 }
 
 const toPortfolioAssetFromPaperPosition = (position: BacktestPaperPosition) => createPortfolioBalanceAsset({
-  symbol: normalizePortfolioAssetSymbol(position.symbol),
+  symbol: toBaseSymbol(position.symbol),
   units: sanitizeNumber(position.remaining_amount),
   currentPrice: sanitizeNumber(position.last_price || position.entry_price || readPortfolioSyntheticPrice(position.symbol)),
   targetWeight: 0,

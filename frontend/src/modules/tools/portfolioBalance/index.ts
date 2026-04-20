@@ -7,7 +7,6 @@ export {
   createDefaultPortfolioCollection,
   createPortfolioBalanceAsset,
   createPortfolioBalancePortfolio,
-  normalizePortfolioAssetSymbol,
   normalizePortfolioBalancePortfolio,
   readPortfolioSyntheticPrice,
 } from './model'

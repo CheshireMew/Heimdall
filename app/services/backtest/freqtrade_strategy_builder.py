@@ -32,7 +32,8 @@ from app.services.backtest.indicator_engines import (
     resolve_indicator_engine,
 )
 from app.services.backtest.strategy_catalog import get_indicator_registry_map
-from app.services.backtest.strategy_contract import normalize_strategy_identifier, set_by_path, strategy_branch
+from app.services.backtest.strategy_config_normalizer import normalize_strategy_identifier
+from app.services.backtest.strategy_rule_tree import set_by_path, strategy_branch
 from app.services.backtest.strategy_runtime import StrategyRuntime
 
 

@@ -1,93 +1,18 @@
 from __future__ import annotations
 
-import re
 from copy import deepcopy
 from typing import Any
 
 from app.domain.market.timeframes import timeframe_to_minutes
-from app.schemas.strategy_contract import StrategyStateBranchResponse, StrategyTemplateConfigResponse
-
-STRATEGY_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
-PRICE_SOURCE_FIELDS = {"open", "high", "low", "close", "volume"}
-
-RULE_OPERATORS: list[dict[str, str]] = [
-    {"key": "gt", "label": "大于"},
-    {"key": "gte", "label": "大于等于"},
-    {"key": "lt", "label": "小于"},
-    {"key": "lte", "label": "小于等于"},
-]
-
-GROUP_LOGICS: list[dict[str, str]] = [
-    {"key": "and", "label": "全部满足"},
-    {"key": "or", "label": "满足任一"},
-]
-
-TIMEFRAME_OPTIONS: list[dict[str, str]] = [
-    {"key": "base", "label": "跟随运行周期"},
-    {"key": "1m", "label": "1 分钟"},
-    {"key": "5m", "label": "5 分钟"},
-    {"key": "15m", "label": "15 分钟"},
-    {"key": "1h", "label": "1 小时"},
-    {"key": "4h", "label": "4 小时"},
-    {"key": "1d", "label": "1 天"},
-]
-
-RUN_TIMEFRAME_KEYS: list[str] = [item["key"] for item in TIMEFRAME_OPTIONS if item["key"] != "base"]
-
-MARKET_TYPE_OPTIONS: list[dict[str, str]] = [
-    {"key": "spot", "label": "现货"},
-    {"key": "futures", "label": "合约"},
-]
-
-DIRECTION_OPTIONS: list[dict[str, str]] = [
-    {"key": "long_only", "label": "只做多"},
-    {"key": "long_short", "label": "多空双向"},
-]
-
-STRATEGY_CONFIG_FIELDS = {
-    "indicators",
-    "execution",
-    "regime_priority",
-    "trend",
-    "range",
-    "risk",
-}
-
-
-def build_condition(
-    node_id: str,
-    label: str,
-    left: dict[str, Any],
-    operator: str,
-    right: dict[str, Any],
-    enabled: bool = True,
-) -> dict[str, Any]:
-    return {
-        "id": node_id,
-        "node_type": "condition",
-        "label": label,
-        "left": left,
-        "operator": operator,
-        "right": right,
-        "enabled": enabled,
-    }
-
-
-def build_group(
-    node_id: str,
-    label: str,
-    logic: str,
-    children: list[dict[str, Any]] | None = None,
-    enabled: bool = True,
-) -> dict[str, Any]:
-    return {
-        "id": node_id,
-        "node_type": "group",
-        "label": label,
-        "logic": logic,
-        "enabled": enabled,
-        "children": deepcopy(children or []),
-    }
+from app.schemas.strategy_contract import StrategyTemplateConfigResponse
+from app.services.backtest.strategy_contract_options import (
+    PRICE_SOURCE_FIELDS,
+    RUN_TIMEFRAME_KEYS,
+    STRATEGY_CONFIG_FIELDS,
+    STRATEGY_IDENTIFIER_PATTERN,
+    TIMEFRAME_OPTIONS,
+)
+from app.services.backtest.strategy_rule_tree import branch_defaults, build_group, risk_defaults
 
 
 def execution_defaults() -> dict[str, Any]:
@@ -97,80 +22,17 @@ def execution_defaults() -> dict[str, Any]:
     }
 
 
-def strategy_branch(config: StrategyTemplateConfigResponse, branch_key: str) -> StrategyStateBranchResponse:
-    if branch_key == "trend":
-        return config.trend
-    if branch_key == "range":
-        return config.range
-    raise ValueError(f"不支持的策略分支: {branch_key}")
-
-
-def branch_defaults(branch_id: str, label: str, *, enabled: bool = True) -> dict[str, Any]:
-    return {
-        "id": branch_id,
-        "label": label,
-        "enabled": enabled,
-        "regime": build_group(f"{branch_id}_regime", f"{label}状态", "and", []),
-        "long_entry": build_group(f"{branch_id}_long_entry", f"{label}做多入场", "and", [], enabled=True),
-        "long_exit": build_group(f"{branch_id}_long_exit", f"{label}做多离场", "or", [], enabled=True),
-        "short_entry": build_group(f"{branch_id}_short_entry", f"{label}做空入场", "and", [], enabled=False),
-        "short_exit": build_group(f"{branch_id}_short_exit", f"{label}做空离场", "or", [], enabled=False),
-    }
-
-
-def risk_defaults() -> dict[str, Any]:
-    return {
-        "stoploss": -0.10,
-        "roi_targets": [],
-        "trade_plan": {
-            "enabled": False,
-            "stop_multiplier": 1.0,
-            "min_stop_pct": 0.01,
-            "reward_multiplier": 2.0,
-            "atr_indicator": "",
-            "support_indicator": "",
-            "resistance_indicator": "",
-        },
-        "trailing": {
-            "enabled": False,
-            "positive": 0.02,
-            "offset": 0.03,
-            "only_offset_reached": True,
-        },
-        "partial_exits": [],
-    }
-
-
 def blank_strategy_config() -> dict[str, Any]:
     return _validate_strategy_config(
         {
-        "indicators": {},
-        "execution": execution_defaults(),
-        "regime_priority": ["trend", "range"],
-        "trend": branch_defaults("trend", "趋势", enabled=True),
-        "range": branch_defaults("range", "区间", enabled=False),
-        "risk": risk_defaults(),
+            "indicators": {},
+            "execution": execution_defaults(),
+            "regime_priority": ["trend", "range"],
+            "trend": branch_defaults("trend", "趋势", enabled=True),
+            "range": branch_defaults("range", "区间", enabled=False),
+            "risk": risk_defaults(),
         }
     )
-
-
-def editor_contract() -> dict[str, Any]:
-    return {
-        "operators": deepcopy(RULE_OPERATORS),
-        "group_logics": deepcopy(GROUP_LOGICS),
-        "timeframe_options": deepcopy(TIMEFRAME_OPTIONS),
-        "market_type_options": deepcopy(MARKET_TYPE_OPTIONS),
-        "direction_options": deepcopy(DIRECTION_OPTIONS),
-        "blank_condition": build_condition(
-            "condition",
-            "条件",
-            {"kind": "price", "field": "close"},
-            "gt",
-            {"kind": "value", "value": 0},
-        ),
-        "blank_group": build_group("group", "条件组", "and", []),
-        "blank_config": blank_strategy_config(),
-    }
 
 
 def normalize_strategy_identifier(value: Any, label: str) -> str:
@@ -489,36 +351,6 @@ def normalize_parameter_space(parameter_space: dict[str, list[Any]]) -> dict[str
             continue
         normalized[str(key)] = list(values)
     return normalized
-
-
-def find_node_in_group(group: dict[str, Any], node_id: str) -> dict[str, Any] | None:
-    for child in group.get("children") or []:
-        if child.get("id") == node_id:
-            return child
-        if child.get("node_type") == "group":
-            nested = find_node_in_group(child, node_id)
-            if nested:
-                return nested
-    return None
-
-
-def set_by_path(payload: dict[str, Any], path: str, value: Any) -> None:
-    parts = path.split(".")
-    current: Any = payload
-    for part in parts[:-1]:
-        if isinstance(current, dict) and current.get("node_type") == "group":
-            next_node = find_node_in_group(current, part)
-            if next_node is None:
-                raise ValueError(f"未找到规则路径: {path}")
-            current = next_node
-            continue
-        if isinstance(current, list):
-            current = next((item for item in current if item.get("id") == part), None)
-            if current is None:
-                raise ValueError(f"未找到列表路径: {path}")
-            continue
-        current = current.setdefault(part, {})
-    current[parts[-1]] = value
 
 
 def normalize_strategy_payload(

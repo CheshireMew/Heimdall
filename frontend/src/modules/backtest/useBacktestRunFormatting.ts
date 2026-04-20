@@ -9,7 +9,7 @@ import type {
   StrategyVersion,
 } from './contracts'
 
-import { asNumber } from './format'
+import { asNumber } from '@/modules/format'
 import type {
   BacktestComparisonChart,
   BacktestDisplayRun,

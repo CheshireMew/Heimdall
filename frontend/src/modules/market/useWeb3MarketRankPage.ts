@@ -1,5 +1,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
+import { formatCompactNumber, formatSignedPercent } from '@/modules/format'
 import { marketApi } from './api'
 import type {
   BinanceWeb3AddressPnlItemResponse,
@@ -22,17 +23,6 @@ const CHAIN_OPTIONS = [
   { label: 'Solana', value: 'CT_501' },
 ]
 
-const formatPercent = (value: number | null | undefined, digits = 2) => {
-  if (value === null || value === undefined || Number.isNaN(value)) return '--'
-  const numeric = Number(value)
-  return `${numeric > 0 ? '+' : ''}${numeric.toFixed(digits)}%`
-}
-
-const formatCompact = (value: number | null | undefined) => {
-  if (value === null || value === undefined || Number.isNaN(value)) return '--'
-  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(value)
-}
-
 const changeClass = (value: number | null | undefined) => {
   if (value === null || value === undefined || Number.isNaN(value)) return 'text-slate-500 dark:text-slate-400'
   return value >= 0 ? 'text-emerald-500' : 'text-rose-500'
@@ -53,25 +43,25 @@ export function useWeb3MarketRankPage() {
     {
       label: 'Social Hype',
       primary: socialHype.value[0]?.symbol || '--',
-      secondary: formatPercent(socialHype.value[0]?.price_change_pct),
+      secondary: formatSignedPercent(socialHype.value[0]?.price_change_pct),
       tone: changeClass(socialHype.value[0]?.price_change_pct),
     },
     {
       label: 'Unified Rank',
       primary: unifiedRank.value[0]?.symbol || '--',
-      secondary: formatPercent(unifiedRank.value[0]?.percent_change_24h),
+      secondary: formatSignedPercent(unifiedRank.value[0]?.percent_change_24h),
       tone: changeClass(unifiedRank.value[0]?.percent_change_24h),
     },
     {
       label: 'Smart Money',
       primary: smartMoney.value[0]?.symbol || '--',
-      secondary: formatCompact(smartMoney.value[0]?.inflow),
+      secondary: formatCompactNumber(smartMoney.value[0]?.inflow),
       tone: 'text-cyan-500',
     },
     {
       label: 'PnL Board',
       primary: addressPnl.value[0]?.address_label || addressPnl.value[0]?.address || '--',
-      secondary: formatCompact(addressPnl.value[0]?.realized_pnl),
+      secondary: formatCompactNumber(addressPnl.value[0]?.realized_pnl),
       tone: changeClass(addressPnl.value[0]?.realized_pnl),
     },
   ])
@@ -118,8 +108,8 @@ export function useWeb3MarketRankPage() {
     addressPnl,
     summaryCards,
     fetchData,
-    formatPercent,
-    formatCompact,
+    formatPercent: formatSignedPercent,
+    formatCompact: formatCompactNumber,
     changeClass,
   }
 }

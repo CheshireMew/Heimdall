@@ -57,7 +57,7 @@
 import { onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import IndicatorChart from '@/components/IndicatorChart.vue'
-import { useDateTime } from '@/composables/useDateTime'
+import { formatDate } from '@/modules/format'
 import { useIndicatorCategory } from '@/modules/market'
 
 const route = useRoute()
@@ -80,17 +80,11 @@ const categoryKey = computed(() => route.meta.category || 'Macro')
 const categoryIcon = computed(() => CATEGORY_ICONS[categoryKey.value] || '🏛️')
 const categoryI18nKey = computed(() => CATEGORY_I18N_KEY[categoryKey.value] || 'macro')
 const { indicators, loading, load } = useIndicatorCategory(categoryKey, 90)
-const dateTime = useDateTime()
 
 const formatValue = (val, unit) => {
   if (typeof val !== 'number') return String(val)
   let formatted = val > 1000 ? val.toLocaleString(undefined, { maximumFractionDigits: 0 }) : val.toFixed(2)
   return unit ? `${formatted} ${unit}` : formatted
-}
-
-const formatDate = (isoStr) => {
-  if (!isoStr) return ''
-  return dateTime.formatDate(isoStr)
 }
 
 onMounted(() => {

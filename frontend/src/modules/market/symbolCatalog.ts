@@ -38,7 +38,9 @@ export const isUsdEquivalentSymbol = (symbol: string) => (
 
 export const toBaseSymbol = (symbol: string) => {
   const value = String(symbol || '').trim().toUpperCase()
-  return value.includes('/') ? value.split('/')[0] : value
+  const [base] = value.split('/')
+  const [assetCode] = base.split(':')
+  return assetCode.trim()
 }
 
 export const toSlashMarketSymbol = (symbol: string, quoteAsset = 'USDT') => {

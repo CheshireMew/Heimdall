@@ -1,10 +1,8 @@
 import type { FactorResearchState } from './state'
-import { useDateTime } from '@/composables/useDateTime'
+import { formatDate, formatLocalizedNumber, formatRatioPercent } from '@/modules/format'
 
 
 export const useFactorResearchFormatting = (state: FactorResearchState) => {
-  const dateTime = useDateTime()
-
   const factorChipClass = (factorId: string) => {
     const active = state.useAllFactors.value || state.selectedFactorLookup.value.has(factorId)
     return active
@@ -30,28 +28,13 @@ export const useFactorResearchFormatting = (state: FactorResearchState) => {
     return 'text-slate-500 dark:text-slate-400'
   }
 
-  const formatPct = (value: number | null | undefined, digits: number = 2) => {
-    if (value === null || value === undefined || Number.isNaN(value)) return '--'
-    return `${(value * 100).toFixed(digits)}%`
-  }
-
-  const formatNumber = (value: number | null | undefined, digits: number = 3) => {
-    if (value === null || value === undefined || Number.isNaN(value)) return '--'
-    return value.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: 0 })
-  }
-
-  const formatDate = (value: string | null | undefined) => {
-    if (!value) return '--'
-    return dateTime.formatDate(value)
-  }
-
   return {
     factorChipClass,
     categoryChipClass,
     scoreClass,
     correlationClass,
-    formatPct,
-    formatNumber,
+    formatPct: (value: number | null | undefined, digits: number = 2) => formatRatioPercent(value, digits, { empty: '--' }),
+    formatNumber: (value: number | null | undefined, digits: number = 3) => formatLocalizedNumber(value, digits),
     formatDate,
   }
 }

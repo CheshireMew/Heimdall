@@ -14,6 +14,14 @@ export interface MarketSymbolSearchResponse {
   pricing_currency?: string | null
 }
 
+export interface ApiStatusResponse {
+  status: string
+  version: string
+  framework: string
+  dependencies: string
+  timestamp: string
+}
+
 export interface RealtimeResponse {
   symbol: string
   timestamp: string
@@ -54,16 +62,6 @@ export interface CurrentPriceBatchResponse {
 export interface MarketHistoryBatchResponse {
   timeframe: string
   items?: Array<MarketHistoryBatchItemResponse>
-}
-
-export interface MarketIndicatorResponse {
-  indicator_id: string
-  name: string
-  category: string
-  unit: string | null
-  current_value: number | null
-  last_updated: string | null
-  history: Array<IndicatorHistoryPoint>
 }
 
 export interface MarketIndexResponse {
@@ -125,6 +123,16 @@ export interface FundingRateHistoryResponse {
   items: Array<FundingRateHistoryPointResponse>
 }
 
+export interface MarketIndicatorResponse {
+  indicator_id: string
+  name: string
+  category: string
+  unit: string | null
+  current_value: number | null
+  last_updated: string | null
+  history: Array<IndicatorHistoryPoint>
+}
+
 export interface TechnicalMetricsResponse {
   symbol: string
   timeframe: string
@@ -144,14 +152,6 @@ export interface TradeSetupResponse {
   setup: TradeSetupResponseItem | null
   reason: string
   source: string
-}
-
-export interface ApiStatusResponse {
-  status: string
-  version: string
-  framework: string
-  dependencies: string
-  timestamp: string
 }
 
 export interface CryptoIndexResponse {

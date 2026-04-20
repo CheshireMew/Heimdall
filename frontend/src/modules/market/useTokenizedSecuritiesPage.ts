@@ -1,6 +1,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
-import { useMoney } from '@/composables/useMoney'
+import { formatCompactCurrency, formatPrice, formatSignedPercent } from '@/modules/format'
 import { marketApi } from './api'
 import type {
   BinanceRwaDynamicResponse,
@@ -10,14 +10,7 @@ import type {
   BinanceRwaSymbolItemResponse,
 } from './contracts'
 
-const formatPercent = (value: number | string | null | undefined, digits = 2) => {
-  if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) return '--'
-  const numeric = Number(value)
-  return `${numeric > 0 ? '+' : ''}${numeric.toFixed(digits)}%`
-}
-
 export function useTokenizedSecuritiesPage() {
-  const { formatMoney, formatCompactMoney } = useMoney()
   const loading = ref(false)
   const detailLoading = ref(false)
   const error = ref('')
@@ -48,13 +41,13 @@ export function useTokenizedSecuritiesPage() {
     },
     {
       label: 'Token Price',
-      value: formatPrice(readDynamicNumber('token_info', 'price')),
-      hint: formatPercent(readDynamicNumber('token_info', 'priceChangePct24h')),
+      value: formatTokenPrice(readDynamicNumber('token_info', 'price')),
+      hint: formatSignedPercent(readDynamicNumber('token_info', 'priceChangePct24h')),
     },
     {
       label: 'Stock Market Cap',
-      value: formatCompact(readDynamicNumber('stock_info', 'marketCap')),
-      hint: formatPrice(readDynamicNumber('stock_info', 'price')),
+      value: formatCompactCurrency(readDynamicNumber('stock_info', 'marketCap'), 'USD'),
+      hint: formatTokenPrice(readDynamicNumber('stock_info', 'price')),
     },
     {
       label: 'Session',
@@ -122,15 +115,9 @@ export function useTokenizedSecuritiesPage() {
   watch(selectedKey, fetchDetail)
   onMounted(fetchData)
 
-  const formatPrice = (value: number | string | null | undefined) => {
-    if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) return '--'
-    return formatMoney(Number(value), 'USD', { maximumFractionDigits: 4 })
-  }
-
-  const formatCompact = (value: number | string | null | undefined) => {
-    if (value === null || value === undefined || value === '' || Number.isNaN(Number(value))) return '--'
-    return formatCompactMoney(Number(value), 'USD')
-  }
+  const formatTokenPrice = (value: number | string | null | undefined) => (
+    formatPrice(value, 'USD', { maximumFractionDigits: 4 }, '--')
+  )
 
   return {
     loading,
@@ -146,8 +133,8 @@ export function useTokenizedSecuritiesPage() {
     chartData,
     summaryCards,
     fetchData,
-    formatCompact,
-    formatPercent,
-    formatPrice,
+    formatCompact: (value: number | string | null | undefined) => formatCompactCurrency(value, 'USD'),
+    formatPercent: formatSignedPercent,
+    formatPrice: formatTokenPrice,
   }
 }

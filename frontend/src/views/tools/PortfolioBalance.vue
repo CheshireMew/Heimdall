@@ -351,8 +351,8 @@ import SymbolSearchBox from '@/components/SymbolSearchBox.vue'
 import { usePortfolioBalancePage } from '@/modules/tools'
 import { computePortfolioAssetHoldingValue } from '@/modules/tools/portfolioBalance'
 import { findSymbolCatalogItem, useSymbolCatalog } from '@/modules/market'
+import { formatDate, formatDateTime, formatPercent, formatSignedPercent as signedPercent } from '@/modules/format'
 import { useMoney } from '@/composables/useMoney'
-import { useDateTime } from '@/composables/useDateTime'
 import { todayLocalIsoDate } from '@/utils/localDate'
 
 const {
@@ -386,7 +386,6 @@ const {
 } = usePortfolioBalancePage()
 const { loadSymbols } = useSymbolCatalog()
 const { displayCurrency, formatMoney, formatSignedMoney, formatDisplayNumber, fromDisplayAmount } = useMoney()
-const dateTime = useDateTime()
 
 const today = todayLocalIsoDate()
 const formatQuoteMoney = (value) => formatMoney(value, 'USDT')
@@ -396,9 +395,7 @@ const assetCurrency = (asset) => assetMeta(asset)?.pricing_currency || assetMeta
 const formatAssetPrice = (asset) => formatMoney(asset.currentPrice, assetCurrency(asset))
 const formatAssetMoney = (asset, value) => formatMoney(value, assetCurrency(asset))
 const signedAssetMoney = (asset, value) => formatSignedMoney(value, assetCurrency(asset))
-const formatPercent = (value) => `${Number(value || 0).toFixed(2)}%`
 const formatWeightSum = (value) => `${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`
-const signedPercent = (value) => `${value >= 0 ? '+' : ''}${Number(value || 0).toFixed(2)}%`
 const holdingValue = (asset) => computePortfolioAssetHoldingValue(asset)
 const readInputValue = (event) => event?.target?.value || ''
 const hasExactTargetWeightSum = computed(() => Math.abs(Number(plan.value?.targetWeightInputSum || 0) - 100) < 0.005)
@@ -425,16 +422,6 @@ const displayBacktestInitialCapitalInput = computed({
     backtest.value.initialCapital = fromDisplayAmount(value, 'USDT') ?? backtest.value.initialCapital
   },
 })
-
-const formatDate = (value) => {
-  if (!value) return '--'
-  return value
-}
-
-const formatDateTime = (value) => {
-  if (!value) return '--'
-  return dateTime.formatDateTime(value, { hour12: false })
-}
 
 const strategyCardClass = (action) => {
   if (action === 'full') return 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200'

@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from app.domain.market.trade_setup_rules import BACKTEST_FIXED_STRATEGY, BACKTEST_FIXED_STYLE, SIDE_RULES, STRATEGY_PROFILES, STYLE_PROFILES
-from app.services.backtest.strategy_contract import branch_defaults, build_condition, build_group, execution_defaults
+from app.services.backtest.strategy_config_normalizer import execution_defaults
+from app.services.backtest.strategy_rule_tree import branch_defaults, build_condition, build_group
 
 
 _builtin_rule_style = STYLE_PROFILES[BACKTEST_FIXED_STYLE]

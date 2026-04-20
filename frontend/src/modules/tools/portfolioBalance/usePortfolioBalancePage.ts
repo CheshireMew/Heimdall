@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { backtestApi } from '@/modules/backtest'
+import { toBaseSymbol } from '@/modules/market'
 import { todayLocalIsoDate } from '@/utils/localDate'
 import type { BacktestRun, PortfolioBacktestSummary, PortfolioBalancePortfolio } from './contracts'
 
@@ -21,7 +22,6 @@ import {
   createDefaultPortfolioCollection,
   createPortfolioBalanceAsset,
   createPortfolioBalancePortfolio,
-  normalizePortfolioAssetSymbol,
   normalizePortfolioBalancePortfolio,
   readPortfolioSyntheticPrice,
 } from './model'
@@ -117,7 +117,7 @@ export function usePortfolioBalancePage() {
         && (
           !portfolio.holdingsInitializedAt
           || portfolio.seedCapital !== portfolio.tracking.virtualCapital
-          || portfolio.assets.some((asset) => normalizePortfolioAssetSymbol(asset.symbol) && asset.units <= 0)
+          || portfolio.assets.some((asset) => toBaseSymbol(asset.symbol) && asset.units <= 0)
         )
       )
       if (needsSeed) {
@@ -145,7 +145,7 @@ export function usePortfolioBalancePage() {
       marketRefreshTimer = null
       const portfolio = activePortfolio.value
       if (!portfolio || marketLoading.value) return
-      if (!portfolio.assets.some((asset) => normalizePortfolioAssetSymbol(asset.symbol))) return
+      if (!portfolio.assets.some((asset) => toBaseSymbol(asset.symbol))) return
       await refreshMarketPrices()
     }, delay)
   }
@@ -231,8 +231,8 @@ export function usePortfolioBalancePage() {
       const asset = portfolio.assets.find((item) => item.id === assetId)
       if (!asset) return
 
-      const previousSymbol = normalizePortfolioAssetSymbol(asset.symbol)
-      const nextSymbol = normalizePortfolioAssetSymbol(rawValue)
+      const previousSymbol = toBaseSymbol(asset.symbol)
+      const nextSymbol = toBaseSymbol(rawValue)
       if (previousSymbol === nextSymbol) return
 
       asset.symbol = nextSymbol
@@ -276,12 +276,12 @@ export function usePortfolioBalancePage() {
 
       updateActivePortfolio((portfolio) => {
         const previousWeightBySymbol = new Map(
-          portfolio.assets.map((asset) => [normalizePortfolioAssetSymbol(asset.symbol), Number(asset.targetWeight) || 0]),
+          portfolio.assets.map((asset) => [toBaseSymbol(asset.symbol), Number(asset.targetWeight) || 0]),
         )
         const importedTotalValue = readPaperRunTotalValue(targetRun)
         const nextAssets = importedAssets.map((asset) => ({
           ...asset,
-          targetWeight: previousWeightBySymbol.get(normalizePortfolioAssetSymbol(asset.symbol)) || 0,
+          targetWeight: previousWeightBySymbol.get(toBaseSymbol(asset.symbol)) || 0,
           seedValue: importedTotalValue > 0 ? Number((asset.units * asset.currentPrice).toFixed(2)) : 0,
         }))
 
@@ -374,7 +374,7 @@ export function usePortfolioBalancePage() {
     clearScheduledMarketRefresh()
     const portfolio = activePortfolio.value
     if (!portfolio) return
-    if (!portfolio.assets.some((asset) => normalizePortfolioAssetSymbol(asset.symbol))) return
+    if (!portfolio.assets.some((asset) => toBaseSymbol(asset.symbol))) return
     if (!hasMarketGap(portfolio)) return
     await refreshMarketPrices()
   }, { immediate: true })

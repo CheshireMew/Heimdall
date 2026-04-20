@@ -85,7 +85,7 @@
 
 <script setup lang="ts">
 import BacktestEquityChart from '@/components/BacktestEquityChart.vue'
-import { formatMetric, formatMoney, formatNumber, formatPercent } from '@/modules/backtest/format'
+import { formatMetric, formatMoney, formatNumber, formatPercent } from '@/modules/format'
 import type { BacktestResultPanelView } from '@/modules/backtest/viewTypes'
 
 const props = defineProps<{ panel: BacktestResultPanelView }>()
