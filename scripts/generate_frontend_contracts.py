@@ -4,11 +4,13 @@ import copy
 import json
 import sys
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, get_args
 
 from fastapi.routing import APIRoute
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
+from pydantic_core import PydanticUndefined
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
@@ -16,33 +18,97 @@ sys.path.insert(0, str(REPO_ROOT))
 from app.main import app
 
 FRONTEND_TYPES_DIR = REPO_ROOT / "frontend" / "src" / "types"
+FRONTEND_API_DIR = REPO_ROOT / "frontend" / "src" / "api"
 TARGET_FILES = ("backtest.ts", "factor.ts", "market.ts", "tools.ts", "config.ts")
+API_PREFIX = "/api/v1"
+
+
+@dataclass(frozen=True)
+class QueryParamContractField:
+    name: str
+    alias: str
+    schema: dict[str, Any]
+    required: bool
+    default: Any
+
+
+@dataclass(frozen=True)
+class RouteContractModel:
+    target_file: str
+    model: type[BaseModel]
+
+
+@dataclass(frozen=True)
+class QueryParamContract:
+    name: str
+    target_file: str
+    fields: tuple[QueryParamContractField, ...]
+    route_name: str
 
 
 def main() -> None:
     grouped_models: dict[str, list[type[BaseModel]]] = defaultdict(list)
-    for model in collect_route_contract_models():
-        grouped_models[resolve_target_file(model)].append(model)
+    grouped_query_params: dict[str, list[QueryParamContract]] = defaultdict(list)
+    for contract in collect_route_contract_models():
+        grouped_models[contract.target_file].append(contract.model)
+    for contract in collect_route_query_param_contracts():
+        grouped_query_params[contract.target_file].append(contract)
 
     for filename in TARGET_FILES:
-        content = render_file(grouped_models.get(filename, []))
+        content = render_file(
+            grouped_models.get(filename, []),
+            grouped_query_params.get(filename, []),
+        )
         (FRONTEND_TYPES_DIR / filename).write_text(content, encoding="utf-8")
+    (FRONTEND_API_DIR / "routes.ts").write_text(render_api_routes(), encoding="utf-8")
 
 
-def collect_route_contract_models() -> tuple[type[BaseModel], ...]:
-    models: dict[str, type[BaseModel]] = {}
+def collect_route_contract_models() -> tuple[RouteContractModel, ...]:
+    models: dict[tuple[str, str], RouteContractModel] = {}
     for route in app.routes:
         if not isinstance(route, APIRoute):
             continue
+        target_file = resolve_route_target_file(route)
         for model in extract_pydantic_models(route.response_model):
-            models.setdefault(model.__name__, model)
+            models.setdefault((target_file, model.__name__), RouteContractModel(target_file, model))
         body_field = getattr(route, "body_field", None)
         if body_field is not None:
             for model in extract_pydantic_models(body_field.type_):
-                models.setdefault(model.__name__, model)
+                models.setdefault((target_file, model.__name__), RouteContractModel(target_file, model))
     if not models:
         raise RuntimeError("No FastAPI contract models were discovered")
     return tuple(models.values())
+
+
+def collect_route_query_param_contracts() -> tuple[QueryParamContract, ...]:
+    contracts: dict[str, QueryParamContract] = {}
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        if not route.dependant.query_params:
+            continue
+        interface_name = f"{pascal_case(route.name or 'route')}QueryParams"
+        fields = tuple(
+            QueryParamContractField(
+                name=param.name,
+                alias=getattr(param, "alias", param.name),
+                schema=remap_schema(
+                    TypeAdapter(param.type_).json_schema(
+                        ref_template="#/$defs/{model}"
+                    )
+                ),
+                required=bool(getattr(param, "required", False)),
+                default=getattr(param, "default", None),
+            )
+            for param in route.dependant.query_params
+        )
+        contracts[interface_name] = QueryParamContract(
+            name=interface_name,
+            target_file=resolve_route_target_file(route),
+            fields=fields,
+            route_name=route.name,
+        )
+    return tuple(contracts.values())
 
 
 def extract_pydantic_models(annotation: Any) -> tuple[type[BaseModel], ...]:
@@ -56,20 +122,145 @@ def extract_pydantic_models(annotation: Any) -> tuple[type[BaseModel], ...]:
     return tuple(models)
 
 
-def resolve_target_file(model: type[BaseModel]) -> str:
-    module_name = model.__module__
-    if module_name.endswith(".factor"):
+def resolve_route_target_file(route: APIRoute) -> str:
+    path = route.path
+    if path.startswith("/api/v1/factor-research"):
         return "factor.ts"
-    if module_name.endswith(".market") or module_name.endswith(".binance_market"):
-        return "market.ts"
-    if module_name.endswith(".tools"):
+    if path.startswith("/api/v1/backtest") or path.startswith("/api/v1/paper"):
+        return "backtest.ts"
+    if path.startswith("/api/v1/tools"):
         return "tools.ts"
-    if module_name.endswith(".config"):
+    if path.startswith("/api/v1/config") or path.startswith("/api/v1/currencies") or path.startswith("/api/v1/llm-config"):
         return "config.ts"
-    return "backtest.ts"
+    return "market.ts"
 
 
-def render_file(models: list[type[BaseModel]]) -> str:
+def render_api_routes() -> str:
+    route_lines = [
+        "// This file is generated from backend FastAPI route contracts.",
+        "// Do not edit manually.",
+        "",
+        "type RouteParams = Record<string, string | number>",
+        "export type ApiQueryMeta = { aliases?: Record<string, string>; repeatedKeys?: readonly string[] }",
+        "",
+        "const fillRoute = (template: string, params: RouteParams = {}) => template.replace(/\\{([^}]+)\\}/g, (_, key: string) => {",
+        "  const value = params[key]",
+        "  if (value === undefined || value === null || value === '') throw new Error(`Missing API route param: ${key}`)",
+        "  return encodeURIComponent(String(value))",
+        "})",
+        "",
+        "const routeTemplates = {",
+    ]
+    query_meta: dict[str, dict[str, Any]] = {}
+    for contract in collect_route_query_param_contracts():
+        query_meta[contract.route_name] = query_meta_payload(contract)
+    route_query_lines = ["export const API_QUERY_META = {"]
+    body_default_lines = ["export const API_BODY_DEFAULTS = {"]
+    for route in sorted(api_v1_routes(), key=lambda item: item.name):
+        route_lines.append(f"  {route.name}: {json.dumps(strip_api_prefix(route.path))},")
+        route_query_lines.append(
+            f"  {route.name}: {json.dumps(query_meta.get(route.name, empty_query_meta()), ensure_ascii=False)} as ApiQueryMeta,"
+        )
+        body_default_lines.append(
+            f"  {route.name}: {json.dumps(route_body_defaults(route), ensure_ascii=False)},"
+        )
+    route_lines.extend([
+        "} as const",
+        "",
+        "export type ApiRouteName = keyof typeof routeTemplates",
+        "",
+        "export const apiRoute = (name: ApiRouteName, params?: RouteParams) => fillRoute(routeTemplates[name], params)",
+        "",
+        "export const serializeApiQueryParams = <T extends object>(params: T, meta?: ApiQueryMeta) => {",
+        "  const query = new URLSearchParams()",
+        "  Object.entries(params as Record<string, unknown>).forEach(([key, value]) => {",
+        "    if (value === null || value === undefined || value === '') return",
+        "    const resolvedKey = meta?.aliases?.[key] ?? key",
+        "    const repeatedKeys = meta?.repeatedKeys ?? []",
+        "    if (Array.isArray(value)) {",
+        "      value.forEach((item) => {",
+        "        if (item !== null && item !== undefined && item !== '') query.append(resolvedKey, String(item))",
+        "      })",
+        "      return",
+        "    }",
+        "    if (repeatedKeys.includes(key)) {",
+        "      query.append(resolvedKey, String(value))",
+        "      return",
+        "    }",
+        "    query.set(resolvedKey, String(value))",
+        "  })",
+        "  return query.toString()",
+        "}",
+        "",
+    ])
+    route_query_lines.extend(["} as const", ""])
+    body_default_lines.extend(["} as const", ""])
+    return "\n".join(route_lines + route_query_lines + body_default_lines)
+
+
+def api_v1_routes() -> tuple[APIRoute, ...]:
+    return tuple(
+        route
+        for route in app.routes
+        if isinstance(route, APIRoute) and route.path.startswith(API_PREFIX)
+    )
+
+
+def strip_api_prefix(path: str) -> str:
+    if not path.startswith(API_PREFIX):
+        return path
+    return path[len(API_PREFIX):] or "/"
+
+
+def empty_query_meta() -> dict[str, Any]:
+    return {"defaults": {}, "repeatedKeys": [], "aliases": {}}
+
+
+def query_meta_payload(contract: QueryParamContract) -> dict[str, Any]:
+    return {
+        "defaults": {
+            field.name: field.default
+            for field in contract.fields
+            if not field.required and field.default is not None
+        },
+        "repeatedKeys": [
+            field.name
+            for field in contract.fields
+            if schema_contains_array(field.schema)
+        ],
+        "aliases": {
+            field.name: field.alias
+            for field in contract.fields
+            if field.alias != field.name
+        },
+    }
+
+
+def route_body_defaults(route: APIRoute) -> dict[str, Any]:
+    body_field = getattr(route, "body_field", None)
+    if body_field is None:
+        return {}
+    body_type = body_field.type_
+    if not isinstance(body_type, type) or not issubclass(body_type, BaseModel):
+        return {}
+    return model_defaults(body_type)
+
+
+def model_defaults(model: type[BaseModel]) -> dict[str, Any]:
+    defaults: dict[str, Any] = {}
+    for name, field in model.model_fields.items():
+        if field.default is not PydanticUndefined:
+            defaults[name] = field.default
+            continue
+        if field.default_factory is not None:
+            defaults[name] = field.default_factory()
+    return json.loads(json.dumps(defaults, default=str))
+
+
+def render_file(
+    models: list[type[BaseModel]],
+    query_contracts: list[QueryParamContract],
+) -> str:
     definitions: dict[str, dict[str, Any]] = {}
     root_names: list[str] = []
     for model in models:
@@ -96,6 +287,10 @@ def render_file(models: list[type[BaseModel]]) -> str:
         lines.extend(emit_named_definition(name, definitions[name]))
         lines.append("")
         emitted.add(name)
+
+    for contract in sorted(query_contracts, key=lambda item: item.name):
+        lines.extend(emit_query_contract(contract))
+        lines.append("")
 
     return "\n".join(lines)
 
@@ -147,6 +342,18 @@ def emit_interface(name: str, schema: dict[str, Any]) -> list[str]:
     return lines
 
 
+def emit_query_contract(contract: QueryParamContract) -> list[str]:
+    lines = [f"export interface {contract.name} {{"]
+    for field in contract.fields:
+        optional = "?" if not field.required else ""
+        lines.append(f"  {field.name}{optional}: {render_type(field.schema)}")
+    lines.append("}")
+    lines.append(
+        f"export const {contract.name}Meta = {json.dumps(query_meta_payload(contract), ensure_ascii=False)} as const"
+    )
+    return lines
+
+
 def render_type(schema: dict[str, Any]) -> str:
     if schema is True:
         return "unknown"
@@ -194,6 +401,30 @@ def render_type(schema: dict[str, Any]) -> str:
 
 def is_object_schema(schema: dict[str, Any]) -> bool:
     return schema.get("type") == "object" or "properties" in schema
+
+
+def schema_contains_array(schema: dict[str, Any]) -> bool:
+    if schema.get("type") == "array":
+        return True
+    for key in ("anyOf", "oneOf", "allOf"):
+        if any(schema_contains_array(item) for item in schema.get(key, [])):
+            return True
+    return False
+
+
+def pascal_case(value: str) -> str:
+    tokens: list[str] = []
+    current = ""
+    for char in value:
+        if char.isalnum():
+            current += char
+            continue
+        if current:
+            tokens.append(current)
+            current = ""
+    if current:
+        tokens.append(current)
+    return "".join(token[:1].upper() + token[1:] for token in tokens if token)
 
 if __name__ == "__main__":
     main()

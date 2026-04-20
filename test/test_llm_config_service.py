@@ -14,7 +14,7 @@ def test_llm_config_deepseek_reasoning_switch_updates_model(tmp_path, monkeypatc
     )
     effective = llm_config_service.read_effective_llm_config()
 
-    assert config["modelId"] == "deepseek-reasoner"
+    assert config.modelId == "deepseek-reasoner"
     assert effective["modelId"] == "deepseek-reasoner"
     assert effective["baseUrl"] == "https://api.deepseek.com/v1"
 
@@ -32,9 +32,9 @@ def test_llm_config_preset_uses_default_base_and_model(tmp_path, monkeypatch):
     )
     effective = llm_config_service.read_effective_llm_config()
 
-    assert config["baseUrl"] == "https://api.openai.com/v1"
-    assert config["modelId"] == "gpt-5.2-chat-latest"
-    assert config["apiKeyPreview"] == "sk-t********enai"
+    assert config.baseUrl == "https://api.openai.com/v1"
+    assert config.modelId == "gpt-5.2-chat-latest"
+    assert config.apiKeyPreview == "sk-t********enai"
     assert effective["apiKey"] == "sk-test-openai"
 
 
@@ -50,8 +50,8 @@ def test_llm_config_custom_keeps_manual_base_and_model(tmp_path, monkeypatch):
         }
     )
 
-    assert config["baseUrl"] == "http://localhost:11434/v1"
-    assert config["modelId"] == "qwen-local"
+    assert config.baseUrl == "http://localhost:11434/v1"
+    assert config.modelId == "qwen-local"
 
 
 def test_llm_config_blank_api_key_update_preserves_existing_key(tmp_path, monkeypatch):
@@ -67,7 +67,7 @@ def test_llm_config_blank_api_key_update_preserves_existing_key(tmp_path, monkey
 
 def test_llm_config_presets_include_glm_and_minimax():
     presets = llm_config_service.list_llm_presets()
-    preset_ids = {item["id"] for item in presets}
+    preset_ids = {item.id for item in presets}
 
     assert "glm" in preset_ids
     assert "minimax" in preset_ids

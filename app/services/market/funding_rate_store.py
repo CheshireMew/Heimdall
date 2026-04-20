@@ -5,16 +5,19 @@ from typing import Any
 
 from sqlalchemy import desc
 
-from app.infra.db.database import session_scope
+from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import FundingRate
 
 
 class FundingRateStore:
+    def __init__(self, *, database_runtime: DatabaseRuntime) -> None:
+        self.database_runtime = database_runtime
+
     def save_many(self, rows: list[dict[str, Any]]) -> int:
         if not rows:
             return 0
 
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             dialect_name = session.bind.dialect.name
 
             if dialect_name == "postgresql":
@@ -63,7 +66,7 @@ class FundingRateStore:
         end_date: datetime | None = None,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             query = session.query(FundingRate).filter_by(
                 exchange=exchange,
                 market_type=market_type,
@@ -86,7 +89,7 @@ class FundingRateStore:
         market_type: str,
         symbol: str,
     ) -> dict[str, Any] | None:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             row = (
                 session.query(FundingRate)
                 .filter_by(exchange=exchange, market_type=market_type, symbol=symbol)
@@ -102,7 +105,7 @@ class FundingRateStore:
         market_type: str,
         symbol: str,
     ) -> int:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             return (
                 session.query(FundingRate)
                 .filter_by(exchange=exchange, market_type=market_type, symbol=symbol)

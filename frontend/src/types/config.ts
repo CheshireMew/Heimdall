@@ -9,6 +9,15 @@ export interface SystemConfigResponse {
   runtime: SystemRuntimeConfigResponse
 }
 
+export interface CurrencyRatesResponse {
+  base: string
+  rates: { [key: string]: number }
+  supported: Array<DisplayCurrencyResponse>
+  updated_at: string
+  source: string
+  is_fallback?: boolean
+}
+
 export interface LlmProviderConfigResponse {
   provider: string
   apiKey?: string
@@ -26,6 +35,14 @@ export interface LlmProviderConfigUpdateRequest {
   baseUrl?: string
   modelId?: string
   reasoningEnabled?: boolean
+}
+
+export interface DisplayCurrencyResponse {
+  code: string
+  name: string
+  symbol: string
+  locale: string
+  fraction_digits: number
 }
 
 export interface LlmProviderPresetResponse {

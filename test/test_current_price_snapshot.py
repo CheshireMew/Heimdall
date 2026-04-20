@@ -48,7 +48,7 @@ async def test_current_price_prefers_websocket_snapshot():
         timeframe="1d",
     )
 
-    assert response["current_price"] == 123.0
+    assert response.current_price == 123.0
     assert history.tail_calls == []
 
 
@@ -63,7 +63,7 @@ async def test_current_price_falls_back_to_kline_tail():
         timeframe="1d",
     )
 
-    assert response["current_price"] == 456.0
+    assert response.current_price == 456.0
     assert history.tail_calls == ["BTC/USDT"]
 
 
@@ -78,9 +78,9 @@ async def test_current_price_batch_uses_shared_snapshot_first_logic():
         timeframe="1d",
     )
 
-    assert [item["symbol"] for item in response["items"]] == ["BTC/USDT", "ETH/USDT"]
-    assert response["items"][0]["current_price"] == 123.0
-    assert response["items"][0]["source"] == "websocket_snapshot"
-    assert response["items"][1]["current_price"] == 456.0
-    assert response["items"][1]["source"] == "kline_tail"
+    assert [item.symbol for item in response.items] == ["BTC/USDT", "ETH/USDT"]
+    assert response.items[0].current_price == 123.0
+    assert response.items[0].source == "websocket_snapshot"
+    assert response.items[1].current_price == 456.0
+    assert response.items[1].source == "kline_tail"
     assert history.tail_calls == ["ETH/USDT"]

@@ -1,14 +1,15 @@
 from datetime import datetime, timezone
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
-from app.infra.db import current_database_url
+from app.infra.db import build_database_runtime
+from config.settings import settings
 
 def check_database():
-    database_url = current_database_url()
+    runtime = build_database_runtime(settings)
+    database_url = runtime.database_url
     print(f"--- Checking Database: {database_url} ---")
     try:
-        engine = create_engine(database_url)
-        with engine.connect() as conn:
+        with runtime.engine.connect() as conn:
             result = conn.execute(text("SELECT count(*) FROM klines"))
             count = result.scalar()
             print(f"[OK] Connection Successful")
@@ -31,6 +32,8 @@ def check_database():
                 print(f"Symbol: {row[0]:<10} | Rows: {row[1]:<6} | Range: {min_date} -> {max_date}")
     except Exception as e:
         print(f"[ERROR] Connection Failed: {e}")
+    finally:
+        runtime.dispose()
 
 
 if __name__ == "__main__":

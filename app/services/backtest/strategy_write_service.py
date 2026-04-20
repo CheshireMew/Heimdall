@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.infra.db.database import session_scope
+from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import StrategyDefinition, StrategyVersion
 from app.contracts.backtest import StrategyVersionRecord
 from app.schemas.backtest import (
@@ -21,6 +21,9 @@ from .strategy_support import normalize_strategy_version_config_model, normalize
 
 
 class StrategyWriteService:
+    def __init__(self, *, database_runtime: DatabaseRuntime) -> None:
+        self.database_runtime = database_runtime
+
     def create_indicator(
         self,
         *,
@@ -37,6 +40,7 @@ class StrategyWriteService:
                 engine_key=engine_key,
                 description=description,
                 params=params,
+                database_runtime=self.database_runtime,
             )
         )
 
@@ -60,6 +64,7 @@ class StrategyWriteService:
                 indicator_keys=indicator_keys,
                 default_config=default_config,
                 default_parameter_space=default_parameter_space,
+                database_runtime=self.database_runtime,
             )
         )
 
@@ -90,7 +95,7 @@ class StrategyWriteService:
             config,
             parameter_space,
         )
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             definition = session.query(StrategyDefinition).filter_by(key=key).first()
             if not definition:
                 definition = StrategyDefinition(
@@ -125,7 +130,10 @@ class StrategyWriteService:
                 strategy_key=key,
                 version=next_version,
                 name=name,
-                config=normalize_strategy_version_config_model(definition.template, normalized_config),
+                config=normalize_strategy_version_config_model(
+                    definition.template,
+                    normalized_config,
+                ).model_dump(),
                 parameter_space=normalized_parameter_space,
                 notes=notes,
                 is_default=make_default or (current_max is None and builtin_definition is None),

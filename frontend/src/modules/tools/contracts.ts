@@ -4,7 +4,7 @@ import type {
   DCAResponse,
   PairCompareRequestSchema,
   PairCompareToolResponse,
-} from '@/types'
+} from '@/types/tools'
 
 export type {
   DCAHistoryPointResponse,

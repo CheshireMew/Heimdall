@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 from .base_provider import BaseIndicatorProvider, logger
 from config import settings
+from app.services.executor import run_sync
 from pytrends.request import TrendReq
 import pandas as pd
 
@@ -54,8 +55,7 @@ class SentimentProvider(BaseIndicatorProvider):
                         "value": val
                     }
                 return None
-            loop = asyncio.get_event_loop()
-            res = await loop.run_in_executor(None, _get)
+            res = await run_sync(_get)
             if res:
                 results.append(res)
         except Exception as e:

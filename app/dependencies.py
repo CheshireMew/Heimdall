@@ -16,6 +16,7 @@ from app.runtime import (
 from config import settings
 
 if TYPE_CHECKING:
+    from app.infra.db import DatabaseRuntime
     from app.services.backtest.command_service import BacktestCommandService
     from app.services.backtest.freqtrade_service import FreqtradeBacktestService
     from app.services.backtest.paper_manager import PaperRunManager
@@ -102,6 +103,11 @@ def get_exchange_gateway(connection: HTTPConnection) -> ExchangeGateway:
 def get_kline_store(connection: HTTPConnection) -> KlineStore:
     runtime = _get_infra_runtime(connection)
     return _require_runtime_service(runtime.kline_store, "infra.kline_store")
+
+
+def get_request_database_runtime(connection: HTTPConnection) -> DatabaseRuntime:
+    runtime = _get_infra_runtime(connection)
+    return _require_runtime_service(runtime.database_runtime, "infra.database_runtime")
 
 
 def get_market_data_service(connection: HTTPConnection) -> MarketDataService:

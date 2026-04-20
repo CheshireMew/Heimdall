@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 from datetime import datetime, timedelta
-from typing import Any
 
-from app.infra.cache import redis_service
+from app.infra.cache import RedisService
 from app.domain.market.symbol_catalog import get_supported_crypto_symbols, resolve_market_asset
+from app.schemas.tools import DCAResponse, PairCompareToolResponse
+from app.services.executor import run_sync
 from app.services.tools.contracts import ComparePairsCommand, SimulateDcaCommand
 from app.services.tools.dca_service import DCAService
 from app.services.tools.pair_compare_service import PairCompareService
@@ -19,9 +19,15 @@ VALID_STRATEGIES = ["standard", "ema_deviation", "rsi_dynamic", "ahr999", "fear_
 
 
 class ToolsAppService:
-    def __init__(self, dca_service: DCAService, pair_compare_service: PairCompareService) -> None:
+    def __init__(
+        self,
+        dca_service: DCAService,
+        pair_compare_service: PairCompareService,
+        cache_service: RedisService | None = None,
+    ) -> None:
         self.dca_service = dca_service
         self.pair_compare_service = pair_compare_service
+        self.cache_service = cache_service
 
     @staticmethod
     def _dca_cache_key(command: SimulateDcaCommand, start_date_str: str) -> str:
@@ -51,17 +57,15 @@ class ToolsAppService:
             raise ValueError("两个标的不能相同")
         return symbol_a, symbol_b
 
-    async def simulate_dca(self, command: SimulateDcaCommand) -> dict[str, Any]:
+    async def simulate_dca(self, command: SimulateDcaCommand) -> DCAResponse:
         self._validate_dca(command)
         start_date_str = command.start_date or (datetime.now() - timedelta(days=command.days or 365)).strftime("%Y-%m-%d")
         cache_key = self._dca_cache_key(command, start_date_str)
-        cached = redis_service.get(cache_key)
+        cached = self.cache_service.get(cache_key) if self.cache_service is not None else None
         if cached:
-            return cached
+            return DCAResponse.model_validate(cached)
 
-        loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
-            None,
+        result = await run_sync(
             lambda: self.dca_service.calculate_dca(
                 symbol=command.symbol,
                 start_date_str=start_date_str,
@@ -75,17 +79,17 @@ class ToolsAppService:
         )
         if "error" in result:
             raise ValueError(result["error"])
-        redis_service.set(cache_key, result, ttl=settings.DCA_CACHE_TTL)
-        return result
+        response = DCAResponse.model_validate(result)
+        if self.cache_service is not None:
+            self.cache_service.set(cache_key, response.model_dump(), ttl=settings.DCA_CACHE_TTL)
+        return response
 
-    async def compare_pairs(self, command: ComparePairsCommand) -> dict[str, Any]:
+    async def compare_pairs(self, command: ComparePairsCommand) -> PairCompareToolResponse:
         symbol_a, symbol_b = self._validate_compare(command)
         logger.info(f"标的对比请求: {symbol_a} vs {symbol_b}, {command.days}天, {command.timeframe}")
-        loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
-            None,
+        result = await run_sync(
             lambda: self.pair_compare_service.compare_pairs(symbol_a, symbol_b, command.days, command.timeframe),
         )
         if "error" in result:
             raise ValueError(result["error"])
-        return result
+        return PairCompareToolResponse.model_validate(result)

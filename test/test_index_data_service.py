@@ -12,6 +12,17 @@ from app.services.market.index_data_service import IndexDataService
 from config import settings
 
 
+def ohlcv_row(point) -> list[float]:
+    return [
+        point.timestamp,
+        point.open,
+        point.high,
+        point.low,
+        point.close,
+        point.volume,
+    ]
+
+
 class FakeKlineStore:
     def __init__(self, cached: list[list[float]] | None = None) -> None:
         self.cached = list(cached or [])
@@ -132,10 +143,10 @@ def test_eastmoney_history_is_normalized_and_cached(monkeypatch):
         end_date="2024-01-10",
     )
 
-    assert result["source"] == "eastmoney"
-    assert result["is_close_only"] is False
-    assert result["count"] == 2
-    assert result["data"][0] == [
+    assert result.source == "eastmoney"
+    assert result.is_close_only is False
+    assert result.count == 2
+    assert ohlcv_row(result.data[0]) == [
         int(datetime(2024, 1, 2, tzinfo=timezone.utc).timestamp() * 1000),
         1.0,
         3.0,
@@ -164,10 +175,10 @@ def test_sina_hk_history_is_normalized_and_cached(monkeypatch):
         end_date="2024-01-10",
     )
 
-    assert result["source"] == "sina_hk"
-    assert result["is_close_only"] is False
-    assert result["count"] == 2
-    assert result["data"][0] == [
+    assert result.source == "sina_hk"
+    assert result.is_close_only is False
+    assert result.count == 2
+    assert ohlcv_row(result.data[0]) == [
         int(datetime(2024, 1, 1, tzinfo=timezone.utc).timestamp() * 1000),
         10.0,
         12.0,
@@ -196,10 +207,10 @@ def test_sina_cn_history_is_normalized_and_cached(monkeypatch):
         end_date="2025-01-10",
     )
 
-    assert result["source"] == "sina_cn"
-    assert result["is_close_only"] is False
-    assert result["count"] == 2
-    assert result["data"][0] == [
+    assert result.source == "sina_cn"
+    assert result.is_close_only is False
+    assert result.count == 2
+    assert ohlcv_row(result.data[0]) == [
         int(datetime(2025, 1, 2, tzinfo=timezone.utc).timestamp() * 1000),
         20.0,
         23.0,
@@ -228,10 +239,10 @@ def test_sina_us_history_is_normalized_and_cached(monkeypatch):
         end_date="2024-01-10",
     )
 
-    assert result["source"] == "sina_us"
-    assert result["is_close_only"] is False
-    assert result["count"] == 2
-    assert result["data"][0] == [
+    assert result.source == "sina_us"
+    assert result.is_close_only is False
+    assert result.count == 2
+    assert ohlcv_row(result.data[0]) == [
         int(datetime(2024, 1, 2, tzinfo=timezone.utc).timestamp() * 1000),
         30.0,
         33.0,
@@ -264,13 +275,13 @@ def test_pricing_history_uses_proxy_etf_source(monkeypatch):
         end_date="2024-01-10",
     )
 
-    assert result["price_basis"] == "proxy_etf"
-    assert result["source"] == "sina_hk_etf:usd"
-    assert result["pricing_symbol"] == "02800"
-    assert result["pricing_currency"] == "USD"
-    assert result["native_currency"] == "HKD"
-    assert result["count"] == 2
-    assert result["data"][0] == [
+    assert result.price_basis == "proxy_etf"
+    assert result.source == "sina_hk_etf:usd"
+    assert result.pricing_symbol == "02800"
+    assert result.pricing_currency == "USD"
+    assert result.native_currency == "HKD"
+    assert result.count == 2
+    assert ohlcv_row(result.data[0]) == [
         int(datetime(2024, 1, 2, tzinfo=timezone.utc).timestamp() * 1000),
         2.56,
         2.688,
@@ -344,10 +355,10 @@ def test_cached_history_is_used_before_upstream_fetch(monkeypatch):
         end_date="2024-01-03",
     )
 
-    assert result["source"] == "cache"
-    assert result["is_close_only"] is False
-    assert result["count"] == 2
-    assert result["data"] == cached_rows
+    assert result.source == "cache"
+    assert result.is_close_only is False
+    assert result.count == 2
+    assert [ohlcv_row(item) for item in result.data] == cached_rows
 
 
 def test_index_history_repairs_middle_gap():
@@ -374,7 +385,7 @@ def test_index_history_repairs_middle_gap():
     )
 
     assert history_sources.calls == [("2024-01-03", "2024-01-03")]
-    assert [row[0] for row in result["data"]] == [
+    assert [row.timestamp for row in result.data] == [
         cached_rows[0][0],
         missing_row[0],
         cached_rows[1][0],

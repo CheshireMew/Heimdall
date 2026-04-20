@@ -5,7 +5,7 @@ import type {
   LlmProviderConfigUpdateRequest,
   LlmProviderPresetResponse,
   SystemConfigResponse,
-} from '@/types'
+} from '@/types/config'
 
 export type {
   CurrencyRatesResponse,

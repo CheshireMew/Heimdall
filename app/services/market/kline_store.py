@@ -7,7 +7,7 @@ from typing import List
 
 from config import settings
 from config.settings import DEFAULT_DB_PATH
-from app.infra.db.database import session_scope
+from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import Kline
 from utils.logger import logger
 
@@ -24,8 +24,11 @@ def _load_early_btc_history() -> List[List]:
 
 
 class KlineStore:
+    def __init__(self, *, database_runtime: DatabaseRuntime) -> None:
+        self.database_runtime = database_runtime
+
     def get_before(self, symbol: str, timeframe: str, end_ts: int, limit: int) -> list[list[float]]:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             result = [
                 k.to_list()
                 for k in (
@@ -45,7 +48,7 @@ class KlineStore:
         return result
 
     def get_range(self, symbol: str, timeframe: str, start_ts: int, end_ts: int) -> list[list[float]]:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             cached_klines = [
                 k.to_list()
                 for k in (
@@ -95,7 +98,7 @@ class KlineStore:
         return cached_klines
 
     def save(self, symbol: str, timeframe: str, klines: list[list[float]]) -> None:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             self._save_with_session(session, symbol, timeframe, klines)
 
     def _save_with_session(self, session, symbol: str, timeframe: str, klines: list[list[float]]) -> None:

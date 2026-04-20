@@ -27,6 +27,11 @@ from app.services.backtest.freqtrade_strategy_runtime import (
     render_freqtrade_strategy_runtime,
     resolve_freqtrade_strategy_runtime,
 )
+from app.services.backtest.indicator_engines import (
+    indicator_output_columns,
+    render_indicator_frame_code,
+    resolve_indicator_engine,
+)
 from app.services.backtest.strategy_catalog import get_indicator_registry_map
 from app.services.backtest.strategy_contract import normalize_strategy_identifier, set_by_path
 from app.services.backtest.strategy_runtime import StrategyRuntime
@@ -220,11 +225,18 @@ class {self.strategy_class_name}(IStrategy):
             frame_var = frame_vars[timeframe]
             for indicator_id, indicator, indicator_spec in indicator_items:
                 normalize_strategy_identifier(indicator_id, "指标标识")
-                lines.extend(self._render_indicator_block(frame_var, indicator_id, indicator, indicator_spec))
+                lines.extend(
+                    render_indicator_frame_code(
+                        frame_var,
+                        indicator_id,
+                        resolve_indicator_engine(indicator.type, indicator_spec),
+                        indicator.params,
+                    )
+                )
 
         for timeframe in sorted([key for key in timeframes.keys() if key != base_timeframe], key=self._timeframe_sort_key):
             frame_var = frame_vars[timeframe]
-            columns = [column for indicator_id, _indicator, indicator_spec in timeframes[timeframe] for column in self._indicator_output_columns(indicator_id, indicator_spec)]
+            columns = [column for indicator_id, _indicator, indicator_spec in timeframes[timeframe] for column in indicator_output_columns(indicator_id, indicator_spec)]
             lines.append(f"        dataframe = self._merge_indicator_frame(dataframe, {frame_var}, {repr(columns)})")
         return "\n".join(lines)
 
@@ -232,72 +244,6 @@ class {self.strategy_class_name}(IStrategy):
         from app.services.backtest.strategy_contract import timeframe_to_minutes
 
         return timeframe_to_minutes(timeframe)
-
-    def _indicator_output_columns(self, indicator_id: str, indicator_spec: dict[str, Any]) -> list[str]:
-        outputs = indicator_spec.get("outputs") or [{"key": "value"}]
-        return [f'{indicator_id}__{output.get("key", "value")}' for output in outputs]
-
-    def _render_indicator_block(self, frame_var: str, indicator_id: str, indicator: StrategyIndicatorConfigResponse, indicator_spec: dict[str, Any]) -> list[str]:
-        indicator_type = indicator.type
-        engine = indicator_spec.get("engine", indicator_type)
-        params = indicator.params
-        if engine == "ema":
-            return [f'        {frame_var}["{indicator_id}__value"] = ta.EMA({frame_var}, timeperiod={int(params.get("period", 20))})']
-        if engine == "sma":
-            return [f'        {frame_var}["{indicator_id}__value"] = ta.SMA({frame_var}, timeperiod={int(params.get("period", 20))})']
-        if engine == "rsi":
-            return [f'        {frame_var}["{indicator_id}__value"] = ta.RSI({frame_var}, timeperiod={int(params.get("period", 14))})']
-        if engine == "macd":
-            return [
-                f'        {indicator_id}_macd = ta.MACD({frame_var}, fastperiod={int(params.get("fast", 12))}, slowperiod={int(params.get("slow", 26))}, signalperiod={int(params.get("signal", 9))})',
-                f'        {frame_var}["{indicator_id}__macd"] = {indicator_id}_macd["macd"]',
-                f'        {frame_var}["{indicator_id}__signal"] = {indicator_id}_macd["macdsignal"]',
-                f'        {frame_var}["{indicator_id}__hist"] = {indicator_id}_macd["macdhist"]',
-            ]
-        if engine == "bbands":
-            return [
-                f'        {indicator_id}_upper, {indicator_id}_middle, {indicator_id}_lower = ta.BBANDS({frame_var}["close"], timeperiod={int(params.get("period", 20))}, nbdevup={float(params.get("stddev", 2.0))}, nbdevdn={float(params.get("stddev", 2.0))}, matype=0)',
-                f'        {frame_var}["{indicator_id}__upper"] = {indicator_id}_upper',
-                f'        {frame_var}["{indicator_id}__middle"] = {indicator_id}_middle',
-                f'        {frame_var}["{indicator_id}__lower"] = {indicator_id}_lower',
-            ]
-        if engine == "volume_sma":
-            return [f'        {frame_var}["{indicator_id}__value"] = ta.SMA({frame_var}["volume"], timeperiod={int(params.get("period", 20))})']
-        if engine == "atr":
-            return [f'        {frame_var}["{indicator_id}__value"] = ta.ATR({frame_var}, timeperiod={int(params.get("period", 14))})']
-        if engine == "rolling_high":
-            return [f'        {frame_var}["{indicator_id}__value"] = {frame_var}["high"].rolling({int(params.get("lookback", 20))}).max().shift(1)']
-        if engine == "rolling_low":
-            return [f'        {frame_var}["{indicator_id}__value"] = {frame_var}["low"].rolling({int(params.get("lookback", 20))}).min().shift(1)']
-        if engine == "roc":
-            return [f'        {frame_var}["{indicator_id}__value"] = ta.ROC({frame_var}, timeperiod={int(params.get("period", 12))})']
-        if engine == "displacement_atr":
-            lookback = int(params.get("lookback", 24))
-            atr_period = int(params.get("atr_period", 14))
-            return [
-                f'        {indicator_id}_atr = ta.ATR({frame_var}, timeperiod={atr_period})',
-                f'        {frame_var}["{indicator_id}__value"] = ({frame_var}["close"] - {frame_var}["close"].shift({lookback})) / {indicator_id}_atr.replace(0.0, pd.NA)',
-            ]
-        if engine == "efficiency_ratio":
-            lookback = int(params.get("lookback", 24))
-            return [
-                f'        {indicator_id}_displacement = ({frame_var}["close"] - {frame_var}["close"].shift({lookback})).abs()',
-                f'        {indicator_id}_path = {frame_var}["close"].diff().abs().rolling({lookback}).sum()',
-                f'        {frame_var}["{indicator_id}__value"] = {indicator_id}_displacement / {indicator_id}_path.replace(0.0, pd.NA)',
-            ]
-        if engine == "range_context":
-            lookback = int(params.get("lookback", 32))
-            atr_period = int(params.get("atr_period", 14))
-            return [
-                f'        {frame_var}["{indicator_id}__upper"] = {frame_var}["high"].rolling({lookback}).max().shift(1)',
-                f'        {frame_var}["{indicator_id}__lower"] = {frame_var}["low"].rolling({lookback}).min().shift(1)',
-                f'        {frame_var}["{indicator_id}__middle"] = ({frame_var}["{indicator_id}__upper"] + {frame_var}["{indicator_id}__lower"]) / 2.0',
-                f'        {indicator_id}_width = {frame_var}["{indicator_id}__upper"] - {frame_var}["{indicator_id}__lower"]',
-                f'        {indicator_id}_atr = ta.ATR({frame_var}, timeperiod={atr_period})',
-                f'        {frame_var}["{indicator_id}__position"] = ({frame_var}["close"] - {frame_var}["{indicator_id}__lower"]) / {indicator_id}_width.replace(0.0, pd.NA)',
-                f'        {frame_var}["{indicator_id}__width_ratio"] = {indicator_id}_width / {indicator_id}_atr.replace(0.0, pd.NA)',
-            ]
-        raise ValueError(f"不支持的指标类型: {indicator_type}")
 
     def _compile_rule_tree(self, node: StrategyGroupNodeResponse | StrategyConditionNodeResponse) -> str:
         if not node.enabled:

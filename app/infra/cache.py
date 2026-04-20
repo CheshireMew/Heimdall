@@ -13,14 +13,10 @@ from utils.logger import logger
 
 
 class RedisService:
-    _instance: "RedisService | None" = None
-
-    def __new__(cls) -> "RedisService":
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance.client = None
-            cls._instance._connection_attempted = False
-        return cls._instance
+    def __init__(self, app_settings=settings) -> None:
+        self.settings = app_settings
+        self.client = None
+        self._connection_attempted = False
 
     def connect(self, *, force: bool = False) -> None:
         if self._connection_attempted and not force:
@@ -28,10 +24,10 @@ class RedisService:
         self._connection_attempted = True
         try:
             pool = redis.ConnectionPool(
-                host=settings.REDIS_HOST,
-                port=settings.REDIS_PORT,
-                db=settings.REDIS_DB,
-                password=settings.REDIS_PASSWORD or None,
+                host=self.settings.REDIS_HOST,
+                port=self.settings.REDIS_PORT,
+                db=self.settings.REDIS_DB,
+                password=self.settings.REDIS_PASSWORD or None,
                 decode_responses=True,
             )
             self.client = redis.Redis(connection_pool=pool)
@@ -82,4 +78,5 @@ class RedisService:
             return False
 
 
-redis_service = RedisService()
+def build_cache_service(app_settings=settings) -> RedisService:
+    return RedisService(app_settings)

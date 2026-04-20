@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
-
 from app.domain.market.index_catalog import (
     INDEX_CATALOG,
     IndexInstrument,
     get_index_instrument,
     get_supported_index_symbols,
 )
+from app.schemas.market import (
+    MarketIndexHistoryResponse,
+    MarketIndexResponse,
+    build_ohlcv_points,
+)
+from app.services.executor import run_sync
 from app.services.market.history_ranges import collect_missing_ranges
 from app.services.market.index_history_sources import IndexFetchResult, IndexHistorySources
 from app.services.market.kline_store import KlineStore
@@ -24,19 +28,22 @@ class IndexDataService:
         self.history_sources = history_sources or IndexHistorySources()
         self.supported_timeframes = {"1d"}
 
-    def list_indexes(self) -> list[dict[str, str]]:
+    def list_indexes(self) -> list[MarketIndexResponse]:
         return [
-            {
-                "symbol": item.symbol,
-                "name": item.name,
-                "market": item.market,
-                "currency": item.currency,
-                "pricing_symbol": item.pricing_symbol,
-                "pricing_name": item.pricing_name,
-                "pricing_currency": item.pricing_currency or item.currency,
-            }
+            MarketIndexResponse(
+                symbol=item.symbol,
+                name=item.name,
+                market=item.market,
+                currency=item.currency,
+                pricing_symbol=item.pricing_symbol,
+                pricing_name=item.pricing_name,
+                pricing_currency=item.pricing_currency or item.currency,
+            )
             for item in INDEX_CATALOG.values()
         ]
+
+    async def list_indexes_async(self) -> list[MarketIndexResponse]:
+        return await run_sync(self.list_indexes)
 
     def get_instrument(self, symbol: str) -> IndexInstrument | None:
         return get_index_instrument(symbol)
@@ -48,7 +55,7 @@ class IndexDataService:
         timeframe: str,
         start_date: str,
         end_date: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> MarketIndexHistoryResponse:
         instrument = self._validate(symbol, timeframe)
         return self._get_series_history(
             instrument=instrument,
@@ -64,6 +71,23 @@ class IndexDataService:
             native_currency=instrument.currency,
         )
 
+    async def get_history_async(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+        start_date: str,
+        end_date: str | None = None,
+    ) -> MarketIndexHistoryResponse:
+        return await run_sync(
+            lambda: self.get_history(
+                symbol=symbol,
+                timeframe=timeframe,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        )
+
     def get_pricing_history(
         self,
         *,
@@ -71,7 +95,7 @@ class IndexDataService:
         timeframe: str,
         start_date: str,
         end_date: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> MarketIndexHistoryResponse:
         instrument = self._validate(symbol, timeframe)
         if not instrument.pricing_symbol or not instrument.pricing_storage_symbol or not instrument.pricing_provider:
             raise ValueError(f"{instrument.symbol} 暂无默认 ETF 代理价格")
@@ -89,17 +113,38 @@ class IndexDataService:
             native_currency=instrument.pricing_currency or instrument.currency,
         )
 
-    def get_latest(self, *, symbol: str) -> dict[str, Any]:
-        result = self.get_history(symbol=symbol, timeframe="1d", start_date=self._latest_window_start())
-        result["data"] = result["data"][-1:] if result["data"] else []
-        result["count"] = len(result["data"])
-        return result
+    async def get_pricing_history_async(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+        start_date: str,
+        end_date: str | None = None,
+    ) -> MarketIndexHistoryResponse:
+        return await run_sync(
+            lambda: self.get_pricing_history(
+                symbol=symbol,
+                timeframe=timeframe,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        )
 
-    def get_latest_pricing(self, *, symbol: str) -> dict[str, Any]:
+    def get_latest(self, *, symbol: str) -> MarketIndexHistoryResponse:
+        result = self.get_history(symbol=symbol, timeframe="1d", start_date=self._latest_window_start())
+        latest_data = result.data[-1:] if result.data else []
+        return result.model_copy(update={"data": latest_data, "count": len(latest_data)})
+
+    async def get_latest_async(self, *, symbol: str) -> MarketIndexHistoryResponse:
+        return await run_sync(lambda: self.get_latest(symbol=symbol))
+
+    def get_latest_pricing(self, *, symbol: str) -> MarketIndexHistoryResponse:
         result = self.get_pricing_history(symbol=symbol, timeframe="1d", start_date=self._latest_window_start())
-        result["data"] = result["data"][-1:] if result["data"] else []
-        result["count"] = len(result["data"])
-        return result
+        latest_data = result.data[-1:] if result.data else []
+        return result.model_copy(update={"data": latest_data, "count": len(latest_data)})
+
+    async def get_latest_pricing_async(self, *, symbol: str) -> MarketIndexHistoryResponse:
+        return await run_sync(lambda: self.get_latest_pricing(symbol=symbol))
 
     def _get_series_history(
         self,
@@ -115,7 +160,7 @@ class IndexDataService:
         pricing_name: str | None,
         pricing_currency: str,
         native_currency: str,
-    ) -> dict[str, Any]:
+    ) -> MarketIndexHistoryResponse:
         start_dt = self._parse_date(start_date)
         end_dt = self._parse_date(end_date) if end_date else datetime.now(timezone.utc)
         if start_dt > end_dt:
@@ -167,22 +212,22 @@ class IndexDataService:
                     merged[row[0]] = row
 
         data = sorted(merged.values(), key=lambda row: row[0])
-        return {
-            "symbol": instrument.symbol,
-            "name": instrument.name,
-            "market": instrument.market,
-            "currency": pricing_currency if price_basis == "proxy_etf" else instrument.currency,
-            "native_currency": native_currency,
-            "timeframe": timeframe,
-            "source": source,
-            "price_basis": price_basis,
-            "pricing_symbol": pricing_symbol,
-            "pricing_name": pricing_name,
-            "pricing_currency": pricing_currency,
-            "is_close_only": bool(data) and is_close_only,
-            "count": len(data),
-            "data": data,
-        }
+        return MarketIndexHistoryResponse(
+            symbol=instrument.symbol,
+            name=instrument.name,
+            market=instrument.market,
+            currency=pricing_currency if price_basis == "proxy_etf" else instrument.currency,
+            native_currency=native_currency,
+            timeframe=timeframe,
+            source=source,
+            price_basis=price_basis,
+            pricing_symbol=pricing_symbol,
+            pricing_name=pricing_name,
+            pricing_currency=pricing_currency,
+            is_close_only=bool(data) and is_close_only,
+            count=len(data),
+            data=build_ohlcv_points(data),
+        )
 
     def _validate(self, symbol: str, timeframe: str) -> IndexInstrument:
         instrument = get_index_instrument(symbol)

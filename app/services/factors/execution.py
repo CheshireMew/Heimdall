@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from app.infra.db.database import session_scope
+from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestRun
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
 from app.services.backtest.result_store import store_run_rows
@@ -16,7 +16,9 @@ from app.contracts.backtest import (
     StrategyVersionRecord,
 )
 from app.services.backtest.run_contract import BACKTEST_EXECUTION_MODE, FACTOR_BLEND_ENGINE, build_backtest_metadata, parse_run_metadata
+from app.services.backtest.run_lifecycle import RUN_STATUS_COMPLETED
 from app.services.backtest.strategy_support import blank_strategy_version_config_model
+from app.services.executor import run_sync
 from app.services.factors.service import FactorResearchService
 from app.services.factors.signal_execution_core import FactorSignalContext, FactorSignalExecutionCore
 
@@ -28,10 +30,12 @@ class FactorExecutionService:
         factor_service: FactorResearchService,
         report_builder: FreqtradeReportBuilder,
         execution_core: FactorSignalExecutionCore,
+        database_runtime: DatabaseRuntime,
     ) -> None:
         self.factor_service = factor_service
         self.report_builder = report_builder
         self.execution_core = execution_core
+        self.database_runtime = database_runtime
 
     def run_backtest(
         self,
@@ -51,8 +55,8 @@ class FactorExecutionService:
         if frame.empty:
             raise ValueError("研究结果没有可回测的组合分数。")
 
-        request_payload = dict(research_run.get("request") or {})
-        blend = dict(research_run.get("blend") or {})
+        request_payload = research_run.request.model_dump()
+        blend = research_run.blend.model_dump()
         symbol = request_payload["symbol"]
         timeframe = request_payload["timeframe"]
         entry_threshold = float(blend.get("entry_threshold", 0.0) if entry_threshold is None else entry_threshold)
@@ -103,7 +107,7 @@ class FactorExecutionService:
             strategy_name="Factor Blend",
             version=research_run_id,
             template="factor_blend",
-            config=blank_strategy_version_config_model(),
+            config=blank_strategy_version_config_model().model_dump(),
             version_name=f"Research {research_run_id}",
         )
         portfolio = PortfolioConfigRecord(symbols=[symbol], max_open_trades=1, position_size_pct=position_size_pct, stake_mode=stake_mode)
@@ -121,7 +125,7 @@ class FactorExecutionService:
             update={
                 "factor_research": {
                     "run_id": research_run_id,
-                    "dataset_id": research_run["dataset_id"],
+                    "dataset_id": research_run.dataset_id,
                     "entry_threshold": entry_threshold,
                     "exit_threshold": exit_threshold,
                     "stoploss_pct": stoploss_pct,
@@ -145,6 +149,35 @@ class FactorExecutionService:
             metadata=metadata,
         )
 
+    async def run_backtest_async(
+        self,
+        *,
+        research_run_id: int,
+        initial_cash: float,
+        fee_rate: float,
+        position_size_pct: float,
+        stake_mode: str = "fixed",
+        entry_threshold: float | None = None,
+        exit_threshold: float | None = None,
+        stoploss_pct: float = -0.08,
+        takeprofit_pct: float = 0.16,
+        max_hold_bars: int = 20,
+    ) -> int:
+        return await run_sync(
+            lambda: self.run_backtest(
+                research_run_id=research_run_id,
+                initial_cash=initial_cash,
+                fee_rate=fee_rate,
+                position_size_pct=position_size_pct,
+                stake_mode=stake_mode,
+                entry_threshold=entry_threshold,
+                exit_threshold=exit_threshold,
+                stoploss_pct=stoploss_pct,
+                takeprofit_pct=takeprofit_pct,
+                max_hold_bars=max_hold_bars,
+            )
+        )
+
     def _persist_backtest_run(
         self,
         *,
@@ -158,13 +191,13 @@ class FactorExecutionService:
         equity_curve: list[BacktestEquityPointRecord],
         metadata: dict[str, Any],
     ) -> int:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             run = BacktestRun(
                 symbol=symbol,
                 timeframe=timeframe,
                 start_date=start_date,
                 end_date=end_date,
-                status="completed",
+                status=RUN_STATUS_COMPLETED,
                 execution_mode=BACKTEST_EXECUTION_MODE,
                 engine=FACTOR_BLEND_ENGINE,
                 total_candles=total_candles,

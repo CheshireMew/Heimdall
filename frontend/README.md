@@ -11,4 +11,4 @@ npm run typecheck
 npm run build
 ```
 
-`sync:contracts` 会从后端 Pydantic schema 生成 `src/types/backtest.ts`、`factor.ts`、`market.ts`、`tools.ts` 和 `config.ts`。这些文件不要手写修改；前端本地状态类型放在对应的 `*-frontend.ts` 文件里。
+`sync:contracts` 会从后端 FastAPI 路由和 Pydantic schema 生成 `src/types/*.ts` 以及 `src/api/routes.ts`。这些生成文件不要手写修改；页面状态类型应放在对应业务模块内。

@@ -17,15 +17,16 @@ def _logger():
     return logger
 
 
-def _init_db() -> None:
+def _init_db(database_runtime) -> None:
     from app.infra.db.schema_runtime import verify_database_schema
 
-    verify_database_schema()
+    verify_database_schema(database_runtime)
 
 
 async def _init_db_async(app) -> None:
     try:
-        await asyncio.to_thread(_init_db)
+        database_runtime = app.state.runtime_services.infra.database_runtime
+        await asyncio.to_thread(_init_db, database_runtime)
     except asyncio.CancelledError:
         raise
     except Exception as exc:

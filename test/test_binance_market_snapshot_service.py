@@ -43,7 +43,7 @@ async def test_snapshot_service_seeds_and_returns_local_market_snapshot():
         usdm_mark_loader=usdm_mark_loader,
     )
 
-    snapshot = await service.get_market_page_snapshot()
+    snapshot = (await service.get_market_page_snapshot()).model_dump()
 
     assert snapshot["load_errors"] == []
     assert [item["symbol"] for item in snapshot["spot_ticker"]["items"]] == ["ETHUSDT", "BTCUSDT"]
@@ -64,7 +64,7 @@ async def test_snapshot_service_normalizes_websocket_events():
         {"s": "DOGEUSDT", "p": "0.161", "i": "0.160", "r": "-0.0002", "T": 1717000000000},
     ])
 
-    snapshot = await service.get_market_page_snapshot()
+    snapshot = (await service.get_market_page_snapshot()).model_dump()
 
     spot_item = snapshot["spot_ticker"]["items"][0]
     mark_item = snapshot["usdm_mark"]["items"][0]

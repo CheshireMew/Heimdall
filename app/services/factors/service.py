@@ -4,8 +4,15 @@ from datetime import datetime
 from typing import Any
 
 from app.domain.market.symbol_catalog import get_supported_crypto_symbols
+from app.schemas.factor import (
+    FactorCatalogResponse,
+    FactorResearchResponse,
+    FactorResearchRunDetailResponse,
+    FactorResearchRunListItemResponse,
+)
 from app.services.market.indicator_repository import MarketIndicatorRepository
 from app.services.market.market_data_service import MarketDataService
+from app.services.executor import run_sync
 
 from .analysis_service import FactorAnalysisService
 from .catalog_service import FactorCatalogService
@@ -41,30 +48,40 @@ class FactorResearchService:
         )
         self.analysis_service = FactorAnalysisService(self.math)
 
-    def get_catalog(self) -> dict[str, Any]:
+    def get_catalog(self) -> FactorCatalogResponse:
         return self.catalog_service.get_catalog()
 
-    def list_runs(self, limit: int = 20) -> list[dict[str, Any]]:
-        return self.repository.list_research_runs(limit=limit)
+    async def get_catalog_async(self) -> FactorCatalogResponse:
+        return await run_sync(self.get_catalog)
 
-    def get_run(self, run_id: int) -> dict[str, Any] | None:
-        return self.repository.get_research_run(run_id)
+    def list_runs(self, limit: int = 20) -> list[FactorResearchRunListItemResponse]:
+        return [FactorResearchRunListItemResponse.model_validate(row) for row in self.repository.list_research_runs(limit=limit)]
+
+    async def list_runs_async(self, limit: int = 20) -> list[FactorResearchRunListItemResponse]:
+        return await run_sync(lambda: self.list_runs(limit=limit))
+
+    def get_run(self, run_id: int) -> FactorResearchRunDetailResponse | None:
+        row = self._get_run_record(run_id)
+        return FactorResearchRunDetailResponse.model_validate(row) if row else None
+
+    async def get_run_async(self, run_id: int) -> FactorResearchRunDetailResponse | None:
+        return await run_sync(lambda: self.get_run(run_id))
 
     def build_stored_blend_frame(self, run_id: int):
-        run = self.get_run(run_id)
+        run = self._get_run_record(run_id)
         if not run:
             raise ValueError("因子研究记录不存在。")
-        return run, self.dataset_service.build_stored_blend_frame(run)
+        return FactorResearchRunDetailResponse.model_validate(run), self.dataset_service.build_stored_blend_frame(run)
 
     def build_live_blend_frame(self, run_id: int, *, end_date: datetime | None = None):
-        run = self.get_run(run_id)
+        run = self._get_run_record(run_id)
         if not run:
             raise ValueError("因子研究记录不存在。")
         selected_factor_ids = [item["factor_id"] for item in (run.get("blend") or {}).get("selected_factors") or []]
         definitions = self.catalog_service.select_factors([], selected_factor_ids)
         if not definitions:
             raise ValueError("当前研究记录没有可执行的组合因子。")
-        return run, self.dataset_service.build_live_blend_frame(
+        return FactorResearchRunDetailResponse.model_validate(run), self.dataset_service.build_live_blend_frame(
             run=run,
             definitions=definitions,
             end_date=end_date,
@@ -80,7 +97,7 @@ class FactorResearchService:
         max_lag_bars: int,
         categories: list[str] | None = None,
         factor_ids: list[str] | None = None,
-    ) -> dict[str, Any]:
+    ) -> FactorResearchResponse:
         supported_symbols = get_supported_crypto_symbols()
         if symbol not in supported_symbols:
             raise ValueError(f"无效交易对。可选: {supported_symbols}")
@@ -156,14 +173,42 @@ class FactorResearchService:
             details=[item["detail"] for item in factor_results],
             blend=blend,
         )
-        return {
-            "run_id": run["id"],
-            "dataset_id": dataset["id"],
-            "summary": summary,
-            "ranking": [item["scorecard"] for item in factor_results],
-            "details": [item["detail"] for item in factor_results],
-            "blend": blend,
-        }
+        return FactorResearchResponse.model_validate(
+            {
+                "run_id": run["id"],
+                "dataset_id": dataset["id"],
+                "summary": summary,
+                "ranking": [item["scorecard"] for item in factor_results],
+                "details": [item["detail"] for item in factor_results],
+                "blend": blend,
+            }
+        )
+
+    async def analyze_async(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+        days: int,
+        horizon_bars: int,
+        max_lag_bars: int,
+        categories: list[str] | None = None,
+        factor_ids: list[str] | None = None,
+    ) -> FactorResearchResponse:
+        return await run_sync(
+            lambda: self.analyze(
+                symbol=symbol,
+                timeframe=timeframe,
+                days=days,
+                horizon_bars=horizon_bars,
+                max_lag_bars=max_lag_bars,
+                categories=categories,
+                factor_ids=factor_ids,
+            )
+        )
 
     def timeframe_delta(self, timeframe: str):
         return self.math.timeframe_delta(timeframe)
+
+    def _get_run_record(self, run_id: int) -> dict[str, Any] | None:
+        return self.repository.get_research_run(run_id)

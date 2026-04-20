@@ -27,7 +27,7 @@ None (Standard feature addition).
   - 2024-04-20
   - 2028-04-17 (Est)
 
-#### [MODIFY] [src/router/index.js](file:///e:/Work/Code/Heimdall/frontend/src/router/index.js)
+#### [MODIFY] [src/router/index.ts](file:///e:/Work/Code/Heimdall/frontend/src/router/index.ts)
 
 - Add route `/tools/halving`.
 

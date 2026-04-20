@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
 from datetime import datetime
 
 import pytest
@@ -12,15 +11,7 @@ from app.services.backtest.run_contract import update_paper_metadata
 from app.services.backtest.serializers import serialize_backtest_run
 
 
-def _scoped_session(session):
-    @contextmanager
-    def scope():
-        yield session
-
-    return scope
-
-
-def test_repository_filters_by_execution_mode_in_query(db_session, monkeypatch):
+def test_repository_filters_by_execution_mode_in_query(db_session, installed_database_runtime):
     db_session.add_all(
         [
             BacktestRun(
@@ -46,9 +37,9 @@ def test_repository_filters_by_execution_mode_in_query(db_session, monkeypatch):
         ]
     )
     db_session.flush()
-    monkeypatch.setattr("app.services.backtest.run_repository.session_scope", _scoped_session(db_session))
+    db_session.commit()
 
-    repository = BacktestRunRepository()
+    repository = BacktestRunRepository(database_runtime=installed_database_runtime)
     runs = repository.list_runs("paper_live")
 
     assert len(runs) == 1

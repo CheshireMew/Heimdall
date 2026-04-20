@@ -47,7 +47,50 @@ import type {
   OhlcvPointResponse,
   RealtimeResponse,
   TradeSetupResponse,
-} from '@/types'
+  GetBinanceMarketBreakoutMonitorQueryParams,
+  GetBinanceMarketPageQueryParams,
+  GetBinanceRwaAssetMarketStatusQueryParams,
+  GetBinanceRwaDynamicQueryParams,
+  GetBinanceRwaKlineQueryParams,
+  GetBinanceRwaMetaQueryParams,
+  GetBinanceRwaSymbolsQueryParams,
+  GetBinanceSpotPriceQueryParams,
+  GetBinanceSpotTicker24hrQueryParams,
+  GetBinanceUsdmMarkPriceQueryParams,
+  GetBinanceUsdmTopTraderAccountsQueryParams,
+  GetBinanceUsdmTopTraderPositionsQueryParams,
+  GetBinanceUsdmTicker24hrQueryParams,
+  GetBinanceWeb3AddressPnlRankQueryParams,
+  GetBinanceWeb3HeatRankQueryParams,
+  GetBinanceWeb3MemeRankQueryParams,
+  GetBinanceWeb3SmartMoneyInflowQueryParams,
+  GetBinanceWeb3SocialHypeQueryParams,
+  GetBinanceWeb3TokenAuditQueryParams,
+  GetBinanceWeb3TokenDynamicQueryParams,
+  GetBinanceWeb3TokenKlineQueryParams,
+  GetBinanceWeb3UnifiedTokenRankQueryParams,
+  GetCryptoIndexQueryParams,
+  GetCurrentPriceBatchQueryParams,
+  GetCurrentPriceQueryParams,
+  GetIndexHistoryQueryParams,
+  GetIndexPricingHistoryQueryParams,
+  GetKlineTailQueryParams,
+  GetLatestKlinesQueryParams,
+  GetMarketFullHistoryBatchQueryParams,
+  GetMarketFullHistoryQueryParams,
+  GetMarketHistoryQueryParams,
+  GetMarketIndicatorsQueryParams,
+  GetRealtimeAnalysisQueryParams,
+  GetTechnicalMetricsQueryParams,
+  GetTradeSetupQueryParams,
+} from '@/types/market'
+import {
+  GetBinanceSpotPriceQueryParamsMeta,
+  GetBinanceSpotTicker24hrQueryParamsMeta,
+  GetBinanceWeb3TokenKlineQueryParamsMeta,
+  GetCurrentPriceBatchQueryParamsMeta,
+  GetMarketFullHistoryBatchQueryParamsMeta,
+} from '@/types/market'
 
 export type {
   BinanceBreakoutMonitorItemResponse,
@@ -96,6 +139,42 @@ export type {
   OhlcvPointResponse,
   RealtimeResponse,
   TradeSetupResponse,
+  GetBinanceMarketBreakoutMonitorQueryParams,
+  GetBinanceMarketPageQueryParams,
+  GetBinanceRwaAssetMarketStatusQueryParams,
+  GetBinanceRwaDynamicQueryParams,
+  GetBinanceRwaKlineQueryParams,
+  GetBinanceRwaMetaQueryParams,
+  GetBinanceRwaSymbolsQueryParams,
+  GetBinanceSpotPriceQueryParams,
+  GetBinanceSpotTicker24hrQueryParams,
+  GetBinanceUsdmMarkPriceQueryParams,
+  GetBinanceUsdmTopTraderAccountsQueryParams,
+  GetBinanceUsdmTopTraderPositionsQueryParams,
+  GetBinanceUsdmTicker24hrQueryParams,
+  GetBinanceWeb3AddressPnlRankQueryParams,
+  GetBinanceWeb3HeatRankQueryParams,
+  GetBinanceWeb3MemeRankQueryParams,
+  GetBinanceWeb3SmartMoneyInflowQueryParams,
+  GetBinanceWeb3SocialHypeQueryParams,
+  GetBinanceWeb3TokenAuditQueryParams,
+  GetBinanceWeb3TokenDynamicQueryParams,
+  GetBinanceWeb3TokenKlineQueryParams,
+  GetBinanceWeb3UnifiedTokenRankQueryParams,
+  GetCryptoIndexQueryParams,
+  GetCurrentPriceBatchQueryParams,
+  GetCurrentPriceQueryParams,
+  GetIndexHistoryQueryParams,
+  GetIndexPricingHistoryQueryParams,
+  GetKlineTailQueryParams,
+  GetLatestKlinesQueryParams,
+  GetMarketFullHistoryBatchQueryParams,
+  GetMarketFullHistoryQueryParams,
+  GetMarketHistoryQueryParams,
+  GetMarketIndicatorsQueryParams,
+  GetRealtimeAnalysisQueryParams,
+  GetTechnicalMetricsQueryParams,
+  GetTradeSetupQueryParams,
 }
 
 export interface CandlestickData {
@@ -112,66 +191,22 @@ export interface VolumeData {
   color: string
 }
 
-export interface RealtimeParams {
-  symbol: string
-  timeframe?: string
-  limit?: number
-}
+export type RealtimeParams = GetRealtimeAnalysisQueryParams
+export type HistoryParams = GetMarketHistoryQueryParams
+export type LatestKlineParams = GetLatestKlinesQueryParams
+export type TailKlineParams = GetKlineTailQueryParams
+export type CurrentPriceParams = GetCurrentPriceQueryParams
+export type FullHistoryParams = GetMarketFullHistoryQueryParams
+export type BatchFullHistoryParams = GetMarketFullHistoryBatchQueryParams
+export type IndicatorParams = GetMarketIndicatorsQueryParams
+export type CryptoIndexParams = GetCryptoIndexQueryParams
+export type IndexHistoryParams = GetIndexHistoryQueryParams
 
-export interface HistoryParams {
-  symbol: string
-  timeframe: string
-  end_ts: number
-  limit?: number
-}
-
-export interface LatestKlineParams {
-  symbol: string
-  timeframe: string
-  limit?: number
-}
-
-export interface TailKlineParams {
-  symbol: string
-  timeframe: string
-  limit?: number
-}
-
-export interface CurrentPriceParams {
-  symbol: string
-  timeframe?: string
-}
-
-export interface FullHistoryParams {
-  symbol: string
-  timeframe?: string
-  start_date?: string
-  fetch_policy?: 'cache_only' | 'hydrate'
-}
-
-export interface BatchFullHistoryParams {
-  symbols: string[]
-  timeframe?: string
-  start_date?: string
-  fetch_policy?: 'cache_only' | 'hydrate'
-}
-
-export interface IndicatorParams {
-  category?: string
-  days?: number
-}
-
-export interface CryptoIndexParams {
-  top_n?: number
-  days?: number
-}
-
-export interface IndexHistoryParams {
-  symbol: string
-  timeframe?: string
-  start_date?: string
-  end_date?: string
-}
+export const CURRENT_PRICE_BATCH_QUERY_META = GetCurrentPriceBatchQueryParamsMeta
+export const FULL_HISTORY_BATCH_QUERY_META = GetMarketFullHistoryBatchQueryParamsMeta
+export const BINANCE_SPOT_TICKER_24HR_QUERY_META = GetBinanceSpotTicker24hrQueryParamsMeta
+export const BINANCE_SPOT_PRICE_QUERY_META = GetBinanceSpotPriceQueryParamsMeta
+export const BINANCE_WEB3_TOKEN_KLINE_QUERY_META = GetBinanceWeb3TokenKlineQueryParamsMeta
 
 export type CryptoIndexConstituent = CryptoIndexConstituentResponse
 export type CryptoIndexHistoryPoint = CryptoIndexHistoryPointResponse

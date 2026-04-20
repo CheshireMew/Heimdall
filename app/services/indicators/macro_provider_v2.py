@@ -9,6 +9,7 @@ import asyncio
 from typing import List, Dict, Any, Optional
 from .base_provider import BaseIndicatorProvider, logger
 from config import settings
+from app.services.executor import run_sync
 
 class MacroProviderV2(BaseIndicatorProvider):
     """
@@ -58,8 +59,7 @@ class MacroProviderV2(BaseIndicatorProvider):
             return None
 
         try:
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, _get)
+            return await run_sync(_get)
         except Exception as e:
             logger.error(f"Failed to fetch FRED {series_id}: {e}")
 
@@ -83,8 +83,7 @@ class MacroProviderV2(BaseIndicatorProvider):
                     "value": val
                 }
 
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, _get)
+            return await run_sync(_get)
 
         except Exception as e:
             logger.error(f"Failed to fetch YFinance {ticker}: {e}")

@@ -1,4 +1,5 @@
 import request from '@/api/request'
+import { apiRoute } from '@/api/routes'
 import type { AxiosResponse } from 'axios'
 import type {
   DCARequestSchema,
@@ -9,10 +10,10 @@ import type {
 
 export const toolsApi = {
   runSimulation(config: DCARequestSchema): Promise<AxiosResponse<DCAResponse>> {
-    return request.post('/tools/dca_simulate', config)
+    return request.post(apiRoute('dca_simulate'), config)
   },
 
   comparePairs(params: PairCompareRequestSchema): Promise<AxiosResponse<PairCompareToolResponse>> {
-    return request.post('/tools/compare_pairs', params)
+    return request.post(apiRoute('compare_pairs'), params)
   },
 }

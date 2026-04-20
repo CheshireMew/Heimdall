@@ -2,6 +2,8 @@ import unittest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
+from app.schemas.market import MarketIndexHistoryResponse, build_ohlcv_points
+
 from app.services.tools.dca_service import DCAService as DCACalculator
 
 
@@ -74,16 +76,26 @@ class TestValueAveraging(unittest.TestCase):
     def test_index_standard_dca_uses_daily_history(self):
         index_service = MagicMock()
         index_service.get_instrument.return_value = object()
-        index_service.get_pricing_history.return_value = {
-            "data": [
+        index_service.get_pricing_history.return_value = MarketIndexHistoryResponse(
+            symbol="HK_HSI",
+            name="Hang Seng Index",
+            market="HK",
+            currency="HKD",
+            native_currency="HKD",
+            timeframe="1d",
+            source="test",
+            price_basis="proxy_etf",
+            pricing_symbol="02800",
+            pricing_name="Tracker Fund of Hong Kong",
+            pricing_currency="USD",
+            is_close_only=False,
+            count=3,
+            data=build_ohlcv_points([
                 [1704067200000, 100.0, 100.0, 100.0, 100.0, 0],
                 [1704153600000, 110.0, 110.0, 110.0, 110.0, 0],
                 [1704240000000, 120.0, 120.0, 120.0, 120.0, 0],
-            ],
-            "pricing_symbol": "02800",
-            "pricing_name": "Tracker Fund of Hong Kong",
-            "pricing_currency": "USD",
-        }
+            ]),
+        )
         calculator = DCACalculator(
             market_data_service=MagicMock(),
             sentiment_service=MagicMock(),

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from app.contracts.backtest import (
     BacktestStartCommand,
     CreateIndicatorDefinitionCommand,
@@ -27,6 +26,7 @@ from app.services.backtest.strategy_support import (
     build_strategy_version_response_payload,
 )
 from app.services.backtest.strategy_write_service import StrategyWriteService
+from app.services.executor import run_sync
 from utils.logger import logger
 
 
@@ -57,9 +57,7 @@ class BacktestCommandService:
             f"本金={command.initial_cash}, 手续费={command.fee_rate}%"
         )
 
-        loop = asyncio.get_running_loop()
-        backtest_id = await loop.run_in_executor(
-            None,
+        backtest_id = await run_sync(
             lambda: self.run_service.run_backtest(
                 strategy=strategy,
                 portfolio=command.portfolio,
@@ -95,9 +93,7 @@ class BacktestCommandService:
 
     async def delete_backtest(self, backtest_id: int) -> BacktestDeleteResponse:
         logger.info(f"删除回测记录: backtest_id={backtest_id}")
-        loop = asyncio.get_running_loop()
-        deleted = await loop.run_in_executor(
-            None,
+        deleted = await run_sync(
             lambda: self.run_repository.delete_run(backtest_id, "backtest"),
         )
         if not deleted:
@@ -111,9 +107,7 @@ class BacktestCommandService:
     async def create_template(
         self, command: CreateStrategyTemplateCommand
     ) -> StrategyTemplateResponse:
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None,
+        return await run_sync(
             lambda: self.strategy_write_service.create_template(
                 key=command.key,
                 name=command.name,
@@ -128,9 +122,7 @@ class BacktestCommandService:
     async def create_indicator(
         self, command: CreateIndicatorDefinitionCommand
     ) -> StrategyIndicatorRegistryResponse:
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None,
+        return await run_sync(
             lambda: self.strategy_write_service.create_indicator(
                 key=command.key,
                 name=command.name,
@@ -143,9 +135,7 @@ class BacktestCommandService:
     async def create_strategy_version(
         self, command: CreateStrategyVersionCommand
     ) -> StrategyVersionResponse:
-        loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
-            None,
+        result = await run_sync(
             lambda: self.strategy_write_service.create_strategy_version(
                 key=command.key,
                 name=command.name,

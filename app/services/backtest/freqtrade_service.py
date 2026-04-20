@@ -5,6 +5,7 @@ from datetime import datetime
 import pandas as pd
 
 from app.schemas.backtest_result import (
+    BacktestReportResponse,
     BacktestPortfolioSummaryResponse,
     BacktestResearchReportResponse,
     BacktestRunMetadataResponse,
@@ -158,7 +159,9 @@ class FreqtradeBacktestService:
 
         if primary_result.execution.report is None:
             raise RuntimeError("回测执行结果缺少报告")
-        report = primary_result.execution.report.model_copy(
+        report = BacktestReportResponse.model_validate(
+            primary_result.execution.report
+        ).model_copy(
             update={
                 "strategy": BacktestStrategySummaryResponse(
                     key=strategy.strategy_key,
@@ -180,7 +183,9 @@ class FreqtradeBacktestService:
         if primary_result.execution.metadata is None:
             raise RuntimeError("回测执行结果缺少元数据")
         execution_model = self._execution_model(strategy.template, selected_config)
-        metadata = primary_result.execution.metadata.model_copy(
+        metadata = BacktestRunMetadataResponse.model_validate(
+            primary_result.execution.metadata
+        ).model_copy(
             update={
                 "engine": "Freqtrade",
                 "execution_model": execution_model,
@@ -216,8 +221,8 @@ class FreqtradeBacktestService:
             signals=primary_result.execution.signals,
             trades=primary_result.execution.trades,
             equity_curve=primary_result.execution.equity_curve,
-            report=report,
-            metadata=metadata,
+            report=report.model_dump(),
+            metadata=metadata.model_dump(),
         )
 
     def _range_payload(self, start_date: datetime | None, end_date: datetime | None):

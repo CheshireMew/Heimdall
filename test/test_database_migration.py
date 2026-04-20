@@ -7,7 +7,7 @@ from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect
 
-import app.infra.db.database as db_module
+from app.infra.db.database import build_database_runtime
 import app.infra.db.schema_runtime as schema_runtime
 from app.infra.db.schema import Base
 from config.settings import AppSettings
@@ -16,25 +16,26 @@ from config.settings import AppSettings
 @pytest.fixture
 def isolated_db(monkeypatch, tmp_path):
     engines = []
-    original_runtime = db_module.get_database_runtime()
+    runtimes = []
 
     def activate(name: str):
         path = tmp_path / name
         url = f"sqlite:///{path.as_posix()}"
         engine = create_engine(url, connect_args={"check_same_thread": False})
         engines.append(engine)
-        runtime = db_module.create_database_runtime(AppSettings(DATABASE_URL=url))
+        runtime = build_database_runtime(AppSettings(DATABASE_URL=url))
         runtime.dispose()
         runtime.engine = engine
         runtime.session_factory.configure(bind=engine)
-        db_module.configure_database_runtime(runtime)
+        runtimes.append(runtime)
         schema_runtime._prepared_urls.clear()
-        return path, engine
+        return path, engine, runtime
 
     yield activate
 
-    db_module.configure_database_runtime(original_runtime)
     schema_runtime._prepared_urls.clear()
+    for runtime in runtimes:
+        runtime.dispose()
     for engine in engines:
         engine.dispose()
 
@@ -97,10 +98,10 @@ def _create_partial_legacy_sqlite(path) -> None:
 
 
 def test_prepare_db_migrates_partial_legacy_sqlite(isolated_db):
-    path, engine = isolated_db("partial_legacy.db")
+    path, engine, runtime = isolated_db("partial_legacy.db")
     _create_partial_legacy_sqlite(path)
 
-    schema_runtime.prepare_db()
+    schema_runtime.prepare_db(runtime)
 
     inspector = inspect(engine)
     table_names = set(inspector.get_table_names())
@@ -114,13 +115,13 @@ def test_prepare_db_migrates_partial_legacy_sqlite(isolated_db):
 
     with engine.connect() as connection:
         current = MigrationContext.configure(connection).get_current_revision()
-    expected = ScriptDirectory.from_config(schema_runtime._alembic_config()).get_current_head()
+    expected = ScriptDirectory.from_config(schema_runtime._alembic_config(runtime.database_url)).get_current_head()
     assert current == expected
-    schema_runtime.verify_database_schema()
+    schema_runtime.verify_database_schema(runtime)
 
 
 def test_verify_database_schema_rejects_stamped_but_incomplete_schema(isolated_db):
-    _, engine = isolated_db("bad_stamp.db")
+    _, engine, runtime = isolated_db("bad_stamp.db")
     with engine.begin() as connection:
         connection.exec_driver_sql(
             "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"
@@ -132,4 +133,4 @@ def test_verify_database_schema_rejects_stamped_but_incomplete_schema(isolated_d
             connection.exec_driver_sql(f"CREATE TABLE {table.name} (id INTEGER)")
 
     with pytest.raises(RuntimeError, match="数据库结构与当前模型不一致"):
-        schema_runtime.verify_database_schema()
+        schema_runtime.verify_database_schema(runtime)

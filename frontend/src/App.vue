@@ -10,63 +10,22 @@
       </div>
 
       <nav class="mt-4 px-3 space-y-1">
-        <router-link to="/" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <ChartBarSquareIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.realtime') }}
-        </router-link>
+        <template v-for="section in navSections" :key="section.key">
+          <div v-if="section.titleKey" class="px-3 py-2 text-xs text-gray-500 font-bold uppercase mt-3">
+            {{ $t(section.titleKey) }}
+          </div>
 
-        <div class="px-3 py-2 text-xs text-gray-500 font-bold uppercase mt-3">{{ $t('nav.indicators') }}</div>
-
-        <router-link to="/indicators/macro" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <BuildingLibraryIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.macro') }}
-        </router-link>
-        <router-link to="/indicators/onchain" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <CubeTransparentIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.onchain') }}
-        </router-link>
-        <router-link to="/indicators/sentiment" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <HeartIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.sentiment') }}
-        </router-link>
-        <router-link to="/indicators/technical" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <CalculatorIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.tech') }}
-        </router-link>
-        <router-link to="/indicators/crypto-index" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <CircleStackIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.cryptoIndex') }}
-        </router-link>
-        <router-link to="/indicators/binance-market" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <ChartBarSquareIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.binanceMarket') }}
-        </router-link>
-        <router-link to="/indicators/web3-rank" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <CubeTransparentIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.web3Rank') }}
-        </router-link>
-        <router-link to="/indicators/tokenized-securities" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <BuildingLibraryIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.tokenizedSecurities') }}
-        </router-link>
-
-        <div class="px-3 py-2 text-xs text-gray-500 font-bold uppercase mt-3">{{ $t('nav.tools') }}</div>
-
-        <router-link to="/backtest" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <BeakerIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.backtest') }}
-        </router-link>
-        <router-link to="/tools/compare" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <ScaleIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.compare') }}
-        </router-link>
-        <router-link to="/tools/factors" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <PresentationChartLineIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.factorResearch') }}
-        </router-link>
-        <router-link to="/tools/dca" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <BanknotesIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.dca') }}
-        </router-link>
-        <router-link to="/tools/portfolio-balance" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <ArrowsRightLeftIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.portfolioBalance') }}
-        </router-link>
-        <router-link to="/tools/halving" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <ClockIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.halving') }}
-        </router-link>
-
-        <div class="px-3 py-2 text-xs text-gray-500 font-bold uppercase mt-3">{{ $t('nav.system') }}</div>
-
-        <router-link to="/settings" class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm" active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-          <CogIcon class="w-5 h-5 mr-2.5" /> {{ $t('nav.settings') }}
-        </router-link>
+          <router-link
+            v-for="item in section.items"
+            :key="item.path"
+            :to="item.path"
+            class="block px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center text-sm"
+            active-class="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+          >
+            <component :is="iconMap[item.nav.icon]" class="w-5 h-5 mr-2.5" />
+            {{ $t(item.nav.labelKey) }}
+          </router-link>
+        </template>
 
         <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4 px-3 space-y-2">
           <button
@@ -93,7 +52,7 @@
     <!-- Main Content -->
     <main class="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       <router-view v-slot="{ Component }">
-        <keep-alive :include="['Dashboard']">
+        <keep-alive :include="keepAliveRoutes">
           <component :is="Component" />
         </keep-alive>
       </router-view>
@@ -101,8 +60,8 @@
   </div>
 </template>
 
-<script setup>
-import { onMounted } from 'vue'
+<script setup lang="ts">
+import { onMounted, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   ChartBarSquareIcon,
@@ -122,6 +81,12 @@ import {
   CircleStackIcon,
   PresentationChartLineIcon
 } from '@heroicons/vue/24/outline'
+import {
+  APP_KEEP_ALIVE_ROUTE_NAMES,
+  APP_NAV_ITEMS,
+  APP_NAV_SECTIONS,
+  type AppNavIconName,
+} from '@/app/navigation'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
 import { useSymbolCatalog } from '@/modules/market'
@@ -131,6 +96,26 @@ const { locale } = useI18n()
 const { theme, toggleTheme } = useTheme()
 const { loadCurrencyRates } = useMoney()
 const { loadSymbols } = useSymbolCatalog()
+const keepAliveRoutes = APP_KEEP_ALIVE_ROUTE_NAMES
+const iconMap: Record<AppNavIconName, Component> = {
+  ChartBarSquareIcon,
+  BeakerIcon,
+  ScaleIcon,
+  BanknotesIcon,
+  ArrowsRightLeftIcon,
+  CogIcon,
+  ClockIcon,
+  BuildingLibraryIcon,
+  CubeTransparentIcon,
+  HeartIcon,
+  CalculatorIcon,
+  CircleStackIcon,
+  PresentationChartLineIcon,
+}
+const navSections = APP_NAV_SECTIONS.map((section) => ({
+  ...section,
+  items: APP_NAV_ITEMS.filter((item) => item.nav.section === section.key),
+})).filter((section) => section.items.length > 0)
 
 const toggleLocale = () => {
   setAppLocale(locale, toggleAppLocale(locale.value))

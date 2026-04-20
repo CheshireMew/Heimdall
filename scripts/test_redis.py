@@ -1,18 +1,21 @@
 import time
 
-from app.infra.cache import redis_service
-from app.services.market.market_data_service import MarketDataService
+from app.infra.cache import build_cache_service
+from app.runtime_builder import build_app_runtime_services
+
 
 def test_redis_connection():
+    cache_service = build_cache_service()
+    cache_service.connect()
     print("测试 Redis 连接...")
-    if redis_service.client:
+    if cache_service.client:
         print("[OK] Redis 连接成功！")
-        
+
         print("测试写入...")
-        redis_service.set("test_key", "hello_redis", ttl=10)
-        
+        cache_service.set("test_key", "hello_redis", ttl=10)
+
         print("测试读取...")
-        val = redis_service.get("test_key")
+        val = cache_service.get("test_key")
         print(f"   Value: {val}")
         
         if val == "hello_redis":
@@ -24,7 +27,9 @@ def test_redis_connection():
 
 def test_market_cache():
     print("\n[DATA] 测试 K线数据缓存...")
-    provider = MarketDataService()
+    provider = build_app_runtime_services().market.market_data_service
+    if provider is None:
+        raise RuntimeError("MarketDataService 未初始化")
     symbol = 'BTC/USDT'
     
     start_time = time.time()

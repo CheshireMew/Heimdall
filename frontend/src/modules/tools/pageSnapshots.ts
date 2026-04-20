@@ -1,4 +1,5 @@
 import { isRecord, readNumber, readString } from '@/composables/pageSnapshot'
+import { API_BODY_DEFAULTS } from '@/api/routes'
 
 import type { DCARequestSchema } from './contracts'
 
@@ -23,12 +24,12 @@ export interface ComparePageSnapshot {
 }
 
 export const createDefaultDcaConfig = (): DcaPageConfig => ({
-  symbol: 'BTC/USDT',
-  amount: 100,
-  start_date: '2025-04-25',
-  investment_time: '23:00',
-  timezone: 'Asia/Shanghai',
-  strategy: 'standard',
+  symbol: API_BODY_DEFAULTS.dca_simulate.symbol,
+  amount: API_BODY_DEFAULTS.dca_simulate.amount,
+  start_date: '',
+  investment_time: API_BODY_DEFAULTS.dca_simulate.investment_time,
+  timezone: API_BODY_DEFAULTS.dca_simulate.timezone,
+  strategy: API_BODY_DEFAULTS.dca_simulate.strategy,
   strategy_params: {
     multiplier: 3,
   },
@@ -77,10 +78,10 @@ export const buildDcaSnapshot = (config: DcaPageConfig): DcaPageSnapshot => ({
 
 export const createDefaultCompareSnapshot = (): ComparePageSnapshot => ({
   config: {
-    symbolA: 'BTC',
-    symbolB: 'ETH',
-    days: 30,
-    timeframe: '1h',
+    symbolA: API_BODY_DEFAULTS.compare_pairs.symbol_a,
+    symbolB: API_BODY_DEFAULTS.compare_pairs.symbol_b,
+    days: API_BODY_DEFAULTS.compare_pairs.days,
+    timeframe: API_BODY_DEFAULTS.compare_pairs.timeframe,
   },
 })
 

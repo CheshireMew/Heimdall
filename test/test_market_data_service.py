@@ -4,13 +4,13 @@ from app.services.market.market_data_service import MarketDataService
 from config import settings
 
 
-def test_fetch_data():
+def test_fetch_data(installed_database_runtime):
     print(f"\n--- Testing MarketDataService ({settings.EXCHANGE_ID}) ---")
 
     try:
         service = MarketDataService(
             exchange_gateway=ExchangeGateway(),
-            kline_store=KlineStore(),
+            kline_store=KlineStore(database_runtime=installed_database_runtime),
         )
     except Exception as e:
         print(f"Failed to init service: {e}")

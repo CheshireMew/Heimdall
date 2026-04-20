@@ -59,8 +59,8 @@ import type {
   StrategyVersionCreateRequest,
   StrategyVersionResponse,
   StrategyDefinitionResponse,
-  OhlcvPointResponse,
-} from '@/types'
+} from '@/types/backtest'
+import type { OhlcvPointResponse } from '@/types/market'
 
 export type BacktestPortfolioConfig = BacktestPortfolioRequest
 export type BacktestResearchConfig = BacktestResearchRequest

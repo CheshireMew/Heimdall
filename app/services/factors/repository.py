@@ -2,20 +2,23 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.infra.db.database import session_scope
+from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import FactorDataset, FactorDatasetRow, FactorResearchRun
 
 
 class FactorResearchRepository:
+    def __init__(self, *, database_runtime: DatabaseRuntime) -> None:
+        self.database_runtime = database_runtime
+
     def get_dataset_by_signature(self, signature: str) -> dict[str, Any] | None:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             dataset = session.query(FactorDataset).filter(FactorDataset.signature == signature).first()
             if not dataset:
                 return None
             return self._serialize_dataset(dataset)
 
     def get_dataset_rows(self, dataset_id: int) -> list[dict[str, Any]]:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             rows = (
                 session.query(FactorDatasetRow)
                 .filter(FactorDatasetRow.dataset_id == dataset_id)
@@ -51,7 +54,7 @@ class FactorResearchRepository:
         dataset_info: dict[str, Any],
         rows: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             dataset = session.query(FactorDataset).filter(FactorDataset.signature == signature).first()
             if dataset:
                 return self._serialize_dataset(dataset)
@@ -102,7 +105,7 @@ class FactorResearchRepository:
         status: str = "completed",
         error: str | None = None,
     ) -> dict[str, Any]:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             run = FactorResearchRun(
                 dataset_id=dataset_id,
                 status=status,
@@ -118,7 +121,7 @@ class FactorResearchRepository:
             return self._serialize_research_run(run)
 
     def list_research_runs(self, limit: int = 20) -> list[dict[str, Any]]:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             rows = (
                 session.query(FactorResearchRun)
                 .order_by(FactorResearchRun.created_at.desc())
@@ -128,7 +131,7 @@ class FactorResearchRepository:
             return [self._serialize_research_run(row, include_details=False) for row in rows]
 
     def get_research_run(self, run_id: int) -> dict[str, Any] | None:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             row = session.query(FactorResearchRun).filter(FactorResearchRun.id == run_id).first()
             if not row:
                 return None

@@ -47,8 +47,6 @@ export interface BacktestEditorPageSnapshot {
   editor: BacktestEditorSnapshot | null
 }
 
-const todayIso = () => new Date().toISOString().slice(0, 10)
-
 const normalizeRecord = (value: unknown): Record<string, unknown> => (isRecord(value) ? value : {})
 
 export const readStakeMode = (value: unknown, fallback: 'fixed' | 'unlimited') => (
@@ -93,10 +91,10 @@ export const createBacktestPageSnapshotDefaults = (runDefaults: BacktestRunDefau
   config: {
     strategy_key: runDefaults.strategy_key ?? '',
     strategy_version: 1,
-    timeframe: runDefaults.timeframe ?? '1h',
-    start_date: runDefaults.start_date ?? todayIso(),
-    end_date: runDefaults.end_date ?? todayIso(),
-    initial_cash: runDefaults.initial_cash ?? 10000,
+    timeframe: runDefaults.timeframe ?? '',
+    start_date: runDefaults.start_date ?? '',
+    end_date: runDefaults.end_date ?? '',
+    initial_cash: runDefaults.initial_cash ?? 0,
     fee_rate: runDefaults.fee_rate ?? 0,
     portfolio: {
       max_open_trades: runDefaults.portfolio?.max_open_trades ?? 1,

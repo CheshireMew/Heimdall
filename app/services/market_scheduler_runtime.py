@@ -5,6 +5,7 @@ import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from app.infra.db import DatabaseRuntime
 from app.services.data_retention import cleanup_old_data
 from app.services.market_cron import MarketIndicatorCronJob
 from config import settings
@@ -13,10 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class MarketSchedulerRuntime:
-    def __init__(self) -> None:
+    def __init__(self, *, database_runtime: DatabaseRuntime) -> None:
+        self.database_runtime = database_runtime
         self.scheduler = AsyncIOScheduler()
         self._deferred_tasks: set[asyncio.Task[None]] = set()
-        self._job = MarketIndicatorCronJob()
+        self._job = MarketIndicatorCronJob(database_runtime=database_runtime)
 
     def _schedule_deferred_start(self, callback, *, delay_seconds: float) -> None:
         async def _runner() -> None:
@@ -42,9 +44,9 @@ class MarketSchedulerRuntime:
             replace_existing=True,
         )
 
-        self._schedule_deferred_start(cleanup_old_data, delay_seconds=30.0)
+        self._schedule_deferred_start(self._cleanup_old_data, delay_seconds=30.0)
         self.scheduler.add_job(
-            cleanup_old_data,
+            self._cleanup_old_data,
             'interval',
             hours=24,
             id='data_retention_cleanup',
@@ -53,6 +55,9 @@ class MarketSchedulerRuntime:
 
         self.scheduler.start()
         logger.info(f"Market Indicator Scheduler Started. Fetching every {settings.MARKET_CRON_INTERVAL_HOURS} hours.")
+
+    async def _cleanup_old_data(self) -> None:
+        await cleanup_old_data(self.database_runtime)
 
     async def shutdown(self) -> None:
         if self._deferred_tasks:

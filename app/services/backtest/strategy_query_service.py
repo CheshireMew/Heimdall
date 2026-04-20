@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-from app.infra.db.database import session_scope
+from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import StrategyDefinition, StrategyVersion
 from app.contracts.backtest import StrategyVersionRecord
 from app.schemas.backtest import (
@@ -32,6 +32,9 @@ from .strategy_support import (
 
 
 class StrategyQueryService:
+    def __init__(self, *, database_runtime: DatabaseRuntime) -> None:
+        self.database_runtime = database_runtime
+
     def get_editor_contract(self) -> StrategyEditorContractResponse:
         contract = editor_contract()
         contract["run_defaults"] = backtest_run_defaults()
@@ -40,13 +43,13 @@ class StrategyQueryService:
     def list_templates(self) -> list[StrategyTemplateResponse]:
         return [
             StrategyTemplateResponse.model_validate(item)
-            for item in get_template_catalog()
+            for item in get_template_catalog(self.database_runtime)
         ]
 
     def list_indicators(self) -> list[StrategyIndicatorRegistryResponse]:
         return [
             StrategyIndicatorRegistryResponse.model_validate(item)
-            for item in get_indicator_catalog()
+            for item in get_indicator_catalog(self.database_runtime)
         ]
 
     def list_indicator_engines(self) -> list[StrategyIndicatorEngineResponse]:
@@ -56,7 +59,7 @@ class StrategyQueryService:
         ]
 
     def list_strategies(self) -> list[StrategyDefinitionResponse]:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             definitions = [
                 self._definition_snapshot(row)
                 for row in (
@@ -103,7 +106,7 @@ class StrategyQueryService:
                             template=builtin["template"],
                             config=normalize_strategy_version_config_model(
                                 builtin["template"], version_payload["config"] or {}
-                            ),
+                            ).model_dump(),
                             parameter_space=version_payload.get("parameter_space")
                             or {},
                             notes=version_payload.get("notes"),
@@ -166,7 +169,7 @@ class StrategyQueryService:
         self, strategy_key: str, version: int | None = None
     ) -> StrategyVersionRecord:
         builtin_definition = self._get_builtin_definition(strategy_key)
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             definition_row = (
                 session.query(StrategyDefinition)
                 .filter(StrategyDefinition.key == strategy_key)
@@ -253,7 +256,10 @@ class StrategyQueryService:
                         strategy_name=version["name"],
                         version=version["version"],
                         template=template,
-                        config=normalize_strategy_version_config_model(template, version["config"] or {}),
+                        config=normalize_strategy_version_config_model(
+                            template,
+                            version["config"] or {},
+                        ).model_dump(),
                         parameter_space=version["parameter_space"] or {},
                         notes=version["notes"],
                         version_name=version["name"],
@@ -282,7 +288,10 @@ class StrategyQueryService:
             strategy_name=definition["name"],
             version=version_payload["version"],
             template=definition["template"],
-            config=normalize_strategy_version_config_model(template, normalized_config),
+            config=normalize_strategy_version_config_model(
+                definition["template"],
+                normalized_config,
+            ).model_dump(),
             parameter_space=normalized_parameter_space,
             description=definition.get("description"),
             notes=version_payload.get("notes"),
@@ -313,7 +322,10 @@ class StrategyQueryService:
             strategy_name=definition_name,
             version=strategy_version["version"],
             template=template,
-            config=normalize_strategy_version_config_model(template, normalized_config),
+            config=normalize_strategy_version_config_model(
+                template,
+                normalized_config,
+            ).model_dump(),
             parameter_space=normalized_parameter_space,
             description=description,
             notes=strategy_version["notes"],

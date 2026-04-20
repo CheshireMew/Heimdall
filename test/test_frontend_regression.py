@@ -35,39 +35,52 @@ def extract_request_calls(source: str) -> list[tuple[str, str]]:
     return [(client, path) for client, _, _, path in pattern.findall(source)]
 
 
-def path_template_to_regex(path: str) -> re.Pattern[str]:
-    normalized = re.sub(r"\$\{[^}]+\}", "__PARAM__", path)
-    escaped = re.escape(normalized).replace("__PARAM__", r"[^/]+")
-    return re.compile(f"^{escaped}$")
+def extract_api_route_calls(source: str) -> list[str]:
+    return re.findall(r"apiRoute\(\s*['\"]([a-z0-9_]+)['\"]", source)
+
+
+def strip_api_prefix(path: str) -> str:
+    return path.removeprefix("/api/v1")
 
 
 def test_frontend_api_paths_match_fastapi_routes():
-    backend_routes = extract_backend_routes()
+    backend_routes = {
+        route.name: strip_api_prefix(route.path)
+        for route in main_module.app.routes
+        if hasattr(route, "path") and getattr(route, "path").startswith("/api/v1")
+    }
+    generated_routes = read_frontend("api/routes.ts")
     api_files = [
         "modules/market/api.ts",
         "modules/tools/api.ts",
         "modules/backtest/api.ts",
         "modules/factors/api.ts",
+        "modules/system/api.ts",
     ]
 
+    used_routes = set()
     for file_path in api_files:
-        for _, frontend_path in extract_request_calls(read_frontend(file_path)):
-            route_pattern = path_template_to_regex(normalize_frontend_path(frontend_path))
-            assert any(route_pattern.match(route) for route in backend_routes), f"{file_path} -> {frontend_path} has no backend route"
+        source = read_frontend(file_path)
+        assert not extract_request_calls(source), f"{file_path} still hard-codes request URLs"
+        used_routes.update(extract_api_route_calls(source))
+
+    for route_name in used_routes:
+        assert route_name in backend_routes, route_name
+        assert f"{route_name}: {backend_routes[route_name]!r}".replace("'", '"') in generated_routes
 
 
 @pytest.mark.parametrize(
-    ("file_path", "endpoint"),
+    ("file_path", "route_name"),
     [
-        ("modules/backtest/api.ts", "/backtest/start"),
-        ("modules/factors/api.ts", "/factor-research/analyze"),
-        ("modules/factors/api.ts", "/factor-research/runs/${runId}/backtest"),
-        ("modules/factors/api.ts", "/factor-research/runs/${runId}/paper"),
+        ("modules/backtest/api.ts", "start_backtest"),
+        ("modules/factors/api.ts", "analyze_factors"),
+        ("modules/factors/api.ts", "start_factor_backtest"),
+        ("modules/factors/api.ts", "start_factor_paper_run"),
     ],
 )
-def test_frontend_long_tasks_use_dedicated_client(file_path: str, endpoint: str):
+def test_frontend_long_tasks_use_dedicated_client(file_path: str, route_name: str):
     source = read_frontend(file_path)
-    assert f"longTaskRequest.post('{endpoint}'" in source or f"longTaskRequest.post(`{endpoint}`" in source
+    assert f"longTaskRequest.post(apiRoute('{route_name}'" in source
 
 
 def test_page_snapshot_registry_and_helpers_are_stable():
@@ -94,6 +107,8 @@ def test_generated_frontend_contracts_include_route_models():
     assert "interface MarketHistoryResponse" in market_types
     assert "interface MarketHistoryBatchResponse" in market_types
     assert "interface OhlcvPointResponse" in market_types
+    assert "interface GetMarketFullHistoryQueryParams" in market_types
+    assert "GetMarketFullHistoryBatchQueryParamsMeta" in market_types
     assert not any(path.name.endswith("-frontend.ts") for path in (FRONTEND_DIR / "types").glob("*.ts"))
 
 
@@ -155,17 +170,52 @@ def test_portfolio_backtest_history_uses_page_cache():
     assert "loadCryptoHistoryMap(" in source
 
 
-def test_market_history_api_requests_are_memoized():
+def test_market_history_api_requests_do_not_keep_a_second_cache():
     source = read_frontend("modules/market/api.ts")
 
-    assert "historyResponseCache" in source
-    for endpoint in [
-        "full_history",
-        "full_history_batch",
-        "indexes_history",
-        "indexes_pricing_history",
+    assert "historyResponseCache" not in source
+    for route_name in [
+        "get_market_full_history",
+        "get_market_full_history_batch",
+        "get_index_history",
+        "get_index_pricing_history",
     ]:
-        assert endpoint in source
+        assert route_name in source
+
+
+def test_frontend_navigation_uses_single_manifest():
+    app_source = read_frontend("App.vue")
+    router_source = read_frontend("router/index.ts")
+    navigation_source = read_frontend("app/navigation.ts")
+
+    assert "APP_ROUTE_DEFINITIONS" in navigation_source
+    assert "APP_NAV_ITEMS" in navigation_source
+    assert "APP_KEEP_ALIVE_ROUTE_NAMES" in navigation_source
+    assert "APP_ROUTE_DEFINITIONS.map" in router_source
+    assert "APP_NAV_SECTIONS.map" in app_source
+    assert "APP_NAV_ITEMS.filter" in app_source
+
+
+def test_market_frontend_uses_generated_query_contracts():
+    market_types = read_frontend("types/market.ts")
+    contracts_source = read_frontend("modules/market/contracts.ts")
+    api_source = read_frontend("modules/market/api.ts")
+
+    assert "interface GetMarketFullHistoryQueryParams" in market_types
+    assert "interface GetMarketFullHistoryBatchQueryParams" in market_types
+    assert "export const GetMarketFullHistoryBatchQueryParamsMeta" in market_types
+    assert "repeatedKeys" in market_types
+    assert "type RealtimeParams = GetRealtimeAnalysisQueryParams" in contracts_source
+    assert "type FullHistoryParams = GetMarketFullHistoryQueryParams" in contracts_source
+    assert "interface FullHistoryParams" not in contracts_source
+    assert "CURRENT_PRICE_BATCH_QUERY_META" in contracts_source
+    assert "FULL_HISTORY_BATCH_QUERY_META" in contracts_source
+    assert "serializeApiQueryParams" in api_source
+    assert "API_QUERY_META" in api_source
+    assert "normalizePriceHistoryParams" not in api_source
+    assert "serializeBatchFullHistoryParams" not in api_source
+    assert "get_current_price_batch" in api_source
+    assert "get_market_full_history_batch" in api_source
 
 
 def test_backtest_and_factor_formatting_entry_points_are_present():

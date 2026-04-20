@@ -18,7 +18,7 @@ import type {
   FactorResearchSummaryResponse,
   FactorRollingPointResponse,
   FactorScorecardResponse,
-} from '@/types'
+} from '@/types/factor'
 
 export type FactorCatalogItem = FactorCatalogItemResponse
 export type FactorResearchSummary = FactorResearchSummaryResponse

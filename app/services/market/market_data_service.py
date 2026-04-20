@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Callable
 
 from config import settings
+from app.infra.cache import RedisService
 from app.domain.market.constants import KEY_PREFIX_KLINE
 from app.domain.market.symbol_catalog import get_market_symbol_source
 from utils.logger import logger
@@ -19,11 +20,13 @@ class MarketDataService:
         self,
         exchange_gateway: ExchangeGateway | None = None,
         kline_store: KlineStore | None = None,
+        cache_service: RedisService | None = None,
     ) -> None:
         if exchange_gateway is None or kline_store is None:
             raise ValueError("MarketDataService 需要显式注入 exchange_gateway 和 kline_store")
         self.exchange_gateway = exchange_gateway
         self.kline_store = kline_store
+        self.cache_service = cache_service
         self._exchange_gateways: dict[str, ExchangeGateway] = {
             self.exchange_gateway.exchange_id: self.exchange_gateway,
         }
@@ -59,25 +62,18 @@ class MarketDataService:
         cache_hit = False
         attempts = 0
         try:
-            from app.infra.cache import redis_service
-
             storage_symbol = self._storage_symbol(symbol)
             fetch_symbol = self._fetch_symbol(symbol)
             gateway = self._gateway_for_symbol(symbol)
             cache_key = f"{KEY_PREFIX_KLINE}:{storage_symbol}:{timeframe}:{limit}"
-            cached_data = redis_service.get(cache_key)
+            cached_data = self.cache_service.get(cache_key) if self.cache_service is not None else None
             if cached_data:
                 cache_hit = True
                 return cached_data
 
             data, attempts = gateway.fetch_ohlcv(fetch_symbol, timeframe, limit=limit)
-            if data:
-                redis_service.set(cache_key, data, ttl=settings.REDIS_KLINE_TTL)
-            return data
-        except ImportError:
-            fetch_symbol = self._fetch_symbol(symbol)
-            gateway = self._gateway_for_symbol(symbol)
-            data, attempts = gateway.fetch_ohlcv(fetch_symbol, timeframe, limit=limit)
+            if data and self.cache_service is not None:
+                self.cache_service.set(cache_key, data, ttl=settings.REDIS_KLINE_TTL)
             return data
         except Exception as e:
             logger.error(f"K线数据获取错误 (Redis/Exchange): {e}")
@@ -101,20 +97,13 @@ class MarketDataService:
         start_time = time.time()
         attempts = 0
         try:
-            from app.infra.cache import redis_service
-
             storage_symbol = self._storage_symbol(symbol)
             fetch_symbol = self._fetch_symbol(symbol)
             gateway = self._gateway_for_symbol(symbol)
             cache_key = f"{KEY_PREFIX_KLINE}:{storage_symbol}:{timeframe}:{limit}"
             data, attempts = gateway.fetch_ohlcv(fetch_symbol, timeframe, limit=limit)
-            if data:
-                redis_service.set(cache_key, data, ttl=settings.REDIS_KLINE_TTL)
-            return data
-        except ImportError:
-            fetch_symbol = self._fetch_symbol(symbol)
-            gateway = self._gateway_for_symbol(symbol)
-            data, attempts = gateway.fetch_ohlcv(fetch_symbol, timeframe, limit=limit)
+            if data and self.cache_service is not None:
+                self.cache_service.set(cache_key, data, ttl=settings.REDIS_KLINE_TTL)
             return data
         except Exception as e:
             logger.error(f"实时K线获取错误 (Exchange): {e}")

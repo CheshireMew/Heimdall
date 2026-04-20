@@ -154,8 +154,8 @@ export const normalizePortfolioBalanceTrackingConfig = (value: unknown): Portfol
   if (!isRecord(value)) return defaults
 
   return {
-    virtualCapital: sanitizeNumber(value.virtualCapital ?? value.totalCapital, defaults.virtualCapital),
-    inceptionDate: readString(value.inceptionDate ?? value.lastReviewDate, defaults.inceptionDate),
+    virtualCapital: sanitizeNumber(value.virtualCapital, defaults.virtualCapital),
+    inceptionDate: readString(value.inceptionDate, defaults.inceptionDate),
   }
 }
 
@@ -164,7 +164,7 @@ export const normalizePortfolioBalanceBacktestConfig = (value: unknown): Portfol
   if (!isRecord(value)) return defaults
 
   return {
-    initialCapital: sanitizeNumber(value.initialCapital ?? value.totalCapital, defaults.initialCapital),
+    initialCapital: sanitizeNumber(value.initialCapital, defaults.initialCapital),
     backtestStartDate: readString(value.backtestStartDate, defaults.backtestStartDate),
   }
 }
@@ -290,9 +290,9 @@ export const normalizePortfolioBalancePortfolio = (value: unknown): PortfolioBal
     assets: Array.isArray(value.assets) && value.assets.length
       ? value.assets.map((asset) => normalizePortfolioBalanceAsset(asset))
       : defaults.assets,
-    strategy: normalizePortfolioBalanceStrategyConfig(value.strategy ?? value.config),
-    tracking: normalizePortfolioBalanceTrackingConfig(value.tracking ?? value.config),
-    backtest: normalizePortfolioBalanceBacktestConfig(value.backtest ?? value.config),
+    strategy: normalizePortfolioBalanceStrategyConfig(value.strategy),
+    tracking: normalizePortfolioBalanceTrackingConfig(value.tracking),
+    backtest: normalizePortfolioBalanceBacktestConfig(value.backtest),
     lastBacktestResult: normalizePortfolioBacktestSummary(value.lastBacktestResult),
     holdingsInitializedAt: typeof value.holdingsInitializedAt === 'string' ? value.holdingsInitializedAt : null,
     lastPriceUpdatedAt: typeof value.lastPriceUpdatedAt === 'string' ? value.lastPriceUpdatedAt : null,

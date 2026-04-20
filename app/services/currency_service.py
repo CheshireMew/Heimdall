@@ -5,6 +5,7 @@ from typing import Any
 
 import httpx
 
+from app.schemas.market import CurrencyRatesResponse
 from config import settings
 from utils.logger import logger
 
@@ -34,10 +35,10 @@ DISPLAY_CURRENCY_META: dict[str, dict[str, Any]] = {
 
 class CurrencyRateService:
     def __init__(self) -> None:
-        self._cache: dict[str, Any] | None = None
+        self._cache: CurrencyRatesResponse | None = None
         self._expires_at: datetime | None = None
 
-    async def get_rates(self) -> dict[str, Any]:
+    async def get_rates(self) -> CurrencyRatesResponse:
         now = datetime.now(timezone.utc)
         if self._cache and self._expires_at and self._expires_at > now:
             return self._cache
@@ -47,7 +48,7 @@ class CurrencyRateService:
         self._expires_at = now + timedelta(seconds=max(settings.CURRENCY_RATES_TTL, 60))
         return payload
 
-    async def _fetch_rates(self, now: datetime) -> dict[str, Any]:
+    async def _fetch_rates(self, now: datetime) -> CurrencyRatesResponse:
         supported_codes = self._supported_codes()
         fallback = self._build_payload(
             rates={code: FALLBACK_RATES_PER_USD[code] for code in supported_codes},
@@ -109,20 +110,20 @@ class CurrencyRateService:
         updated_at: datetime,
         source: str,
         is_fallback: bool,
-    ) -> dict[str, Any]:
+    ) -> CurrencyRatesResponse:
         supported = []
         for code in self._supported_codes():
             meta = DISPLAY_CURRENCY_META[code]
             supported.append({"code": code, **meta})
 
-        return {
+        return CurrencyRatesResponse.model_validate({
             "base": "USD",
             "rates": {code: rates[code] for code in self._supported_codes()},
             "supported": supported,
             "updated_at": updated_at.isoformat(),
             "source": source,
             "is_fallback": is_fallback,
-        }
+        })
 
     @staticmethod
     def _parse_updated_at(data: dict[str, Any], fallback: datetime) -> datetime:

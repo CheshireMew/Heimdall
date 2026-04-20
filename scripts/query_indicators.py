@@ -1,9 +1,10 @@
-from sqlalchemy import create_engine, text
-from app.infra.db import current_database_url
+from sqlalchemy import text
+from app.infra.db import build_database_runtime
+from config.settings import settings
 
-engine = create_engine(current_database_url())
+runtime = build_database_runtime(settings)
 
-with engine.connect() as conn:
+with runtime.engine.connect() as conn:
     # Get unique indicator_id and their latest timestamp
     result = conn.execute(text("""
         SELECT
@@ -20,3 +21,5 @@ with engine.connect() as conn:
     for row in result:
         print(f"{row.indicator_id:20} | Records: {row.total_records:4} | Latest: {row.latest_timestamp} | Value: {row.latest_value}")
     print()
+
+runtime.dispose()

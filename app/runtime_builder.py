@@ -8,12 +8,14 @@ from app.runtime import (
     MarketRuntime,
     SystemRuntime,
     ToolsRuntime,
+    runtime_role_has_target,
 )
 from config import settings
 
 
 def build_app_runtime_services() -> AppRuntimeServices:
-    from app.infra.db import configure_database_runtime, create_database_runtime
+    from app.infra.db import build_database_runtime
+    from app.infra.cache import build_cache_service
     from app.infra.llm_client import LLMClient
     from app.services.backtest.command_service import BacktestCommandService
     from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
@@ -57,111 +59,248 @@ def build_app_runtime_services() -> AppRuntimeServices:
     from app.services.tools.dca_service import DCAService
     from app.services.tools.pair_compare_service import PairCompareService
 
-    database_runtime = configure_database_runtime(create_database_runtime(settings))
+    runtime_role = settings.APP_RUNTIME_ROLE
+    build_api_runtime = runtime_role_has_target(runtime_role, "api")
+    build_background_runtime = runtime_role_has_target(runtime_role, "background")
+    build_execution_runtime = build_api_runtime or build_background_runtime
+
+    database_runtime = build_database_runtime(settings)
+    cache_service = build_cache_service(settings)
     exchange_gateway = ExchangeGateway(exchange_id=settings.EXCHANGE_ID)
-    kline_store = KlineStore()
+    kline_store = KlineStore(database_runtime=database_runtime)
     market_data_service = MarketDataService(
         exchange_gateway=exchange_gateway,
         kline_store=kline_store,
+        cache_service=cache_service,
     )
-    realtime_service = RealtimeService()
-    market_indicator_repository = MarketIndicatorRepository()
-    indicator_service = IndicatorService(repository=market_indicator_repository)
-    history_service = HistoryService()
-    funding_rate_store = FundingRateStore()
-    funding_rate_service = FundingRateService(store=funding_rate_store)
-    funding_rate_app_service = FundingRateAppService(funding_rate_service=funding_rate_service)
-    crypto_index_service = CryptoIndexService()
-    binance_market_snapshot = BinanceMarketSnapshotService()
-    market_query_app_service = MarketQueryAppService(
-        realtime_service=realtime_service,
-        history_service=history_service,
-        binance_snapshot_service=binance_market_snapshot,
-        llm_client_factory=LLMClient,
+    market_indicator_repository = MarketIndicatorRepository(database_runtime=database_runtime)
+    realtime_service = RealtimeService() if build_api_runtime else None
+    indicator_service = (
+        IndicatorService(repository=market_indicator_repository)
+        if build_api_runtime
+        else None
     )
-    market_insight_app_service = MarketInsightAppService(
-        indicator_service=indicator_service,
-        crypto_index_service=crypto_index_service,
-        market_query_service=market_query_app_service,
-        llm_client_factory=LLMClient,
+    history_service = HistoryService() if build_api_runtime else None
+    funding_rate_store = FundingRateStore(database_runtime=database_runtime) if build_api_runtime else None
+    funding_rate_service = (
+        FundingRateService(store=funding_rate_store)
+        if funding_rate_store is not None
+        else None
     )
-    market_websocket_service = MarketWebSocketService()
-    index_data_service = IndexDataService(kline_store=kline_store)
-    binance_market_intel = BinanceMarketIntelService(snapshot_service=binance_market_snapshot)
-    binance_web3_service = BinanceWeb3Service()
-    backtest_run_repository = BacktestRunRepository()
-    freqtrade_backtest_service = FreqtradeBacktestService(market_data_service=market_data_service)
-    backtest_run_service = BacktestRunService(execution_engine=freqtrade_backtest_service)
-    strategy_query_service = StrategyQueryService()
-    strategy_write_service = StrategyWriteService()
-    freqtrade_report_builder = FreqtradeReportBuilder()
-    paper_run_manager = PaperRunManager(
-        strategy_query_service=strategy_query_service,
-        freqtrade_service=freqtrade_backtest_service,
-        report_builder=freqtrade_report_builder,
-        run_repository=backtest_run_repository,
+    funding_rate_app_service = (
+        FundingRateAppService(funding_rate_service=funding_rate_service)
+        if funding_rate_service is not None
+        else None
     )
-    backtest_command_service = BacktestCommandService(
-        run_service=backtest_run_service,
-        paper_manager=paper_run_manager,
-        run_repository=backtest_run_repository,
-        strategy_query_service=strategy_query_service,
-        strategy_write_service=strategy_write_service,
+    crypto_index_service = CryptoIndexService(cache_service=cache_service) if build_api_runtime else None
+    binance_market_snapshot = BinanceMarketSnapshotService() if build_background_runtime else None
+    market_query_app_service = (
+        MarketQueryAppService(
+            realtime_service=realtime_service,
+            history_service=history_service,
+            binance_snapshot_service=binance_market_snapshot,
+            llm_client_factory=LLMClient,
+        )
+        if realtime_service is not None and history_service is not None
+        else None
     )
-    backtest_query_service = BacktestQueryService(
-        run_repository=backtest_run_repository,
-        strategy_query_service=strategy_query_service,
+    market_insight_app_service = (
+        MarketInsightAppService(
+            indicator_service=indicator_service,
+            crypto_index_service=crypto_index_service,
+            market_query_service=market_query_app_service,
+            llm_client_factory=LLMClient,
+        )
+        if indicator_service is not None
+        and crypto_index_service is not None
+        and market_query_app_service is not None
+        else None
     )
-    sentiment_api_client = SentimentApiClient(settings.SENTIMENT_API_URL)
-    sentiment_repository = SentimentRepository()
-    sentiment_service = SentimentService(
-        client=sentiment_api_client,
-        repository=sentiment_repository,
+    market_websocket_service = MarketWebSocketService() if build_api_runtime else None
+    index_data_service = IndexDataService(kline_store=kline_store) if build_api_runtime else None
+    binance_market_intel = (
+        BinanceMarketIntelService(
+            snapshot_service=binance_market_snapshot,
+            cache_service=cache_service,
+        )
+        if build_api_runtime or build_background_runtime
+        else None
     )
-    dca_service = DCAService(
-        market_data_service=market_data_service,
-        sentiment_service=sentiment_service,
-        index_data_service=index_data_service,
+    binance_web3_service = BinanceWeb3Service(cache_service=cache_service) if build_api_runtime else None
+    backtest_run_repository = (
+        BacktestRunRepository(database_runtime=database_runtime)
+        if build_execution_runtime
+        else None
     )
-    pair_compare_service = PairCompareService(
-        market_data_service=market_data_service,
-        index_data_service=index_data_service,
+    freqtrade_backtest_service = (
+        FreqtradeBacktestService(market_data_service=market_data_service)
+        if build_execution_runtime
+        else None
     )
-    tools_app_service = ToolsAppService(
-        dca_service=dca_service,
-        pair_compare_service=pair_compare_service,
+    backtest_run_service = (
+        BacktestRunService(
+            execution_engine=freqtrade_backtest_service,
+            database_runtime=database_runtime,
+        )
+        if build_api_runtime and freqtrade_backtest_service is not None
+        else None
     )
-    factor_research_repository = FactorResearchRepository()
-    factor_research_service = FactorResearchService(
-        market_data_service=market_data_service,
-        indicator_repository=market_indicator_repository,
-        repository=factor_research_repository,
+    strategy_query_service = (
+        StrategyQueryService(database_runtime=database_runtime)
+        if build_execution_runtime
+        else None
     )
-    factor_signal_execution_core = FactorSignalExecutionCore()
-    factor_execution_service = FactorExecutionService(
-        factor_service=factor_research_service,
-        report_builder=freqtrade_report_builder,
-        execution_core=factor_signal_execution_core,
+    strategy_write_service = (
+        StrategyWriteService(database_runtime=database_runtime)
+        if build_api_runtime
+        else None
     )
-    factor_paper_persistence_service = FactorPaperPersistenceService(
-        report_builder=freqtrade_report_builder,
-        execution_core=factor_signal_execution_core,
+    freqtrade_report_builder = FreqtradeReportBuilder() if build_execution_runtime else None
+    paper_run_manager = (
+        PaperRunManager(
+            strategy_query_service=strategy_query_service,
+            freqtrade_service=freqtrade_backtest_service,
+            report_builder=freqtrade_report_builder,
+            run_repository=backtest_run_repository,
+            database_runtime=database_runtime,
+        )
+        if strategy_query_service is not None
+        and freqtrade_backtest_service is not None
+        and freqtrade_report_builder is not None
+        and backtest_run_repository is not None
+        else None
     )
-    factor_paper_run_manager = FactorPaperRunManager(
-        factor_service=factor_research_service,
-        run_repository=backtest_run_repository,
-        report_builder=freqtrade_report_builder,
-        execution_core=factor_signal_execution_core,
-        persistence_service=factor_paper_persistence_service,
+    backtest_command_service = (
+        BacktestCommandService(
+            run_service=backtest_run_service,
+            paper_manager=paper_run_manager,
+            run_repository=backtest_run_repository,
+            strategy_query_service=strategy_query_service,
+            strategy_write_service=strategy_write_service,
+        )
+        if backtest_run_service is not None
+        and paper_run_manager is not None
+        and backtest_run_repository is not None
+        and strategy_query_service is not None
+        and strategy_write_service is not None
+        else None
     )
-    currency_rate_service = CurrencyRateService()
-    market_scheduler_runtime = MarketSchedulerRuntime()
+    backtest_query_service = (
+        BacktestQueryService(
+            run_repository=backtest_run_repository,
+            strategy_query_service=strategy_query_service,
+        )
+        if build_api_runtime
+        and backtest_run_repository is not None
+        and strategy_query_service is not None
+        else None
+    )
+    sentiment_api_client = SentimentApiClient(settings.SENTIMENT_API_URL) if build_api_runtime else None
+    sentiment_repository = (
+        SentimentRepository(database_runtime=database_runtime)
+        if build_api_runtime
+        else None
+    )
+    sentiment_service = (
+        SentimentService(
+            client=sentiment_api_client,
+            repository=sentiment_repository,
+        )
+        if sentiment_api_client is not None and sentiment_repository is not None
+        else None
+    )
+    dca_service = (
+        DCAService(
+            market_data_service=market_data_service,
+            sentiment_service=sentiment_service,
+            index_data_service=index_data_service,
+        )
+        if sentiment_service is not None and index_data_service is not None
+        else None
+    )
+    pair_compare_service = (
+        PairCompareService(
+            market_data_service=market_data_service,
+            index_data_service=index_data_service,
+        )
+        if index_data_service is not None
+        else None
+    )
+    tools_app_service = (
+        ToolsAppService(
+            dca_service=dca_service,
+            pair_compare_service=pair_compare_service,
+            cache_service=cache_service,
+        )
+        if dca_service is not None and pair_compare_service is not None
+        else None
+    )
+    factor_research_repository = (
+        FactorResearchRepository(database_runtime=database_runtime)
+        if build_execution_runtime
+        else None
+    )
+    factor_research_service = (
+        FactorResearchService(
+            market_data_service=market_data_service,
+            indicator_repository=market_indicator_repository,
+            repository=factor_research_repository,
+        )
+        if factor_research_repository is not None
+        else None
+    )
+    factor_signal_execution_core = FactorSignalExecutionCore() if build_execution_runtime else None
+    factor_execution_service = (
+        FactorExecutionService(
+            factor_service=factor_research_service,
+            report_builder=freqtrade_report_builder,
+            execution_core=factor_signal_execution_core,
+            database_runtime=database_runtime,
+        )
+        if build_api_runtime
+        and factor_research_service is not None
+        and freqtrade_report_builder is not None
+        and factor_signal_execution_core is not None
+        else None
+    )
+    factor_paper_persistence_service = (
+        FactorPaperPersistenceService(
+            report_builder=freqtrade_report_builder,
+            execution_core=factor_signal_execution_core,
+        )
+        if freqtrade_report_builder is not None
+        and factor_signal_execution_core is not None
+        else None
+    )
+    factor_paper_run_manager = (
+        FactorPaperRunManager(
+            factor_service=factor_research_service,
+            run_repository=backtest_run_repository,
+            report_builder=freqtrade_report_builder,
+            execution_core=factor_signal_execution_core,
+            persistence_service=factor_paper_persistence_service,
+            database_runtime=database_runtime,
+        )
+        if factor_research_service is not None
+        and backtest_run_repository is not None
+        and freqtrade_report_builder is not None
+        and factor_signal_execution_core is not None
+        and factor_paper_persistence_service is not None
+        else None
+    )
+    currency_rate_service = CurrencyRateService() if build_api_runtime else None
+    market_scheduler_runtime = (
+        MarketSchedulerRuntime(database_runtime=database_runtime)
+        if build_background_runtime
+        else None
+    )
 
     services = AppRuntimeServices(
         infra=InfraRuntime(
             exchange_gateway=exchange_gateway,
             database_runtime=database_runtime,
             kline_store=kline_store,
+            cache_service=cache_service,
         ),
         market=MarketRuntime(
             market_data_service=market_data_service,
@@ -213,5 +352,5 @@ def build_app_runtime_services() -> AppRuntimeServices:
             market_scheduler_runtime=market_scheduler_runtime,
         ),
     )
-    services.validate_required_services()
+    services.validate_required_services(runtime_role)
     return services

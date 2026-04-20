@@ -74,7 +74,10 @@ class DCAService:
                     start_date=fetch_start_utc.strftime("%Y-%m-%d"),
                     end_date=fetch_end_utc.strftime("%Y-%m-%d"),
                 )
-                klines = index_pricing.get("data") or []
+                klines = [
+                    [point.timestamp, point.open, point.high, point.low, point.close, point.volume]
+                    for point in index_pricing.data
+                ]
             else:
                 klines = self.market_data_service.fetch_ohlcv_range(normalized_symbol, "1h", fetch_start_utc, fetch_end_utc)
             if not klines:
@@ -118,9 +121,9 @@ class DCAService:
                 "symbol": normalized_symbol,
                 "asset_class": "index" if is_index else "crypto",
                 "price_basis": "proxy_etf" if is_index else "spot",
-                "pricing_symbol": index_pricing.get("pricing_symbol") if is_index else normalized_symbol,
-                "pricing_name": index_pricing.get("pricing_name") if is_index else normalized_symbol,
-                "pricing_currency": index_pricing.get("pricing_currency") if is_index else "USDT",
+                "pricing_symbol": index_pricing.pricing_symbol if is_index else normalized_symbol,
+                "pricing_name": index_pricing.pricing_name if is_index else normalized_symbol,
+                "pricing_currency": index_pricing.pricing_currency if is_index else "USDT",
                 "start_date": start_date_str,
                 "end_date": end_dt_local.strftime("%Y-%m-%d"),
                 "target_time": target_time_str,

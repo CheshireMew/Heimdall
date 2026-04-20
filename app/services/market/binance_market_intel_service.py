@@ -3,6 +3,25 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+from app.schemas.binance_market import (
+    BinanceBasisResponse,
+    BinanceBookTickerResponse,
+    BinanceBreakoutMonitorResponse,
+    BinanceExchangeInfoResponse,
+    BinanceFundingHistoryListResponse,
+    BinanceFundingInfoResponse,
+    BinanceKlineResponse,
+    BinanceMarkPriceResponse,
+    BinanceMarketPageResponse,
+    BinanceOpenInterestSnapshotResponse,
+    BinanceOpenInterestStatsResponse,
+    BinanceOrderBookResponse,
+    BinancePriceTickerResponse,
+    BinanceRatioSeriesResponse,
+    BinanceTakerVolumeResponse,
+    BinanceTickerStatsResponse,
+    BinanceTradeListResponse,
+)
 from config import settings
 from utils.logger import logger
 
@@ -25,22 +44,29 @@ from .binance_market_normalizers import (
 from .binance_numbers import to_float, to_int
 
 if TYPE_CHECKING:
+    from app.infra.cache import RedisService
     from .binance_market_snapshot_service import BinanceMarketSnapshotService
 
 
 class BinanceMarketIntelService:
-    def __init__(self, snapshot_service: BinanceMarketSnapshotService | None = None) -> None:
+    def __init__(
+        self,
+        snapshot_service: BinanceMarketSnapshotService | None = None,
+        cache_service: RedisService | None = None,
+    ) -> None:
         self.snapshot_service = snapshot_service
         self.breakout_monitor = BinanceBreakoutMonitor(self._get_market_klines)
         self.spot = BinanceApiSupport(
             base_url=settings.BINANCE_PUBLIC_BASE_URL,
             cache_namespace="binance:spot",
             user_agent="heimdall/market-intel",
+            cache_service=cache_service,
         )
         self.usdm = BinanceApiSupport(
             base_url=settings.BINANCE_FUTURES_USDM_BASE_URL,
             cache_namespace="binance:usdm",
             user_agent="heimdall/market-intel",
+            cache_service=cache_service,
         )
 
     async def get_spot_exchange_info(
@@ -49,7 +75,7 @@ class BinanceMarketIntelService:
         symbols: list[str] | None = None,
         permissions: list[str] | None = None,
         symbol_status: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> BinanceExchangeInfoResponse:
         params = compact_query(
             {
                 "symbols": encode_symbol_list(symbols),
@@ -58,7 +84,7 @@ class BinanceMarketIntelService:
             }
         )
         payload = await self.spot.get_json("/api/v3/exchangeInfo", params=params, ttl=300)
-        return {
+        return BinanceExchangeInfoResponse.model_validate({
             "exchange": "binance",
             "market": "spot",
             "timezone": payload.get("timezone"),
@@ -75,27 +101,27 @@ class BinanceMarketIntelService:
                 }
                 for item in payload.get("symbols", [])
             ],
-        }
+        })
 
-    async def get_spot_ticker_24hr(self, *, symbols: list[str] | None = None) -> dict[str, Any]:
+    async def get_spot_ticker_24hr(self, *, symbols: list[str] | None = None) -> BinanceTickerStatsResponse:
         payload = await self.spot.get_json(
             "/api/v3/ticker/24hr",
             params=compact_query({"symbols": encode_symbol_list(symbols)}),
             ttl=30,
         )
         items = payload if isinstance(payload, list) else [payload]
-        return {
+        return BinanceTickerStatsResponse.model_validate({
             "exchange": "binance",
             "market": "spot",
             "items": [normalize_ticker_item(item) for item in items],
-        }
+        })
 
     async def get_spot_ticker_window(
         self,
         *,
         symbols: list[str] | None = None,
         window_size: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> BinanceTickerStatsResponse:
         payload = await self.spot.get_json(
             "/api/v3/ticker",
             params=compact_query(
@@ -107,20 +133,20 @@ class BinanceMarketIntelService:
             ttl=30,
         )
         items = payload if isinstance(payload, list) else [payload]
-        return {
+        return BinanceTickerStatsResponse.model_validate({
             "exchange": "binance",
             "market": "spot",
             "items": [normalize_ticker_item(item) for item in items],
-        }
+        })
 
-    async def get_spot_price(self, *, symbols: list[str] | None = None) -> dict[str, Any]:
+    async def get_spot_price(self, *, symbols: list[str] | None = None) -> BinancePriceTickerResponse:
         payload = await self.spot.get_json(
             "/api/v3/ticker/price",
             params=compact_query({"symbols": encode_symbol_list(symbols)}),
             ttl=10,
         )
         items = payload if isinstance(payload, list) else [payload]
-        return {
+        return BinancePriceTickerResponse.model_validate({
             "exchange": "binance",
             "market": "spot",
             "items": [
@@ -130,16 +156,16 @@ class BinanceMarketIntelService:
                 }
                 for item in items
             ],
-        }
+        })
 
-    async def get_spot_book_ticker(self, *, symbols: list[str] | None = None) -> dict[str, Any]:
+    async def get_spot_book_ticker(self, *, symbols: list[str] | None = None) -> BinanceBookTickerResponse:
         payload = await self.spot.get_json(
             "/api/v3/ticker/bookTicker",
             params=compact_query({"symbols": encode_symbol_list(symbols)}),
             ttl=10,
         )
         items = payload if isinstance(payload, list) else [payload]
-        return {
+        return BinanceBookTickerResponse.model_validate({
             "exchange": "binance",
             "market": "spot",
             "items": [
@@ -152,35 +178,35 @@ class BinanceMarketIntelService:
                 }
                 for item in items
             ],
-        }
+        })
 
-    async def get_spot_depth(self, *, symbol: str, limit: int = 20) -> dict[str, Any]:
+    async def get_spot_depth(self, *, symbol: str, limit: int = 20) -> BinanceOrderBookResponse:
         payload = await self.spot.get_json(
             "/api/v3/depth",
             params={"symbol": symbol.upper(), "limit": limit},
             ttl=5,
         )
-        return {
+        return BinanceOrderBookResponse.model_validate({
             "exchange": "binance",
             "market": "spot",
             "symbol": symbol.upper(),
             "last_update_id": payload.get("lastUpdateId"),
             "bids": normalize_levels(payload.get("bids") or []),
             "asks": normalize_levels(payload.get("asks") or []),
-        }
+        })
 
-    async def get_spot_trades(self, *, symbol: str, limit: int = 50) -> dict[str, Any]:
+    async def get_spot_trades(self, *, symbol: str, limit: int = 50) -> BinanceTradeListResponse:
         payload = await self.spot.get_json(
             "/api/v3/trades",
             params={"symbol": symbol.upper(), "limit": limit},
             ttl=5,
         )
-        return {
+        return BinanceTradeListResponse.model_validate({
             "exchange": "binance",
             "market": "spot",
             "symbol": symbol.upper(),
             "items": [normalize_trade(item) for item in payload],
-        }
+        })
 
     async def get_spot_agg_trades(
         self,
@@ -189,7 +215,7 @@ class BinanceMarketIntelService:
         limit: int = 50,
         start_time: int | None = None,
         end_time: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> BinanceTradeListResponse:
         payload = await self.spot.get_json(
             "/api/v3/aggTrades",
             params=compact_query(
@@ -202,12 +228,12 @@ class BinanceMarketIntelService:
             ),
             ttl=5,
         )
-        return {
+        return BinanceTradeListResponse.model_validate({
             "exchange": "binance",
             "market": "spot",
             "symbol": symbol.upper(),
             "items": [normalize_trade(item, aggregate=True) for item in payload],
-        }
+        })
 
     async def get_spot_klines(
         self,
@@ -218,7 +244,7 @@ class BinanceMarketIntelService:
         start_time: int | None = None,
         end_time: int | None = None,
         ui_mode: bool = False,
-    ) -> dict[str, Any]:
+    ) -> BinanceKlineResponse:
         path = "/api/v3/uiKlines" if ui_mode else "/api/v3/klines"
         payload = await self.spot.get_json(
             path,
@@ -233,27 +259,27 @@ class BinanceMarketIntelService:
             ),
             ttl=30,
         )
-        return normalize_kline_response("spot", symbol.upper(), interval, payload)
+        return BinanceKlineResponse.model_validate(normalize_kline_response("spot", symbol.upper(), interval, payload))
 
-    async def get_usdm_exchange_info(self) -> dict[str, Any]:
+    async def get_usdm_exchange_info(self) -> BinanceExchangeInfoResponse:
         payload = await self.usdm.get_json("/fapi/v1/exchangeInfo", ttl=300)
-        return normalize_derivatives_exchange_info("usdm", payload)
+        return BinanceExchangeInfoResponse.model_validate(normalize_derivatives_exchange_info("usdm", payload))
 
-    async def get_usdm_ticker_24hr(self, *, symbol: str | None = None) -> dict[str, Any]:
+    async def get_usdm_ticker_24hr(self, *, symbol: str | None = None) -> BinanceTickerStatsResponse:
         payload = await self.usdm.get_json(
             "/fapi/v1/ticker/24hr",
             params=compact_query({"symbol": symbol.upper() if symbol else None}),
             ttl=10,
         )
-        return normalize_derivatives_ticker_list("usdm", payload)
+        return BinanceTickerStatsResponse.model_validate(normalize_derivatives_ticker_list("usdm", payload))
 
-    async def get_usdm_mark_price(self, *, symbol: str | None = None) -> dict[str, Any]:
+    async def get_usdm_mark_price(self, *, symbol: str | None = None) -> BinanceMarkPriceResponse:
         payload = await self.usdm.get_json(
             "/fapi/v1/premiumIndex",
             params=compact_query({"symbol": symbol.upper() if symbol else None}),
             ttl=10,
         )
-        return normalize_mark_price_list("usdm", payload)
+        return BinanceMarkPriceResponse.model_validate(normalize_mark_price_list("usdm", payload))
 
     async def get_usdm_klines(
         self,
@@ -263,7 +289,7 @@ class BinanceMarketIntelService:
         limit: int = 200,
         start_time: int | None = None,
         end_time: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> BinanceKlineResponse:
         payload = await self.usdm.get_json(
             "/fapi/v1/klines",
             params=compact_query(
@@ -277,11 +303,11 @@ class BinanceMarketIntelService:
             ),
             ttl=30,
         )
-        return normalize_kline_response("usdm", symbol.upper(), interval, payload)
+        return BinanceKlineResponse.model_validate(normalize_kline_response("usdm", symbol.upper(), interval, payload))
 
-    async def get_usdm_funding_info(self) -> dict[str, Any]:
+    async def get_usdm_funding_info(self) -> BinanceFundingInfoResponse:
         payload = await self.usdm.get_json("/fapi/v1/fundingInfo", ttl=300)
-        return {
+        return BinanceFundingInfoResponse.model_validate({
             "exchange": "binance",
             "market": "usdm",
             "items": [
@@ -294,7 +320,7 @@ class BinanceMarketIntelService:
                 }
                 for item in payload
             ],
-        }
+        })
 
     async def get_usdm_funding_history(
         self,
@@ -303,7 +329,7 @@ class BinanceMarketIntelService:
         limit: int = 100,
         start_time: int | None = None,
         end_time: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> BinanceFundingHistoryListResponse:
         payload = await self.usdm.get_json(
             "/fapi/v1/fundingRate",
             params=compact_query(
@@ -316,7 +342,7 @@ class BinanceMarketIntelService:
             ),
             ttl=30,
         )
-        return {
+        return BinanceFundingHistoryListResponse.model_validate({
             "exchange": "binance",
             "market": "usdm",
             "items": [
@@ -328,11 +354,11 @@ class BinanceMarketIntelService:
                 }
                 for item in payload
             ],
-        }
+        })
 
-    async def get_usdm_open_interest(self, *, symbol: str) -> dict[str, Any]:
+    async def get_usdm_open_interest(self, *, symbol: str) -> BinanceOpenInterestSnapshotResponse:
         payload = await self.usdm.get_json("/fapi/v1/openInterest", params={"symbol": symbol.upper()}, ttl=10)
-        return normalize_open_interest_snapshot("usdm", payload)
+        return BinanceOpenInterestSnapshotResponse.model_validate(normalize_open_interest_snapshot("usdm", payload))
 
     async def get_usdm_open_interest_stats(
         self,
@@ -340,45 +366,45 @@ class BinanceMarketIntelService:
         symbol: str,
         period: str,
         limit: int = 30,
-    ) -> dict[str, Any]:
+    ) -> BinanceOpenInterestStatsResponse:
         payload = await self.usdm.get_json(
             "/futures/data/openInterestHist",
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
             ttl=30,
         )
-        return normalize_open_interest_stats("usdm", payload)
+        return BinanceOpenInterestStatsResponse.model_validate(normalize_open_interest_stats("usdm", payload))
 
-    async def get_usdm_long_short_ratio(self, *, symbol: str, period: str, limit: int = 30) -> dict[str, Any]:
+    async def get_usdm_long_short_ratio(self, *, symbol: str, period: str, limit: int = 30) -> BinanceRatioSeriesResponse:
         payload = await self.usdm.get_json(
             "/futures/data/globalLongShortAccountRatio",
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
             ttl=30,
         )
-        return normalize_ratio_series("usdm", payload)
+        return BinanceRatioSeriesResponse.model_validate(normalize_ratio_series("usdm", payload))
 
-    async def get_usdm_top_trader_accounts(self, *, symbol: str, period: str, limit: int = 30) -> dict[str, Any]:
+    async def get_usdm_top_trader_accounts(self, *, symbol: str, period: str, limit: int = 30) -> BinanceRatioSeriesResponse:
         payload = await self.usdm.get_json(
             "/futures/data/topLongShortAccountRatio",
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
             ttl=30,
         )
-        return normalize_ratio_series("usdm", payload)
+        return BinanceRatioSeriesResponse.model_validate(normalize_ratio_series("usdm", payload))
 
-    async def get_usdm_top_trader_positions(self, *, symbol: str, period: str, limit: int = 30) -> dict[str, Any]:
+    async def get_usdm_top_trader_positions(self, *, symbol: str, period: str, limit: int = 30) -> BinanceRatioSeriesResponse:
         payload = await self.usdm.get_json(
             "/futures/data/topLongShortPositionRatio",
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
             ttl=30,
         )
-        return normalize_ratio_series("usdm", payload)
+        return BinanceRatioSeriesResponse.model_validate(normalize_ratio_series("usdm", payload))
 
-    async def get_usdm_taker_volume(self, *, symbol: str, period: str, limit: int = 30) -> dict[str, Any]:
+    async def get_usdm_taker_volume(self, *, symbol: str, period: str, limit: int = 30) -> BinanceTakerVolumeResponse:
         payload = await self.usdm.get_json(
             "/futures/data/takerlongshortRatio",
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
             ttl=30,
         )
-        return normalize_taker_volume("usdm", payload)
+        return BinanceTakerVolumeResponse.model_validate(normalize_taker_volume("usdm", payload))
 
     async def get_usdm_basis(
         self,
@@ -387,13 +413,13 @@ class BinanceMarketIntelService:
         contract_type: str,
         period: str,
         limit: int = 30,
-    ) -> dict[str, Any]:
+    ) -> BinanceBasisResponse:
         payload = await self.usdm.get_json(
             "/futures/data/basis",
             params={"pair": pair.upper(), "contractType": contract_type, "period": period, "limit": limit},
             ttl=30,
         )
-        return normalize_basis("usdm", payload)
+        return BinanceBasisResponse.model_validate(normalize_basis("usdm", payload))
 
     async def get_market_breakout_monitor(
         self,
@@ -401,15 +427,15 @@ class BinanceMarketIntelService:
         min_rise_pct: float = 5.0,
         limit: int = 18,
         quote_asset: str = "USDT",
-    ) -> dict[str, Any]:
+    ) -> BinanceBreakoutMonitorResponse:
         normalized_quote_asset = self.breakout_monitor.normalize_quote_asset(quote_asset)
         market_snapshot = await self._load_market_page_snapshot()
-        return await self.breakout_monitor.build(
+        return BinanceBreakoutMonitorResponse.model_validate(await self.breakout_monitor.build(
             market_snapshot=market_snapshot,
             min_rise_pct=min_rise_pct,
             limit=limit,
             quote_asset=normalized_quote_asset,
-        )
+        ))
 
     async def get_market_page_payload(
         self,
@@ -417,7 +443,7 @@ class BinanceMarketIntelService:
         min_rise_pct: float = 5.0,
         limit: int = 24,
         quote_asset: str = "USDT",
-    ) -> dict[str, Any]:
+    ) -> BinanceMarketPageResponse:
         normalized_quote_asset = self.breakout_monitor.normalize_quote_asset(quote_asset)
         market_snapshot = await self._load_market_page_snapshot()
         monitor = await self.breakout_monitor.build(
@@ -426,7 +452,7 @@ class BinanceMarketIntelService:
             limit=limit,
             quote_asset=normalized_quote_asset,
         )
-        return {
+        return BinanceMarketPageResponse.model_validate({
             "exchange": "binance",
             "quote_asset": normalized_quote_asset,
             "updated_at": monitor["updated_at"],
@@ -435,11 +461,11 @@ class BinanceMarketIntelService:
             "usdm_ticker": market_snapshot["usdm_ticker"],
             "usdm_mark": market_snapshot["usdm_mark"],
             "load_errors": market_snapshot["load_errors"],
-        }
+        })
 
     async def _load_market_page_snapshot(self) -> dict[str, Any]:
         if self.snapshot_service is not None:
-            return await self.snapshot_service.get_market_page_snapshot()
+            return (await self.snapshot_service.get_market_page_snapshot()).model_dump()
 
         source_plan = (
             ("spot_ticker", "现货榜单", self.get_spot_ticker_24hr, self.breakout_monitor.empty_ticker_response, "spot"),
@@ -454,10 +480,10 @@ class BinanceMarketIntelService:
                 snapshot[key] = empty_factory(market)
                 snapshot["load_errors"].append(label)
                 continue
-            snapshot[key] = result
+            snapshot[key] = result.model_dump() if hasattr(result, "model_dump") else result
         return snapshot
 
     async def _get_market_klines(self, market: str, symbol: str, interval: str, limit: int) -> dict[str, Any]:
         if market == "spot":
-            return await self.get_spot_klines(symbol=symbol, interval=interval, limit=limit)
-        return await self.get_usdm_klines(symbol=symbol, interval=interval, limit=limit)
+            return (await self.get_spot_klines(symbol=symbol, interval=interval, limit=limit)).model_dump()
+        return (await self.get_usdm_klines(symbol=symbol, interval=interval, limit=limit)).model_dump()

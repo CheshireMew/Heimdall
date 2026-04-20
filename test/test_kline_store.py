@@ -20,7 +20,7 @@ class FailingSession:
 def test_kline_cache_save_failure_is_best_effort():
     session = FailingSession()
 
-    KlineStore()._save_with_session(
+    KlineStore(database_runtime=object())._save_with_session(
         session,
         "proxy:US:NASDAQ100:QQQ",
         "1d",

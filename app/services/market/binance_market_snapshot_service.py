@@ -8,12 +8,17 @@ from typing import Any
 
 import websockets
 
+from app.schemas.binance_market import (
+    BinanceMarkPriceResponse,
+    BinanceMarketSourceSnapshotResponse,
+    BinanceTickerStatsResponse,
+)
 from config import settings
 from utils.logger import logger
 
 
-TickerLoader = Callable[[], Awaitable[dict[str, Any]]]
-MarkPriceLoader = Callable[[], Awaitable[dict[str, Any]]]
+TickerLoader = Callable[[], Awaitable[Any]]
+MarkPriceLoader = Callable[[], Awaitable[Any]]
 
 
 class BinanceMarketSnapshotService:
@@ -84,7 +89,7 @@ class BinanceMarketSnapshotService:
                 continue
             await applier(result)
 
-    async def get_market_page_snapshot(self) -> dict[str, Any]:
+    async def get_market_page_snapshot(self) -> BinanceMarketSourceSnapshotResponse:
         async with self._lock:
             load_errors: list[str] = []
             if not self._spot_ticker:
@@ -93,13 +98,13 @@ class BinanceMarketSnapshotService:
                 load_errors.append("U本位24H")
             if not self._usdm_mark:
                 load_errors.append("U本位Funding")
-            return {
-                "spot_ticker": self._ticker_response("spot", self._spot_ticker.values()),
-                "usdm_ticker": self._ticker_response("usdm", self._usdm_ticker.values()),
-                "usdm_mark": self._mark_response("usdm", self._usdm_mark.values()),
-                "load_errors": load_errors,
-                "updated_at": max(self._updated_at.values(), default=0),
-            }
+            return BinanceMarketSourceSnapshotResponse(
+                spot_ticker=self._ticker_response("spot", self._spot_ticker.values()),
+                usdm_ticker=self._ticker_response("usdm", self._usdm_ticker.values()),
+                usdm_mark=self._mark_response("usdm", self._usdm_mark.values()),
+                load_errors=load_errors,
+                updated_at=max(self._updated_at.values(), default=0),
+            )
 
     async def has_snapshot(self) -> bool:
         async with self._lock:
@@ -121,20 +126,17 @@ class BinanceMarketSnapshotService:
                 return self._to_float(usdm.get("last_price"))
         return None
 
-    async def get_current_price_map(self, symbols: list[str]) -> dict[str, float | None]:
-        result: dict[str, float | None] = {}
-        for symbol in symbols:
-            result[symbol] = await self.get_current_price(symbol)
-        return result
+    async def _apply_spot_ticker_response(self, response: Any) -> None:
+        payload = response.model_dump() if hasattr(response, "model_dump") else response
+        await self._merge_tickers("spot", payload.get("items", []))
 
-    async def _apply_spot_ticker_response(self, response: dict[str, Any]) -> None:
-        await self._merge_tickers("spot", response.get("items", []))
+    async def _apply_usdm_ticker_response(self, response: Any) -> None:
+        payload = response.model_dump() if hasattr(response, "model_dump") else response
+        await self._merge_tickers("usdm_ticker", payload.get("items", []))
 
-    async def _apply_usdm_ticker_response(self, response: dict[str, Any]) -> None:
-        await self._merge_tickers("usdm_ticker", response.get("items", []))
-
-    async def _apply_usdm_mark_response(self, response: dict[str, Any]) -> None:
-        await self._merge_marks(response.get("items", []))
+    async def _apply_usdm_mark_response(self, response: Any) -> None:
+        payload = response.model_dump() if hasattr(response, "model_dump") else response
+        await self._merge_marks(payload.get("items", []))
 
     async def _run_spot_ticker_loop(self) -> None:
         await self._consume_json_array_stream(
@@ -237,19 +239,19 @@ class BinanceMarketSnapshotService:
             "time": self._to_int(event.get("E")),
         }
 
-    def _ticker_response(self, market: str, rows: Any) -> dict[str, Any]:
-        return {
+    def _ticker_response(self, market: str, rows: Any) -> BinanceTickerStatsResponse:
+        return BinanceTickerStatsResponse.model_validate({
             "exchange": "binance",
             "market": market,
             "items": sorted(list(rows), key=lambda item: item.get("quote_volume") or 0, reverse=True),
-        }
+        })
 
-    def _mark_response(self, market: str, rows: Any) -> dict[str, Any]:
-        return {
+    def _mark_response(self, market: str, rows: Any) -> BinanceMarkPriceResponse:
+        return BinanceMarkPriceResponse.model_validate({
             "exchange": "binance",
             "market": market,
             "items": sorted(list(rows), key=lambda item: item.get("symbol") or ""),
-        }
+        })
 
     def _to_float(self, value: Any) -> float | None:
         try:

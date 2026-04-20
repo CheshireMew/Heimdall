@@ -3,6 +3,10 @@ from __future__ import annotations
 from copy import deepcopy
 
 from app.services.backtest.run_form_contract import backtest_run_defaults
+from app.schemas.market import (
+    build_market_history_response,
+    build_ohlcv_points,
+)
 
 
 def make_kline_data() -> list[list[float]]:
@@ -577,7 +581,7 @@ def make_market_realtime_response() -> dict:
             "annualized_volatility_pct": 0.44,
         },
         "ai_analysis": {"signal": "BUY", "confidence": 78},
-        "kline_data": make_kline_data(),
+        "kline_data": [item.model_dump() for item in build_ohlcv_points(make_kline_data())],
         "timeframe": "1h",
         "type": "snapshot",
     }
@@ -1004,15 +1008,26 @@ class StubMarketQueryAppService:
             ],
         }
 
-    def get_history(self, **kwargs):
-        return make_kline_data()
+    async def get_history(self, **kwargs):
+        return build_market_history_response(
+            symbol=kwargs.get("symbol", "BTC/USDT"),
+            timeframe=kwargs.get("timeframe", "1h"),
+            rows=make_kline_data(),
+        ).model_dump()
+
+    async def get_recent_klines(self, **kwargs):
+        return await self.get_history(**kwargs)
 
     async def get_full_history(self, *, persist_klines=None, **kwargs):
         klines = make_kline_data()
         self.full_history_used_external_persist_callback = persist_klines is not None
         if persist_klines:
             persist_klines(kwargs["symbol"], kwargs["timeframe"], klines)
-        return klines
+        return build_market_history_response(
+            symbol=kwargs.get("symbol", "BTC/USDT"),
+            timeframe=kwargs.get("timeframe", "1h"),
+            rows=klines,
+        ).model_dump()
 
     async def get_technical_metrics(self, **kwargs):
         return make_technical_metrics_response()
@@ -1023,12 +1038,12 @@ class StubMarketQueryAppService:
             "timeframe": kwargs.get("timeframe", "1h"),
             "timestamp": "2025-06-01T12:00:00",
             "current_price": 116.0,
-            "kline_data": make_kline_data(),
+            "kline_data": [item.model_dump() for item in build_ohlcv_points(make_kline_data())],
         }
 
 
 class StubMarketInsightAppService:
-    def get_indicators(self, **kwargs):
+    async def get_indicators_async(self, **kwargs):
         return [make_market_indicator()]
 
     async def get_trade_setup(self, **kwargs):
@@ -1156,16 +1171,16 @@ class StubToolsAppService:
 
 
 class StubFactorResearchService:
-    def get_catalog(self):
+    async def get_catalog_async(self):
         return make_factor_catalog()
 
-    def analyze(self, **kwargs):
+    async def analyze_async(self, **kwargs):
         return make_factor_research_response()
 
-    def list_runs(self, limit: int = 20):
+    async def list_runs_async(self, limit: int = 20):
         return [make_factor_run_detail()]
 
-    def get_run(self, run_id: int):
+    async def get_run_async(self, run_id: int):
         result = make_factor_run_detail()
         result["id"] = run_id
         return result
@@ -1175,7 +1190,7 @@ class StubFactorExecutionService:
     def __init__(self) -> None:
         self.calls: list[dict[str, object]] = []
 
-    def run_backtest(self, **kwargs):
+    async def run_backtest_async(self, **kwargs):
         self.calls.append(kwargs)
         return 707
 

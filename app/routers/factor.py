@@ -30,7 +30,7 @@ async def get_factor_catalog(
     service: FactorResearchService = Depends(get_factor_research_service),
 ):
     try:
-        return service.get_catalog()
+        return await service.get_catalog_async()
     except Exception as exc:
         raise service_http_error("API /factor-research/catalog 错误", exc)
 
@@ -41,7 +41,7 @@ async def analyze_factors(
     service: FactorResearchService = Depends(get_factor_research_service),
 ):
     try:
-        return service.analyze(
+        return await service.analyze_async(
             symbol=body.symbol,
             timeframe=body.timeframe,
             days=body.days,
@@ -60,7 +60,7 @@ async def list_factor_runs(
     service: FactorResearchService = Depends(get_factor_research_service),
 ):
     try:
-        return service.list_runs(limit=limit)
+        return await service.list_runs_async(limit=limit)
     except Exception as exc:
         raise service_http_error("API /factor-research/runs 错误", exc)
 
@@ -71,7 +71,7 @@ async def get_factor_run(
     service: FactorResearchService = Depends(get_factor_research_service),
 ):
     try:
-        result = service.get_run(run_id)
+        result = await service.get_run_async(run_id)
         if not result:
             raise HTTPException(status_code=404, detail="Factor run not found")
         return result
@@ -88,7 +88,7 @@ async def start_factor_backtest(
     service: FactorExecutionService = Depends(get_factor_execution_service),
 ):
     try:
-        backtest_id = service.run_backtest(
+        backtest_id = await service.run_backtest_async(
             research_run_id=run_id,
             initial_cash=body.initial_cash,
             fee_rate=body.fee_rate,
@@ -100,7 +100,7 @@ async def start_factor_backtest(
             takeprofit_pct=body.takeprofit_pct,
             max_hold_bars=body.max_hold_bars,
         )
-        return {"success": True, "run_id": backtest_id, "message": "因子组合回测已完成"}
+        return FactorExecutionResponse(success=True, run_id=backtest_id, message="因子组合回测已完成")
     except Exception as exc:
         raise service_http_error(f"API /factor-research/runs/{run_id}/backtest 错误", exc)
 

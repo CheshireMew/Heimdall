@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
-from app.infra.db.database import session_scope
+from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun
 from app.contracts.backtest import (
     BacktestEquityPointRecord,
@@ -21,6 +20,7 @@ from app.schemas.backtest import (
 )
 from app.schemas.backtest_result import BacktestPortfolioSummaryResponse, BacktestStrategySummaryResponse
 from app.services.run_task_manager import RunTaskManager
+from app.services.executor import run_sync
 from app.services.backtest.result_store import replace_run_rows, result_signal_counts
 from app.services.backtest.run_contract import (
     PAPER_LIVE_ENGINE,
@@ -29,6 +29,7 @@ from app.services.backtest.run_contract import (
     parse_run_metadata,
     update_paper_metadata,
 )
+from app.services.backtest.run_lifecycle import RUN_STATUS_FAILED, RUN_STATUS_RUNNING, RUN_STATUS_STOPPED
 from config import settings
 from utils.time_utils import utc_now_naive
 
@@ -54,15 +55,17 @@ class PaperRunManager:
         freqtrade_service: FreqtradeBacktestService,
         report_builder: FreqtradeReportBuilder,
         run_repository: BacktestRunRepository,
+        database_runtime: DatabaseRuntime,
     ) -> None:
         self.strategy_query_service = strategy_query_service
         self.freqtrade_service = freqtrade_service
         self.report_builder = report_builder
         self.run_repository = run_repository
+        self.database_runtime = database_runtime
         self._task_manager = RunTaskManager(
             list_active_run_ids=self._list_active_run_ids,
             tick=self._tick,
-            mark_failed=lambda run_id, reason: self._mark_stopped(run_id, "failed", reason),
+            mark_failed=lambda run_id, reason: self._mark_stopped(run_id, RUN_STATUS_FAILED, reason),
             interval_seconds=lambda: float(settings.WS_UPDATE_INTERVAL),
             error_label="模拟盘运行失败",
         )
@@ -74,24 +77,20 @@ class PaperRunManager:
         await self._task_manager.shutdown()
 
     async def start_run(self, command: PaperStartCommand) -> PaperStartResponse:
-        loop = asyncio.get_running_loop()
-        run_id = await loop.run_in_executor(None, lambda: self._create_run(command))
+        run_id = await run_sync(lambda: self._create_run(command))
         self._task_manager.ensure_task(run_id)
         return PaperStartResponse(success=True, run_id=run_id, message="模拟盘已启动")
 
     async def stop_run(self, run_id: int) -> PaperStopResponse:
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, lambda: self._mark_stopped(run_id, "stopped", "manual_stop"))
+        await run_sync(lambda: self._mark_stopped(run_id, RUN_STATUS_STOPPED, "manual_stop"))
         await self._task_manager.cancel_task(run_id)
         return PaperStopResponse(success=True, run_id=run_id, message="模拟盘已停止")
 
     async def delete_run(self, run_id: int) -> BacktestDeleteResponse:
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, lambda: self._mark_stopped(run_id, "stopped", "manual_delete"))
+        await run_sync(lambda: self._mark_stopped(run_id, RUN_STATUS_STOPPED, "manual_delete"))
         await self._task_manager.cancel_task(run_id)
 
-        deleted = await loop.run_in_executor(
-            None,
+        deleted = await run_sync(
             lambda: self.run_repository.delete_run(run_id, PAPER_LIVE_EXECUTION_MODE),
         )
         if not deleted:
@@ -99,12 +98,12 @@ class PaperRunManager:
         return BacktestDeleteResponse(success=True, run_id=run_id, message="模拟盘记录已删除")
 
     def _tick(self, run_id: int) -> bool:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             run = session.query(BacktestRun).filter(BacktestRun.id == run_id).first()
             if not run:
                 return False
             metadata = parse_run_metadata(run.metadata_info)
-            if run.execution_mode != PAPER_LIVE_EXECUTION_MODE or run.engine != PAPER_LIVE_ENGINE or run.status != "running":
+            if run.execution_mode != PAPER_LIVE_EXECUTION_MODE or run.engine != PAPER_LIVE_ENGINE or run.status != RUN_STATUS_RUNNING:
                 return False
 
             symbols = [str(symbol).strip().upper() for symbol in metadata.symbols if str(symbol).strip()]
@@ -179,13 +178,13 @@ class PaperRunManager:
             "last_synced_end": sync_window.synced_end_ms,
             "positions": {},
         }
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             run = BacktestRun(
                 symbol=symbols[0] if len(symbols) == 1 else "PORTFOLIO",
                 timeframe=command.timeframe,
                 start_date=now,
                 end_date=now,
-                status="running",
+                status=RUN_STATUS_RUNNING,
                 execution_mode=PAPER_LIVE_EXECUTION_MODE,
                 engine=PAPER_LIVE_ENGINE,
                 metadata_info=build_paper_metadata(
@@ -243,7 +242,7 @@ class PaperRunManager:
         buy_count, sell_count, hold_count = result_signal_counts(result)
         merged_metadata = {
             **metadata.model_dump(),
-            **(result.metadata.model_dump() if result.metadata else {}),
+            **dict(result.metadata or {}),
             "engine": PAPER_LIVE_ENGINE,
             "execution_model": "freqtrade_replay",
             "research": None,
@@ -328,7 +327,7 @@ class PaperRunManager:
         )
 
     def _mark_stopped(self, run_id: int, status: str, reason: str) -> None:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             run = session.query(BacktestRun).filter(BacktestRun.id == run_id).first()
             if not run:
                 return

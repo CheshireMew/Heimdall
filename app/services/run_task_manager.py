@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Callable
 from typing import Any
 
+from app.services.executor import run_sync
 from utils.logger import logger
 
 
@@ -25,8 +26,7 @@ class RunTaskManager:
         self._tasks: dict[int, asyncio.Task[Any]] = {}
 
     async def restore_active_runs(self) -> None:
-        loop = asyncio.get_running_loop()
-        run_ids = await loop.run_in_executor(None, self._list_active_run_ids)
+        run_ids = await run_sync(self._list_active_run_ids)
         for run_id in run_ids:
             self.ensure_task(run_id, initial_delay=self._interval_seconds())
 
@@ -56,8 +56,7 @@ class RunTaskManager:
             if initial_delay > 0:
                 await asyncio.sleep(initial_delay)
             while True:
-                loop = asyncio.get_running_loop()
-                should_continue = await loop.run_in_executor(None, lambda: self._tick(run_id))
+                should_continue = await run_sync(lambda: self._tick(run_id))
                 if not should_continue:
                     self._tasks.pop(run_id, None)
                     return
@@ -65,8 +64,7 @@ class RunTaskManager:
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, lambda: self._mark_failed(run_id, str(exc)))
+            await run_sync(lambda: self._mark_failed(run_id, str(exc)))
             self._tasks.pop(run_id, None)
             # 单个模拟运行失败已经写回对应 run，不应把整个后台 runtime 标记为不可用。
             logger.error(f"{self._error_label} run_id={run_id}: {exc}", exc_info=True)

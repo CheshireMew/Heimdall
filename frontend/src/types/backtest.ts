@@ -597,3 +597,15 @@ export interface StrategyTrailingConfigResponse {
   offset: number
   only_offset_reached?: boolean
 }
+
+export interface GetBacktestQueryParams {
+  page?: number
+  page_size?: number
+}
+export const GetBacktestQueryParamsMeta = {"defaults": {"page": 1, "page_size": 100}, "repeatedKeys": [], "aliases": {}} as const
+
+export interface GetPaperRunQueryParams {
+  page?: number
+  page_size?: number
+}
+export const GetPaperRunQueryParamsMeta = {"defaults": {"page": 1, "page_size": 100}, "repeatedKeys": [], "aliases": {}} as const

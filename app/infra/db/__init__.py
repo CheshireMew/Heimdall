@@ -1,11 +1,6 @@
 from app.infra.db.database import (
     DatabaseRuntime,
-    configure_database_runtime,
-    create_database_runtime,
-    current_database_url,
-    get_database_runtime,
-    get_session,
-    session_scope,
+    build_database_runtime,
 )
 from app.infra.db.schema_runtime import init_db
 from app.infra.db.schema import (
@@ -39,11 +34,6 @@ __all__ = [
     "StrategyTemplateDefinition",
     "StrategyVersion",
     "DatabaseRuntime",
-    "configure_database_runtime",
-    "create_database_runtime",
-    "current_database_url",
-    "get_database_runtime",
-    "get_session",
+    "build_database_runtime",
     "init_db",
-    "session_scope",
 ]

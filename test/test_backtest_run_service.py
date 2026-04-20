@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
 from datetime import datetime
 
 from app.infra.db.schema import BacktestRun
@@ -13,14 +12,6 @@ from app.contracts.backtest import (
 from app.schemas.backtest_result import BacktestReportResponse, BacktestRunMetadataResponse
 from app.services.backtest.run_service import BacktestRunService
 from app.services.backtest.strategy_support import normalize_strategy_version_config_model
-
-
-def _scoped_session(session):
-    @contextmanager
-    def scope():
-        yield session
-
-    return scope
 
 
 class _FailingExecutionEngine:
@@ -46,7 +37,7 @@ class _SuccessfulExecutionEngine:
                 wins=0,
                 losses=0,
                 draws=0,
-            ),
+            ).model_dump(),
             metadata=BacktestRunMetadataResponse.model_validate(
                 {
                     "sample_ranges": {
@@ -60,7 +51,7 @@ class _SuccessfulExecutionEngine:
                     },
                 }
                 }
-            ),
+            ).model_dump(),
         )
 
 
@@ -70,7 +61,7 @@ def _strategy() -> StrategyVersionRecord:
         strategy_name="Demo",
         version=1,
         template="ema_rsi_macd",
-        config=normalize_strategy_version_config_model("ema_rsi_macd", {}),
+        config=normalize_strategy_version_config_model("ema_rsi_macd", {}).model_dump(),
     )
 
 
@@ -94,10 +85,11 @@ def _research() -> ResearchConfigRecord:
     )
 
 
-def test_run_service_persists_failed_run_record(db_session, monkeypatch):
-    monkeypatch.setattr("app.services.backtest.run_service.session_scope", _scoped_session(db_session))
-
-    service = BacktestRunService(execution_engine=_FailingExecutionEngine())
+def test_run_service_persists_failed_run_record(db_session, installed_database_runtime):
+    service = BacktestRunService(
+        execution_engine=_FailingExecutionEngine(),
+        database_runtime=installed_database_runtime,
+    )
     result = service.run_backtest(
         strategy=_strategy(),
         portfolio=_portfolio(),
@@ -116,10 +108,11 @@ def test_run_service_persists_failed_run_record(db_session, monkeypatch):
     assert run.metadata_info["error"] == "timeframe incompatible"
 
 
-def test_run_service_uses_displayed_range_as_canonical_run_range(db_session, monkeypatch):
-    monkeypatch.setattr("app.services.backtest.run_service.session_scope", _scoped_session(db_session))
-
-    service = BacktestRunService(execution_engine=_SuccessfulExecutionEngine())
+def test_run_service_uses_displayed_range_as_canonical_run_range(db_session, installed_database_runtime):
+    service = BacktestRunService(
+        execution_engine=_SuccessfulExecutionEngine(),
+        database_runtime=installed_database_runtime,
+    )
     result = service.run_backtest(
         strategy=_strategy(),
         portfolio=_portfolio(),

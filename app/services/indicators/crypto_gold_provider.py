@@ -7,6 +7,7 @@ import asyncio
 from typing import Optional, Dict, Any
 from datetime import datetime
 from .base_provider import BaseIndicatorProvider, logger
+from app.services.executor import run_sync
 
 class CryptoGoldProvider(BaseIndicatorProvider):
     """
@@ -29,8 +30,7 @@ class CryptoGoldProvider(BaseIndicatorProvider):
                     "value": float(ticker['last'])
                 }
 
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, _get)
+            return await run_sync(_get)
 
         except Exception as e:
             logger.error(f"Failed to fetch Gold via PAXG: {e}")

@@ -4,6 +4,23 @@ import asyncio
 import uuid
 from typing import Any
 
+from app.infra.cache import RedisService
+from app.schemas.binance_market import (
+    BinanceRwaDynamicResponse,
+    BinanceRwaKlineResponse,
+    BinanceRwaMarketStatusResponse,
+    BinanceRwaMetaResponse,
+    BinanceRwaSymbolListResponse,
+    BinanceWeb3AddressPnlResponse,
+    BinanceWeb3HeatRankResponse,
+    BinanceWeb3MemeRankResponse,
+    BinanceWeb3SmartMoneyInflowResponse,
+    BinanceWeb3SocialHypeResponse,
+    BinanceWeb3TokenAuditResponse,
+    BinanceWeb3TokenDynamicResponse,
+    BinanceWeb3TokenKlineResponse,
+    BinanceWeb3UnifiedTokenRankResponse,
+)
 from config import settings
 
 from .binance_api_support import BinanceApiSupport, compact_query
@@ -17,22 +34,25 @@ from .binance_web3_support import (
 
 
 class BinanceWeb3Service:
-    def __init__(self) -> None:
+    def __init__(self, cache_service: RedisService | None = None) -> None:
         self.heat_rank_composer = BinanceWeb3HeatRankComposer()
         self.web3 = BinanceApiSupport(
             base_url=settings.BINANCE_WEB3_BASE_URL,
             cache_namespace="binance:web3",
             user_agent="binance-web3/2.1 (Skill)",
+            cache_service=cache_service,
         )
         self.www = BinanceApiSupport(
             base_url=settings.BINANCE_WWW_BASE_URL,
             cache_namespace="binance:www",
             user_agent="binance-web3/1.1 (Skill)",
+            cache_service=cache_service,
         )
         self.kline = BinanceApiSupport(
             base_url="https://dquery.sintral.io",
             cache_namespace="binance:web3:kline",
             user_agent="binance-web3/1.1 (Skill)",
+            cache_service=cache_service,
         )
 
     async def get_social_hype_leaderboard(
@@ -43,7 +63,7 @@ class BinanceWeb3Service:
         time_range: int = 1,
         sentiment: str = "All",
         social_language: str = "ALL",
-    ) -> dict[str, Any]:
+    ) -> BinanceWeb3SocialHypeResponse:
         payload = await self.web3.get_json(
             "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/pulse/social/hype/rank/leaderboard/ai",
             params={
@@ -56,7 +76,7 @@ class BinanceWeb3Service:
             ttl=60,
         )
         rows = ((payload.get("data") or {}).get("leaderBoardList") or [])
-        return {
+        return BinanceWeb3SocialHypeResponse.model_validate({
             "source": "binance-web3",
             "leaderboard": "social_hype",
             "items": [
@@ -74,7 +94,7 @@ class BinanceWeb3Service:
                 }
                 for item in rows
             ],
-        }
+        })
 
     async def get_unified_token_rank(
         self,
@@ -86,7 +106,7 @@ class BinanceWeb3Service:
         order_asc: bool = False,
         page: int = 1,
         size: int = 20,
-    ) -> dict[str, Any]:
+    ) -> BinanceWeb3UnifiedTokenRankResponse:
         payload = await self.web3.post_json(
             "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/pulse/unified/rank/list/ai",
             body=compact_query(
@@ -105,7 +125,7 @@ class BinanceWeb3Service:
         )
         data = payload.get("data") or {}
         rows = data.get("tokens") or []
-        return {
+        return BinanceWeb3UnifiedTokenRankResponse.model_validate({
             "source": "binance-web3",
             "leaderboard": "unified_token_rank",
             "rank_type": rank_type,
@@ -113,7 +133,7 @@ class BinanceWeb3Service:
             "size": data.get("size", size),
             "total": data.get("total"),
             "items": [normalize_rank_token(item) for item in rows],
-        }
+        })
 
     async def get_smart_money_inflow_rank(
         self,
@@ -121,7 +141,7 @@ class BinanceWeb3Service:
         chain_id: str,
         period: str = "24h",
         tag_type: int = 2,
-    ) -> dict[str, Any]:
+    ) -> BinanceWeb3SmartMoneyInflowResponse:
         payload = await self.web3.post_json(
             "/bapi/defi/v1/public/wallet-direct/tracker/wallet/token/inflow/rank/query/ai",
             body={"chainId": chain_id, "period": period, "tagType": tag_type},
@@ -129,7 +149,7 @@ class BinanceWeb3Service:
             ttl=60,
         )
         rows = payload.get("data") or []
-        return {
+        return BinanceWeb3SmartMoneyInflowResponse.model_validate({
             "source": "binance-web3",
             "leaderboard": "smart_money_inflow",
             "items": [
@@ -150,16 +170,16 @@ class BinanceWeb3Service:
                 }
                 for item in rows
             ],
-        }
+        })
 
-    async def get_meme_rank(self, *, chain_id: str = "56") -> dict[str, Any]:
+    async def get_meme_rank(self, *, chain_id: str = "56") -> BinanceWeb3MemeRankResponse:
         payload = await self.web3.get_json(
             "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/pulse/exclusive/rank/list/ai",
             params={"chainId": chain_id},
             ttl=60,
         )
         rows = ((payload.get("data") or {}).get("tokens") or [])
-        return {
+        return BinanceWeb3MemeRankResponse.model_validate({
             "source": "binance-web3",
             "leaderboard": "meme_rank",
             "items": [
@@ -180,7 +200,7 @@ class BinanceWeb3Service:
                 }
                 for item in rows
             ],
-        }
+        })
 
     async def get_address_pnl_rank(
         self,
@@ -190,7 +210,7 @@ class BinanceWeb3Service:
         tag: str = "ALL",
         page_no: int = 1,
         page_size: int = 25,
-    ) -> dict[str, Any]:
+    ) -> BinanceWeb3AddressPnlResponse:
         payload = await self.web3.get_json(
             "/bapi/defi/v1/public/wallet-direct/market/leaderboard/query/ai",
             params={
@@ -206,7 +226,7 @@ class BinanceWeb3Service:
         )
         data = payload.get("data") or {}
         rows = data.get("data") or []
-        return {
+        return BinanceWeb3AddressPnlResponse.model_validate({
             "source": "binance-web3",
             "leaderboard": "address_pnl_rank",
             "page": data.get("current", page_no),
@@ -228,14 +248,14 @@ class BinanceWeb3Service:
                 }
                 for item in rows
             ],
-        }
+        })
 
     async def get_web3_heat_rank(
         self,
         *,
         chain_id: str = "56",
         size: int = 30,
-    ) -> dict[str, Any]:
+    ) -> BinanceWeb3HeatRankResponse:
         source_size = min(100, max(50, size * 2))
         (
             top_search,
@@ -287,7 +307,7 @@ class BinanceWeb3Service:
             social_hype=social_hype.get("items") or [],
             smart_money=smart_money.get("items") or [],
         )
-        return {
+        return BinanceWeb3HeatRankResponse.model_validate({
             "source": "binance-web3",
             "leaderboard": "web3_heat_rank",
             "chain_id": chain_id,
@@ -305,16 +325,16 @@ class BinanceWeb3Service:
                 ],
                 "penalty": ["low_liquidity", "contract_risk"],
             },
-        }
+        })
 
-    async def list_rwa_symbols(self, *, platform_type: int | None = 1) -> dict[str, Any]:
+    async def list_rwa_symbols(self, *, platform_type: int | None = 1) -> BinanceRwaSymbolListResponse:
         payload = await self.www.get_json(
             "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/rwa/stock/detail/list/ai",
             params=compact_query({"type": platform_type}),
             ttl=300,
         )
         rows = payload.get("data") or []
-        return {
+        return BinanceRwaSymbolListResponse.model_validate({
             "source": "binance-rwa",
             "items": [
                 {
@@ -327,16 +347,16 @@ class BinanceWeb3Service:
                 }
                 for item in rows
             ],
-        }
+        })
 
-    async def get_rwa_meta(self, *, chain_id: str, contract_address: str) -> dict[str, Any]:
+    async def get_rwa_meta(self, *, chain_id: str, contract_address: str) -> BinanceRwaMetaResponse:
         payload = await self.www.get_json(
             "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/rwa/meta/ai",
             params={"chainId": chain_id, "contractAddress": contract_address},
             ttl=300,
         )
         data = payload.get("data") or {}
-        return {
+        return BinanceRwaMetaResponse.model_validate({
             "source": "binance-rwa",
             "token_id": data.get("tokenId"),
             "name": data.get("name"),
@@ -351,31 +371,31 @@ class BinanceWeb3Service:
             "monthly_attestation_report_url": asset_url(data.get("monthlyAttestationReports")),
             "company_info": data.get("companyInfo") or {},
             "description": data.get("description"),
-        }
+        })
 
-    async def get_rwa_market_status(self) -> dict[str, Any]:
+    async def get_rwa_market_status(self) -> BinanceRwaMarketStatusResponse:
         payload = await self.www.get_json(
             "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/rwa/market/status/ai",
             ttl=30,
         )
-        return {"source": "binance-rwa", **(payload.get("data") or {})}
+        return BinanceRwaMarketStatusResponse.model_validate({"source": "binance-rwa", **(payload.get("data") or {})})
 
-    async def get_rwa_asset_market_status(self, *, chain_id: str, contract_address: str) -> dict[str, Any]:
+    async def get_rwa_asset_market_status(self, *, chain_id: str, contract_address: str) -> BinanceRwaMarketStatusResponse:
         payload = await self.www.get_json(
             "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/rwa/asset/market/status/ai",
             params={"chainId": chain_id, "contractAddress": contract_address},
             ttl=30,
         )
-        return {"source": "binance-rwa", **(payload.get("data") or {})}
+        return BinanceRwaMarketStatusResponse.model_validate({"source": "binance-rwa", **(payload.get("data") or {})})
 
-    async def get_rwa_dynamic(self, *, chain_id: str, contract_address: str) -> dict[str, Any]:
+    async def get_rwa_dynamic(self, *, chain_id: str, contract_address: str) -> BinanceRwaDynamicResponse:
         payload = await self.www.get_json(
             "/bapi/defi/v2/public/wallet-direct/buw/wallet/market/token/rwa/dynamic/ai",
             params={"chainId": chain_id, "contractAddress": contract_address},
             ttl=30,
         )
         data = payload.get("data") or {}
-        return {
+        return BinanceRwaDynamicResponse.model_validate({
             "source": "binance-rwa",
             "symbol": data.get("symbol"),
             "ticker": data.get("ticker"),
@@ -383,7 +403,7 @@ class BinanceWeb3Service:
             "stock_info": data.get("stockInfo") or {},
             "status_info": data.get("statusInfo") or {},
             "limit_info": data.get("limitInfo") or {},
-        }
+        })
 
     async def get_rwa_kline(
         self,
@@ -394,7 +414,7 @@ class BinanceWeb3Service:
         limit: int = 120,
         start_time: int | None = None,
         end_time: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> BinanceRwaKlineResponse:
         payload = await self.www.get_json(
             "/bapi/defi/v1/public/wallet-direct/buw/wallet/dex/market/token/kline/ai",
             params=compact_query(
@@ -410,7 +430,7 @@ class BinanceWeb3Service:
             ttl=30,
         )
         data = payload.get("data") or {}
-        return {
+        return BinanceRwaKlineResponse.model_validate({
             "source": "binance-rwa",
             "chain_id": chain_id,
             "contract_address": contract_address,
@@ -427,9 +447,9 @@ class BinanceWeb3Service:
                 }
                 for row in data.get("klineInfos") or []
             ],
-        }
+        })
 
-    async def get_token_dynamic(self, *, chain_id: str | None = None, contract_address: str | None = None) -> dict[str, Any]:
+    async def get_token_dynamic(self, *, chain_id: str | None = None, contract_address: str | None = None) -> BinanceWeb3TokenDynamicResponse:
         if not chain_id or not contract_address:
             raise ValueError("chain_id 和 contract_address 不能为空")
         payload = await self.web3.get_json(
@@ -437,12 +457,12 @@ class BinanceWeb3Service:
             params={"chainId": chain_id, "contractAddress": contract_address},
             ttl=30,
         )
-        return {
+        return BinanceWeb3TokenDynamicResponse.model_validate({
             "source": "binance-web3",
             "chain_id": chain_id,
             "contract_address": contract_address,
             **normalize_token_dynamic(payload.get("data") or {}),
-        }
+        })
 
     async def get_token_kline(
         self,
@@ -454,7 +474,7 @@ class BinanceWeb3Service:
         from_time: int | None = None,
         to_time: int | None = None,
         pm: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> BinanceWeb3TokenKlineResponse:
         if not address or not platform or not interval:
             raise ValueError("address、platform 和 interval 不能为空")
         payload = await self.kline.get_json(
@@ -472,7 +492,7 @@ class BinanceWeb3Service:
             ),
             ttl=30,
         )
-        return {
+        return BinanceWeb3TokenKlineResponse.model_validate({
             "source": "binance-web3",
             "address": address,
             "platform": platform,
@@ -490,9 +510,9 @@ class BinanceWeb3Service:
                 for row in payload.get("data") or []
                 if isinstance(row, list)
             ],
-        }
+        })
 
-    async def get_token_audit(self, *, binance_chain_id: str | None = None, contract_address: str | None = None) -> dict[str, Any]:
+    async def get_token_audit(self, *, binance_chain_id: str | None = None, contract_address: str | None = None) -> BinanceWeb3TokenAuditResponse:
         if not binance_chain_id or not contract_address:
             raise ValueError("binance_chain_id 和 contract_address 不能为空")
         payload = await self.web3.post_json(
@@ -506,7 +526,7 @@ class BinanceWeb3Service:
             ttl=30,
         )
         data = payload.get("data") or {}
-        return {
+        return BinanceWeb3TokenAuditResponse.model_validate({
             "source": "binance-web3",
             "binance_chain_id": binance_chain_id,
             "contract_address": contract_address,
@@ -518,7 +538,7 @@ class BinanceWeb3Service:
             "sell_tax": to_float((data.get("extraInfo") or {}).get("sellTax")),
             "is_verified": (data.get("extraInfo") or {}).get("isVerified"),
             "risk_items": data.get("riskItems") or [],
-        }
+        })
 
     async def _empty_rank(self, leaderboard: str) -> dict[str, Any]:
         return {
@@ -529,7 +549,8 @@ class BinanceWeb3Service:
 
     async def _safe_rank_call(self, awaitable: Any, leaderboard: str) -> dict[str, Any]:
         try:
-            return await asyncio.wait_for(awaitable, timeout=12)
+            response = await asyncio.wait_for(awaitable, timeout=12)
+            return response.model_dump() if hasattr(response, "model_dump") else response
         except Exception as exc:
             return {
                 "source": "binance-web3",

@@ -221,3 +221,8 @@ export interface FactorScorecardResponse {
   direction: string
   score: number
 }
+
+export interface ListFactorRunsQueryParams {
+  limit?: number
+}
+export const ListFactorRunsQueryParamsMeta = {"defaults": {"limit": 20}, "repeatedKeys": [], "aliases": {}} as const

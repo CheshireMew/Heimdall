@@ -45,7 +45,7 @@ def blank_strategy_version_config_model() -> StrategyTemplateConfigResponse:
 def build_strategy_version_response_payload(
     record: StrategyVersionRecord,
 ) -> dict[str, Any]:
-    record_config = record.config.model_dump()
+    record_config = dict(record.config or {})
     normalized_config, normalized_parameter_space = normalize_strategy_version_payload(
         record.template,
         record_config,

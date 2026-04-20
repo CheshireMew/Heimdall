@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
-from sqlalchemy import create_engine
 
-import app.infra.db.database as db_module
+from app.infra.db.database import build_database_runtime
 from app.infra.db.schema import Base, StrategyDefinition, StrategyVersion
 from app.schemas.backtest import StrategyDefinitionResponse, StrategyVersionResponse
 from app.schemas.strategy_contract import StrategyTemplateConfigResponse
@@ -22,6 +21,16 @@ from app.services.backtest.strategy_support import (
 )
 from app.services.backtest.strategy_runtime import StrategyRuntime
 from config.settings import AppSettings
+
+
+@pytest.fixture(autouse=True)
+def isolated_runtime():
+    runtime = build_database_runtime(AppSettings(DATABASE_URL="sqlite:///:memory:"))
+    Base.metadata.create_all(runtime.engine)
+    try:
+        yield runtime
+    finally:
+        runtime.dispose()
 
 
 def test_normalize_strategy_config_rejects_unknown_contract_shape():
@@ -250,19 +259,8 @@ def test_runtime_supports_shifted_price_and_indicator_sources():
     assert bool(frame.iloc[2]["long_entry_signal"]) is True
 
 
-def test_strategy_query_service_returns_api_records_after_session_close(monkeypatch):
-    original_runtime = db_module.get_database_runtime()
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}
-    )
-    Base.metadata.create_all(engine)
-    runtime = db_module.create_database_runtime(AppSettings(DATABASE_URL="sqlite:///:memory:"))
-    runtime.dispose()
-    runtime.engine = engine
-    runtime.session_factory.configure(bind=engine)
-    db_module.configure_database_runtime(runtime)
-
-    with db_module.session_scope() as session:
+def test_strategy_query_service_returns_api_records_after_session_close(isolated_runtime):
+    with isolated_runtime.session_scope() as session:
         session.add(
             StrategyDefinition(
                 key="custom_trend",
@@ -285,7 +283,7 @@ def test_strategy_query_service_returns_api_records_after_session_close(monkeypa
             )
         )
 
-    service = StrategyQueryService()
+    service = StrategyQueryService(database_runtime=isolated_runtime)
     strategies = service.list_strategies()
     for strategy in strategies:
         StrategyDefinitionResponse.model_validate(strategy)
@@ -295,8 +293,6 @@ def test_strategy_query_service_returns_api_records_after_session_close(monkeypa
 
     assert payload["runtime"]["preferred_run_timeframe"]
     StrategyVersionResponse.model_validate(payload)
-    db_module.configure_database_runtime(original_runtime)
-    engine.dispose()
 
 
 def test_strategy_contract_keeps_trade_plan_at_api_boundary():

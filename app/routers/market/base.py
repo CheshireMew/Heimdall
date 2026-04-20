@@ -35,9 +35,6 @@ from app.schemas.market import (
     RealtimeResponse,
     TechnicalMetricsResponse,
     TradeSetupResponse,
-    build_market_history_batch_response,
-    build_market_history_response,
-    build_ohlcv_points,
 )
 from config import settings
 from utils.logger import logger
@@ -68,16 +65,12 @@ async def get_realtime_analysis(
     service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
-        payload = await service.get_realtime(
+        return await service.get_realtime(
             market_data_service=market_data_service,
             symbol=symbol,
             timeframe=timeframe,
             limit=limit,
         )
-        return {
-            **payload,
-            "kline_data": build_ohlcv_points(payload.get("kline_data", [])),
-        }
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -115,8 +108,7 @@ async def websocket_realtime(
                 await websocket.send_json({"type": "error", "message": "no data"})
                 await asyncio.sleep(settings.WS_UPDATE_INTERVAL)
                 continue
-            payload["kline_data"] = [item.model_dump() for item in build_ohlcv_points(payload.get("kline_data", []))]
-            await websocket.send_json(payload)
+            await websocket.send_json(payload.model_dump())
             await asyncio.sleep(settings.WS_UPDATE_INTERVAL)
     except WebSocketDisconnect:
         logger.info("客户端断开实时推送")
@@ -138,14 +130,13 @@ async def get_market_history(
     service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
-        rows = service.get_history(
+        return await service.get_history(
             market_data_service=market_data_service,
             symbol=symbol,
             timeframe=timeframe,
             end_ts=end_ts,
             limit=limit,
         )
-        return build_market_history_response(symbol=symbol, timeframe=timeframe, rows=rows)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -161,13 +152,12 @@ async def get_latest_klines(
     service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
-        rows = service.get_recent_klines(
+        return await service.get_recent_klines(
             market_data_service=market_data_service,
             symbol=symbol,
             timeframe=timeframe,
             limit=limit,
         )
-        return build_market_history_response(symbol=symbol, timeframe=timeframe, rows=rows)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -183,16 +173,12 @@ async def get_kline_tail(
     service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
-        payload = await service.get_live_kline_tail(
+        return await service.get_live_kline_tail(
             market_data_service=market_data_service,
             symbol=symbol,
             timeframe=timeframe,
             limit=limit,
         )
-        return {
-            **payload,
-            "kline_data": build_ohlcv_points(payload.get("kline_data", [])),
-        }
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -249,14 +235,13 @@ async def get_market_full_history(
     service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
-        rows = await service.get_full_history(
+        return await service.get_full_history(
             market_data_service=market_data_service,
             symbol=symbol,
             timeframe=timeframe,
             start_date=start_date,
             fetch_policy=fetch_policy,
         )
-        return build_market_history_response(symbol=symbol, timeframe=timeframe, rows=rows)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -275,14 +260,13 @@ async def get_market_full_history_batch(
     service: MarketQueryAppService = Depends(get_market_query_app_service),
 ):
     try:
-        rows = await service.get_full_history_batch(
+        return await service.get_full_history_batch(
             market_data_service=market_data_service,
             symbols=symbols,
             timeframe=timeframe,
             start_date=start_date,
             fetch_policy=fetch_policy,
         )
-        return build_market_history_batch_response(timeframe=timeframe, series_by_symbol=rows)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -296,7 +280,7 @@ async def get_market_indicators(
     service: MarketInsightAppService = Depends(get_market_insight_app_service),
 ):
     try:
-        return service.get_indicators(category=category, days=days)
+        return await service.get_indicators_async(category=category, days=days)
     except Exception as exc:
         raise service_http_error("API /indicators 错误", exc)
 
@@ -305,7 +289,7 @@ async def get_market_indicators(
 async def list_market_indexes(
     service: IndexDataService = Depends(get_index_data_service),
 ):
-    return service.list_indexes()
+    return await service.list_indexes_async()
 
 
 @router.get("/indexes/history", response_model=MarketIndexHistoryResponse)
@@ -319,16 +303,12 @@ async def get_index_history(
     service: IndexDataService = Depends(get_index_data_service),
 ):
     try:
-        payload = service.get_history(
+        return await service.get_history_async(
             symbol=symbol,
             timeframe=timeframe,
             start_date=start_date,
             end_date=end_date,
         )
-        return {
-            **payload,
-            "data": build_ohlcv_points(payload.get("data", [])),
-        }
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -343,11 +323,7 @@ async def get_latest_index(
     service: IndexDataService = Depends(get_index_data_service),
 ):
     try:
-        payload = service.get_latest(symbol=symbol)
-        return {
-            **payload,
-            "data": build_ohlcv_points(payload.get("data", [])),
-        }
+        return await service.get_latest_async(symbol=symbol)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -365,16 +341,12 @@ async def get_index_pricing_history(
     service: IndexDataService = Depends(get_index_data_service),
 ):
     try:
-        payload = service.get_pricing_history(
+        return await service.get_pricing_history_async(
             symbol=symbol,
             timeframe=timeframe,
             start_date=start_date,
             end_date=end_date,
         )
-        return {
-            **payload,
-            "data": build_ohlcv_points(payload.get("data", [])),
-        }
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -389,11 +361,7 @@ async def get_latest_index_pricing(
     service: IndexDataService = Depends(get_index_data_service),
 ):
     try:
-        payload = service.get_latest_pricing(symbol=symbol)
-        return {
-            **payload,
-            "data": build_ohlcv_points(payload.get("data", [])),
-        }
+        return await service.get_latest_pricing_async(symbol=symbol)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
@@ -513,13 +481,13 @@ async def get_trade_setup(
 
 @router.get("/status", response_model=ApiStatusResponse)
 async def get_api_status():
-    return {
-        "status": "running",
-        "version": "2.0.0",
-        "framework": "FastAPI",
-        "dependencies": "ready",
-        "timestamp": datetime.now().isoformat(),
-    }
+    return ApiStatusResponse(
+        status="running",
+        version="2.0.0",
+        framework="FastAPI",
+        dependencies="ready",
+        timestamp=datetime.now().isoformat(),
+    )
 
 
 @router.get("/crypto_index", response_model=CryptoIndexResponse)

@@ -7,7 +7,6 @@ import sys
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -28,9 +27,12 @@ from app.dependencies import (
     get_market_data_service,
     get_market_insight_app_service,
     get_market_query_app_service,
+    get_request_database_runtime,
     get_tools_app_service,
 )
+from app.infra.db import build_database_runtime
 from app.infra.db.schema import Base
+from config.settings import AppSettings
 from test.regression_support import (
     StubBacktestCommandService,
     StubBacktestQueryService,
@@ -62,17 +64,21 @@ class StubCurrencyRateService:
         }
 
 
-@pytest.fixture(scope="session")
-def db_engine():
-    """Create an in-memory SQLite engine for testing (shared across all tests)."""
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        echo=False,
-    )
-    Base.metadata.create_all(engine)
-    yield engine
-    engine.dispose()
+@pytest.fixture(autouse=True)
+def installed_database_runtime(tmp_path):
+    database_url = f"sqlite:///{(tmp_path / 'test.db').as_posix()}"
+    runtime = build_database_runtime(AppSettings(DATABASE_URL=database_url))
+    Base.metadata.create_all(runtime.engine)
+    try:
+        yield runtime
+    finally:
+        runtime.dispose()
+
+
+@pytest.fixture
+def db_engine(installed_database_runtime):
+    """Expose the installed runtime engine to tests that need direct SQLAlchemy access."""
+    return installed_database_runtime.engine
 
 
 @pytest.fixture
@@ -96,7 +102,7 @@ def mock_kline_data():
 
 
 @pytest.fixture
-def api_harness():
+def api_harness(installed_database_runtime):
     @asynccontextmanager
     async def noop_lifespan(_app):
         yield
@@ -134,6 +140,7 @@ def api_harness():
         get_factor_research_service: lambda: services["factor_research"],
         get_factor_execution_service: lambda: services["factor_execution"],
         get_factor_paper_run_manager: lambda: services["factor_paper"],
+        get_request_database_runtime: lambda: installed_database_runtime,
     }
 
     with TestClient(app) as client:

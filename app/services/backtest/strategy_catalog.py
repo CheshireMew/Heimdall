@@ -3,9 +3,10 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-from app.infra.db.database import session_scope
+from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import IndicatorDefinition, StrategyTemplateDefinition
 from app.services.backtest.scripted_template_runtime import get_template_runtime
+from app.services.backtest.indicator_engines import BUILTIN_INDICATOR_ENGINES
 from app.services.backtest.strategy_contract import (
     blank_strategy_config,
     editor_contract,
@@ -14,10 +15,7 @@ from app.services.backtest.strategy_contract import (
     normalize_strategy_identifier,
     normalize_strategy_config,
 )
-from app.services.backtest.strategy_definitions import (
-    BUILTIN_INDICATOR_ENGINES,
-    BUILTIN_TEMPLATE_DEFINITIONS,
-)
+from app.services.backtest.strategy_definitions import BUILTIN_TEMPLATE_DEFINITIONS
 
 
 def get_indicator_engine_catalog() -> list[dict[str, Any]]:
@@ -39,24 +37,18 @@ def get_builtin_indicator_catalog() -> list[dict[str, Any]]:
     ]
 
 
-def get_indicator_catalog() -> list[dict[str, Any]]:
+def get_indicator_catalog(database_runtime: DatabaseRuntime | None = None) -> list[dict[str, Any]]:
     catalog = {item["key"]: item for item in get_builtin_indicator_catalog()}
-    with session_scope() as session:
-        rows = (
-            session.query(IndicatorDefinition)
-            .order_by(IndicatorDefinition.key.asc())
-            .all()
-        )
-        for row in rows:
-            catalog[row.key] = _indicator_row_payload(row)
+    for row in _list_custom_indicator_rows(database_runtime):
+        catalog[row.key] = _indicator_row_payload(row)
     return sorted(
         catalog.values(),
         key=lambda item: (item.get("is_builtin") is False, item["name"].lower()),
     )
 
 
-def get_indicator_registry_map() -> dict[str, dict[str, Any]]:
-    return {item["key"]: item for item in get_indicator_catalog()}
+def get_indicator_registry_map(database_runtime: DatabaseRuntime | None = None) -> dict[str, dict[str, Any]]:
+    return {item["key"]: item for item in get_indicator_catalog(database_runtime)}
 
 
 def create_indicator_definition(
@@ -66,6 +58,7 @@ def create_indicator_definition(
     engine_key: str,
     description: str | None,
     params: list[dict[str, Any]] | None,
+    database_runtime: DatabaseRuntime,
 ) -> dict[str, Any]:
     key = normalize_strategy_identifier(key, "指标标识")
     if key in BUILTIN_INDICATOR_ENGINES:
@@ -76,7 +69,7 @@ def create_indicator_definition(
     normalized_params = normalize_indicator_params(
         params or deepcopy(engine_spec["params"]), engine_spec["params"]
     )
-    with session_scope() as session:
+    with database_runtime.session_scope() as session:
         existing = session.query(IndicatorDefinition).filter_by(key=key).first()
         if existing:
             raise ValueError(f"指标已存在: {key}")
@@ -94,8 +87,8 @@ def create_indicator_definition(
         return _indicator_row_payload(row)
 
 
-def get_builtin_template_catalog() -> list[dict[str, Any]]:
-    indicator_map = get_indicator_registry_map()
+def get_builtin_template_catalog(database_runtime: DatabaseRuntime | None = None) -> list[dict[str, Any]]:
+    indicator_map = get_indicator_registry_map(database_runtime)
     contract = editor_contract()
     catalog: list[dict[str, Any]] = []
     for template_key, spec in BUILTIN_TEMPLATE_DEFINITIONS.items():
@@ -107,26 +100,20 @@ def get_builtin_template_catalog() -> list[dict[str, Any]]:
     return catalog
 
 
-def get_template_catalog() -> list[dict[str, Any]]:
-    indicator_map = get_indicator_registry_map()
+def get_template_catalog(database_runtime: DatabaseRuntime | None = None) -> list[dict[str, Any]]:
+    indicator_map = get_indicator_registry_map(database_runtime)
     contract = editor_contract()
-    catalog = {item["template"]: item for item in get_builtin_template_catalog()}
-    with session_scope() as session:
-        rows = (
-            session.query(StrategyTemplateDefinition)
-            .order_by(StrategyTemplateDefinition.key.asc())
-            .all()
-        )
-        for row in rows:
-            catalog[row.key] = _template_row_payload(row, indicator_map, contract)
+    catalog = {item["template"]: item for item in get_builtin_template_catalog(database_runtime)}
+    for row in _list_custom_template_rows(database_runtime):
+        catalog[row.key] = _template_row_payload(row, indicator_map, contract)
     return sorted(
         catalog.values(),
         key=lambda item: (item.get("is_builtin") is False, item["name"].lower()),
     )
 
 
-def get_template_spec(template: str) -> dict[str, Any]:
-    for item in get_template_catalog():
+def get_template_spec(template: str, database_runtime: DatabaseRuntime | None = None) -> dict[str, Any]:
+    for item in get_template_catalog(database_runtime):
         if item["template"] == template:
             return item
     raise ValueError(f"不支持的策略模板: {template}")
@@ -145,11 +132,12 @@ def create_template_definition(
     indicator_keys: list[str],
     default_config: dict[str, Any],
     default_parameter_space: dict[str, list[Any]] | None,
+    database_runtime: DatabaseRuntime,
 ) -> dict[str, Any]:
     key = normalize_strategy_identifier(key, "模板标识")
     if key in BUILTIN_TEMPLATE_DEFINITIONS:
         raise ValueError("该模板标识已被内置模板占用")
-    indicator_map = get_indicator_registry_map()
+    indicator_map = get_indicator_registry_map(database_runtime)
     merged_indicator_keys = list(
         dict.fromkeys(
             [
@@ -175,7 +163,7 @@ def create_template_definition(
     normalized_parameter_space = normalize_parameter_space(
         default_parameter_space or {}
     )
-    with session_scope() as session:
+    with database_runtime.session_scope() as session:
         existing = session.query(StrategyTemplateDefinition).filter_by(key=key).first()
         if existing:
             raise ValueError(f"模板已存在: {key}")
@@ -191,7 +179,7 @@ def create_template_definition(
         )
         session.add(row)
         session.flush()
-    return get_template_spec(key)
+    return get_template_spec(key, database_runtime)
 
 
 def get_builtin_strategy_definitions() -> list[dict[str, Any]]:
@@ -220,6 +208,28 @@ def get_builtin_strategy_definitions() -> list[dict[str, Any]]:
             }
         )
     return result
+
+
+def _list_custom_indicator_rows(database_runtime: DatabaseRuntime | None) -> list[IndicatorDefinition]:
+    if database_runtime is None:
+        return []
+    with database_runtime.session_scope() as session:
+        return (
+            session.query(IndicatorDefinition)
+            .order_by(IndicatorDefinition.key.asc())
+            .all()
+        )
+
+
+def _list_custom_template_rows(database_runtime: DatabaseRuntime | None) -> list[StrategyTemplateDefinition]:
+    if database_runtime is None:
+        return []
+    with database_runtime.session_scope() as session:
+        return (
+            session.query(StrategyTemplateDefinition)
+            .order_by(StrategyTemplateDefinition.key.asc())
+            .all()
+        )
 
 
 def _indicator_row_payload(row: IndicatorDefinition) -> dict[str, Any]:

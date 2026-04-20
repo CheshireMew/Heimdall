@@ -57,24 +57,42 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
         async def get_usdm_mark_price(self):
             return {}
 
+    class FakeDatabaseRuntime:
+        def dispose(self):
+            events.append("dispose_db")
+
     paper_manager = FakeManager()
     factor_manager = FakeManager()
     snapshot = FakeSnapshot()
     binance_market = FakeBinanceMarket()
 
-    monkeypatch.setattr(lifecycle_module, "_init_db", lambda: events.append("init_db"))
+    monkeypatch.setattr(lifecycle_module, "_init_db", lambda *_args: events.append("init_db"))
     monkeypatch.setattr(
         lifecycle_module,
         "build_app_runtime_services",
         lambda: AppRuntimeServices(
-            infra=InfraRuntime(),
+            infra=InfraRuntime(database_runtime=FakeDatabaseRuntime(), cache_service=object()),
             market=MarketRuntime(
+                market_data_service=object(),
+                market_indicator_repository=object(),
                 binance_market_snapshot=snapshot,
                 binance_market_intel=binance_market,
             ),
             tools=ToolsRuntime(),
-            backtest=BacktestRuntime(paper_run_manager=paper_manager),
-            factors=FactorRuntime(factor_paper_run_manager=factor_manager),
+            backtest=BacktestRuntime(
+                backtest_run_repository=object(),
+                freqtrade_backtest_service=object(),
+                strategy_query_service=object(),
+                freqtrade_report_builder=object(),
+                paper_run_manager=paper_manager,
+            ),
+            factors=FactorRuntime(
+                factor_research_repository=object(),
+                factor_research_service=object(),
+                factor_signal_execution_core=object(),
+                factor_paper_persistence_service=object(),
+                factor_paper_run_manager=factor_manager,
+            ),
             system=SystemRuntime(market_scheduler_runtime=FakeSchedulerRuntime()),
         ),
     )
@@ -94,11 +112,12 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
     assert events.index("init_db") < events.index("start_scheduler")
     assert events.index("snapshot_start") < events.index("restore")
     assert events.count("restore") == 2
-    assert events[-4:] == [
+    assert events[-5:] == [
         "snapshot_shutdown",
         "shutdown",
         "shutdown",
         "scheduler_shutdown",
+        "dispose_db",
     ]
 
 

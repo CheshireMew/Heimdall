@@ -4,6 +4,7 @@ import asyncio
 from datetime import datetime
 from typing import Callable, Literal
 
+from app.services.executor import run_sync
 from app.services.market.market_data_service import MarketDataService
 
 
@@ -61,10 +62,8 @@ class HistoryService:
             raise ValueError("start_date 必须是 YYYY-MM-DD") from exc
 
         end_dt = datetime.now()
-        loop = asyncio.get_running_loop()
         if fetch_policy == "cache_only":
-            return await loop.run_in_executor(
-                None,
+            return await run_sync(
                 lambda: market_data_service.get_cached_ohlcv_range(
                     symbol,
                     timeframe,
@@ -72,8 +71,7 @@ class HistoryService:
                     end_dt,
                 ),
             )
-        return await loop.run_in_executor(
-            None,
+        return await run_sync(
             lambda: market_data_service.fetch_ohlcv_range(
                 symbol,
                 timeframe,

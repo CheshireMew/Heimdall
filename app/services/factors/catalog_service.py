@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
-
 from app.domain.market.symbol_catalog import get_supported_crypto_symbols
+from app.schemas.factor import FactorCatalogResponse
 from app.services.market.indicator_repository import MarketIndicatorRepository
 
 from .contracts import (
@@ -21,19 +20,19 @@ class FactorCatalogService:
     def __init__(self, indicator_repository: MarketIndicatorRepository) -> None:
         self.indicator_repository = indicator_repository
 
-    def get_catalog(self) -> dict[str, Any]:
+    def get_catalog(self) -> FactorCatalogResponse:
         factor_list = sorted(
             self._list_all_factors(),
             key=lambda item: (SUPPORTED_CATEGORIES.index(item.category), item.name.lower()),
         )
-        return {
-            "symbols": get_supported_crypto_symbols(),
-            "timeframes": list(SUPPORTED_TIMEFRAMES),
-            "categories": list(SUPPORTED_CATEGORIES),
-            "factors": [serialize_factor(item) for item in factor_list],
-            "forward_horizons": list(DEFAULT_FORWARD_HORIZONS),
-            "cleaning": dict(DEFAULT_CLEANING),
-        }
+        return FactorCatalogResponse(
+            symbols=get_supported_crypto_symbols(),
+            timeframes=list(SUPPORTED_TIMEFRAMES),
+            categories=list(SUPPORTED_CATEGORIES),
+            factors=[serialize_factor(item) for item in factor_list],
+            forward_horizons=list(DEFAULT_FORWARD_HORIZONS),
+            cleaning=dict(DEFAULT_CLEANING),
+        )
 
     def select_factors(self, categories: list[str], factor_ids: list[str]) -> list[FactorDefinition]:
         selected_categories = {item for item in categories if item in SUPPORTED_CATEGORIES}

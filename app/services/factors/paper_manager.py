@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from app.infra.db.database import session_scope
+from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun
 from app.contracts.backtest import BacktestEquityPointRecord, PortfolioConfigRecord, StrategyVersionRecord
+from app.schemas.factor import FactorExecutionResponse
 from app.services.backtest.run_contract import (
     FACTOR_BLEND_PAPER_ENGINE,
     PAPER_LIVE_EXECUTION_MODE,
@@ -15,9 +15,11 @@ from app.services.backtest.run_contract import (
     parse_run_metadata,
     update_paper_metadata,
 )
+from app.services.backtest.run_lifecycle import RUN_STATUS_FAILED, RUN_STATUS_RUNNING
 from app.services.backtest.run_repository import BacktestRunRepository
 from app.services.backtest.strategy_support import blank_strategy_version_config_model
 from app.services.run_task_manager import RunTaskManager
+from app.services.executor import run_sync
 from app.services.factors.signal_execution_core import FactorSignalContext, FactorSignalExecutionCore
 from config import settings
 from utils.time_utils import utc_now_naive
@@ -36,16 +38,18 @@ class FactorPaperRunManager:
         report_builder: FreqtradeReportBuilder,
         execution_core: FactorSignalExecutionCore,
         persistence_service: FactorPaperPersistenceService,
+        database_runtime: DatabaseRuntime,
     ) -> None:
         self.factor_service = factor_service
         self.run_repository = run_repository
         self.report_builder = report_builder
         self.execution_core = execution_core
         self.persistence_service = persistence_service
+        self.database_runtime = database_runtime
         self._task_manager = RunTaskManager(
             list_active_run_ids=self._list_active_run_ids,
             tick=self._tick,
-            mark_failed=lambda run_id, reason: self._mark_stopped(run_id, "failed", reason),
+            mark_failed=lambda run_id, reason: self._mark_stopped(run_id, RUN_STATUS_FAILED, reason),
             interval_seconds=lambda: float(settings.WS_UPDATE_INTERVAL),
             error_label="因子模拟盘运行失败",
         )
@@ -69,10 +73,8 @@ class FactorPaperRunManager:
         stoploss_pct: float = -0.08,
         takeprofit_pct: float = 0.16,
         max_hold_bars: int = 20,
-    ) -> dict[str, Any]:
-        loop = asyncio.get_running_loop()
-        run_id = await loop.run_in_executor(
-            None,
+    ) -> FactorExecutionResponse:
+        run_id = await run_sync(
             lambda: self._create_run(
                 research_run_id=research_run_id,
                 initial_cash=initial_cash,
@@ -87,17 +89,17 @@ class FactorPaperRunManager:
             ),
         )
         self._task_manager.ensure_task(run_id)
-        return {"success": True, "run_id": run_id, "message": "因子模拟盘已启动"}
+        return FactorExecutionResponse(success=True, run_id=run_id, message="因子模拟盘已启动")
 
     def _tick(self, run_id: int) -> bool:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             run = session.query(BacktestRun).filter(BacktestRun.id == run_id).first()
             if not run:
                 return False
             metadata = parse_run_metadata(run.metadata_info)
             if run.execution_mode != PAPER_LIVE_EXECUTION_MODE or run.engine != FACTOR_BLEND_PAPER_ENGINE:
                 return False
-            if run.status != "running":
+            if run.status != RUN_STATUS_RUNNING:
                 return False
 
             research_meta = metadata.factor_research
@@ -182,8 +184,8 @@ class FactorPaperRunManager:
         research_run = factor_service.get_run(research_run_id)
         if not research_run:
             raise ValueError("因子研究记录不存在。")
-        request_payload = dict(research_run.get("request") or {})
-        blend = dict(research_run.get("blend") or {})
+        request_payload = research_run.request.model_dump()
+        blend = research_run.blend.model_dump()
         now = utc_now_naive()
         _, live_frame = factor_service.build_live_blend_frame(research_run_id, end_date=now)
         timeframe_delta = factor_service.timeframe_delta(request_payload["timeframe"])
@@ -194,7 +196,7 @@ class FactorPaperRunManager:
             strategy_name="Factor Blend",
             version=research_run_id,
             template="factor_blend",
-            config=blank_strategy_version_config_model(),
+            config=blank_strategy_version_config_model().model_dump(),
         )
         portfolio = PortfolioConfigRecord(
             symbols=[request_payload["symbol"]],
@@ -229,7 +231,7 @@ class FactorPaperRunManager:
             update={
                 "factor_research": {
                     "run_id": research_run_id,
-                    "dataset_id": research_run["dataset_id"],
+                    "dataset_id": research_run.dataset_id,
                     "entry_threshold": float(blend.get("entry_threshold", 0.0) if entry_threshold is None else entry_threshold),
                     "exit_threshold": float(blend.get("exit_threshold", 0.0) if exit_threshold is None else exit_threshold),
                     "stoploss_pct": stoploss_pct,
@@ -241,13 +243,13 @@ class FactorPaperRunManager:
                 },
             }
         ).model_dump()
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             run = BacktestRun(
                 symbol=request_payload["symbol"],
                 timeframe=request_payload["timeframe"],
                 start_date=now,
                 end_date=now,
-                status="running",
+                status=RUN_STATUS_RUNNING,
                 execution_mode=PAPER_LIVE_EXECUTION_MODE,
                 engine=FACTOR_BLEND_PAPER_ENGINE,
                 metadata_info=metadata,
@@ -273,7 +275,7 @@ class FactorPaperRunManager:
         )
 
     def _mark_stopped(self, run_id: int, status: str, reason: str) -> None:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             run = session.query(BacktestRun).filter(BacktestRun.id == run_id).first()
             if not run:
                 return

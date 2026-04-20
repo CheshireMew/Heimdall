@@ -1,9 +1,10 @@
 import asyncio
 import logging
 
-from app.infra.db.database import session_scope
+from app.infra.db.database import DatabaseRuntime, build_database_runtime
 from app.infra.db.schema_runtime import init_db
 from app.infra.db.schema import MarketIndicatorMeta, MarketIndicatorData
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,8 @@ INDICATOR_META = {
 class MarketIndicatorCronJob:
     """市场核心指标定时汇聚作业类"""
 
-    def __init__(self):
+    def __init__(self, *, database_runtime: DatabaseRuntime):
+        self.database_runtime = database_runtime
         self.providers = None
 
     def _get_providers(self):
@@ -75,7 +77,7 @@ class MarketIndicatorCronJob:
 
     def _save_to_db(self, data_points: list):
         """将获取到的指标数据点插入数据表"""
-        with session_scope() as db:
+        with self.database_runtime.session_scope() as db:
             try:
                  for pt in data_points:
                      ind_id = pt["indicator_id"]
@@ -117,5 +119,7 @@ class MarketIndicatorCronJob:
                  raise
 
 if __name__ == "__main__":
-    init_db()
-    asyncio.run(MarketIndicatorCronJob().run())
+    runtime = build_database_runtime(settings)
+    init_db(runtime)
+    asyncio.run(MarketIndicatorCronJob(database_runtime=runtime).run())
+    runtime.dispose()

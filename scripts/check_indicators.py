@@ -1,13 +1,14 @@
 """
 Check market indicators data in database
 """
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
-from app.infra.db import current_database_url
+from app.infra.db import build_database_runtime
+from config.settings import settings
 
-engine = create_engine(current_database_url())
+runtime = build_database_runtime(settings)
 
-with engine.connect() as conn:
+with runtime.engine.connect() as conn:
     # Check Meta
     result = conn.execute(text('SELECT * FROM market_indicator_meta'))
     print('=== Market Indicator Meta ===')
@@ -19,3 +20,5 @@ with engine.connect() as conn:
     print('\n=== Market Indicator Data (Recent 10) ===')
     for row in result2:
         print(f'{row[0]:20} | {str(row[1]):19} | {row[2]:12.2f}')
+
+runtime.dispose()

@@ -12,16 +12,19 @@ from app.services.backtest.run_contract import (
     build_completed_run_metadata,
     build_backtest_metadata,
     build_failed_run_metadata,
+    parse_run_metadata,
 )
+from app.services.backtest.run_lifecycle import RUN_STATUS_COMPLETED, RUN_STATUS_FAILED, RUN_STATUS_RUNNING
 from config import settings
-from app.infra.db.database import session_scope
+from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestRun
 from utils.logger import logger
 
 
 class BacktestRunService:
-    def __init__(self, *, execution_engine: FreqtradeBacktestService) -> None:
+    def __init__(self, *, execution_engine: FreqtradeBacktestService, database_runtime: DatabaseRuntime) -> None:
         self.execution_engine = execution_engine
+        self.database_runtime = database_runtime
 
     def run_backtest(
         self,
@@ -89,13 +92,13 @@ class BacktestRunService:
         display_symbol: str,
         symbols: list[str],
     ) -> int:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             backtest_run = BacktestRun(
                 symbol=display_symbol,
                 timeframe=timeframe,
                 start_date=start_date,
                 end_date=end_date,
-                status="running",
+                status=RUN_STATUS_RUNNING,
                 execution_mode=BACKTEST_EXECUTION_MODE,
                 engine=FREQTRADE_ENGINE,
                 metadata_info=build_backtest_metadata(
@@ -112,7 +115,7 @@ class BacktestRunService:
             return int(backtest_run.id)
 
     def _store_completed_run(self, *, backtest_id: int, result, default_pair: str) -> None:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             backtest_run = session.query(BacktestRun).filter(BacktestRun.id == backtest_id).first()
             if not backtest_run:
                 raise ValueError(f"回测记录不存在: {backtest_id}")
@@ -132,12 +135,12 @@ class BacktestRunService:
                 report=result.report,
             )
             displayed_start, displayed_end = self._resolve_displayed_range(
-                metadata=result.metadata,
+                metadata=parse_run_metadata(result.metadata),
                 fallback_start=backtest_run.start_date,
                 fallback_end=backtest_run.end_date,
             )
 
-            backtest_run.status = "completed"
+            backtest_run.status = RUN_STATUS_COMPLETED
             backtest_run.start_date = displayed_start
             backtest_run.end_date = displayed_end
             backtest_run.metadata_info = merged_metadata
@@ -153,12 +156,12 @@ class BacktestRunService:
             )
 
     def _mark_run_failed(self, *, backtest_id: int, error: str) -> None:
-        with session_scope() as session:
+        with self.database_runtime.session_scope() as session:
             backtest_run = session.query(BacktestRun).filter(BacktestRun.id == backtest_id).first()
             if not backtest_run:
                 logger.error(f"无法写入失败状态，回测记录不存在: ID={backtest_id}")
                 return
-            backtest_run.status = "failed"
+            backtest_run.status = RUN_STATUS_FAILED
             backtest_run.metadata_info = build_failed_run_metadata(
                 backtest_run.metadata_info,
                 error=error,

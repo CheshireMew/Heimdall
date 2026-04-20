@@ -8,19 +8,16 @@ from typing import Any, Dict, List
 
 import httpx
 
+from app.infra.cache import RedisService
 from config import settings
 from utils.logger import logger
-
-try:
-    from app.infra.cache import redis_service
-except ImportError:
-    redis_service = None
 
 
 class CryptoIndexService:
     """Build a fixed-basket crypto market index from current top-N market cap coins."""
 
-    def __init__(self) -> None:
+    def __init__(self, cache_service: RedisService | None = None) -> None:
+        self.cache_service = cache_service
         self.base_url = settings.COINGECKO_BASE_URL.rstrip("/")
         self.api_key = settings.COINGECKO_API_KEY
         self.timeout = settings.COINGECKO_TIMEOUT
@@ -37,14 +34,14 @@ class CryptoIndexService:
         return headers
 
     def _cache_get(self, key: str) -> Any | None:
-        if redis_service is None:
+        if self.cache_service is None:
             return None
-        return redis_service.get(key)
+        return self.cache_service.get(key)
 
     def _cache_set(self, key: str, value: Any, ttl: int | None = None) -> None:
-        if redis_service is None:
+        if self.cache_service is None:
             return
-        redis_service.set(key, value, ttl=ttl or self.cache_ttl)
+        self.cache_service.set(key, value, ttl=ttl or self.cache_ttl)
 
     def _index_cache_key(self, top_n: int, days: int, base_value: float) -> str:
         raw = f"crypto-index:{top_n}:{days}:{base_value}"

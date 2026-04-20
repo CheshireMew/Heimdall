@@ -1,26 +1,30 @@
 import { computed, reactive, ref } from 'vue'
-import type { FactorBlend, FactorCatalogItem, FactorCatalogResponse, FactorDetail, FactorResearchRun, FactorResearchSummary, FactorScorecard } from './contracts'
+import { API_BODY_DEFAULTS } from '@/api/routes'
+import type { FactorBlend, FactorCatalogItem, FactorCatalogResponse, FactorDetail, FactorExecutionRequest, FactorResearchRequest, FactorResearchRun, FactorResearchSummary, FactorScorecard } from './contracts'
 
-export const createFactorResearchForm = () => ({
-  symbol: 'BTC/USDT',
-  timeframe: '1d' as '1h' | '4h' | '1d',
-  days: 365,
-  horizon_bars: 3,
-  max_lag_bars: 7,
-  categories: [] as string[],
-  factor_ids: [] as string[],
+export type FactorResearchForm = Required<FactorResearchRequest>
+export type FactorExecutionForm = Required<FactorExecutionRequest>
+
+export const createFactorResearchForm = (): FactorResearchForm => ({
+  symbol: API_BODY_DEFAULTS.analyze_factors.symbol,
+  timeframe: API_BODY_DEFAULTS.analyze_factors.timeframe as '1h' | '4h' | '1d',
+  days: API_BODY_DEFAULTS.analyze_factors.days,
+  horizon_bars: API_BODY_DEFAULTS.analyze_factors.horizon_bars,
+  max_lag_bars: API_BODY_DEFAULTS.analyze_factors.max_lag_bars,
+  categories: [...API_BODY_DEFAULTS.analyze_factors.categories] as string[],
+  factor_ids: [...API_BODY_DEFAULTS.analyze_factors.factor_ids] as string[],
 })
 
-export const createFactorExecutionForm = () => ({
-  initial_cash: 100000,
-  fee_rate: 0.1,
-  position_size_pct: 25,
-  stake_mode: 'fixed' as 'fixed' | 'unlimited',
-  entry_threshold: null as number | null,
-  exit_threshold: null as number | null,
-  stoploss_pct: -0.08,
-  takeprofit_pct: 0.16,
-  max_hold_bars: 20,
+export const createFactorExecutionForm = (): FactorExecutionForm => ({
+  initial_cash: API_BODY_DEFAULTS.start_factor_backtest.initial_cash,
+  fee_rate: API_BODY_DEFAULTS.start_factor_backtest.fee_rate,
+  position_size_pct: API_BODY_DEFAULTS.start_factor_backtest.position_size_pct,
+  stake_mode: API_BODY_DEFAULTS.start_factor_backtest.stake_mode as 'fixed' | 'unlimited',
+  entry_threshold: API_BODY_DEFAULTS.start_factor_backtest.entry_threshold as number | null,
+  exit_threshold: API_BODY_DEFAULTS.start_factor_backtest.exit_threshold as number | null,
+  stoploss_pct: API_BODY_DEFAULTS.start_factor_backtest.stoploss_pct,
+  takeprofit_pct: API_BODY_DEFAULTS.start_factor_backtest.takeprofit_pct,
+  max_hold_bars: API_BODY_DEFAULTS.start_factor_backtest.max_hold_bars,
 })
 
 export const createFactorResearchState = () => {

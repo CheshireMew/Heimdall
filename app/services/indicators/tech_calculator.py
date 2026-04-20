@@ -6,6 +6,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 from .base_provider import BaseIndicatorProvider, logger
 from config import settings
+from app.services.executor import run_sync
 
 class TechCalculatorProvider(BaseIndicatorProvider):
     """
@@ -34,8 +35,7 @@ class TechCalculatorProvider(BaseIndicatorProvider):
                     "timestamp": datetime.fromtimestamp(last_ts, tz=timezone.utc),
                     "value": round(wma_200, 2)
                 }
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, _get)
+            return await run_sync(_get)
         except Exception as e:
             logger.error(f"Failed to calculate 200WMA: {e}")
             return None
@@ -124,8 +124,7 @@ class TechCalculatorProvider(BaseIndicatorProvider):
                     "timestamp": datetime.fromtimestamp(last_ts, tz=timezone.utc),
                     "value": round(drawdown, 2)
                 }
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, _get)
+            return await run_sync(_get)
         except Exception as e:
             logger.error(f"Failed to calculate BTC drawdown: {e}")
             return None

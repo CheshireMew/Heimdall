@@ -4,16 +4,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from app.schemas.backtest_result import BacktestReportResponse, BacktestRunMetadataResponse
-from app.schemas.strategy_contract import StrategyTemplateConfigResponse
-
 @dataclass(slots=True)
 class StrategyVersionRecord:
     strategy_key: str
     strategy_name: str
     version: int
     template: str
-    config: StrategyTemplateConfigResponse
+    config: dict[str, Any]
     parameter_space: dict[str, list[Any]] = field(default_factory=dict)
     description: str | None = None
     notes: str | None = None
@@ -83,8 +80,8 @@ class BacktestExecutionResult:
     signals: list[BacktestSignalRecord] = field(default_factory=list)
     trades: list[BacktestTradeRecord] = field(default_factory=list)
     equity_curve: list[BacktestEquityPointRecord] = field(default_factory=list)
-    report: BacktestReportResponse | None = None
-    metadata: BacktestRunMetadataResponse | None = None
+    report: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
 
 
 @dataclass(slots=True)

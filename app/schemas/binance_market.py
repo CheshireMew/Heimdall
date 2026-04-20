@@ -304,6 +304,14 @@ class BinanceMarketPageResponse(BaseModel):
     load_errors: list[str] = Field(default_factory=list)
 
 
+class BinanceMarketSourceSnapshotResponse(BaseModel):
+    spot_ticker: BinanceTickerStatsResponse
+    usdm_ticker: BinanceTickerStatsResponse
+    usdm_mark: BinanceMarkPriceResponse
+    load_errors: list[str] = Field(default_factory=list)
+    updated_at: int = 0
+
+
 class BinanceWeb3RankItemResponse(BaseModel):
     symbol: str | None = None
     chain_id: str | None = None

@@ -6,8 +6,8 @@ import ipaddress
 from fastapi import APIRouter, HTTPException, Request
 from fastapi import Depends
 
-from app.dependencies import get_currency_rate_service
-from app.infra.db import get_database_runtime
+from app.dependencies import get_currency_rate_service, get_request_database_runtime
+from app.infra.db import DatabaseRuntime
 from app.domain.market.symbol_catalog import get_supported_market_symbols
 from app.routers.errors import service_http_error
 from app.schemas.config import (
@@ -36,11 +36,12 @@ def _require_local_settings_request(request: Request) -> None:
 
 
 @router.get("/config", response_model=SystemConfigResponse)
-async def get_config():
+async def get_config(
+    database_runtime: DatabaseRuntime = Depends(get_request_database_runtime),
+):
     """获取系统配置"""
     try:
-        database_runtime = get_database_runtime()
-        return {
+        return SystemConfigResponse.model_validate({
             'exchange': settings.EXCHANGE_ID,
             'symbols': get_supported_market_symbols(),
             'timeframe': settings.TIMEFRAME,
@@ -56,7 +57,7 @@ async def get_config():
                 'database_engine': database_runtime.engine.dialect.name,
                 'cache_backend': 'local-memory',
             },
-        }
+        })
     except Exception as exc:
         raise service_http_error("API /config 错误", exc)
 

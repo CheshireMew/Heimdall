@@ -3,14 +3,13 @@ from __future__ import annotations
 import os
 from contextlib import contextmanager
 from pathlib import Path
-from threading import Lock
 from urllib.parse import quote_plus
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import Session, sessionmaker
 
-from config.settings import DEFAULT_DB_PATH, AppSettings, settings
+from config.settings import DEFAULT_DB_PATH, AppSettings
 
 
 class DatabaseRuntime:
@@ -105,46 +104,6 @@ def resolve_database_url(app_settings: AppSettings) -> tuple[str, str]:
     return f"sqlite:///{DEFAULT_DB_PATH}", "sqlite-fallback"
 
 
-def create_database_runtime(app_settings: AppSettings) -> DatabaseRuntime:
+def build_database_runtime(app_settings: AppSettings) -> DatabaseRuntime:
     database_url, source = resolve_database_url(app_settings)
     return DatabaseRuntime(database_url=database_url, source=source)
-
-
-_runtime_lock = Lock()
-_database_runtime: DatabaseRuntime | None = None
-
-
-def configure_database_runtime(runtime: DatabaseRuntime) -> DatabaseRuntime:
-    global _database_runtime
-    with _runtime_lock:
-        previous = _database_runtime
-        _database_runtime = runtime
-    if previous is not None and previous is not runtime:
-        previous.dispose()
-    return runtime
-
-
-def get_database_runtime() -> DatabaseRuntime:
-    global _database_runtime
-    runtime = _database_runtime
-    if runtime is not None:
-        return runtime
-    with _runtime_lock:
-        if _database_runtime is None:
-            _database_runtime = create_database_runtime(settings)
-        return _database_runtime
-
-
-def current_database_url() -> str:
-    return get_database_runtime().database_url
-
-
-def get_session() -> Session:
-    return get_database_runtime().get_session()
-
-
-@contextmanager
-def session_scope():
-    with get_database_runtime().session_scope() as session:
-        yield session
-

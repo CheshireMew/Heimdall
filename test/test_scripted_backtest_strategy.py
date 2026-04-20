@@ -33,7 +33,10 @@ class _StrategyQueryServiceStub:
             strategy_name="BTC Regime Pulse SuperTrend",
             version=version or 1,
             template="btc_regime_pulse_supertrend",
-            config=normalize_strategy_version_config_model("btc_regime_pulse_supertrend", {}),
+            config=normalize_strategy_version_config_model(
+                "btc_regime_pulse_supertrend",
+                {},
+            ).model_dump(),
         )
 
 

@@ -222,11 +222,11 @@ def test_value_errors_are_mapped_to_bad_request(api_harness, monkeypatch):
     async def fail_market(**kwargs):
         raise ValueError("bad market input")
 
-    def fail_factor(**kwargs):
+    async def fail_factor(**kwargs):
         raise ValueError("bad factor input")
 
     monkeypatch.setattr(api_harness["market_query_app"], "get_realtime", fail_market)
-    monkeypatch.setattr(api_harness["factor_research"], "analyze", fail_factor)
+    monkeypatch.setattr(api_harness["factor_research"], "analyze_async", fail_factor)
 
     realtime_response = api_harness["client"].get("/api/v1/realtime", params={"symbol": "BTC/USDT"})
     factor_response = api_harness["client"].post(

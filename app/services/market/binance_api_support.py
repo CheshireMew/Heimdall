@@ -11,17 +11,22 @@ import httpx
 from config import settings
 from utils.logger import logger
 
-try:
-    from app.infra.cache import redis_service
-except ImportError:
-    redis_service = None
+from app.infra.cache import RedisService
 
 
 class BinanceApiSupport:
-    def __init__(self, *, base_url: str, cache_namespace: str, user_agent: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        cache_namespace: str,
+        user_agent: str | None = None,
+        cache_service: RedisService | None = None,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.cache_namespace = cache_namespace
         self.user_agent = user_agent
+        self.cache_service = cache_service
         self.timeout = settings.BINANCE_PUBLIC_TIMEOUT
         self.cache_ttl = settings.BINANCE_PUBLIC_CACHE_TTL
         self.max_retries = settings.BINANCE_PUBLIC_MAX_RETRIES
@@ -52,14 +57,14 @@ class BinanceApiSupport:
         return f"{self.cache_namespace}:{digest}"
 
     def _cache_get(self, key: str) -> Any | None:
-        if redis_service is None:
+        if self.cache_service is None:
             return None
-        return redis_service.get(key)
+        return self.cache_service.get(key)
 
     def _cache_set(self, key: str, value: Any, ttl: int | None = None) -> None:
-        if redis_service is None:
+        if self.cache_service is None:
             return
-        redis_service.set(key, value, ttl=ttl or self.cache_ttl)
+        self.cache_service.set(key, value, ttl=ttl or self.cache_ttl)
 
     async def _request_json(
         self,

@@ -87,8 +87,8 @@ class FreqtradeResultBuilder:
             signals=signals,
             trades=trades,
             equity_curve=equity_curve,
-            report=report,
-            metadata=metadata,
+            report=report.model_dump(),
+            metadata=metadata.model_dump(),
         )
 
     def extract_metric(self, report: BacktestReportResponse | dict[str, Any], metric: str) -> float | None:

@@ -5,6 +5,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+from app.schemas.config import LlmProviderConfigResponse, LlmProviderPresetResponse
 from config import settings
 
 
@@ -70,11 +71,11 @@ LLM_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
 }
 
 
-def list_llm_presets() -> list[dict[str, Any]]:
-    return [deepcopy(item) for item in LLM_PROVIDER_PRESETS.values()]
+def list_llm_presets() -> list[LlmProviderPresetResponse]:
+    return [LlmProviderPresetResponse.model_validate(deepcopy(item)) for item in LLM_PROVIDER_PRESETS.values()]
 
 
-def read_llm_config() -> dict[str, Any]:
+def read_llm_config() -> LlmProviderConfigResponse:
     raw = _read_raw_config()
     provider = raw.get("provider") if raw.get("provider") in LLM_PROVIDER_PRESETS else "deepseek"
     preset = LLM_PROVIDER_PRESETS[provider]
@@ -87,7 +88,7 @@ def read_llm_config() -> dict[str, Any]:
         base_url = preset["baseUrl"]
         model_id = _preset_model(provider, reasoning_enabled)
 
-    return {
+    return LlmProviderConfigResponse.model_validate({
         "provider": provider,
         "apiKey": "",
         "apiKeySet": bool(api_key),
@@ -96,7 +97,7 @@ def read_llm_config() -> dict[str, Any]:
         "modelId": model_id,
         "reasoningEnabled": reasoning_enabled if provider == "deepseek" else False,
         "presets": list_llm_presets(),
-    }
+    })
 
 
 def read_effective_llm_config() -> dict[str, Any]:
@@ -122,7 +123,7 @@ def read_effective_llm_config() -> dict[str, Any]:
     }
 
 
-def save_llm_config(payload: dict[str, Any]) -> dict[str, Any]:
+def save_llm_config(payload: dict[str, Any]) -> LlmProviderConfigResponse:
     existing = _read_raw_config()
     provider = payload.get("provider") if payload.get("provider") in LLM_PROVIDER_PRESETS else "deepseek"
     preset = LLM_PROVIDER_PRESETS[provider]

@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import Any
 
 import pandas as pd
-import talib.abstract as ta
 
 from app.schemas.strategy_contract import (
     StrategyConditionNodeResponse,
@@ -16,6 +15,11 @@ from app.schemas.strategy_contract import (
     StrategyTemplateConfigResponse,
 )
 from app.services.backtest.scripted_template_runtime import get_template_runtime, template_supports_signal_runtime
+from app.services.backtest.indicator_engines import (
+    apply_indicator_frame,
+    indicator_warmup_bars,
+    resolve_indicator_engine,
+)
 from app.services.backtest.strategy_catalog import get_indicator_registry_map, get_template_spec
 from app.services.backtest.strategy_contract import (
     allowed_run_timeframes,
@@ -72,30 +76,11 @@ class StrategyRuntime:
         for indicator in normalized_config.indicators.values():
             indicator_type = indicator.type
             indicator_spec = indicator_registry.get(indicator_type) or {}
-            engine = indicator_spec.get("engine", indicator_type)
+            engine = resolve_indicator_engine(indicator_type, indicator_spec)
             params = indicator.params
             indicator_timeframe = self._resolve_indicator_timeframe(indicator, base_timeframe)
             scale = max(timeframe_to_minutes(indicator_timeframe) // base_minutes, 1)
-            if engine in {"ema", "sma", "roc"}:
-                warmups.append(int(params.get("period", 20)) * scale)
-            elif engine == "rsi":
-                warmups.append(int(params.get("period", 14)) * scale)
-            elif engine == "macd":
-                warmups.append((int(params.get("slow", 26)) + int(params.get("signal", 9))) * scale)
-            elif engine == "bbands":
-                warmups.append(int(params.get("period", 20)) * scale)
-            elif engine == "volume_sma":
-                warmups.append(int(params.get("period", 20)) * scale)
-            elif engine == "atr":
-                warmups.append(int(params.get("period", 14)) * scale)
-            elif engine in {"rolling_high", "rolling_low"}:
-                warmups.append(int(params.get("lookback", 20)) * scale)
-            elif engine == "displacement_atr":
-                warmups.append(max(int(params.get("lookback", 24)), int(params.get("atr_period", 14))) * scale)
-            elif engine == "efficiency_ratio":
-                warmups.append((int(params.get("lookback", 24)) + 1) * scale)
-            elif engine == "range_context":
-                warmups.append(max(int(params.get("lookback", 32)), int(params.get("atr_period", 14))) * scale)
+            warmups.append(indicator_warmup_bars(engine, params) * scale)
         return max(warmups) + 5
 
     def build_signal_snapshots(
@@ -192,7 +177,13 @@ class StrategyRuntime:
                 timeframe_frames[indicator_timeframe] = self._resample_frame(frame, indicator_timeframe, base_timeframe)
         for indicator_id, indicator in config.indicators.items():
             indicator_timeframe = self._resolve_indicator_timeframe(indicator, base_timeframe)
-            self._apply_indicator(timeframe_frames[indicator_timeframe], indicator_id, indicator, indicator_registry)
+            indicator_spec = indicator_registry.get(indicator.type) or {}
+            apply_indicator_frame(
+                timeframe_frames[indicator_timeframe],
+                indicator_id,
+                resolve_indicator_engine(indicator.type, indicator_spec),
+                indicator.params,
+            )
         merged = frame.copy()
         for indicator_id, indicator in config.indicators.items():
             indicator_timeframe = self._resolve_indicator_timeframe(indicator, base_timeframe)
@@ -247,87 +238,6 @@ class StrategyRuntime:
     def _resolve_indicator_timeframe(self, indicator: StrategyIndicatorConfigResponse, base_timeframe: str) -> str:
         configured = str(indicator.timeframe or "base")
         return base_timeframe if configured == "base" else configured
-
-    def _apply_indicator(
-        self,
-        frame: pd.DataFrame,
-        indicator_id: str,
-        indicator: StrategyIndicatorConfigResponse,
-        indicator_registry: dict[str, dict[str, Any]],
-    ) -> None:
-        indicator_type = indicator.type
-        indicator_spec = indicator_registry.get(indicator_type) or {}
-        engine = indicator_spec.get("engine", indicator_type)
-        params = indicator.params
-        if engine == "ema":
-            frame[f"{indicator_id}__value"] = ta.EMA(frame, timeperiod=int(params.get("period", 20)))
-            return
-        if engine == "sma":
-            frame[f"{indicator_id}__value"] = ta.SMA(frame, timeperiod=int(params.get("period", 20)))
-            return
-        if engine == "rsi":
-            frame[f"{indicator_id}__value"] = ta.RSI(frame, timeperiod=int(params.get("period", 14)))
-            return
-        if engine == "macd":
-            result = ta.MACD(frame, fastperiod=int(params.get("fast", 12)), slowperiod=int(params.get("slow", 26)), signalperiod=int(params.get("signal", 9)))
-            frame[f"{indicator_id}__macd"] = result["macd"]
-            frame[f"{indicator_id}__signal"] = result["macdsignal"]
-            frame[f"{indicator_id}__hist"] = result["macdhist"]
-            return
-        if engine == "bbands":
-            upper, middle, lower = ta.BBANDS(
-                frame["close"],
-                timeperiod=int(params.get("period", 20)),
-                nbdevup=float(params.get("stddev", 2.0)),
-                nbdevdn=float(params.get("stddev", 2.0)),
-                matype=0,
-            )
-            frame[f"{indicator_id}__upper"] = upper
-            frame[f"{indicator_id}__middle"] = middle
-            frame[f"{indicator_id}__lower"] = lower
-            return
-        if engine == "volume_sma":
-            frame[f"{indicator_id}__value"] = ta.SMA(frame["volume"], timeperiod=int(params.get("period", 20)))
-            return
-        if engine == "atr":
-            frame[f"{indicator_id}__value"] = ta.ATR(frame, timeperiod=int(params.get("period", 14)))
-            return
-        if engine == "rolling_high":
-            frame[f"{indicator_id}__value"] = frame["high"].rolling(int(params.get("lookback", 20))).max().shift(1)
-            return
-        if engine == "rolling_low":
-            frame[f"{indicator_id}__value"] = frame["low"].rolling(int(params.get("lookback", 20))).min().shift(1)
-            return
-        if engine == "roc":
-            frame[f"{indicator_id}__value"] = ta.ROC(frame, timeperiod=int(params.get("period", 12)))
-            return
-        if engine == "displacement_atr":
-            lookback = int(params.get("lookback", 24))
-            atr_period = int(params.get("atr_period", 14))
-            atr = ta.ATR(frame, timeperiod=atr_period)
-            displacement = frame["close"] - frame["close"].shift(lookback)
-            frame[f"{indicator_id}__value"] = displacement / atr.replace(0.0, pd.NA)
-            return
-        if engine == "efficiency_ratio":
-            lookback = int(params.get("lookback", 24))
-            displacement = (frame["close"] - frame["close"].shift(lookback)).abs()
-            path = frame["close"].diff().abs().rolling(lookback).sum()
-            frame[f"{indicator_id}__value"] = displacement / path.replace(0.0, pd.NA)
-            return
-        if engine == "range_context":
-            lookback = int(params.get("lookback", 32))
-            atr_period = int(params.get("atr_period", 14))
-            upper = frame["high"].rolling(lookback).max().shift(1)
-            lower = frame["low"].rolling(lookback).min().shift(1)
-            width = upper - lower
-            atr = ta.ATR(frame, timeperiod=atr_period)
-            frame[f"{indicator_id}__upper"] = upper
-            frame[f"{indicator_id}__lower"] = lower
-            frame[f"{indicator_id}__middle"] = (upper + lower) / 2.0
-            frame[f"{indicator_id}__position"] = (frame["close"] - lower) / width.replace(0.0, pd.NA)
-            frame[f"{indicator_id}__width_ratio"] = width / atr.replace(0.0, pd.NA)
-            return
-        raise ValueError(f"不支持的指标类型: {indicator_type}")
 
     def _evaluate_rule_tree(
         self,
