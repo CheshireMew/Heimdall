@@ -5,8 +5,8 @@ from datetime import datetime
 from app.infra.db.schema import BacktestRun
 from app.contracts.backtest import (
     BacktestExecutionResult,
-    PortfolioConfigRecord,
-    ResearchConfigRecord,
+    BacktestPortfolioConfig,
+    BacktestResearchConfig,
     StrategyVersionRecord,
 )
 from app.schemas.backtest_result import BacktestReportResponse, BacktestRunMetadataResponse
@@ -65,8 +65,8 @@ def _strategy() -> StrategyVersionRecord:
     )
 
 
-def _portfolio() -> PortfolioConfigRecord:
-    return PortfolioConfigRecord(
+def _portfolio() -> BacktestPortfolioConfig:
+    return BacktestPortfolioConfig(
         symbols=["BTC/USDT"],
         max_open_trades=1,
         position_size_pct=5.0,
@@ -74,8 +74,8 @@ def _portfolio() -> PortfolioConfigRecord:
     )
 
 
-def _research() -> ResearchConfigRecord:
-    return ResearchConfigRecord(
+def _research() -> BacktestResearchConfig:
+    return BacktestResearchConfig(
         slippage_bps=5.0,
         funding_rate_daily=0.0,
         in_sample_ratio=70.0,

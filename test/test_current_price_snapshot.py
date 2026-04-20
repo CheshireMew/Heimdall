@@ -28,6 +28,7 @@ class FakeRealtime:
 
 def make_service(snapshot: FakeSnapshot, history: FakeHistory) -> MarketQueryAppService:
     service = MarketQueryAppService(
+        market_data_service=object(),
         realtime_service=FakeRealtime(),
         history_service=history,
         binance_snapshot_service=snapshot,
@@ -43,7 +44,6 @@ async def test_current_price_prefers_websocket_snapshot():
     service = make_service(FakeSnapshot({"BTC/USDT": 123.0}), history)
 
     response = await service.get_current_price(
-        market_data_service=object(),
         symbol="BTC/USDT",
         timeframe="1d",
     )
@@ -58,7 +58,6 @@ async def test_current_price_falls_back_to_kline_tail():
     service = make_service(FakeSnapshot({"BTC/USDT": None}), history)
 
     response = await service.get_current_price(
-        market_data_service=object(),
         symbol="BTC/USDT",
         timeframe="1d",
     )
@@ -73,7 +72,6 @@ async def test_current_price_batch_uses_shared_snapshot_first_logic():
     service = make_service(FakeSnapshot({"BTC/USDT": 123.0, "ETH/USDT": None}), history)
 
     response = await service.get_current_price_batch(
-        market_data_service=object(),
         symbols=["BTC/USDT", "ETH/USDT", "BTC/USDT"],
         timeframe="1d",
     )

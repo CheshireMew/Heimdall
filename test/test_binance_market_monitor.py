@@ -71,13 +71,13 @@ async def test_market_breakout_monitor_unifies_and_scores_candidates(monkeypatch
     async def fake_usdm_klines(**kwargs):
         return BinanceKlineResponse.model_validate({"exchange": "binance", "market": "usdm", "symbol": "SUIUSDT", "interval": "15m", "items": make_breakout_klines(1.35)})
 
-    monkeypatch.setattr(service, "get_spot_ticker_24hr", fake_spot_ticker_24hr)
-    monkeypatch.setattr(service, "get_usdm_ticker_24hr", fake_usdm_ticker_24hr)
-    monkeypatch.setattr(service, "get_usdm_mark_price", fake_usdm_mark_price)
-    monkeypatch.setattr(service, "get_spot_klines", fake_spot_klines)
-    monkeypatch.setattr(service, "get_usdm_klines", fake_usdm_klines)
+    monkeypatch.setattr(service.spot, "get_ticker_24hr", fake_spot_ticker_24hr)
+    monkeypatch.setattr(service.usdm, "get_ticker_24hr", fake_usdm_ticker_24hr)
+    monkeypatch.setattr(service.usdm, "get_mark_price", fake_usdm_mark_price)
+    monkeypatch.setattr(service.spot, "get_klines", fake_spot_klines)
+    monkeypatch.setattr(service.usdm, "get_klines", fake_usdm_klines)
 
-    response = (await service.get_market_breakout_monitor(min_rise_pct=5.0, limit=10, quote_asset="USDT")).model_dump()
+    response = (await service.page.get_breakout_monitor(min_rise_pct=5.0, limit=10, quote_asset="USDT")).model_dump()
 
     assert response["summary"]["monitored_count"] == 2
     assert response["summary"]["spot_count"] == 1
@@ -120,12 +120,12 @@ async def test_market_page_payload_returns_partial_data_when_a_source_fails(monk
     async def fake_spot_klines(**kwargs):
         return BinanceKlineResponse.model_validate({"exchange": "binance", "market": "spot", "symbol": "DOGEUSDT", "interval": "15m", "items": make_breakout_klines(0.12)})
 
-    monkeypatch.setattr(service, "get_spot_ticker_24hr", fake_spot_ticker_24hr)
-    monkeypatch.setattr(service, "get_usdm_ticker_24hr", fake_usdm_ticker_24hr)
-    monkeypatch.setattr(service, "get_usdm_mark_price", fake_usdm_mark_price)
-    monkeypatch.setattr(service, "get_spot_klines", fake_spot_klines)
+    monkeypatch.setattr(service.spot, "get_ticker_24hr", fake_spot_ticker_24hr)
+    monkeypatch.setattr(service.usdm, "get_ticker_24hr", fake_usdm_ticker_24hr)
+    monkeypatch.setattr(service.usdm, "get_mark_price", fake_usdm_mark_price)
+    monkeypatch.setattr(service.spot, "get_klines", fake_spot_klines)
 
-    response = (await service.get_market_page_payload(min_rise_pct=5.0, limit=24, quote_asset="USDT")).model_dump()
+    response = (await service.page.get_page_payload(min_rise_pct=5.0, limit=24, quote_asset="USDT")).model_dump()
 
     assert response["load_errors"] == ["U本位24H"]
     assert response["spot_ticker"]["items"]

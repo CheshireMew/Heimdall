@@ -1,3 +1,5 @@
+import { getLocalStorage } from '@/utils/storage'
+
 export const LOCALE_STORAGE_KEY = 'locale'
 export const DEFAULT_LOCALE = 'zh-CN'
 export const FALLBACK_LOCALE = 'zh-CN'
@@ -11,20 +13,19 @@ export const LOCALE_OPTIONS: Array<{ value: AppLocale; label: string }> = [
   { value: 'en', label: 'English' },
 ]
 
-const canUseStorage = () => typeof window !== 'undefined' && !!window.localStorage
-
 const normalizeLocale = (value: string | null | undefined): AppLocale => (
   SUPPORTED_LOCALES.includes(value as AppLocale) ? value as AppLocale : DEFAULT_LOCALE
 )
 
 export const readStoredLocale = (): AppLocale => {
-  if (!canUseStorage()) return DEFAULT_LOCALE
-  return normalizeLocale(window.localStorage.getItem(LOCALE_STORAGE_KEY))
+  const storage = getLocalStorage()
+  if (storage === null) return DEFAULT_LOCALE
+  return normalizeLocale(storage.getItem(LOCALE_STORAGE_KEY))
 }
 
 export const persistLocale = (value: string | null | undefined): AppLocale => {
   const locale = normalizeLocale(value)
-  if (canUseStorage()) window.localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+  getLocalStorage()?.setItem(LOCALE_STORAGE_KEY, locale)
   return locale
 }
 

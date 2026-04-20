@@ -101,7 +101,13 @@ def resolve_database_url(app_settings: AppSettings) -> tuple[str, str]:
     if can_connect_postgres(postgres_dev_url):
         return postgres_dev_url, "postgres-dev"
 
-    return f"sqlite:///{DEFAULT_DB_PATH}", "sqlite-fallback"
+    if app_settings.ALLOW_SQLITE_FALLBACK:
+        return f"sqlite:///{DEFAULT_DB_PATH}", "sqlite-fallback"
+
+    raise RuntimeError(
+        "数据库启动边界不明确：DATABASE_URL 未配置，且本地 PostgreSQL 开发库不可连接。"
+        "如需真实运行，请配置 DATABASE_URL；如只做本地临时开发，请显式设置 ALLOW_SQLITE_FALLBACK=true。"
+    )
 
 
 def build_database_runtime(app_settings: AppSettings) -> DatabaseRuntime:

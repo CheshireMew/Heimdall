@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from app.dependencies import get_binance_market_intel_service
+from app.dependencies import runtime_dependency
 from app.rate_limit import limiter
 from app.routers.errors import service_http_error
 from app.schemas.binance_market import (
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
 
 router = APIRouter(tags=["Market Data"])
+binance_market_dependency = runtime_dependency("market.binance_market_intel")
 
 
 @router.get("/binance/market/page", response_model=BinanceMarketPageResponse)
@@ -40,10 +41,10 @@ async def get_binance_market_page(
     min_rise_pct: float = Query(5.0, ge=0.5, le=50.0),
     limit: int = Query(24, ge=1, le=30),
     quote_asset: str = Query("USDT", min_length=2, max_length=10),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_market_page_payload(
+        return await service.page.get_page_payload(
             min_rise_pct=min_rise_pct,
             limit=limit,
             quote_asset=quote_asset,
@@ -57,10 +58,10 @@ async def get_binance_market_breakout_monitor(
     min_rise_pct: float = Query(5.0, ge=0.5, le=50.0),
     limit: int = Query(18, ge=1, le=30),
     quote_asset: str = Query("USDT", min_length=2, max_length=10),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_market_breakout_monitor(
+        return await service.page.get_breakout_monitor(
             min_rise_pct=min_rise_pct,
             limit=limit,
             quote_asset=quote_asset,
@@ -76,10 +77,10 @@ async def get_binance_spot_exchange_info(
     symbols: list[str] | None = Query(None),
     permissions: list[str] | None = Query(None),
     symbol_status: str | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_spot_exchange_info(
+        return await service.spot.get_exchange_info(
             symbols=symbols,
             permissions=permissions,
             symbol_status=symbol_status,
@@ -91,10 +92,10 @@ async def get_binance_spot_exchange_info(
 @router.get("/binance/spot/ticker_24hr", response_model=BinanceTickerStatsResponse)
 async def get_binance_spot_ticker_24hr(
     symbols: list[str] | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_spot_ticker_24hr(symbols=symbols)
+        return await service.spot.get_ticker_24hr(symbols=symbols)
     except Exception as exc:
         raise service_http_error("API /binance/spot/ticker_24hr 错误", exc)
 
@@ -103,10 +104,10 @@ async def get_binance_spot_ticker_24hr(
 async def get_binance_spot_ticker_window(
     symbols: list[str] | None = Query(None),
     window_size: str | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_spot_ticker_window(symbols=symbols, window_size=window_size)
+        return await service.spot.get_ticker_window(symbols=symbols, window_size=window_size)
     except Exception as exc:
         raise service_http_error("API /binance/spot/ticker_window 错误", exc)
 
@@ -114,10 +115,10 @@ async def get_binance_spot_ticker_window(
 @router.get("/binance/spot/price", response_model=BinancePriceTickerResponse)
 async def get_binance_spot_price(
     symbols: list[str] | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_spot_price(symbols=symbols)
+        return await service.spot.get_price(symbols=symbols)
     except Exception as exc:
         raise service_http_error("API /binance/spot/price 错误", exc)
 
@@ -125,10 +126,10 @@ async def get_binance_spot_price(
 @router.get("/binance/spot/book_ticker", response_model=BinanceBookTickerResponse)
 async def get_binance_spot_book_ticker(
     symbols: list[str] | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_spot_book_ticker(symbols=symbols)
+        return await service.spot.get_book_ticker(symbols=symbols)
     except Exception as exc:
         raise service_http_error("API /binance/spot/book_ticker 错误", exc)
 
@@ -137,10 +138,10 @@ async def get_binance_spot_book_ticker(
 async def get_binance_spot_depth(
     symbol: str = Query(...),
     limit: int = Query(20, ge=5, le=5000),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_spot_depth(symbol=symbol, limit=limit)
+        return await service.spot.get_depth(symbol=symbol, limit=limit)
     except Exception as exc:
         raise service_http_error("API /binance/spot/depth 错误", exc)
 
@@ -149,10 +150,10 @@ async def get_binance_spot_depth(
 async def get_binance_spot_trades(
     symbol: str = Query(...),
     limit: int = Query(50, ge=1, le=1000),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_spot_trades(symbol=symbol, limit=limit)
+        return await service.spot.get_trades(symbol=symbol, limit=limit)
     except Exception as exc:
         raise service_http_error("API /binance/spot/trades 错误", exc)
 
@@ -163,10 +164,10 @@ async def get_binance_spot_agg_trades(
     limit: int = Query(50, ge=1, le=1000),
     start_time: int | None = Query(None),
     end_time: int | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_spot_agg_trades(
+        return await service.spot.get_agg_trades(
             symbol=symbol,
             limit=limit,
             start_time=start_time,
@@ -183,10 +184,10 @@ async def get_binance_spot_klines(
     limit: int = Query(200, ge=1, le=1000),
     start_time: int | None = Query(None),
     end_time: int | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_spot_klines(
+        return await service.spot.get_klines(
             symbol=symbol,
             interval=interval,
             limit=limit,
@@ -205,10 +206,10 @@ async def get_binance_spot_ui_klines(
     limit: int = Query(200, ge=1, le=1000),
     start_time: int | None = Query(None),
     end_time: int | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_spot_klines(
+        return await service.spot.get_klines(
             symbol=symbol,
             interval=interval,
             limit=limit,
@@ -224,10 +225,10 @@ async def get_binance_spot_ui_klines(
 @limiter.limit(settings.RATE_LIMIT_HEAVY)
 async def get_binance_usdm_exchange_info(
     request: Request,
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_usdm_exchange_info()
+        return await service.usdm.get_exchange_info()
     except Exception as exc:
         raise service_http_error("API /binance/futures/usdm/exchange_info 错误", exc)
 
@@ -235,10 +236,10 @@ async def get_binance_usdm_exchange_info(
 @router.get("/binance/futures/usdm/ticker_24hr", response_model=BinanceTickerStatsResponse)
 async def get_binance_usdm_ticker_24hr(
     symbol: str | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_usdm_ticker_24hr(symbol=symbol)
+        return await service.usdm.get_ticker_24hr(symbol=symbol)
     except Exception as exc:
         raise service_http_error("API /binance/futures/usdm/ticker_24hr 错误", exc)
 
@@ -246,20 +247,20 @@ async def get_binance_usdm_ticker_24hr(
 @router.get("/binance/futures/usdm/mark_price", response_model=BinanceMarkPriceResponse)
 async def get_binance_usdm_mark_price(
     symbol: str | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_usdm_mark_price(symbol=symbol)
+        return await service.usdm.get_mark_price(symbol=symbol)
     except Exception as exc:
         raise service_http_error("API /binance/futures/usdm/mark_price 错误", exc)
 
 
 @router.get("/binance/futures/usdm/funding_info", response_model=BinanceFundingInfoResponse)
 async def get_binance_usdm_funding_info(
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_usdm_funding_info()
+        return await service.usdm.get_funding_info()
     except Exception as exc:
         raise service_http_error("API /binance/futures/usdm/funding_info 错误", exc)
 
@@ -270,10 +271,10 @@ async def get_binance_usdm_funding_history(
     limit: int = Query(100, ge=1, le=1000),
     start_time: int | None = Query(None),
     end_time: int | None = Query(None),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_usdm_funding_history(
+        return await service.usdm.get_funding_history(
             symbol=symbol,
             limit=limit,
             start_time=start_time,
@@ -286,10 +287,10 @@ async def get_binance_usdm_funding_history(
 @router.get("/binance/futures/usdm/open_interest", response_model=BinanceOpenInterestSnapshotResponse)
 async def get_binance_usdm_open_interest(
     symbol: str = Query(...),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_usdm_open_interest(symbol=symbol)
+        return await service.usdm.get_open_interest(symbol=symbol)
     except Exception as exc:
         raise service_http_error("API /binance/futures/usdm/open_interest 错误", exc)
 
@@ -299,10 +300,10 @@ async def get_binance_usdm_open_interest_stats(
     symbol: str = Query(...),
     period: str = Query(...),
     limit: int = Query(30, ge=1, le=500),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_usdm_open_interest_stats(symbol=symbol, period=period, limit=limit)
+        return await service.usdm.get_open_interest_stats(symbol=symbol, period=period, limit=limit)
     except Exception as exc:
         raise service_http_error("API /binance/futures/usdm/open_interest_stats 错误", exc)
 
@@ -312,10 +313,10 @@ async def get_binance_usdm_long_short_ratio(
     symbol: str = Query(...),
     period: str = Query(...),
     limit: int = Query(30, ge=1, le=500),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_usdm_long_short_ratio(symbol=symbol, period=period, limit=limit)
+        return await service.usdm.get_long_short_ratio(symbol=symbol, period=period, limit=limit)
     except Exception as exc:
         raise service_http_error("API /binance/futures/usdm/long_short_ratio 错误", exc)
 
@@ -325,10 +326,10 @@ async def get_binance_usdm_top_trader_accounts(
     symbol: str = Query(...),
     period: str = Query(...),
     limit: int = Query(30, ge=1, le=500),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_usdm_top_trader_accounts(symbol=symbol, period=period, limit=limit)
+        return await service.usdm.get_top_trader_accounts(symbol=symbol, period=period, limit=limit)
     except Exception as exc:
         raise service_http_error("API /binance/futures/usdm/top_trader_accounts 错误", exc)
 
@@ -338,10 +339,10 @@ async def get_binance_usdm_top_trader_positions(
     symbol: str = Query(...),
     period: str = Query(...),
     limit: int = Query(30, ge=1, le=500),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_usdm_top_trader_positions(symbol=symbol, period=period, limit=limit)
+        return await service.usdm.get_top_trader_positions(symbol=symbol, period=period, limit=limit)
     except Exception as exc:
         raise service_http_error("API /binance/futures/usdm/top_trader_positions 错误", exc)
 
@@ -351,10 +352,10 @@ async def get_binance_usdm_taker_volume(
     symbol: str = Query(...),
     period: str = Query(...),
     limit: int = Query(30, ge=1, le=500),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_usdm_taker_volume(symbol=symbol, period=period, limit=limit)
+        return await service.usdm.get_taker_volume(symbol=symbol, period=period, limit=limit)
     except Exception as exc:
         raise service_http_error("API /binance/futures/usdm/taker_volume 错误", exc)
 
@@ -365,9 +366,9 @@ async def get_binance_usdm_basis(
     contract_type: str = Query(...),
     period: str = Query(...),
     limit: int = Query(30, ge=1, le=500),
-    service: BinanceMarketIntelService = Depends(get_binance_market_intel_service),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
     try:
-        return await service.get_usdm_basis(pair=pair, contract_type=contract_type, period=period, limit=limit)
+        return await service.usdm.get_basis(pair=pair, contract_type=contract_type, period=period, limit=limit)
     except Exception as exc:
         raise service_http_error("API /binance/futures/usdm/basis 错误", exc)

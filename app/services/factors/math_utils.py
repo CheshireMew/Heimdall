@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import timedelta
 import math
 from typing import Any
 
@@ -196,17 +195,6 @@ class FactorMath:
         series = pd.Series(source_series.values, index=index)
         aligned = series.reindex(index.union(pd.Index(target_index))).sort_index().ffill().reindex(pd.Index(target_index))
         return aligned
-
-    def timeframe_delta(self, timeframe: str) -> timedelta:
-        value = int(timeframe[:-1])
-        unit = timeframe[-1]
-        if unit == "m":
-            return timedelta(minutes=value)
-        if unit == "h":
-            return timedelta(hours=value)
-        if unit == "d":
-            return timedelta(days=value)
-        raise ValueError(f"暂不支持的时间周期: {timeframe}")
 
     def sign(self, value: float | int | None) -> int:
         if value is None:

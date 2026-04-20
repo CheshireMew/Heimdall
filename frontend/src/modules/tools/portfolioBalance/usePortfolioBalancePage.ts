@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { backtestApi } from '@/modules/backtest'
+import { todayLocalIsoDate } from '@/utils/localDate'
 import type { BacktestRun, PortfolioBacktestSummary, PortfolioBalancePortfolio } from './contracts'
 
 import { buildPortfolioBacktestSummary } from './backtest'
@@ -291,7 +292,7 @@ export function usePortfolioBalancePage() {
         portfolio.holdingsSource = 'paper'
         portfolio.tracking.virtualCapital = portfolio.seedCapital
         portfolio.backtest.initialCapital = portfolio.seedCapital
-        portfolio.tracking.inceptionDate = new Date().toISOString().slice(0, 10)
+        portfolio.tracking.inceptionDate = todayLocalIsoDate()
       })
 
       lastImportedRun.value = targetRun

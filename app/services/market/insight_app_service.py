@@ -7,7 +7,6 @@ from app.domain.market.trade_setup import TradeSetupEngine, TradeSetupRequest
 from app.schemas.market import CryptoIndexResponse, MarketIndicatorResponse, TradeSetupResponse
 from app.services.market.crypto_index_service import CryptoIndexService
 from app.services.market.indicator_service import IndicatorService
-from app.services.market.market_data_service import MarketDataService
 from app.services.market.query_app_service import MarketQueryAppService
 from app.services.executor import run_sync
 
@@ -49,7 +48,6 @@ class MarketInsightAppService:
     async def get_trade_setup(
         self,
         *,
-        market_data_service: MarketDataService,
         symbol: str,
         timeframe: str,
         limit: int,
@@ -62,7 +60,6 @@ class MarketInsightAppService:
             raise ValueError("无效判断方式。可选: rules, ai")
 
         snapshot = await self.market_query_service.load_snapshot(
-            market_data_service=market_data_service,
             symbol=symbol,
             timeframe=timeframe,
             limit=limit,

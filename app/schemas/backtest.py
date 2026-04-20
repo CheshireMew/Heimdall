@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.strategy_contract import (
     StrategyConditionNodeResponse,
@@ -14,82 +14,28 @@ from app.schemas.strategy_contract import (
 )
 from app.schemas.json_types import JsonObject, JsonValue
 from app.contracts.backtest import (
+    BacktestPortfolioConfig,
+    BacktestResearchConfig,
     BacktestStartCommand,
     CreateIndicatorDefinitionCommand,
     CreateStrategyTemplateCommand,
     CreateStrategyVersionCommand,
     PaperStartCommand,
-    PortfolioConfigRecord,
-    ResearchConfigRecord,
 )
 from app.schemas.backtest_result import (
     BacktestReportResponse,
     BacktestRunMetadataResponse,
 )
-from app.services.backtest.run_form_contract import (
+from app.contracts.backtest_defaults import (
     DEFAULT_FEE_RATE,
     DEFAULT_HISTORY_MODE,
     DEFAULT_INITIAL_CASH,
-    DEFAULT_PORTFOLIO,
     DEFAULT_RANGE_DAYS,
-    DEFAULT_RESEARCH,
     DEFAULT_STRATEGY_KEY,
     DEFAULT_TIMEFRAME,
     OPTIMIZE_METRIC_OPTIONS,
     default_backtest_dates,
 )
-from app.services.backtest.symbol_contract import normalize_backtest_symbols
-
-
-class BacktestPortfolioRequest(BaseModel):
-    symbols: list[str] = Field(
-        default_factory=lambda: list(DEFAULT_PORTFOLIO["symbols"])
-    )
-    max_open_trades: int = Field(
-        default=DEFAULT_PORTFOLIO["max_open_trades"], ge=1, le=50
-    )
-    position_size_pct: float = Field(
-        default=DEFAULT_PORTFOLIO["position_size_pct"], gt=0, le=100
-    )
-    stake_mode: Literal["fixed", "unlimited"] = DEFAULT_PORTFOLIO["stake_mode"]
-
-    @field_validator("symbols", mode="before")
-    @classmethod
-    def parse_symbols(cls, value: Any) -> list[str]:
-        if isinstance(value, str):
-            return [symbol.strip() for symbol in value.split(",") if symbol.strip()]
-        return value
-
-    @model_validator(mode="after")
-    def validate_portfolio(self) -> "BacktestPortfolioRequest":
-        self.symbols = normalize_backtest_symbols(self.symbols)
-        if not self.symbols:
-            raise ValueError("至少选择一个交易对")
-        if (
-            self.stake_mode == "fixed"
-            and self.position_size_pct * self.max_open_trades > 100
-        ):
-            raise ValueError("固定仓位下，单笔仓位百分比乘以最大持仓数不能超过 100")
-        return self
-
-
-class BacktestResearchRequest(BaseModel):
-    slippage_bps: float = Field(default=DEFAULT_RESEARCH["slippage_bps"], ge=0, le=1000)
-    funding_rate_daily: float = Field(
-        default=DEFAULT_RESEARCH["funding_rate_daily"], ge=-10, le=10
-    )
-    in_sample_ratio: float = Field(
-        default=DEFAULT_RESEARCH["in_sample_ratio"], ge=50, le=100
-    )
-    optimize_metric: Literal[
-        "sharpe", "profit_pct", "calmar", "profit_factor"
-    ] = DEFAULT_RESEARCH["optimize_metric"]
-    optimize_trials: int = Field(
-        default=DEFAULT_RESEARCH["optimize_trials"], ge=0, le=500
-    )
-    rolling_windows: int = Field(
-        default=DEFAULT_RESEARCH["rolling_windows"], ge=0, le=24
-    )
 
 
 class BacktestStartRequest(BaseModel):
@@ -100,10 +46,10 @@ class BacktestStartRequest(BaseModel):
     end_date: date = Field(default_factory=lambda: default_backtest_dates()[1])
     initial_cash: float = Field(default=DEFAULT_INITIAL_CASH, gt=0)
     fee_rate: float = Field(default=DEFAULT_FEE_RATE, ge=0, le=100)
-    portfolio: BacktestPortfolioRequest = Field(
-        default_factory=BacktestPortfolioRequest
+    portfolio: BacktestPortfolioConfig = Field(
+        default_factory=BacktestPortfolioConfig
     )
-    research: BacktestResearchRequest = Field(default_factory=BacktestResearchRequest)
+    research: BacktestResearchConfig = Field(default_factory=BacktestResearchConfig)
 
     @model_validator(mode="after")
     def validate_range(self) -> "BacktestStartRequest":
@@ -126,20 +72,8 @@ class BacktestStartRequest(BaseModel):
             end_date=datetime.combine(self.end_date, time.max, tzinfo=timezone.utc),
             initial_cash=self.initial_cash,
             fee_rate=self.fee_rate,
-            portfolio=PortfolioConfigRecord(
-                symbols=list(self.portfolio.symbols),
-                max_open_trades=self.portfolio.max_open_trades,
-                position_size_pct=self.portfolio.position_size_pct,
-                stake_mode=self.portfolio.stake_mode,
-            ),
-            research=ResearchConfigRecord(
-                slippage_bps=self.research.slippage_bps,
-                funding_rate_daily=self.research.funding_rate_daily,
-                in_sample_ratio=self.research.in_sample_ratio,
-                optimize_metric=self.research.optimize_metric,
-                optimize_trials=self.research.optimize_trials,
-                rolling_windows=self.research.rolling_windows,
-            ),
+            portfolio=self.portfolio.model_copy(deep=True),
+            research=self.research.model_copy(deep=True),
         )
 
 
@@ -155,8 +89,8 @@ class PaperStartRequest(BaseModel):
     timeframe: str = DEFAULT_TIMEFRAME
     initial_cash: float = Field(default=DEFAULT_INITIAL_CASH, gt=0)
     fee_rate: float = Field(default=DEFAULT_FEE_RATE, ge=0, le=100)
-    portfolio: BacktestPortfolioRequest = Field(
-        default_factory=BacktestPortfolioRequest
+    portfolio: BacktestPortfolioConfig = Field(
+        default_factory=BacktestPortfolioConfig
     )
 
     def to_command(self) -> PaperStartCommand:
@@ -166,12 +100,7 @@ class PaperStartRequest(BaseModel):
             timeframe=self.timeframe,
             initial_cash=self.initial_cash,
             fee_rate=self.fee_rate,
-            portfolio=PortfolioConfigRecord(
-                symbols=list(self.portfolio.symbols),
-                max_open_trades=self.portfolio.max_open_trades,
-                position_size_pct=self.portfolio.position_size_pct,
-                stake_mode=self.portfolio.stake_mode,
-            ),
+            portfolio=self.portfolio.model_copy(deep=True),
         )
 
 
@@ -365,10 +294,10 @@ class BacktestRunDefaultsResponse(BaseModel):
     )
     initial_cash: float = DEFAULT_INITIAL_CASH
     fee_rate: float = DEFAULT_FEE_RATE
-    portfolio: BacktestPortfolioRequest = Field(
-        default_factory=BacktestPortfolioRequest
+    portfolio: BacktestPortfolioConfig = Field(
+        default_factory=BacktestPortfolioConfig
     )
-    research: BacktestResearchRequest = Field(default_factory=BacktestResearchRequest)
+    research: BacktestResearchConfig = Field(default_factory=BacktestResearchConfig)
     history_mode: Literal["backtest", "paper"] = DEFAULT_HISTORY_MODE
     optimize_metric_options: list[StrategyOperatorResponse] = Field(
         default_factory=lambda: [

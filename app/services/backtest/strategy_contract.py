@@ -4,7 +4,8 @@ import re
 from copy import deepcopy
 from typing import Any
 
-from app.schemas.strategy_contract import StrategyTemplateConfigResponse
+from app.domain.market.timeframes import timeframe_to_minutes
+from app.schemas.strategy_contract import StrategyStateBranchResponse, StrategyTemplateConfigResponse
 
 STRATEGY_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 PRICE_SOURCE_FIELDS = {"open", "high", "low", "close", "volume"}
@@ -96,6 +97,14 @@ def execution_defaults() -> dict[str, Any]:
     }
 
 
+def strategy_branch(config: StrategyTemplateConfigResponse, branch_key: str) -> StrategyStateBranchResponse:
+    if branch_key == "trend":
+        return config.trend
+    if branch_key == "range":
+        return config.range
+    raise ValueError(f"不支持的策略分支: {branch_key}")
+
+
 def branch_defaults(branch_id: str, label: str, *, enabled: bool = True) -> dict[str, Any]:
     return {
         "id": branch_id,
@@ -162,20 +171,6 @@ def editor_contract() -> dict[str, Any]:
         "blank_group": build_group("group", "条件组", "and", []),
         "blank_config": blank_strategy_config(),
     }
-
-
-def timeframe_to_minutes(timeframe: str) -> int:
-    mapping = {
-        "1m": 1,
-        "5m": 5,
-        "15m": 15,
-        "1h": 60,
-        "4h": 240,
-        "1d": 1440,
-    }
-    if timeframe not in mapping:
-        raise ValueError(f"不支持的时间周期: {timeframe}")
-    return mapping[timeframe]
 
 
 def normalize_strategy_identifier(value: Any, label: str) -> str:

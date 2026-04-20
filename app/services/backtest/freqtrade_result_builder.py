@@ -12,7 +12,7 @@ from freqtrade.data.btanalysis.bt_fileutils import (
 
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
 from app.services.backtest.freqtrade_trade_mapper import FreqtradeTradeMapper
-from app.contracts.backtest import BacktestExecutionResult, ResearchConfigRecord
+from app.contracts.backtest import BacktestExecutionResult, BacktestResearchConfig
 from app.schemas.backtest_result import BacktestReportResponse, BacktestReportSnapshotResponse, BacktestRunMetadataResponse
 from config import settings
 
@@ -36,7 +36,7 @@ class FreqtradeResultBuilder:
         initial_cash: float,
         fee_rate: float,
         fee_ratio: float,
-        research: ResearchConfigRecord,
+        research: BacktestResearchConfig,
     ) -> BacktestExecutionResult:
         result_file = results_dir / get_latest_backtest_filename(results_dir)
         stats = load_backtest_stats(result_file)

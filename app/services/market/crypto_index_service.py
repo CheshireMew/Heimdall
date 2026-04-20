@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 
 import httpx
 
-from app.infra.cache import RedisService
+from app.infra.cache import RedisService, optional_cache_get, optional_cache_set
 from config import settings
 from utils.logger import logger
 
@@ -32,16 +32,6 @@ class CryptoIndexService:
         if self.api_key:
             headers["x-cg-pro-api-key"] = self.api_key
         return headers
-
-    def _cache_get(self, key: str) -> Any | None:
-        if self.cache_service is None:
-            return None
-        return self.cache_service.get(key)
-
-    def _cache_set(self, key: str, value: Any, ttl: int | None = None) -> None:
-        if self.cache_service is None:
-            return
-        self.cache_service.set(key, value, ttl=ttl or self.cache_ttl)
 
     def _index_cache_key(self, top_n: int, days: int, base_value: float) -> str:
         raw = f"crypto-index:{top_n}:{days}:{base_value}"
@@ -107,7 +97,7 @@ class CryptoIndexService:
 
     async def get_top_market_caps(self, top_n: int) -> List[Dict[str, Any]]:
         cache_key = self._top_market_caps_cache_key(top_n)
-        cached = self._cache_get(cache_key)
+        cached = optional_cache_get(self.cache_service, cache_key)
         if cached is not None:
             return cached
 
@@ -142,7 +132,7 @@ class CryptoIndexService:
             for item in data
             if item.get("market_cap")
         ]
-        self._cache_set(cache_key, result)
+        optional_cache_set(self.cache_service, cache_key, result, ttl=None, default_ttl=self.cache_ttl)
         return result
 
     async def _get_coin_market_caps(
@@ -152,7 +142,7 @@ class CryptoIndexService:
         days: int,
     ) -> Dict[str, Any]:
         cache_key = self._coin_history_cache_key(coin_id, days)
-        cached = self._cache_get(cache_key)
+        cached = optional_cache_get(self.cache_service, cache_key)
         if cached is not None:
             return {"id": coin_id, "market_caps": cached, "error": None}
 
@@ -168,7 +158,7 @@ class CryptoIndexService:
             )
             market_caps = data.get("market_caps", [])
             if market_caps:
-                self._cache_set(cache_key, market_caps)
+                optional_cache_set(self.cache_service, cache_key, market_caps, ttl=None, default_ttl=self.cache_ttl)
             return {"id": coin_id, "market_caps": market_caps, "error": None}
         except Exception as e:
             logger.warning(f"CoinGecko history fetch failed for {coin_id}: {e}")
@@ -176,7 +166,7 @@ class CryptoIndexService:
 
     async def build_index(self, top_n: int = 20, days: int = 90, base_value: float = 1000.0) -> Dict[str, Any]:
         index_cache_key = self._index_cache_key(top_n, days, base_value)
-        cached_index = self._cache_get(index_cache_key)
+        cached_index = optional_cache_get(self.cache_service, index_cache_key)
         if cached_index is not None:
             return cached_index
 
@@ -241,7 +231,7 @@ class CryptoIndexService:
                 "resolved_constituents_count": len(filtered_constituents),
                 "missing_symbols": missing_symbols,
             }
-            self._cache_set(index_cache_key, result, ttl=max(60, self.cache_ttl // 3))
+            optional_cache_set(self.cache_service, index_cache_key, result, ttl=max(60, self.cache_ttl // 3), default_ttl=self.cache_ttl)
             return result
 
         common_start = max(first_dates)
@@ -269,7 +259,7 @@ class CryptoIndexService:
                 "resolved_constituents_count": len(filtered_constituents),
                 "missing_symbols": missing_symbols,
             }
-            self._cache_set(index_cache_key, result, ttl=max(60, self.cache_ttl // 3))
+            optional_cache_set(self.cache_service, index_cache_key, result, ttl=max(60, self.cache_ttl // 3), default_ttl=self.cache_ttl)
             return result
 
         base_cap = aggregated_caps[valid_dates[0]]
@@ -312,5 +302,11 @@ class CryptoIndexService:
                 "methodology": "fixed-basket-market-cap-weighted-partial" if is_partial else "fixed-basket-market-cap-weighted",
             },
         }
-        self._cache_set(index_cache_key, result, ttl=self.cache_ttl if not is_partial else max(60, self.cache_ttl // 3))
+        optional_cache_set(
+            self.cache_service,
+            index_cache_key,
+            result,
+            ttl=self.cache_ttl if not is_partial else max(60, self.cache_ttl // 3),
+            default_ttl=self.cache_ttl,
+        )
         return result

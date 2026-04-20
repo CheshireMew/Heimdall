@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.dependencies import get_factor_execution_service, get_factor_paper_run_manager, get_factor_research_service
+from app.dependencies import runtime_dependency
 from app.routers.errors import service_http_error
 from app.schemas.factor import (
     FactorCatalogResponse,
@@ -23,11 +23,14 @@ if TYPE_CHECKING:
 
 
 router = APIRouter(tags=["Factor Research"])
+factor_research_dependency = runtime_dependency("factors.factor_research_service")
+factor_execution_dependency = runtime_dependency("factors.factor_execution_service")
+factor_paper_dependency = runtime_dependency("factors.factor_paper_run_manager")
 
 
 @router.get("/factor-research/catalog", response_model=FactorCatalogResponse)
 async def get_factor_catalog(
-    service: FactorResearchService = Depends(get_factor_research_service),
+    service: FactorResearchService = Depends(factor_research_dependency),
 ):
     try:
         return await service.get_catalog_async()
@@ -38,7 +41,7 @@ async def get_factor_catalog(
 @router.post("/factor-research/analyze", response_model=FactorResearchResponse)
 async def analyze_factors(
     body: FactorResearchRequest,
-    service: FactorResearchService = Depends(get_factor_research_service),
+    service: FactorResearchService = Depends(factor_research_dependency),
 ):
     try:
         return await service.analyze_async(
@@ -57,7 +60,7 @@ async def analyze_factors(
 @router.get("/factor-research/runs", response_model=list[FactorResearchRunListItemResponse])
 async def list_factor_runs(
     limit: int = 20,
-    service: FactorResearchService = Depends(get_factor_research_service),
+    service: FactorResearchService = Depends(factor_research_dependency),
 ):
     try:
         return await service.list_runs_async(limit=limit)
@@ -68,7 +71,7 @@ async def list_factor_runs(
 @router.get("/factor-research/runs/{run_id}", response_model=FactorResearchRunDetailResponse)
 async def get_factor_run(
     run_id: int,
-    service: FactorResearchService = Depends(get_factor_research_service),
+    service: FactorResearchService = Depends(factor_research_dependency),
 ):
     try:
         result = await service.get_run_async(run_id)
@@ -85,7 +88,7 @@ async def get_factor_run(
 async def start_factor_backtest(
     run_id: int,
     body: FactorExecutionRequest,
-    service: FactorExecutionService = Depends(get_factor_execution_service),
+    service: FactorExecutionService = Depends(factor_execution_dependency),
 ):
     try:
         backtest_id = await service.run_backtest_async(
@@ -109,7 +112,7 @@ async def start_factor_backtest(
 async def start_factor_paper_run(
     run_id: int,
     body: FactorExecutionRequest,
-    service: FactorPaperRunManager = Depends(get_factor_paper_run_manager),
+    service: FactorPaperRunManager = Depends(factor_paper_dependency),
 ):
     try:
         return await service.start_run(

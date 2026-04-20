@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
+import { addDaysToLocalIsoDate, todayLocalIsoDate } from '@/utils/localDate'
 import type { BacktestRun, StrategyDefinition, StrategyEditorContract, StrategyVersion } from './contracts'
 import { backtestApi } from './api'
 import { asNumber } from './format'
@@ -16,8 +17,6 @@ import {
 import { supportsPaperTrading, supportsVersionEditing } from './templateRuntime'
 import { useBacktestRuns } from './useBacktestRuns'
 import { defineReactiveView, type BacktestControlPanelView, type BacktestHistoryPanelView } from './viewTypes'
-
-const todayIso = () => new Date().toISOString().slice(0, 10)
 
 export const useBacktestPage = () => {
   const { t } = useI18n()
@@ -190,18 +189,14 @@ export const useBacktestPage = () => {
   watch(() => config.start_date, (value) => {
     if (!value) return
     if (!config.end_date || config.end_date <= value) {
-      const nextDay = new Date(`${value}T00:00:00`)
-      nextDay.setDate(nextDay.getDate() + 1)
-      config.end_date = nextDay.toISOString().slice(0, 10)
+      config.end_date = addDaysToLocalIsoDate(value, 1)
     }
   })
 
   watch(() => config.end_date, (value) => {
     if (!value || !config.start_date) return
     if (value <= config.start_date) {
-      const previousDay = new Date(`${value}T00:00:00`)
-      previousDay.setDate(previousDay.getDate() - 1)
-      config.start_date = previousDay.toISOString().slice(0, 10)
+      config.start_date = addDaysToLocalIsoDate(value, -1)
     }
   })
 
@@ -215,7 +210,7 @@ export const useBacktestPage = () => {
 
   const controlPanel = defineReactiveView<BacktestControlPanelView>({
     config,
-    today: todayIso(),
+    today: todayLocalIsoDate(),
     ready,
     strategies,
     selectedStrategy,

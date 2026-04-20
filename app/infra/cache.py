@@ -80,3 +80,15 @@ class RedisService:
 
 def build_cache_service(app_settings=settings) -> RedisService:
     return RedisService(app_settings)
+
+
+def optional_cache_get(cache_service: RedisService | None, key: str) -> Any | None:
+    if cache_service is None:
+        return None
+    return cache_service.get(key)
+
+
+def optional_cache_set(cache_service: RedisService | None, key: str, value: Any, *, ttl: int | None, default_ttl: int) -> None:
+    if cache_service is None:
+        return
+    cache_service.set(key, value, ttl=ttl or default_ttl)

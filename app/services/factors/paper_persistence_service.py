@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from app.infra.db.schema import BacktestEquityPoint, BacktestRun
+from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestTrade
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
 from app.services.backtest.result_store import build_signal_rows, build_trade_rows
 from app.contracts.backtest import BacktestEquityPointRecord, BacktestSignalRecord, BacktestTradeRecord

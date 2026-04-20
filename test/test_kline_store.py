@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from app.services.market.kline_store import KlineStore
 
 
@@ -17,14 +19,15 @@ class FailingSession:
         self.rollback_count += 1
 
 
-def test_kline_cache_save_failure_is_best_effort():
+def test_kline_cache_save_failure_is_visible_to_caller():
     session = FailingSession()
 
-    KlineStore(database_runtime=object())._save_with_session(
-        session,
-        "proxy:US:NASDAQ100:QQQ",
-        "1d",
-        [[1775779200000, 611.84, 613.67, 609.58, 611.07, 34038526.0]],
-    )
+    with pytest.raises(RuntimeError, match="value too long"):
+        KlineStore(database_runtime=object())._save_with_session(
+            session,
+            "proxy:US:NASDAQ100:QQQ",
+            "1d",
+            [[1775779200000, 611.84, 613.67, 609.58, 611.07, 34038526.0]],
+        )
 
     assert session.rollback_count == 1

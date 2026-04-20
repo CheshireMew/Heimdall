@@ -253,14 +253,6 @@ class IndexDataService:
     ) -> IndexFetchResult:
         return self.history_sources.fetch_pricing_history(instrument, start_dt, end_dt)
 
-    def _fetch_fred_history(
-        self,
-        instrument: IndexInstrument,
-        start_dt: datetime,
-        end_dt: datetime,
-    ) -> IndexFetchResult:
-        return self.history_sources.fetch_fred_history(instrument, start_dt, end_dt)
-
     def _convert_rows_to_usd(
         self,
         rows: list[list[float]],

@@ -11,7 +11,6 @@ from app.schemas.strategy_contract import (
     StrategyIndicatorConfigResponse,
     StrategyPartialExitResponse,
     StrategyRuleSourceResponse,
-    StrategyStateBranchResponse,
     StrategyTemplateConfigResponse,
     StrategyTradePlanConfigResponse,
 )
@@ -33,7 +32,7 @@ from app.services.backtest.indicator_engines import (
     resolve_indicator_engine,
 )
 from app.services.backtest.strategy_catalog import get_indicator_registry_map
-from app.services.backtest.strategy_contract import normalize_strategy_identifier, set_by_path
+from app.services.backtest.strategy_contract import normalize_strategy_identifier, set_by_path, strategy_branch
 from app.services.backtest.strategy_runtime import StrategyRuntime
 
 
@@ -241,7 +240,7 @@ class {self.strategy_class_name}(IStrategy):
         return "\n".join(lines)
 
     def _timeframe_sort_key(self, timeframe: str) -> int:
-        from app.services.backtest.strategy_contract import timeframe_to_minutes
+        from app.domain.market.timeframes import timeframe_to_minutes
 
         return timeframe_to_minutes(timeframe)
 
@@ -305,7 +304,7 @@ class {self.strategy_class_name}(IStrategy):
         remaining = '(dataframe["volume"] >= 0)'
         false_mask = '(dataframe["volume"] < 0)'
         for branch_key in regime_priority:
-            branch = self._branch(normalized_config, branch_key)
+            branch = strategy_branch(normalized_config, branch_key)
             if not branch.enabled:
                 masks[branch_key] = false_mask
                 continue
@@ -332,7 +331,7 @@ class {self.strategy_class_name}(IStrategy):
             lines.append('        dataframe["exit_short"] = 0')
             lines.append('        dataframe["exit_short_tag"] = None')
         for branch_key in regime_priority:
-            branch = self._branch(normalized_config, branch_key)
+            branch = strategy_branch(normalized_config, branch_key)
             if not branch.enabled:
                 continue
             long_tree = branch.long_entry if signal_kind == "entry" else branch.long_exit
@@ -380,13 +379,6 @@ class {self.strategy_class_name}(IStrategy):
             '        dataframe["exit_short_tag"] = None',
         ]
         return "\n".join(lines)
-
-    def _branch(self, config: StrategyTemplateConfigResponse, branch_key: str) -> StrategyStateBranchResponse:
-        if branch_key == "trend":
-            return config.trend
-        if branch_key == "range":
-            return config.range
-        raise ValueError(f"不支持的策略分支: {branch_key}")
 
     def _build_trade_plan_block(self, trade_plan: StrategyTradePlanConfigResponse) -> str:
         atr_indicator = str(trade_plan.atr_indicator or "").strip()

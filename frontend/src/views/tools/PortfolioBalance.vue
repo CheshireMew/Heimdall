@@ -353,6 +353,7 @@ import { computePortfolioAssetHoldingValue } from '@/modules/tools/portfolioBala
 import { findSymbolCatalogItem, useSymbolCatalog } from '@/modules/market'
 import { useMoney } from '@/composables/useMoney'
 import { useDateTime } from '@/composables/useDateTime'
+import { todayLocalIsoDate } from '@/utils/localDate'
 
 const {
   portfolios,
@@ -387,7 +388,7 @@ const { loadSymbols } = useSymbolCatalog()
 const { displayCurrency, formatMoney, formatSignedMoney, formatDisplayNumber, fromDisplayAmount } = useMoney()
 const dateTime = useDateTime()
 
-const today = new Date().toISOString().slice(0, 10)
+const today = todayLocalIsoDate()
 const formatQuoteMoney = (value) => formatMoney(value, 'USDT')
 const signedQuoteMoney = (value) => formatSignedMoney(value, 'USDT')
 const assetMeta = (asset) => findSymbolCatalogItem(asset?.symbol || '')

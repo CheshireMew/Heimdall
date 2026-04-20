@@ -4,11 +4,19 @@ from datetime import datetime
 
 import pytest
 
+from app.contracts.backtest import BacktestEquityPointRecord, BacktestPortfolioConfig
 from app.infra.db.schema import BacktestRun
-from app.schemas.backtest import BacktestPortfolioRequest
+from app.schemas.backtest_result import BacktestRunMetadataResponse
+from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
 from app.services.backtest.run_repository import BacktestRunRepository
 from app.services.backtest.run_contract import update_paper_metadata
 from app.services.backtest.serializers import serialize_backtest_run
+from app.services.factors.paper_persistence_service import FactorPaperPersistenceService
+
+
+class _NoopFactorExecutionCore:
+    def serialize_position(self, position, *, symbol: str):
+        return None
 
 
 def test_repository_filters_by_execution_mode_in_query(db_session, installed_database_runtime):
@@ -86,12 +94,110 @@ def test_update_paper_metadata_preserves_last_synced_end():
     assert payload["runtime_state"]["last_synced_end"] == 1710000000000
 
 
+def test_update_paper_metadata_preserves_factor_position_entry_score():
+    payload = update_paper_metadata(
+        {"symbols": ["BTC/USDT"]},
+        runtime_state={
+            "cash_balance": 10000,
+            "last_processed": {"BTC/USDT": 1710000000000},
+            "positions": {
+                "BTC/USDT": {
+                    "symbol": "BTC/USDT",
+                    "opened_at": "2026-03-28T10:00:00",
+                    "entry_price": 65000,
+                    "entry_score": 72.5,
+                    "remaining_amount": 0.1,
+                    "remaining_cost": 6500,
+                    "highest_price": 66000,
+                    "lowest_price": 64000,
+                    "last_price": 65500,
+                }
+            },
+        },
+        last_updated="2026-03-28T10:01:00",
+    )
+
+    position = payload["runtime_state"]["positions"]["BTC/USDT"]
+    live_position = payload["paper_live"]["positions"][0]
+    assert position["entry_score"] == 72.5
+    assert live_position["entry_score"] == 72.5
+
+
+def test_update_paper_metadata_does_not_invent_empty_entry_score():
+    payload = update_paper_metadata(
+        {"symbols": ["BTC/USDT"]},
+        runtime_state={
+            "cash_balance": 10000,
+            "last_processed": {"BTC/USDT": 1710000000000},
+            "positions": {
+                "BTC/USDT": {
+                    "symbol": "BTC/USDT",
+                    "opened_at": "2026-03-28T10:00:00",
+                    "entry_price": 65000,
+                    "entry_score": None,
+                    "remaining_amount": 0.1,
+                    "remaining_cost": 6500,
+                    "highest_price": 66000,
+                    "lowest_price": 64000,
+                    "last_price": 65500,
+                }
+            },
+        },
+        last_updated="2026-03-28T10:01:00",
+    )
+
+    assert payload["runtime_state"]["positions"]["BTC/USDT"]["entry_score"] is None
+
+
+def test_factor_paper_persistence_increment_uses_backtest_trade_boundary(db_session):
+    now = datetime(2026, 3, 28, 10, 0)
+    run = BacktestRun(
+        symbol="BTC/USDT",
+        timeframe="1h",
+        start_date=now,
+        end_date=now,
+        status="running",
+        execution_mode="paper_live",
+        engine="FactorBlendPaper",
+        total_candles=0,
+        total_signals=0,
+        buy_signals=0,
+        sell_signals=0,
+        hold_signals=0,
+        metadata_info={},
+    )
+    db_session.add(run)
+    db_session.flush()
+
+    service = FactorPaperPersistenceService(
+        report_builder=FreqtradeReportBuilder(),
+        execution_core=_NoopFactorExecutionCore(),
+    )
+    service.persist_increment(
+        session=db_session,
+        run=run,
+        metadata=BacktestRunMetadataResponse(symbols=["BTC/USDT"], initial_cash=10000),
+        runtime_state={"last_processed": {"BTC/USDT": 1710000000000}},
+        position=None,
+        cash_balance=10000,
+        new_signals=[],
+        new_trades=[],
+        new_equity_points=[
+            BacktestEquityPointRecord(timestamp=now, equity=10000, pnl_abs=0, drawdown_pct=0),
+        ],
+        now=now,
+    )
+
+    assert run.metadata_info["runtime_state"]["cash_balance"] == 10000
+    assert run.metadata_info["report"]["total_trades"] == 0
+
+
 def test_backtest_portfolio_symbols_use_market_catalog_contract():
-    payload = BacktestPortfolioRequest(symbols=["btc", "ETH/USDT", "btc/usdt"])
+    payload = BacktestPortfolioConfig(symbols=["btc", "ETH/USDT", "btc/usdt"])
 
     assert payload.symbols == ["BTC/USDT", "ETH/USDT"]
 
 
 def test_backtest_portfolio_rejects_unknown_symbol():
     with pytest.raises(ValueError, match="回测不支持的交易对"):
-        BacktestPortfolioRequest(symbols=["BAD\\USDT"])
+        BacktestPortfolioConfig(symbols=["BAD\\USDT"])

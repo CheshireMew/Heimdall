@@ -3,9 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from app.domain.market.timeframes import timeframe_to_timedelta
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun
-from app.contracts.backtest import BacktestEquityPointRecord, PortfolioConfigRecord, StrategyVersionRecord
+from app.contracts.backtest import BacktestEquityPointRecord, BacktestPortfolioConfig, StrategyVersionRecord
 from app.schemas.factor import FactorExecutionResponse
 from app.services.backtest.run_contract import (
     FACTOR_BLEND_PAPER_ENGINE,
@@ -13,11 +14,11 @@ from app.services.backtest.run_contract import (
     build_paper_metadata,
     ensure_paper_runtime_state,
     parse_run_metadata,
-    update_paper_metadata,
 )
 from app.services.backtest.run_lifecycle import RUN_STATUS_FAILED, RUN_STATUS_RUNNING
 from app.services.backtest.run_repository import BacktestRunRepository
 from app.services.backtest.strategy_support import blank_strategy_version_config_model
+from app.services.paper_run_lifecycle import PaperRunLifecycle
 from app.services.run_task_manager import RunTaskManager
 from app.services.executor import run_sync
 from app.services.factors.signal_execution_core import FactorSignalContext, FactorSignalExecutionCore
@@ -46,10 +47,16 @@ class FactorPaperRunManager:
         self.execution_core = execution_core
         self.persistence_service = persistence_service
         self.database_runtime = database_runtime
+        self.lifecycle = PaperRunLifecycle(
+            engine=FACTOR_BLEND_PAPER_ENGINE,
+            run_repository=run_repository,
+            database_runtime=database_runtime,
+            runtime_state=self._stoppable_runtime_state,
+        )
         self._task_manager = RunTaskManager(
-            list_active_run_ids=self._list_active_run_ids,
+            list_active_run_ids=self.lifecycle.list_active_run_ids,
             tick=self._tick,
-            mark_failed=lambda run_id, reason: self._mark_stopped(run_id, RUN_STATUS_FAILED, reason),
+            mark_failed=lambda run_id, reason: self.lifecycle.mark_stopped(run_id, RUN_STATUS_FAILED, reason),
             interval_seconds=lambda: float(settings.WS_UPDATE_INTERVAL),
             error_label="因子模拟盘运行失败",
         )
@@ -108,7 +115,7 @@ class FactorPaperRunManager:
             if frame.empty:
                 return True
 
-            timeframe_delta = factor_service.timeframe_delta(run.timeframe)
+            timeframe_delta = timeframe_to_timedelta(run.timeframe)
             now = utc_now_naive()
             symbol = str((metadata.symbols or [run.symbol])[0])
             runtime_state = ensure_paper_runtime_state(metadata.runtime_state.model_dump() if metadata.runtime_state else {}, symbols=[symbol])
@@ -188,7 +195,7 @@ class FactorPaperRunManager:
         blend = research_run.blend.model_dump()
         now = utc_now_naive()
         _, live_frame = factor_service.build_live_blend_frame(research_run_id, end_date=now)
-        timeframe_delta = factor_service.timeframe_delta(request_payload["timeframe"])
+        timeframe_delta = timeframe_to_timedelta(request_payload["timeframe"])
         closed_frame = live_frame.loc[live_frame["timestamp"].apply(lambda ts: ts + timeframe_delta <= now)] if not live_frame.empty else live_frame
         last_processed = None if closed_frame.empty else int(closed_frame["timestamp"].iloc[-1].timestamp() * 1000)
         strategy = StrategyVersionRecord(
@@ -198,7 +205,7 @@ class FactorPaperRunManager:
             template="factor_blend",
             config=blank_strategy_version_config_model().model_dump(),
         )
-        portfolio = PortfolioConfigRecord(
+        portfolio = BacktestPortfolioConfig(
             symbols=[request_payload["symbol"]],
             max_open_trades=1,
             position_size_pct=position_size_pct,
@@ -268,26 +275,9 @@ class FactorPaperRunManager:
             session.flush()
             return run.id
 
-    def _list_active_run_ids(self) -> list[int]:
-        return self.run_repository.list_active_run_ids(
-            execution_mode=PAPER_LIVE_EXECUTION_MODE,
-            engine=FACTOR_BLEND_PAPER_ENGINE,
+    def _stoppable_runtime_state(self, metadata) -> dict[str, Any]:
+        symbol = str((metadata.symbols or [""])[0])
+        return ensure_paper_runtime_state(
+            metadata.runtime_state.model_dump() if metadata.runtime_state else {},
+            symbols=[symbol],
         )
-
-    def _mark_stopped(self, run_id: int, status: str, reason: str) -> None:
-        with self.database_runtime.session_scope() as session:
-            run = session.query(BacktestRun).filter(BacktestRun.id == run_id).first()
-            if not run:
-                return
-            if run.execution_mode != PAPER_LIVE_EXECUTION_MODE or run.engine != FACTOR_BLEND_PAPER_ENGINE:
-                return
-            metadata = parse_run_metadata(run.metadata_info)
-            run.status = status
-            symbol = str((metadata.symbols or [run.symbol])[0])
-            run.metadata_info = update_paper_metadata(
-                metadata,
-                runtime_state=ensure_paper_runtime_state(metadata.runtime_state.model_dump() if metadata.runtime_state else {}, symbols=[symbol]),
-                last_updated=utc_now_naive().isoformat(),
-                stop_reason=reason,
-            )
-            session.flush()

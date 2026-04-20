@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, Request
 
-from app.dependencies import get_tools_app_service
+from app.dependencies import runtime_dependency
 from app.rate_limit import limiter
 from app.routers.errors import service_http_error
 from app.schemas.tools import DCARequestSchema, DCAResponse, PairCompareRequestSchema, PairCompareToolResponse
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 
 router = APIRouter()
+tools_app_dependency = runtime_dependency("tools.tools_app_service")
 
 
 @router.post("/dca_simulate", response_model=DCAResponse)
@@ -26,7 +27,7 @@ router = APIRouter()
 async def dca_simulate(
     request: Request,
     body: DCARequestSchema,
-    service: ToolsAppService = Depends(get_tools_app_service),
+    service: ToolsAppService = Depends(tools_app_dependency),
 ):
     try:
         return await service.simulate_dca(
@@ -50,7 +51,7 @@ async def dca_simulate(
 async def compare_pairs(
     request: Request,
     body: PairCompareRequestSchema,
-    service: ToolsAppService = Depends(get_tools_app_service),
+    service: ToolsAppService = Depends(tools_app_dependency),
 ):
     try:
         return await service.compare_pairs(

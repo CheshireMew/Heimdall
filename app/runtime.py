@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
@@ -60,80 +60,8 @@ RUNTIME_ROLE_TARGETS: dict[RuntimeRole, tuple[RuntimeTarget, ...]] = {
 }
 
 
-RUNTIME_SERVICE_GRAPH: dict[RuntimeTarget, dict[str, tuple[str, ...]]] = {
-    "api": {
-        "infra": ("exchange_gateway", "database_runtime", "kline_store", "cache_service"),
-        "market": (
-            "market_data_service",
-            "realtime_service",
-            "market_indicator_repository",
-            "indicator_service",
-            "history_service",
-            "funding_rate_store",
-            "funding_rate_service",
-            "funding_rate_app_service",
-            "crypto_index_service",
-            "market_query_app_service",
-            "market_insight_app_service",
-            "market_websocket_service",
-            "index_data_service",
-            "binance_market_intel",
-            "binance_web3_service",
-        ),
-        "tools": (
-            "sentiment_api_client",
-            "sentiment_repository",
-            "sentiment_service",
-            "dca_service",
-            "pair_compare_service",
-            "tools_app_service",
-        ),
-        "backtest": (
-            "backtest_run_repository",
-            "freqtrade_backtest_service",
-            "backtest_run_service",
-            "strategy_query_service",
-            "strategy_write_service",
-            "freqtrade_report_builder",
-            "paper_run_manager",
-            "backtest_command_service",
-            "backtest_query_service",
-        ),
-        "factors": (
-            "factor_research_repository",
-            "factor_research_service",
-            "factor_execution_service",
-            "factor_signal_execution_core",
-            "factor_paper_persistence_service",
-            "factor_paper_run_manager",
-        ),
-        "system": ("currency_rate_service",),
-    },
-    "background": {
-        "infra": ("database_runtime", "cache_service"),
-        "market": (
-            "market_data_service",
-            "market_indicator_repository",
-            "binance_market_snapshot",
-            "binance_market_intel",
-        ),
-        "backtest": (
-            "backtest_run_repository",
-            "freqtrade_backtest_service",
-            "strategy_query_service",
-            "freqtrade_report_builder",
-            "paper_run_manager",
-        ),
-        "factors": (
-            "factor_research_repository",
-            "factor_research_service",
-            "factor_signal_execution_core",
-            "factor_paper_persistence_service",
-            "factor_paper_run_manager",
-        ),
-        "system": ("market_scheduler_runtime",),
-    },
-}
+def runtime_service(*targets: RuntimeTarget):
+    return field(default=None, metadata={"runtime_targets": frozenset(targets)})
 
 
 def runtime_role_targets(role: RuntimeRole) -> tuple[RuntimeTarget, ...]:
@@ -145,16 +73,18 @@ def runtime_role_has_target(role: RuntimeRole, target: RuntimeTarget) -> bool:
 
 
 def required_runtime_services(role: RuntimeRole) -> dict[str, tuple[str, ...]]:
+    role_targets = set(runtime_role_targets(role))
     required: dict[str, list[str]] = {}
-    for target in runtime_role_targets(role):
-        for section_name, service_names in RUNTIME_SERVICE_GRAPH[target].items():
-            section_required = required.setdefault(section_name, [])
-            for service_name in service_names:
-                if service_name not in section_required:
-                    section_required.append(service_name)
+    for section_name, section_type in RUNTIME_SECTION_TYPES.items():
+        section_required = required.setdefault(section_name, [])
+        for section_field in fields(section_type):
+            targets = set(section_field.metadata.get("runtime_targets", ()))
+            if targets & role_targets:
+                section_required.append(section_field.name)
     return {
         section_name: tuple(service_names)
         for section_name, service_names in required.items()
+        if service_names
     }
 
 
@@ -165,69 +95,79 @@ class RuntimeSection:
 
 @dataclass(slots=True)
 class InfraRuntime(RuntimeSection):
-    exchange_gateway: ExchangeGateway | None = None
-    database_runtime: DatabaseRuntime | None = None
-    kline_store: KlineStore | None = None
-    cache_service: RedisService | None = None
+    exchange_gateway: ExchangeGateway | None = runtime_service("api", "background")
+    database_runtime: DatabaseRuntime | None = runtime_service("api", "background")
+    kline_store: KlineStore | None = runtime_service("api", "background")
+    cache_service: RedisService | None = runtime_service("api", "background")
 
 
 @dataclass(slots=True)
 class MarketRuntime(RuntimeSection):
-    market_data_service: MarketDataService | None = None
-    realtime_service: RealtimeService | None = None
-    market_indicator_repository: MarketIndicatorRepository | None = None
-    indicator_service: IndicatorService | None = None
-    history_service: HistoryService | None = None
-    funding_rate_store: FundingRateStore | None = None
-    funding_rate_service: FundingRateService | None = None
-    funding_rate_app_service: FundingRateAppService | None = None
-    crypto_index_service: CryptoIndexService | None = None
-    market_query_app_service: MarketQueryAppService | None = None
-    market_insight_app_service: MarketInsightAppService | None = None
-    market_websocket_service: MarketWebSocketService | None = None
-    index_data_service: IndexDataService | None = None
-    binance_market_snapshot: BinanceMarketSnapshotService | None = None
-    binance_market_intel: BinanceMarketIntelService | None = None
-    binance_web3_service: BinanceWeb3Service | None = None
+    market_data_service: MarketDataService | None = runtime_service("api", "background")
+    realtime_service: RealtimeService | None = runtime_service("api")
+    market_indicator_repository: MarketIndicatorRepository | None = runtime_service("api", "background")
+    indicator_service: IndicatorService | None = runtime_service("api")
+    history_service: HistoryService | None = runtime_service("api")
+    funding_rate_store: FundingRateStore | None = runtime_service("api")
+    funding_rate_service: FundingRateService | None = runtime_service("api")
+    funding_rate_app_service: FundingRateAppService | None = runtime_service("api")
+    crypto_index_service: CryptoIndexService | None = runtime_service("api")
+    market_query_app_service: MarketQueryAppService | None = runtime_service("api")
+    market_insight_app_service: MarketInsightAppService | None = runtime_service("api")
+    market_websocket_service: MarketWebSocketService | None = runtime_service("api")
+    index_data_service: IndexDataService | None = runtime_service("api")
+    binance_market_snapshot: BinanceMarketSnapshotService | None = runtime_service("background")
+    binance_market_intel: BinanceMarketIntelService | None = runtime_service("api", "background")
+    binance_web3_service: BinanceWeb3Service | None = runtime_service("api")
 
 
 @dataclass(slots=True)
 class ToolsRuntime(RuntimeSection):
-    sentiment_api_client: SentimentApiClient | None = None
-    sentiment_repository: SentimentRepository | None = None
-    sentiment_service: SentimentService | None = None
-    dca_service: DCAService | None = None
-    pair_compare_service: PairCompareService | None = None
-    tools_app_service: ToolsAppService | None = None
+    sentiment_api_client: SentimentApiClient | None = runtime_service("api")
+    sentiment_repository: SentimentRepository | None = runtime_service("api")
+    sentiment_service: SentimentService | None = runtime_service("api")
+    dca_service: DCAService | None = runtime_service("api")
+    pair_compare_service: PairCompareService | None = runtime_service("api")
+    tools_app_service: ToolsAppService | None = runtime_service("api")
 
 
 @dataclass(slots=True)
 class BacktestRuntime(RuntimeSection):
-    backtest_run_repository: BacktestRunRepository | None = None
-    freqtrade_backtest_service: FreqtradeBacktestService | None = None
-    backtest_run_service: BacktestRunService | None = None
-    strategy_query_service: StrategyQueryService | None = None
-    strategy_write_service: StrategyWriteService | None = None
-    freqtrade_report_builder: FreqtradeReportBuilder | None = None
-    paper_run_manager: PaperRunManager | None = None
-    backtest_command_service: BacktestCommandService | None = None
-    backtest_query_service: BacktestQueryService | None = None
+    backtest_run_repository: BacktestRunRepository | None = runtime_service("api", "background")
+    freqtrade_backtest_service: FreqtradeBacktestService | None = runtime_service("api", "background")
+    backtest_run_service: BacktestRunService | None = runtime_service("api")
+    strategy_query_service: StrategyQueryService | None = runtime_service("api", "background")
+    strategy_write_service: StrategyWriteService | None = runtime_service("api")
+    freqtrade_report_builder: FreqtradeReportBuilder | None = runtime_service("api", "background")
+    paper_run_manager: PaperRunManager | None = runtime_service("api", "background")
+    backtest_command_service: BacktestCommandService | None = runtime_service("api")
+    backtest_query_service: BacktestQueryService | None = runtime_service("api")
 
 
 @dataclass(slots=True)
 class FactorRuntime(RuntimeSection):
-    factor_research_repository: FactorResearchRepository | None = None
-    factor_research_service: FactorResearchService | None = None
-    factor_execution_service: FactorExecutionService | None = None
-    factor_signal_execution_core: FactorSignalExecutionCore | None = None
-    factor_paper_persistence_service: FactorPaperPersistenceService | None = None
-    factor_paper_run_manager: FactorPaperRunManager | None = None
+    factor_research_repository: FactorResearchRepository | None = runtime_service("api", "background")
+    factor_research_service: FactorResearchService | None = runtime_service("api", "background")
+    factor_execution_service: FactorExecutionService | None = runtime_service("api")
+    factor_signal_execution_core: FactorSignalExecutionCore | None = runtime_service("api", "background")
+    factor_paper_persistence_service: FactorPaperPersistenceService | None = runtime_service("api", "background")
+    factor_paper_run_manager: FactorPaperRunManager | None = runtime_service("api", "background")
 
 
 @dataclass(slots=True)
 class SystemRuntime(RuntimeSection):
-    currency_rate_service: CurrencyRateService | None = None
-    market_scheduler_runtime: MarketSchedulerRuntime | None = None
+    currency_rate_service: CurrencyRateService | None = runtime_service("api")
+    market_scheduler_runtime: MarketSchedulerRuntime | None = runtime_service("background")
+
+
+RUNTIME_SECTION_TYPES: dict[str, type[RuntimeSection]] = {
+    "infra": InfraRuntime,
+    "market": MarketRuntime,
+    "tools": ToolsRuntime,
+    "backtest": BacktestRuntime,
+    "factors": FactorRuntime,
+    "system": SystemRuntime,
+}
 
 
 @dataclass(slots=True)

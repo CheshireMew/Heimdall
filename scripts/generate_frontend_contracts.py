@@ -249,12 +249,24 @@ def route_body_defaults(route: APIRoute) -> dict[str, Any]:
 def model_defaults(model: type[BaseModel]) -> dict[str, Any]:
     defaults: dict[str, Any] = {}
     for name, field in model.model_fields.items():
+        value = PydanticUndefined
         if field.default is not PydanticUndefined:
-            defaults[name] = field.default
-            continue
-        if field.default_factory is not None:
-            defaults[name] = field.default_factory()
-    return json.loads(json.dumps(defaults, default=str))
+            value = field.default
+        elif field.default_factory is not None:
+            value = field.default_factory()
+        if value is not PydanticUndefined:
+            defaults[name] = jsonable_default(field.annotation, value)
+    return defaults
+
+
+def jsonable_default(annotation: Any, value: Any) -> Any:
+    if isinstance(value, BaseModel):
+        return value.model_dump(mode="json")
+    try:
+        # 前端默认 body 必须保持 JSON 结构，嵌套模型不能退化成 Python 字符串。
+        return TypeAdapter(annotation).dump_python(value, mode="json")
+    except Exception:
+        return json.loads(json.dumps(value))
 
 
 def render_file(

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 
+from app.domain.market.timeframes import timeframe_to_timedelta
 from app.services.market.indicator_repository import MarketIndicatorRepository
 from app.services.market.market_data_service import MarketDataService
 
@@ -110,7 +111,7 @@ class FactorFrameBuilder:
         end_date: datetime,
     ) -> pd.DataFrame:
         request_start = end_date - timedelta(days=days)
-        fetch_start = request_start - (self.math.timeframe_delta(timeframe) * 60)
+        fetch_start = request_start - (timeframe_to_timedelta(timeframe) * 60)
         price_frame = self.build_price_frame(symbol, timeframe, fetch_start, end_date, forward_horizons)
         raw_factor_frame = self.build_raw_factor_frame(definitions, price_frame, fetch_start)
         frame = price_frame.loc[price_frame["timestamp"] >= request_start, ["timestamp", "close", "volume"]].copy().reset_index(drop=True)

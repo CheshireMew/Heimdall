@@ -138,7 +138,6 @@ def test_full_history_uses_service_level_cache_write(api_harness):
     )
 
     assert response.status_code == 200
-    assert api_harness["market_data"].saved_klines == []
     assert api_harness["market_query_app"].full_history_used_external_persist_callback is False
 
 

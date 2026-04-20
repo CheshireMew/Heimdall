@@ -47,15 +47,20 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
         async def shutdown(self):
             events.append("snapshot_shutdown")
 
+    class FakeSpotMarket:
+        async def get_ticker_24hr(self):
+            return {}
+
+    class FakeUsdmMarket:
+        async def get_ticker_24hr(self):
+            return {}
+
+        async def get_mark_price(self):
+            return {}
+
     class FakeBinanceMarket:
-        async def get_spot_ticker_24hr(self):
-            return {}
-
-        async def get_usdm_ticker_24hr(self):
-            return {}
-
-        async def get_usdm_mark_price(self):
-            return {}
+        spot = FakeSpotMarket()
+        usdm = FakeUsdmMarket()
 
     class FakeDatabaseRuntime:
         def dispose(self):
@@ -71,7 +76,12 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
         lifecycle_module,
         "build_app_runtime_services",
         lambda: AppRuntimeServices(
-            infra=InfraRuntime(database_runtime=FakeDatabaseRuntime(), cache_service=object()),
+            infra=InfraRuntime(
+                exchange_gateway=object(),
+                database_runtime=FakeDatabaseRuntime(),
+                kline_store=object(),
+                cache_service=object(),
+            ),
             market=MarketRuntime(
                 market_data_service=object(),
                 market_indicator_repository=object(),

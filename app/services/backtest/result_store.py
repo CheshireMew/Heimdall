@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
-
-import pandas as pd
-
 from app.infra.db.schema import BacktestEquityPoint, BacktestSignal, BacktestTrade
+from utils.time_utils import to_utc_naive_datetime
 
 
 def replace_run_rows(*, session, run_id: int, result, default_pair: str, clear_existing: bool) -> None:
@@ -41,7 +38,7 @@ def build_signal_rows(*, run_id: int, signals) -> list[BacktestSignal]:
     return [
         BacktestSignal(
             backtest_id=run_id,
-            timestamp=normalize_timestamp(item.timestamp),
+            timestamp=to_utc_naive_datetime(item.timestamp),
             price=item.price,
             signal=item.signal,
             confidence=item.confidence,
@@ -57,8 +54,8 @@ def build_trade_rows(*, run_id: int, trades, default_pair: str) -> list[Backtest
         BacktestTrade(
             backtest_id=run_id,
             pair=item.pair or default_pair,
-            opened_at=normalize_timestamp(item.opened_at),
-            closed_at=normalize_timestamp(item.closed_at),
+            opened_at=to_utc_naive_datetime(item.opened_at),
+            closed_at=to_utc_naive_datetime(item.closed_at) if item.closed_at is not None else None,
             entry_price=item.entry_price,
             exit_price=item.exit_price,
             stake_amount=item.stake_amount,
@@ -79,7 +76,7 @@ def build_equity_rows(*, run_id: int, equity_curve) -> list[BacktestEquityPoint]
     return [
         BacktestEquityPoint(
             backtest_id=run_id,
-            timestamp=normalize_timestamp(item.timestamp),
+            timestamp=to_utc_naive_datetime(item.timestamp),
             equity=item.equity,
             pnl_abs=item.pnl_abs,
             drawdown_pct=item.drawdown_pct,
@@ -93,12 +90,3 @@ def result_signal_counts(result) -> tuple[int, int, int]:
     sell_count = sum(1 for item in result.signals if item.signal == "SELL")
     hold_count = max(int(result.total_candles) - len(result.signals), 0)
     return buy_count, sell_count, hold_count
-
-
-def normalize_timestamp(value: datetime | None) -> datetime | None:
-    if value is None:
-        return None
-    timestamp = pd.Timestamp(value)
-    if timestamp.tzinfo is None:
-        return timestamp.to_pydatetime().replace(tzinfo=None)
-    return timestamp.tz_convert("UTC").to_pydatetime().replace(tzinfo=None)

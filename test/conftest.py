@@ -14,21 +14,14 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 import app.main as main_module
-from app.dependencies import (
-    get_backtest_command_service,
-    get_backtest_query_service,
-    get_binance_market_intel_service,
-    get_binance_web3_service,
-    get_currency_rate_service,
-    get_factor_execution_service,
-    get_factor_paper_run_manager,
-    get_funding_rate_app_service,
-    get_factor_research_service,
-    get_market_data_service,
-    get_market_insight_app_service,
-    get_market_query_app_service,
-    get_request_database_runtime,
-    get_tools_app_service,
+from app.runtime import (
+    AppRuntimeServices,
+    BacktestRuntime,
+    FactorRuntime,
+    InfraRuntime,
+    MarketRuntime,
+    SystemRuntime,
+    ToolsRuntime,
 )
 from app.infra.db import build_database_runtime
 from app.infra.db.schema import Base
@@ -42,7 +35,6 @@ from test.regression_support import (
     StubFactorPaperRunManager,
     StubFactorResearchService,
     StubFundingRateAppService,
-    StubMarketDataService,
     StubMarketInsightAppService,
     StubMarketQueryAppService,
     StubToolsAppService,
@@ -108,7 +100,6 @@ def api_harness(installed_database_runtime):
         yield
 
     services = {
-        "market_data": StubMarketDataService(),
         "market_query_app": StubMarketQueryAppService(),
         "market_insight_app": StubMarketInsightAppService(),
         "funding_rate_app": StubFundingRateAppService(),
@@ -123,25 +114,31 @@ def api_harness(installed_database_runtime):
         "factor_paper": StubFactorPaperRunManager(),
     }
     app = main_module.app
+    app.state.runtime_services = AppRuntimeServices(
+        infra=InfraRuntime(database_runtime=installed_database_runtime),
+        market=MarketRuntime(
+            market_query_app_service=services["market_query_app"],
+            market_insight_app_service=services["market_insight_app"],
+            funding_rate_app_service=services["funding_rate_app"],
+            binance_market_intel=services["binance_market_service"],
+            binance_web3_service=services["binance_web3_service"],
+        ),
+        tools=ToolsRuntime(tools_app_service=services["tools_app"]),
+        backtest=BacktestRuntime(
+            backtest_command_service=services["backtest_command"],
+            backtest_query_service=services["backtest_query"],
+        ),
+        factors=FactorRuntime(
+            factor_research_service=services["factor_research"],
+            factor_execution_service=services["factor_execution"],
+            factor_paper_run_manager=services["factor_paper"],
+        ),
+        system=SystemRuntime(currency_rate_service=services["currency_rate"]),
+    )
     app.state.database_error = None
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = noop_lifespan
-    app.dependency_overrides = {
-        get_market_data_service: lambda: services["market_data"],
-        get_market_query_app_service: lambda: services["market_query_app"],
-        get_market_insight_app_service: lambda: services["market_insight_app"],
-        get_funding_rate_app_service: lambda: services["funding_rate_app"],
-        get_binance_market_intel_service: lambda: services["binance_market_service"],
-        get_binance_web3_service: lambda: services["binance_web3_service"],
-        get_backtest_command_service: lambda: services["backtest_command"],
-        get_backtest_query_service: lambda: services["backtest_query"],
-        get_tools_app_service: lambda: services["tools_app"],
-        get_currency_rate_service: lambda: services["currency_rate"],
-        get_factor_research_service: lambda: services["factor_research"],
-        get_factor_execution_service: lambda: services["factor_execution"],
-        get_factor_paper_run_manager: lambda: services["factor_paper"],
-        get_request_database_runtime: lambda: installed_database_runtime,
-    }
+    app.dependency_overrides = {}
 
     with TestClient(app) as client:
         yield {"client": client, **services}

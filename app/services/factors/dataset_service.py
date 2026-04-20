@@ -7,6 +7,8 @@ from typing import Any
 
 import pandas as pd
 
+from app.domain.market.timeframes import timeframe_to_timedelta
+
 from .contracts import DATASET_SCHEMA_VERSION, DEFAULT_FORWARD_HORIZONS, FactorDefinition
 from .frame_builder import FactorFrameBuilder
 from .math_utils import FactorMath
@@ -63,7 +65,7 @@ class FactorDatasetService:
         cleaning: dict[str, Any],
     ) -> dict[str, Any]:
         end_date = datetime.now(timezone.utc).replace(tzinfo=None)
-        start_date = end_date - self.math.timeframe_delta("1d") * days
+        start_date = end_date - timeframe_to_timedelta("1d") * days
         signature = self._dataset_signature(
             symbol=symbol,
             timeframe=timeframe,
@@ -79,7 +81,7 @@ class FactorDatasetService:
         if existing:
             return existing
 
-        fetch_start = start_date - (self.math.timeframe_delta(timeframe) * 60)
+        fetch_start = start_date - (timeframe_to_timedelta(timeframe) * 60)
         price_frame = self.frame_builder.build_price_frame(symbol, timeframe, fetch_start, end_date, forward_horizons)
         if price_frame.empty:
             raise ValueError("没有可用于因子研究的价格数据。")

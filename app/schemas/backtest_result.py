@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from app.contracts.backtest import BacktestPortfolioConfig, BacktestResearchConfig
 from app.schemas.json_types import JsonObject
 
 class BacktestReportSnapshotResponse(BaseModel):
@@ -36,28 +37,8 @@ class BacktestStrategySummaryResponse(BaseModel):
     template: str
 
 
-class BacktestPortfolioSummaryResponse(BaseModel):
-    symbols: list[str] = Field(default_factory=list)
-    max_open_trades: int | None = None
-    position_size_pct: float | None = None
-    stake_mode: str | None = None
+class BacktestPortfolioSummaryResponse(BacktestPortfolioConfig):
     stake_currency: str | None = None
-
-
-class BacktestPortfolioPayloadResponse(BaseModel):
-    symbols: list[str] = Field(default_factory=list)
-    max_open_trades: int | None = None
-    position_size_pct: float | None = None
-    stake_mode: str | None = None
-
-
-class BacktestResearchPayloadResponse(BaseModel):
-    slippage_bps: float | None = None
-    funding_rate_daily: float | None = None
-    in_sample_ratio: float | None = None
-    optimize_metric: str | None = None
-    optimize_trials: int | None = None
-    rolling_windows: int | None = None
 
 
 class BacktestOptimizationTrialResponse(BaseModel):
@@ -142,6 +123,7 @@ class BacktestPaperPositionResponse(BaseModel):
     side: str = "long"
     opened_at: str
     entry_price: float
+    entry_score: float | None = None
     remaining_amount: float
     remaining_cost: float
     highest_price: float
@@ -188,8 +170,8 @@ class BacktestRunMetadataResponse(BaseModel):
     fee_ratio: float | None = None
     timeframe: str | None = None
     stake_currency: str | None = None
-    portfolio: BacktestPortfolioPayloadResponse | None = None
-    research: BacktestResearchPayloadResponse | BacktestResearchReportResponse | None = None
+    portfolio: BacktestPortfolioConfig | None = None
+    research: BacktestResearchReportResponse | BacktestResearchConfig | None = None
     selected_config: JsonObject = Field(default_factory=dict)
     sample_ranges: BacktestSampleRangesResponse | None = None
     runtime_state: BacktestRuntimeStateResponse | None = None

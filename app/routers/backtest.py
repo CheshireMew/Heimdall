@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from app.dependencies import get_backtest_command_service, get_backtest_query_service
+from app.dependencies import runtime_dependency
 from app.rate_limit import limiter
 from app.routers.errors import service_http_error
 from app.schemas.backtest import (
@@ -37,6 +37,8 @@ if TYPE_CHECKING:
 
 
 router = APIRouter()
+backtest_command_dependency = runtime_dependency("backtest.backtest_command_service")
+backtest_query_dependency = runtime_dependency("backtest.backtest_query_service")
 
 
 @router.post("/backtest/start", response_model=BacktestStartResponse)
@@ -44,7 +46,7 @@ router = APIRouter()
 async def start_backtest(
     request: Request,
     body: BacktestStartRequest,
-    service: BacktestCommandService = Depends(get_backtest_command_service),
+    service: BacktestCommandService = Depends(backtest_command_dependency),
 ):
     try:
         return await service.start_backtest(body.to_command())
@@ -61,7 +63,7 @@ async def start_backtest(
 async def start_paper_run(
     request: Request,
     body: PaperStartRequest,
-    service: BacktestCommandService = Depends(get_backtest_command_service),
+    service: BacktestCommandService = Depends(backtest_command_dependency),
 ):
     try:
         return await service.start_paper_run(body.to_command())
@@ -76,7 +78,7 @@ async def start_paper_run(
 @router.post("/paper/{run_id}/stop", response_model=PaperStopResponse)
 async def stop_paper_run(
     run_id: int,
-    service: BacktestCommandService = Depends(get_backtest_command_service),
+    service: BacktestCommandService = Depends(backtest_command_dependency),
 ):
     try:
         return await service.stop_paper_run(run_id)
@@ -87,7 +89,7 @@ async def stop_paper_run(
 @router.delete("/backtest/{backtest_id}", response_model=BacktestDeleteResponse)
 async def delete_backtest(
     backtest_id: int,
-    service: BacktestCommandService = Depends(get_backtest_command_service),
+    service: BacktestCommandService = Depends(backtest_command_dependency),
 ):
     try:
         return await service.delete_backtest(backtest_id)
@@ -100,7 +102,7 @@ async def delete_backtest(
 @router.delete("/paper/{run_id}", response_model=BacktestDeleteResponse)
 async def delete_paper_run(
     run_id: int,
-    service: BacktestCommandService = Depends(get_backtest_command_service),
+    service: BacktestCommandService = Depends(backtest_command_dependency),
 ):
     try:
         return await service.delete_paper_run(run_id)
@@ -111,7 +113,7 @@ async def delete_paper_run(
 
 
 @router.get("/backtest/strategies", response_model=list[StrategyDefinitionResponse])
-async def list_strategies(service: BacktestQueryService = Depends(get_backtest_query_service)):
+async def list_strategies(service: BacktestQueryService = Depends(backtest_query_dependency)):
     try:
         return await service.list_strategies()
     except Exception as exc:
@@ -119,7 +121,7 @@ async def list_strategies(service: BacktestQueryService = Depends(get_backtest_q
 
 
 @router.get("/backtest/templates", response_model=list[StrategyTemplateResponse])
-async def list_strategy_templates(service: BacktestQueryService = Depends(get_backtest_query_service)):
+async def list_strategy_templates(service: BacktestQueryService = Depends(backtest_query_dependency)):
     try:
         return await service.list_templates()
     except Exception as exc:
@@ -127,7 +129,7 @@ async def list_strategy_templates(service: BacktestQueryService = Depends(get_ba
 
 
 @router.get("/backtest/editor-contract", response_model=StrategyEditorContractResponse)
-async def get_strategy_editor_contract(service: BacktestQueryService = Depends(get_backtest_query_service)):
+async def get_strategy_editor_contract(service: BacktestQueryService = Depends(backtest_query_dependency)):
     try:
         return await service.get_editor_contract()
     except Exception as exc:
@@ -137,7 +139,7 @@ async def get_strategy_editor_contract(service: BacktestQueryService = Depends(g
 @router.post("/backtest/templates", response_model=StrategyTemplateResponse)
 async def create_strategy_template(
     body: StrategyTemplateCreateRequest,
-    service: BacktestCommandService = Depends(get_backtest_command_service),
+    service: BacktestCommandService = Depends(backtest_command_dependency),
 ):
     try:
         return await service.create_template(body.to_command())
@@ -146,7 +148,7 @@ async def create_strategy_template(
 
 
 @router.get("/backtest/indicators", response_model=list[StrategyIndicatorRegistryResponse])
-async def list_indicators(service: BacktestQueryService = Depends(get_backtest_query_service)):
+async def list_indicators(service: BacktestQueryService = Depends(backtest_query_dependency)):
     try:
         return await service.list_indicators()
     except Exception as exc:
@@ -154,7 +156,7 @@ async def list_indicators(service: BacktestQueryService = Depends(get_backtest_q
 
 
 @router.get("/backtest/indicator-engines", response_model=list[StrategyIndicatorEngineResponse])
-async def list_indicator_engines(service: BacktestQueryService = Depends(get_backtest_query_service)):
+async def list_indicator_engines(service: BacktestQueryService = Depends(backtest_query_dependency)):
     try:
         return await service.list_indicator_engines()
     except Exception as exc:
@@ -164,7 +166,7 @@ async def list_indicator_engines(service: BacktestQueryService = Depends(get_bac
 @router.post("/backtest/indicators", response_model=StrategyIndicatorRegistryResponse)
 async def create_indicator(
     body: IndicatorDefinitionCreateRequest,
-    service: BacktestCommandService = Depends(get_backtest_command_service),
+    service: BacktestCommandService = Depends(backtest_command_dependency),
 ):
     try:
         return await service.create_indicator(body.to_command())
@@ -175,7 +177,7 @@ async def create_indicator(
 @router.post("/backtest/strategies", response_model=StrategyVersionResponse)
 async def create_strategy_version(
     body: StrategyVersionCreateRequest,
-    service: BacktestCommandService = Depends(get_backtest_command_service),
+    service: BacktestCommandService = Depends(backtest_command_dependency),
 ):
     try:
         return await service.create_strategy_version(body.to_command())
@@ -184,7 +186,7 @@ async def create_strategy_version(
 
 
 @router.get("/backtest/list", response_model=list[BacktestRunResponse])
-async def list_backtests(service: BacktestQueryService = Depends(get_backtest_query_service)):
+async def list_backtests(service: BacktestQueryService = Depends(backtest_query_dependency)):
     try:
         return await service.list_runs()
     except Exception as exc:
@@ -196,7 +198,7 @@ async def get_backtest(
     backtest_id: int,
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
-    service: BacktestQueryService = Depends(get_backtest_query_service),
+    service: BacktestQueryService = Depends(backtest_query_dependency),
 ):
     try:
         result = await service.get_run(backtest_id, page, page_size)
@@ -210,7 +212,7 @@ async def get_backtest(
 
 
 @router.get("/paper/list", response_model=list[BacktestRunResponse])
-async def list_paper_runs(service: BacktestQueryService = Depends(get_backtest_query_service)):
+async def list_paper_runs(service: BacktestQueryService = Depends(backtest_query_dependency)):
     try:
         return await service.list_paper_runs()
     except Exception as exc:
@@ -222,7 +224,7 @@ async def get_paper_run(
     run_id: int,
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
-    service: BacktestQueryService = Depends(get_backtest_query_service),
+    service: BacktestQueryService = Depends(backtest_query_dependency),
 ):
     try:
         result = await service.get_paper_run(run_id, page, page_size)

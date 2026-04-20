@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from copy import deepcopy
-
-from app.services.backtest.run_form_contract import backtest_run_defaults
+from app.contracts.backtest_defaults import backtest_run_defaults
 from app.schemas.market import (
     build_market_history_response,
     build_ohlcv_points,
@@ -967,14 +965,6 @@ def make_factor_run_detail() -> dict:
     }
 
 
-class StubMarketDataService:
-    def __init__(self) -> None:
-        self.saved_klines: list[tuple[str, str, list[list[float]]]] = []
-
-    def save_klines_background(self, symbol: str, timeframe: str, klines: list[list[float]]) -> None:
-        self.saved_klines.append((symbol, timeframe, deepcopy(klines)))
-
-
 class StubMarketQueryAppService:
     valid_symbols = ["BTC/USDT", "ETH/USDT"]
     valid_timeframes = ["1h", "4h", "1d"]
@@ -1064,9 +1054,14 @@ class StubFundingRateAppService:
         return make_funding_rate_history()
 
 
-class StubBinanceMarketService:
-    async def get_market_breakout_monitor(self, **kwargs):
+class StubBinanceMarketPageService:
+    async def get_breakout_monitor(self, **kwargs):
         return make_binance_breakout_monitor_response()
+
+
+class StubBinanceMarketService:
+    def __init__(self) -> None:
+        self.page = StubBinanceMarketPageService()
 
 
 class StubBinanceWeb3Service:

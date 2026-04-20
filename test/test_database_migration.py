@@ -7,7 +7,7 @@ from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect
 
-from app.infra.db.database import build_database_runtime
+from app.infra.db.database import build_database_runtime, resolve_database_url
 import app.infra.db.schema_runtime as schema_runtime
 from app.infra.db.schema import Base
 from config.settings import AppSettings
@@ -134,3 +134,16 @@ def test_verify_database_schema_rejects_stamped_but_incomplete_schema(isolated_d
 
     with pytest.raises(RuntimeError, match="数据库结构与当前模型不一致"):
         schema_runtime.verify_database_schema(runtime)
+
+
+def test_database_resolution_requires_explicit_sqlite_fallback(monkeypatch):
+    monkeypatch.setattr("app.infra.db.database.can_connect_postgres", lambda _url: False)
+
+    with pytest.raises(RuntimeError, match="ALLOW_SQLITE_FALLBACK"):
+        resolve_database_url(AppSettings(DATABASE_URL=""))
+
+    database_url, source = resolve_database_url(
+        AppSettings(DATABASE_URL="", ALLOW_SQLITE_FALLBACK=True)
+    )
+    assert database_url.startswith("sqlite:///")
+    assert source == "sqlite-fallback"

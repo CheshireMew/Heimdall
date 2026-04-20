@@ -6,7 +6,7 @@ from app.schemas.backtest import PaperStartResponse
 from app.services.backtest.command_service import BacktestCommandService
 from app.contracts.backtest import PaperStartCommand
 from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBuilder
-from app.contracts.backtest import PortfolioConfigRecord, StrategyVersionRecord
+from app.contracts.backtest import BacktestPortfolioConfig, StrategyVersionRecord
 from app.services.backtest.strategy_support import normalize_strategy_version_config_model
 
 
@@ -66,7 +66,7 @@ async def test_command_service_routes_scripted_strategy_to_paper_manager():
         timeframe="1h",
         initial_cash=10_000,
         fee_rate=0.1,
-        portfolio=PortfolioConfigRecord(
+        portfolio=BacktestPortfolioConfig(
             symbols=["BTC/USDT"],
             max_open_trades=1,
             position_size_pct=25,

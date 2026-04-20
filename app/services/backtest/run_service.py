@@ -4,7 +4,7 @@ from datetime import datetime
 
 from app.schemas.backtest_result import BacktestRunMetadataResponse
 from app.services.backtest.freqtrade_service import FreqtradeBacktestService
-from app.contracts.backtest import PortfolioConfigRecord, ResearchConfigRecord, StrategyVersionRecord
+from app.contracts.backtest import BacktestPortfolioConfig, BacktestResearchConfig, StrategyVersionRecord
 from app.services.backtest.result_store import replace_run_rows, result_signal_counts
 from app.services.backtest.run_contract import (
     BACKTEST_EXECUTION_MODE,
@@ -30,8 +30,8 @@ class BacktestRunService:
         self,
         *,
         strategy: StrategyVersionRecord,
-        portfolio: PortfolioConfigRecord,
-        research: ResearchConfigRecord,
+        portfolio: BacktestPortfolioConfig,
+        research: BacktestResearchConfig,
         start_date: datetime,
         end_date: datetime,
         timeframe: str = settings.TIMEFRAME,
@@ -82,8 +82,8 @@ class BacktestRunService:
         self,
         *,
         strategy: StrategyVersionRecord,
-        portfolio: PortfolioConfigRecord,
-        research: ResearchConfigRecord,
+        portfolio: BacktestPortfolioConfig,
+        research: BacktestResearchConfig,
         start_date: datetime,
         end_date: datetime,
         timeframe: str,

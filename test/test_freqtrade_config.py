@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.services.backtest.freqtrade_execution import FreqtradeIterationExecutor
 from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBuilder
-from app.contracts.backtest import PortfolioConfigRecord
+from app.contracts.backtest import BacktestPortfolioConfig
 from config import settings
 
 
@@ -31,7 +31,7 @@ def _make_executor() -> FreqtradeIterationExecutor:
 def test_freqtrade_config_uses_same_side_pricing_for_spot_and_futures():
     executor = _make_executor()
     strategy_builder = FreqtradeStrategyBuilder("HeimdallStrategy")
-    portfolio = PortfolioConfigRecord(
+    portfolio = BacktestPortfolioConfig(
         symbols=["BTC/USDT"],
         max_open_trades=2,
         position_size_pct=25,

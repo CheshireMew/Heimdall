@@ -41,6 +41,7 @@ class SystemIndicatorConfigResponse(BaseModel):
 class SystemRuntimeConfigResponse(BaseModel):
     app_role: str
     database_engine: str
+    database_source: str
     cache_backend: str
 
 

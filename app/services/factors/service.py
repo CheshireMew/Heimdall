@@ -207,8 +207,5 @@ class FactorResearchService:
             )
         )
 
-    def timeframe_delta(self, timeframe: str):
-        return self.math.timeframe_delta(timeframe)
-
     def _get_run_record(self, run_id: int) -> dict[str, Any] | None:
         return self.repository.get_research_run(run_id)

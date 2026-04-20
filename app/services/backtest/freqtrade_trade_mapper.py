@@ -5,7 +5,8 @@ from typing import Any
 
 import pandas as pd
 
-from app.contracts.backtest import BacktestSignalRecord, BacktestTradeRecord, ResearchConfigRecord
+from app.contracts.backtest import BacktestResearchConfig, BacktestSignalRecord, BacktestTradeRecord
+from utils.time_utils import to_utc_naive_datetime
 
 
 class FreqtradeTradeMapper:
@@ -21,14 +22,14 @@ class FreqtradeTradeMapper:
         for trade in trades.sort_values("open_date").to_dict("records"):
             closed_at = None
             if trade.get("close_date") is not None and not pd.isna(trade.get("close_date")):
-                closed_at = self._to_datetime(trade["close_date"])
+                closed_at = to_utc_naive_datetime(trade["close_date"])
             side = "short" if bool(trade.get("is_short")) else "long"
             pair = trade.get("pair") or ""
             if pair_aliases and pair in pair_aliases:
                 pair = pair_aliases[pair]
             records.append(
                 BacktestTradeRecord(
-                    opened_at=self._to_datetime(trade["open_date"]),
+                    opened_at=to_utc_naive_datetime(trade["open_date"]),
                     closed_at=closed_at,
                     entry_price=float(trade["open_rate"]),
                     exit_price=self._coerce_float(trade.get("close_rate")),
@@ -50,7 +51,7 @@ class FreqtradeTradeMapper:
     def apply_execution_adjustments(
         self,
         trades: list[BacktestTradeRecord],
-        research: ResearchConfigRecord,
+        research: BacktestResearchConfig,
         end_date: datetime,
     ) -> list[BacktestTradeRecord]:
         slippage_ratio = research.slippage_bps / 10_000.0
@@ -125,12 +126,6 @@ class FreqtradeTradeMapper:
                     )
                 )
         return signals
-
-    def _to_datetime(self, value: Any) -> datetime:
-        timestamp = pd.Timestamp(value)
-        if timestamp.tzinfo is None:
-            return timestamp.to_pydatetime().replace(tzinfo=None)
-        return timestamp.tz_convert("UTC").to_pydatetime().replace(tzinfo=None)
 
     def _coerce_float(self, value: Any) -> float | None:
         if value is None or pd.isna(value):

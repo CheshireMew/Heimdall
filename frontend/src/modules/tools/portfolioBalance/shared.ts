@@ -1,5 +1,6 @@
 import type { PortfolioReviewFrequency } from './contracts'
 import { USD_EQUIVALENT_SYMBOLS } from '@/modules/market/baseSymbolCatalog'
+import { addDaysToLocalIsoDate, localIsoDateDaysAgo, parseLocalIsoDate, todayLocalIsoDate, toLocalIsoDate } from '@/utils/localDate'
 
 export const PERCENT_BASE = 100
 export const DEFAULT_REVIEW_FREQUENCY: PortfolioReviewFrequency = 'weekly'
@@ -19,36 +20,23 @@ export const sanitizeNumber = (value: unknown, fallback = 0) => {
   return candidate >= 0 ? candidate : fallback
 }
 
-export const formatIsoDate = (value: Date) => {
-  const year = value.getFullYear()
-  const month = `${value.getMonth() + 1}`.padStart(2, '0')
-  const day = `${value.getDate()}`.padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+export const daysAgoIso = localIsoDateDaysAgo
 
-export const daysAgoIso = (days: number) => {
-  const date = new Date()
-  date.setDate(date.getDate() - days)
-  return formatIsoDate(date)
-}
-
-export const todayIso = () => formatIsoDate(new Date())
+export const todayIso = todayLocalIsoDate
 
 export const parseIsoDate = (value: string) => {
-  const date = new Date(`${value}T00:00:00`)
-  return Number.isNaN(date.getTime()) ? null : date
+  return parseLocalIsoDate(value)
 }
 
 export const shiftReviewDate = (dateText: string, frequency: PortfolioReviewFrequency) => {
   const source = parseIsoDate(dateText)
   if (!source) return todayIso()
 
+  if (frequency === 'daily') return addDaysToLocalIsoDate(dateText, 1)
+  if (frequency === 'weekly') return addDaysToLocalIsoDate(dateText, 7)
   const next = new Date(source)
-  if (frequency === 'daily') next.setDate(next.getDate() + 1)
-  else if (frequency === 'weekly') next.setDate(next.getDate() + 7)
-  else if (frequency === 'monthly') next.setMonth(next.getMonth() + 1)
-  else next.setMonth(next.getMonth() + 3)
-  return formatIsoDate(next)
+  next.setMonth(next.getMonth() + (frequency === 'monthly' ? 1 : 3))
+  return toLocalIsoDate(next)
 }
 
 export const diffDaysFromToday = (dateText: string) => {

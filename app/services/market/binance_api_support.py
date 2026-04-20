@@ -11,7 +11,7 @@ import httpx
 from config import settings
 from utils.logger import logger
 
-from app.infra.cache import RedisService
+from app.infra.cache import RedisService, optional_cache_get, optional_cache_set
 
 
 class BinanceApiSupport:
@@ -56,16 +56,6 @@ class BinanceApiSupport:
         digest = hashlib.md5(raw.encode("utf-8")).hexdigest()
         return f"{self.cache_namespace}:{digest}"
 
-    def _cache_get(self, key: str) -> Any | None:
-        if self.cache_service is None:
-            return None
-        return self.cache_service.get(key)
-
-    def _cache_set(self, key: str, value: Any, ttl: int | None = None) -> None:
-        if self.cache_service is None:
-            return
-        self.cache_service.set(key, value, ttl=ttl or self.cache_ttl)
-
     async def _request_json(
         self,
         *,
@@ -79,7 +69,7 @@ class BinanceApiSupport:
     ) -> Any:
         cache_key = self._cache_key(method, path, params, body)
         if use_cache:
-            cached = self._cache_get(cache_key)
+            cached = optional_cache_get(self.cache_service, cache_key)
             if cached is not None:
                 return cached
 
@@ -96,7 +86,7 @@ class BinanceApiSupport:
                     response.raise_for_status()
                     payload = response.json()
                     if use_cache:
-                        self._cache_set(cache_key, payload, ttl=ttl)
+                        optional_cache_set(self.cache_service, cache_key, payload, ttl=ttl, default_ttl=self.cache_ttl)
                     return payload
                 except httpx.HTTPStatusError as exc:
                     last_error = exc

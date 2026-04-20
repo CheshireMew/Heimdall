@@ -96,6 +96,7 @@ def build_app_runtime_services() -> AppRuntimeServices:
     binance_market_snapshot = BinanceMarketSnapshotService() if build_background_runtime else None
     market_query_app_service = (
         MarketQueryAppService(
+            market_data_service=market_data_service,
             realtime_service=realtime_service,
             history_service=history_service,
             binance_snapshot_service=binance_market_snapshot,

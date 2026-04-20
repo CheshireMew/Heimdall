@@ -10,14 +10,12 @@ import type {
   BacktestPairBreakdownResponse,
   BacktestPaperLiveResponse,
   BacktestPaperPositionResponse,
-  BacktestPortfolioPayloadResponse,
-  BacktestPortfolioRequest,
+  BacktestPortfolioConfig as BacktestPortfolioConfigContract,
   BacktestPortfolioSummaryResponse,
   BacktestReportResponse,
   BacktestReportSnapshotResponse,
-  BacktestResearchPayloadResponse,
+  BacktestResearchConfig as BacktestResearchConfigContract,
   BacktestResearchReportResponse,
-  BacktestResearchRequest,
   BacktestRollingWindowResponse,
   BacktestRunDefaultsResponse,
   BacktestRunMetadataResponse,
@@ -62,8 +60,8 @@ import type {
 } from '@/types/backtest'
 import type { OhlcvPointResponse } from '@/types/market'
 
-export type BacktestPortfolioConfig = BacktestPortfolioRequest
-export type BacktestResearchConfig = BacktestResearchRequest
+export type BacktestPortfolioConfig = BacktestPortfolioConfigContract
+export type BacktestResearchConfig = BacktestResearchConfigContract
 export type BacktestMetrics = BacktestMetricsResponse
 export type BacktestSignal = BacktestSignalResponse
 export type BacktestTrade = BacktestTradeResponse
@@ -78,8 +76,6 @@ export type BacktestDateRange = BacktestDateRangeResponse
 export type BacktestPairBreakdown = BacktestPairBreakdownResponse
 export type BacktestStrategySummary = BacktestStrategySummaryResponse
 export type BacktestPortfolioSummary = BacktestPortfolioSummaryResponse
-export type BacktestPortfolioPayload = BacktestPortfolioPayloadResponse
-export type BacktestResearchPayload = BacktestResearchPayloadResponse
 export type BacktestOptimizationTrial = BacktestOptimizationTrialResponse
 export type BacktestOptimizationSummary = BacktestOptimizationSummaryResponse
 export type BacktestIterationSummary = BacktestIterationSummaryResponse

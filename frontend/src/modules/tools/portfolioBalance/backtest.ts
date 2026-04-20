@@ -12,6 +12,7 @@ import {
   readPortfolioSyntheticPrice,
 } from './model'
 import { clamp, parseIsoDate, PERCENT_BASE, round, shiftReviewDate, todayIso } from './shared'
+import { diffLocalIsoDateDays, toLocalIsoDate } from '@/utils/localDate'
 
 export interface PortfolioHistoryPoint {
   date: string
@@ -32,7 +33,7 @@ export const buildPortfolioSyntheticHistory = (
   const cursor = new Date(startDate)
   while (cursor.getTime() <= endDate.getTime()) {
     points.push({
-      date: cursor.toISOString().slice(0, 10),
+      date: toLocalIsoDate(cursor),
       close: price,
     })
     cursor.setDate(cursor.getDate() + 1)
@@ -121,7 +122,7 @@ export const buildPortfolioBacktestSummary = (
 
     if (dateIndex === 0) return
 
-    const reviewDue = new Date(`${date}T00:00:00`).getTime() >= new Date(`${nextReviewDate}T00:00:00`).getTime()
+    const reviewDue = date >= nextReviewDate
     if (!reviewDue) return
     reviewCount += 1
 
@@ -153,10 +154,7 @@ export const buildPortfolioBacktestSummary = (
     nextReviewDate = shiftReviewDate(date, strategy.reviewFrequency)
   })
 
-  const totalDays = Math.max(
-    Math.round((new Date(`${endDate}T00:00:00`).getTime() - new Date(`${startDate}T00:00:00`).getTime()) / 86400000),
-    1,
-  )
+  const totalDays = Math.max(diffLocalIsoDateDays(startDate, endDate), 1)
 
   return {
     startDate,

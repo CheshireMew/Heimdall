@@ -166,12 +166,14 @@ class KlineStore:
                 "保存 K 线缓存失败: "
                 f"symbol={symbol} timeframe={timeframe} rows={len(klines)} reason={self._safe_db_error(exc)}"
             )
+            raise
         except Exception as exc:
             session.rollback()
             logger.error(
                 "保存 K 线缓存失败: "
                 f"symbol={symbol} timeframe={timeframe} rows={len(klines)} reason={self._safe_db_error(exc)}"
             )
+            raise
 
     @staticmethod
     def _safe_db_error(exc: Exception) -> str:

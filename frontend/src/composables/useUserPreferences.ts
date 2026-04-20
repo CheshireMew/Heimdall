@@ -1,4 +1,5 @@
 import { computed, ref, watch } from 'vue'
+import { getLocalStorage } from '@/utils/storage'
 
 export interface TimezoneOption {
   value: string
@@ -20,12 +21,11 @@ interface StoredPreferences {
   displayCurrency?: string
 }
 
-const canUseStorage = () => typeof window !== 'undefined' && !!window.localStorage
-
 const readStoredPreferences = (): StoredPreferences => {
-  if (!canUseStorage()) return {}
+  const storage = getLocalStorage()
+  if (storage === null) return {}
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
+    const raw = storage.getItem(STORAGE_KEY)
     return raw ? JSON.parse(raw) : {}
   } catch (error) {
     console.warn('Failed to read user preferences:', error)
@@ -50,8 +50,7 @@ const timezone = ref(storedPreferences.timezone || detectTimezone())
 const displayCurrency = ref((storedPreferences.displayCurrency || defaultCurrencyForTimezone(timezone.value)).toUpperCase())
 
 watch([timezone, displayCurrency], () => {
-  if (!canUseStorage()) return
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+  getLocalStorage()?.setItem(STORAGE_KEY, JSON.stringify({
     timezone: timezone.value,
     displayCurrency: displayCurrency.value,
   }))

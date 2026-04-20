@@ -15,7 +15,12 @@ from app.runtime import (
 
 def make_background_runtime_services() -> AppRuntimeServices:
     return AppRuntimeServices(
-        infra=InfraRuntime(database_runtime=object(), cache_service=object()),
+        infra=InfraRuntime(
+            exchange_gateway=object(),
+            database_runtime=object(),
+            kline_store=object(),
+            cache_service=object(),
+        ),
         market=MarketRuntime(
             market_data_service=object(),
             market_indicator_repository=object(),

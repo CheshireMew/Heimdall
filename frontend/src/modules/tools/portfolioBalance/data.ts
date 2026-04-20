@@ -4,6 +4,7 @@ import type { PortfolioBalancePortfolio } from './contracts'
 
 import { buildPortfolioSyntheticHistory } from './backtest'
 import { collectPortfolioMarketTargets, normalizePortfolioAssetSymbol, readPortfolioSyntheticPrice } from './model'
+import { localIsoDateDaysAgo, toLocalIsoDate } from '@/utils/localDate'
 
 type PortfolioHistoryPoint = { date: string; close: number }
 type PortfolioHistoryMap = Record<string, PortfolioHistoryPoint[]>
@@ -54,7 +55,7 @@ const rowsToHistory = (rows: OhlcvPointResponse[]): PortfolioHistoryPoint[] => r
     const timestamp = Number(row.timestamp || 0)
     const close = Number(row.close || 0)
     return {
-      date: new Date(timestamp).toISOString().slice(0, 10),
+      date: toLocalIsoDate(new Date(timestamp)),
       close,
     }
   })
@@ -102,7 +103,7 @@ export const fetchPortfolioPriceMap = async (portfolio: PortfolioBalancePortfoli
   const targets = collectPortfolioMarketTargets(portfolio.assets)
   if (!targets.length && !priceBySymbol.size) throw new Error('请先填写至少一个标的')
 
-  const latestStartDate = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
+  const latestStartDate = localIsoDateDaysAgo(30)
   const cryptoTargets = targets.filter((item) => !isIndexSymbol(item.marketSymbol))
   const indexTargets = targets.filter((item) => isIndexSymbol(item.marketSymbol))
   const cryptoPriceByMarketSymbol = new Map<string, number>()

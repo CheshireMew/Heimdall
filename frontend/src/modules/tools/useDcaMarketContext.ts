@@ -3,6 +3,7 @@ import { reactive } from 'vue'
 import { isRecord } from '@/composables/pageSnapshot'
 import { isIndexSymbol, marketApi } from '@/modules/market'
 import { resolveSentimentBucket } from '@/modules/market/sentiment'
+import { localIsoDateDaysAgo } from '@/utils/localDate'
 
 export interface DcaMarketState {
   rsi: string | null
@@ -51,7 +52,7 @@ export const useDcaMarketContext = ({
           ? marketApi.getIndexPricingHistory({
               symbol: currentSymbol,
               timeframe: '1d',
-              start_date: new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10),
+              start_date: localIsoDateDaysAgo(180),
             })
           : marketApi.getRealtime({ symbol: currentSymbol, timeframe: '1d', limit: 100 }),
         marketApi.getIndicators({ days: 7 }),

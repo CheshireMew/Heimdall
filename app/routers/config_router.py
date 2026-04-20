@@ -6,7 +6,7 @@ import ipaddress
 from fastapi import APIRouter, HTTPException, Request
 from fastapi import Depends
 
-from app.dependencies import get_currency_rate_service, get_request_database_runtime
+from app.dependencies import runtime_dependency
 from app.infra.db import DatabaseRuntime
 from app.domain.market.symbol_catalog import get_supported_market_symbols
 from app.routers.errors import service_http_error
@@ -21,6 +21,8 @@ from app.services.currency_service import CurrencyRateService
 from config import settings
 
 router = APIRouter()
+database_runtime_dependency = runtime_dependency("infra.database_runtime")
+currency_rate_dependency = runtime_dependency("system.currency_rate_service")
 
 
 def _require_local_settings_request(request: Request) -> None:
@@ -37,7 +39,7 @@ def _require_local_settings_request(request: Request) -> None:
 
 @router.get("/config", response_model=SystemConfigResponse)
 async def get_config(
-    database_runtime: DatabaseRuntime = Depends(get_request_database_runtime),
+    database_runtime: DatabaseRuntime = Depends(database_runtime_dependency),
 ):
     """获取系统配置"""
     try:
@@ -55,6 +57,7 @@ async def get_config(
             'runtime': {
                 'app_role': settings.APP_RUNTIME_ROLE,
                 'database_engine': database_runtime.engine.dialect.name,
+                'database_source': database_runtime.source,
                 'cache_backend': 'local-memory',
             },
         })
@@ -64,7 +67,7 @@ async def get_config(
 
 @router.get("/currencies", response_model=CurrencyRatesResponse)
 async def get_currencies(
-    currency_service: CurrencyRateService = Depends(get_currency_rate_service),
+    currency_service: CurrencyRateService = Depends(currency_rate_dependency),
 ):
     try:
         return await currency_service.get_rates()

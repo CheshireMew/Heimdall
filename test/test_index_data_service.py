@@ -134,7 +134,7 @@ def test_eastmoney_history_is_normalized_and_cached(monkeypatch):
             }
         )
 
-    monkeypatch.setattr("app.services.market.index_history_sources.requests.get", fake_get)
+    monkeypatch.setattr("app.services.market.index_history_http.requests.get", fake_get)
 
     result = service.get_history(
         symbol="CN_CSI300",
@@ -300,9 +300,9 @@ def test_fred_history_close_only_is_not_cached(monkeypatch):
     def fake_get(*args, **kwargs):
         return FakeResponse(text="observation_date,VIXCLS\n2024-01-02,13.20\n2024-01-03,.\n")
 
-    monkeypatch.setattr("app.services.market.index_history_sources.requests.get", fake_get)
+    monkeypatch.setattr("app.services.market.index_history_fred.requests.get", fake_get)
 
-    result = service._fetch_fred_history(
+    result = service.history_sources.fetch_fred_history(
         instrument,
         datetime(2024, 1, 1, tzinfo=timezone.utc),
         datetime(2024, 1, 10, tzinfo=timezone.utc),

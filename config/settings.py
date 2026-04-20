@@ -48,6 +48,7 @@ class AppSettings(BaseSettings):
     REDIS_PASSWORD: str = ""
 
     DATABASE_URL: str = ""
+    ALLOW_SQLITE_FALLBACK: bool = False
     POSTGRES_DEV_URL: str = ""
     POSTGRES_DEV_HOST: str = DEFAULT_POSTGRES_DEV_HOST
     POSTGRES_DEV_PORT: int = DEFAULT_POSTGRES_DEV_PORT

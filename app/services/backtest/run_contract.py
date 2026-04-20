@@ -5,11 +5,9 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from app.contracts.backtest import PortfolioConfigRecord, ResearchConfigRecord, StrategyVersionRecord
+from app.contracts.backtest import BacktestPortfolioConfig, BacktestResearchConfig, StrategyVersionRecord
 from app.schemas.backtest_result import (
     BacktestPaperLiveResponse,
-    BacktestPortfolioPayloadResponse,
-    BacktestResearchPayloadResponse,
     BacktestRunMetadataResponse,
     BacktestRuntimeStateResponse,
 )
@@ -26,24 +24,12 @@ FACTOR_BLEND_PAPER_ENGINE = "FactorBlendPaper"
 _MISSING = object()
 
 
-def build_portfolio_payload(portfolio: PortfolioConfigRecord) -> dict[str, Any]:
-    return BacktestPortfolioPayloadResponse(
-        symbols=list(portfolio.symbols),
-        max_open_trades=portfolio.max_open_trades,
-        position_size_pct=portfolio.position_size_pct,
-        stake_mode=portfolio.stake_mode,
-    ).model_dump()
+def build_portfolio_payload(portfolio: BacktestPortfolioConfig) -> dict[str, Any]:
+    return portfolio.model_dump(mode="json")
 
 
-def build_research_payload(research: ResearchConfigRecord) -> dict[str, Any]:
-    return BacktestResearchPayloadResponse(
-        slippage_bps=research.slippage_bps,
-        funding_rate_daily=research.funding_rate_daily,
-        in_sample_ratio=research.in_sample_ratio,
-        optimize_metric=research.optimize_metric,
-        optimize_trials=research.optimize_trials,
-        rolling_windows=research.rolling_windows,
-    ).model_dump()
+def build_research_payload(research: BacktestResearchConfig) -> dict[str, Any]:
+    return research.model_dump(mode="json")
 
 
 def build_base_metadata(
@@ -75,8 +61,8 @@ def build_backtest_metadata(
     symbols: list[str],
     initial_cash: float,
     fee_rate: float,
-    portfolio: PortfolioConfigRecord,
-    research: ResearchConfigRecord,
+    portfolio: BacktestPortfolioConfig,
+    research: BacktestResearchConfig,
 ) -> dict[str, Any]:
     return make_json_safe(
         {
@@ -136,7 +122,7 @@ def build_paper_metadata(
     symbols: list[str],
     initial_cash: float,
     fee_rate: float,
-    portfolio: PortfolioConfigRecord,
+    portfolio: BacktestPortfolioConfig,
     runtime_state: dict[str, Any],
     paper_live: dict[str, Any],
     report: dict[str, Any],
@@ -293,7 +279,9 @@ def _normalize_paper_position_payload(payload: Any, *, symbol_hint: str) -> dict
         "last_price": float(payload.get("last_price", entry_price) or entry_price),
         "taken_partial_ids": list(payload.get("taken_partial_ids") or []),
     }
-    if "entry_score" in payload:
+    # entry_score belongs to factor paper positions; empty values must stay empty,
+    # otherwise normal paper positions get a fake score of 0.0 on the next save.
+    if payload.get("entry_score") not in (None, ""):
         normalized["entry_score"] = float(payload.get("entry_score", 0.0) or 0.0)
     return normalized
 

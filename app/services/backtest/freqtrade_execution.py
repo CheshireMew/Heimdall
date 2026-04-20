@@ -16,12 +16,13 @@ from freqtrade.enums import CandleType
 
 from app.contracts.backtest import (
     BacktestExecutionResult,
-    PortfolioConfigRecord,
-    ResearchConfigRecord,
+    BacktestPortfolioConfig,
+    BacktestResearchConfig,
     StrategyVersionRecord,
 )
+from app.contracts.backtest_symbols import sanitize_backtest_run_fragment
+from app.domain.market.timeframes import timeframe_to_timedelta
 from app.schemas.strategy_contract import StrategyTemplateConfigResponse
-from app.services.backtest.symbol_contract import sanitize_backtest_run_fragment
 from app.services.market.market_data_service import MarketDataService
 from config import settings
 from utils.logger import logger
@@ -30,8 +31,8 @@ from utils.logger import logger
 @dataclass(slots=True)
 class FreqtradeExecutionContext:
     strategy: StrategyVersionRecord
-    portfolio: PortfolioConfigRecord
-    research: ResearchConfigRecord
+    portfolio: BacktestPortfolioConfig
+    research: BacktestResearchConfig
     timeframe: str
     initial_cash: float
     fee_rate: float
@@ -258,7 +259,7 @@ class FreqtradeIterationExecutor:
         handler = JsonDataHandler(self.shared_data_dir)
         manifest = self._load_shared_coverage()
         manifest_changed = False
-        warmup_start = start_date - (self._timeframe_delta(timeframe) * warmup_bars)
+        warmup_start = start_date - (timeframe_to_timedelta(timeframe) * warmup_bars)
         start_ms = int(start_date.timestamp() * 1000)
         end_ms = int(end_date.timestamp() * 1000)
         request_start_ms = int(warmup_start.timestamp() * 1000)
@@ -403,7 +404,7 @@ class FreqtradeIterationExecutor:
         symbols: list[str],
         timeframe: str,
         initial_cash: float,
-        portfolio: PortfolioConfigRecord,
+        portfolio: BacktestPortfolioConfig,
         stake_currency: str,
         market_type: str,
         trade_settings: dict[str, Any],
@@ -474,17 +475,6 @@ class FreqtradeIterationExecutor:
         return (
             f"{int(start_date.timestamp() * 1000)}-{int(end_date.timestamp() * 1000)}"
         )
-
-    def _timeframe_delta(self, timeframe: str) -> pd.Timedelta:
-        value = int(timeframe[:-1])
-        unit = timeframe[-1]
-        if unit == "m":
-            return pd.Timedelta(minutes=value)
-        if unit == "h":
-            return pd.Timedelta(hours=value)
-        if unit == "d":
-            return pd.Timedelta(days=value)
-        raise ValueError(f"暂不支持的时间周期: {timeframe}")
 
     def _format_process_error(self, stdout: str, stderr: str) -> str:
         output = (stderr or stdout or "").strip()

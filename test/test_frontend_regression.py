@@ -73,6 +73,7 @@ def test_frontend_api_paths_match_fastapi_routes():
     ("file_path", "route_name"),
     [
         ("modules/backtest/api.ts", "start_backtest"),
+        ("modules/backtest/api.ts", "start_paper_run"),
         ("modules/factors/api.ts", "analyze_factors"),
         ("modules/factors/api.ts", "start_factor_backtest"),
         ("modules/factors/api.ts", "start_factor_paper_run"),

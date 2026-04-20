@@ -8,6 +8,7 @@ import { useMoney } from '@/composables/useMoney'
 import type { OhlcvPointResponse } from './contracts'
 import { marketApi } from './api'
 import { buildHalvingSnapshot, createDefaultHalvingSnapshot, normalizeHalvingSnapshot } from './pageSnapshots'
+import { parseLocalIsoDate } from '@/utils/localDate'
 
 interface HalvingChartRuntime {
   Chart: typeof import('chart.js').Chart
@@ -23,8 +24,10 @@ const HALVING_DATES = [
   { date: '2028-04-17', label: 'H5 (Est)', future: true },
 ] as const
 
-const LAST_HALVING_DATE = new Date('2024-04-20')
-const NEXT_HALVING_ESTIMATE = new Date('2028-04-17')
+const LAST_HALVING_DATE_TEXT = '2024-04-20'
+const NEXT_HALVING_DATE_TEXT = '2028-04-17'
+const LAST_HALVING_DATE = parseLocalIsoDate(LAST_HALVING_DATE_TEXT) ?? new Date(2024, 3, 20)
+const NEXT_HALVING_ESTIMATE = parseLocalIsoDate(NEXT_HALVING_DATE_TEXT) ?? new Date(2028, 3, 17)
 const ONE_DAY = 24 * 60 * 60 * 1000
 const CURRENT_PRICE_REFRESH_INTERVAL_MS = 15_000
 
@@ -78,7 +81,7 @@ export function useHalvingPage() {
   let priceRefreshTimer: number | null = null
   let priceRefreshPending = false
 
-  const nextHalvingDate = computed(() => NEXT_HALVING_ESTIMATE.toISOString().split('T')[0])
+  const nextHalvingDate = computed(() => NEXT_HALVING_DATE_TEXT)
   const daysToHalving = computed(() => Math.ceil((NEXT_HALVING_ESTIMATE.getTime() - Date.now()) / ONE_DAY))
   const cycleProgress = computed(() => {
     const totalDuration = NEXT_HALVING_ESTIMATE.getTime() - LAST_HALVING_DATE.getTime()

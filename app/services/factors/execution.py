@@ -8,11 +8,11 @@ from app.infra.db.schema import BacktestRun
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
 from app.services.backtest.result_store import store_run_rows
 from app.contracts.backtest import (
+    BacktestPortfolioConfig,
+    BacktestResearchConfig,
     BacktestEquityPointRecord,
     BacktestSignalRecord,
     BacktestTradeRecord,
-    PortfolioConfigRecord,
-    ResearchConfigRecord,
     StrategyVersionRecord,
 )
 from app.services.backtest.run_contract import BACKTEST_EXECUTION_MODE, FACTOR_BLEND_ENGINE, build_backtest_metadata, parse_run_metadata
@@ -110,8 +110,8 @@ class FactorExecutionService:
             config=blank_strategy_version_config_model().model_dump(),
             version_name=f"Research {research_run_id}",
         )
-        portfolio = PortfolioConfigRecord(symbols=[symbol], max_open_trades=1, position_size_pct=position_size_pct, stake_mode=stake_mode)
-        research = ResearchConfigRecord()
+        portfolio = BacktestPortfolioConfig(symbols=[symbol], max_open_trades=1, position_size_pct=position_size_pct, stake_mode=stake_mode)
+        research = BacktestResearchConfig()
         metadata = parse_run_metadata(
             build_backtest_metadata(
                 strategy=strategy,

@@ -64,5 +64,6 @@ export interface SystemIndicatorConfigResponse {
 export interface SystemRuntimeConfigResponse {
   app_role: string
   database_engine: string
+  database_source: string
   cache_backend: string
 }

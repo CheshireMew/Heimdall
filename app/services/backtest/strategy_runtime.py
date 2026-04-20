@@ -11,9 +11,9 @@ from app.schemas.strategy_contract import (
     StrategyGroupNodeResponse,
     StrategyIndicatorConfigResponse,
     StrategyRuleSourceResponse,
-    StrategyStateBranchResponse,
     StrategyTemplateConfigResponse,
 )
+from app.domain.market.timeframes import timeframe_to_minutes
 from app.services.backtest.scripted_template_runtime import get_template_runtime, template_supports_signal_runtime
 from app.services.backtest.indicator_engines import (
     apply_indicator_frame,
@@ -26,8 +26,9 @@ from app.services.backtest.strategy_contract import (
     explicit_indicator_timeframes,
     normalize_strategy_config_model,
     preferred_run_timeframe,
-    timeframe_to_minutes,
+    strategy_branch,
 )
+from utils.time_utils import to_utc_naive_datetime
 
 
 @dataclass(slots=True)
@@ -107,7 +108,7 @@ class StrategyRuntime:
         for _, row in frame.iterrows():
             snapshots.append(
                 StrategySignalSnapshot(
-                    timestamp=self._to_datetime(row["date"]),
+                    timestamp=to_utc_naive_datetime(row["date"]),
                     price=float(row["close"]),
                     active_regime=str(row["active_regime"]) if row.get("active_regime") else None,
                     long_entry_signal=bool(row["long_entry_signal"]),
@@ -143,7 +144,7 @@ class StrategyRuntime:
         frame["short_exit_signal"] = pd.Series(False, index=frame.index, dtype=bool)
         allow_short = normalized_config.execution.direction == "long_short"
         for branch_key in normalized_config.regime_priority or ["trend", "range"]:
-            branch = self._branch(normalized_config, branch_key)
+            branch = strategy_branch(normalized_config, branch_key)
             mask = branch_masks.get(branch_key)
             if mask is None:
                 continue
@@ -295,7 +296,7 @@ class StrategyRuntime:
         remaining = pd.Series(True, index=frame.index, dtype=bool)
         masks: dict[str, pd.Series] = {}
         for branch_key in config.regime_priority or ["trend", "range"]:
-            branch = self._branch(config, branch_key)
+            branch = strategy_branch(config, branch_key)
             if not branch.enabled:
                 masks[branch_key] = pd.Series(False, index=frame.index, dtype=bool)
                 continue
@@ -323,29 +324,16 @@ class StrategyRuntime:
             }
         return snapshot
 
-    def _branch(self, config: StrategyTemplateConfigResponse, branch_key: str) -> StrategyStateBranchResponse:
-        if branch_key == "trend":
-            return config.trend
-        if branch_key == "range":
-            return config.range
-        raise ValueError(f"不支持的策略分支: {branch_key}")
-
     def _coerce_scalar(self, value: Any) -> Any:
         if value is None or (isinstance(value, float) and pd.isna(value)):
             return None
         if pd.isna(value):
             return None
         if isinstance(value, (pd.Timestamp, datetime)):
-            return self._to_datetime(value).isoformat()
+            return to_utc_naive_datetime(value).isoformat()
         if hasattr(value, "item"):
             try:
                 return value.item()
             except Exception:
                 return value
         return value
-
-    def _to_datetime(self, value: Any) -> datetime:
-        timestamp = pd.Timestamp(value)
-        if timestamp.tzinfo is None:
-            return timestamp.to_pydatetime().replace(tzinfo=None)
-        return timestamp.tz_convert("UTC").to_pydatetime().replace(tzinfo=None)

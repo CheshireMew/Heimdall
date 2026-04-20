@@ -2,6 +2,7 @@ import { computed, onUnmounted, ref, watch, type Ref } from 'vue'
 import { marketApi } from './api'
 import { useMarketStore } from './store'
 import { isIndexSymbol } from './symbolCatalog'
+import { toLocalIsoDate } from '@/utils/localDate'
 import type { OhlcvPointResponse } from './contracts'
 
 const REFRESH_INTERVAL_MS = 5000
@@ -60,8 +61,8 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
       const res = await marketApi.getIndexHistory({
         symbol: requestSymbol,
         timeframe: '1d',
-        start_date: start.toISOString().slice(0, 10),
-        end_date: end.toISOString().slice(0, 10),
+        start_date: toLocalIsoDate(start),
+        end_date: toLocalIsoDate(end),
       })
       if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
       indexKlineData.value = res.data.data || []
@@ -129,8 +130,8 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
         const res = await marketApi.getIndexHistory({
           symbol: requestSymbol,
           timeframe: '1d',
-          start_date: start.toISOString().slice(0, 10),
-          end_date: end.toISOString().slice(0, 10),
+          start_date: toLocalIsoDate(start),
+          end_date: toLocalIsoDate(end),
         })
         if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
         const newKlines = res.data.data || []

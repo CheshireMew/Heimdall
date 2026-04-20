@@ -1,4 +1,5 @@
 import { watch, type WatchSource, type WatchStopHandle } from 'vue'
+import { getLocalStorage } from '@/utils/storage'
 
 const PAGE_SNAPSHOT_PREFIX = 'heimdall_page_snapshot:'
 const PAGE_SNAPSHOT_VERSION = 2
@@ -59,9 +60,10 @@ export const createPersistentPageSnapshot = <TSnapshot>(
 ): PersistentPageSnapshot<TSnapshot> => {
   const storageKey = `${PAGE_SNAPSHOT_PREFIX}${key}`
   const load = (): TSnapshot => {
-    if (typeof window === 'undefined') return fallback
+    const storage = getLocalStorage()
+    if (storage === null) return fallback
     try {
-      const stored = window.localStorage.getItem(storageKey)
+      const stored = storage.getItem(storageKey)
       if (!stored) return fallback
       const data = readSnapshotEnvelopeData(JSON.parse(stored))
       return data === null ? fallback : normalize(data, fallback)
@@ -72,10 +74,11 @@ export const createPersistentPageSnapshot = <TSnapshot>(
   }
 
   const save = (snapshot: TSnapshot) => {
-    if (typeof window === 'undefined') return
+    const storage = getLocalStorage()
+    if (storage === null) return
     try {
       // 本地快照跟随页面结构变化；版本不匹配时直接丢弃，避免旧字段重新灌回新页面。
-      window.localStorage.setItem(storageKey, JSON.stringify({
+      storage.setItem(storageKey, JSON.stringify({
         version: PAGE_SNAPSHOT_VERSION,
         savedAt: Date.now(),
         data: normalize(snapshot, fallback),
@@ -91,9 +94,10 @@ export const createPersistentPageSnapshot = <TSnapshot>(
       return watch(sources, () => save(buildSnapshot()), { deep: true, immediate: true })
     },
     clear() {
-      if (typeof window === 'undefined') return
+      const storage = getLocalStorage()
+      if (storage === null) return
       try {
-        window.localStorage.removeItem(storageKey)
+        storage.removeItem(storageKey)
       } catch (error) {
         console.warn(`Failed to clear page snapshot: ${storageKey}`, error)
       }

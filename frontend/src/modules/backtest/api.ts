@@ -35,7 +35,7 @@ export const backtestApi = {
   },
 
   startPaperRun(body: PaperStartRequest): Promise<AxiosResponse<PaperStartResponse>> {
-    return request.post(apiRoute('start_paper_run'), body)
+    return longTaskRequest.post(apiRoute('start_paper_run'), body)
   },
 
   stopPaperRun(runId: number): Promise<AxiosResponse<PaperStopResponse>> {

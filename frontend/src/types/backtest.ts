@@ -15,8 +15,8 @@ export interface BacktestStartRequest {
   end_date?: string
   initial_cash?: number
   fee_rate?: number
-  portfolio?: BacktestPortfolioRequest
-  research?: BacktestResearchRequest
+  portfolio?: BacktestPortfolioConfig
+  research?: BacktestResearchConfig
 }
 
 export interface PaperStartResponse {
@@ -31,7 +31,7 @@ export interface PaperStartRequest {
   timeframe?: string
   initial_cash?: number
   fee_rate?: number
-  portfolio?: BacktestPortfolioRequest
+  portfolio?: BacktestPortfolioConfig
 }
 
 export interface PaperStopResponse {
@@ -238,6 +238,7 @@ export interface BacktestPaperPositionResponse {
   side?: string
   opened_at: string
   entry_price: number
+  entry_score?: number | null
   remaining_amount: number
   remaining_cost: number
   highest_price: number
@@ -246,14 +247,7 @@ export interface BacktestPaperPositionResponse {
   taken_partial_ids?: Array<string>
 }
 
-export interface BacktestPortfolioPayloadResponse {
-  symbols?: Array<string>
-  max_open_trades?: number | null
-  position_size_pct?: number | null
-  stake_mode?: string | null
-}
-
-export interface BacktestPortfolioRequest {
+export interface BacktestPortfolioConfig {
   symbols?: Array<string>
   max_open_trades?: number
   position_size_pct?: number
@@ -262,9 +256,9 @@ export interface BacktestPortfolioRequest {
 
 export interface BacktestPortfolioSummaryResponse {
   symbols?: Array<string>
-  max_open_trades?: number | null
-  position_size_pct?: number | null
-  stake_mode?: string | null
+  max_open_trades?: number
+  position_size_pct?: number
+  stake_mode?: "fixed" | "unlimited"
   stake_currency?: string | null
 }
 
@@ -309,13 +303,13 @@ export interface BacktestReportSnapshotResponse {
   total_trades?: number | null
 }
 
-export interface BacktestResearchPayloadResponse {
-  slippage_bps?: number | null
-  funding_rate_daily?: number | null
-  in_sample_ratio?: number | null
-  optimize_metric?: string | null
-  optimize_trials?: number | null
-  rolling_windows?: number | null
+export interface BacktestResearchConfig {
+  slippage_bps?: number
+  funding_rate_daily?: number
+  in_sample_ratio?: number
+  optimize_metric?: "sharpe" | "profit_pct" | "calmar" | "profit_factor"
+  optimize_trials?: number
+  rolling_windows?: number
 }
 
 export interface BacktestResearchReportResponse {
@@ -327,15 +321,6 @@ export interface BacktestResearchReportResponse {
   in_sample?: BacktestIterationSummaryResponse | null
   out_of_sample?: BacktestIterationSummaryResponse | null
   rolling_windows?: Array<BacktestRollingWindowResponse>
-}
-
-export interface BacktestResearchRequest {
-  slippage_bps?: number
-  funding_rate_daily?: number
-  in_sample_ratio?: number
-  optimize_metric?: "sharpe" | "profit_pct" | "calmar" | "profit_factor"
-  optimize_trials?: number
-  rolling_windows?: number
 }
 
 export interface BacktestRollingWindowResponse {
@@ -354,8 +339,8 @@ export interface BacktestRunDefaultsResponse {
   end_date?: string
   initial_cash?: number
   fee_rate?: number
-  portfolio?: BacktestPortfolioRequest
-  research?: BacktestResearchRequest
+  portfolio?: BacktestPortfolioConfig
+  research?: BacktestResearchConfig
   history_mode?: "backtest" | "paper"
   optimize_metric_options?: Array<StrategyOperatorResponse>
 }
@@ -382,8 +367,8 @@ export interface BacktestRunMetadataResponse {
   fee_ratio?: number | null
   timeframe?: string | null
   stake_currency?: string | null
-  portfolio?: BacktestPortfolioPayloadResponse | null
-  research?: BacktestResearchPayloadResponse | BacktestResearchReportResponse | null
+  portfolio?: BacktestPortfolioConfig | null
+  research?: BacktestResearchReportResponse | BacktestResearchConfig | null
   selected_config?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
   sample_ranges?: BacktestSampleRangesResponse | null
   runtime_state?: BacktestRuntimeStateResponse | null

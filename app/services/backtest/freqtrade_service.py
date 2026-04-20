@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pandas as pd
-
 from app.schemas.backtest_result import (
     BacktestReportResponse,
     BacktestPortfolioSummaryResponse,
@@ -18,11 +16,12 @@ from app.services.backtest.freqtrade_execution import FreqtradeIterationExecutor
 from app.services.backtest.freqtrade_research import FreqtradeResearchService
 from app.services.backtest.freqtrade_result_builder import FreqtradeResultBuilder
 from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBuilder
-from app.services.backtest.symbol_contract import normalize_backtest_symbols
+from app.contracts.backtest_symbols import normalize_backtest_symbols
 from app.contracts.backtest import BacktestExecutionResult
 from app.services.backtest.scripted_template_runtime import get_template_runtime, template_builder_kind
 from app.services.market.market_data_service import MarketDataService
 from config import settings
+from utils.time_utils import to_utc_naive_datetime
 
 
 class FreqtradeBacktestService:
@@ -59,8 +58,8 @@ class FreqtradeBacktestService:
         fee_rate: float,
     ) -> BacktestExecutionResult:
         self._validate_timeframe(timeframe)
-        start_date = self._ensure_utc(start_date)
-        end_date = self._ensure_utc(end_date)
+        start_date = to_utc_naive_datetime(start_date)
+        end_date = to_utc_naive_datetime(end_date)
         data_symbols = self._normalize_symbols(portfolio.symbols)
         fee_ratio = self._fee_ratio(fee_rate)
         selected_config = self.strategy_builder.runtime.validate_timeframe_compatibility(
@@ -279,9 +278,3 @@ class FreqtradeBacktestService:
         if template_builder_kind(get_template_runtime(template)) == "scripted":
             return "scripted_template"
         return "rules"
-
-    def _ensure_utc(self, value: datetime) -> datetime:
-        timestamp = pd.Timestamp(value)
-        if timestamp.tzinfo is None:
-            return timestamp.to_pydatetime().replace(tzinfo=None)
-        return timestamp.tz_convert("UTC").to_pydatetime().replace(tzinfo=None)

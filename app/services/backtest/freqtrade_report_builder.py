@@ -4,10 +4,9 @@ import math
 from datetime import datetime, timedelta
 from typing import Any
 
-import pandas as pd
-
 from app.contracts.backtest import BacktestEquityPointRecord, BacktestTradeRecord
 from app.schemas.backtest_result import BacktestPairBreakdownResponse, BacktestReportResponse, BacktestReportSnapshotResponse
+from utils.time_utils import to_utc_naive_datetime
 
 
 class FreqtradeReportBuilder:
@@ -47,8 +46,8 @@ class FreqtradeReportBuilder:
         start_date: datetime,
         end_date: datetime,
     ) -> list[BacktestEquityPointRecord]:
-        start_date = self._ensure_utc(start_date)
-        end_date = self._ensure_utc(end_date)
+        start_date = to_utc_naive_datetime(start_date)
+        end_date = to_utc_naive_datetime(end_date)
         if trades:
             first_event = min((trade.opened_at for trade in trades), default=start_date)
             start_date = min(start_date, first_event - timedelta(seconds=1))
@@ -193,9 +192,3 @@ class FreqtradeReportBuilder:
         if days <= 0 or initial_cash <= 0 or final_balance <= 0:
             return None
         return ((final_balance / initial_cash) ** (365.0 / days) - 1.0) * 100.0
-
-    def _ensure_utc(self, value: datetime) -> datetime:
-        timestamp = pd.Timestamp(value)
-        if timestamp.tzinfo is None:
-            return timestamp.to_pydatetime().replace(tzinfo=None)
-        return timestamp.tz_convert("UTC").to_pydatetime().replace(tzinfo=None)

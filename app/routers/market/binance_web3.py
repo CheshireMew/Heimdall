@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, Query
 
-from app.dependencies import get_binance_web3_service
+from app.dependencies import runtime_dependency
 from app.routers.errors import service_http_error
 from app.schemas.binance_market import (
     BinanceRwaDynamicResponse,
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
 
 router = APIRouter(tags=["Market Data"])
+binance_web3_dependency = runtime_dependency("market.binance_web3_service")
 
 
 @router.get("/binance/web3/social_hype", response_model=BinanceWeb3SocialHypeResponse)
@@ -37,10 +38,10 @@ async def get_binance_web3_social_hype(
     time_range: int = Query(1, ge=1, le=30),
     sentiment: str = Query("All"),
     social_language: str = Query("ALL"),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_social_hype_leaderboard(
+        return await service.ranks.get_social_hype_leaderboard(
             chain_id=chain_id,
             target_language=target_language,
             time_range=time_range,
@@ -60,10 +61,10 @@ async def get_binance_web3_unified_token_rank(
     order_asc: bool = Query(False),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=200),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_unified_token_rank(
+        return await service.ranks.get_unified_token_rank(
             rank_type=rank_type,
             chain_id=chain_id,
             period=period,
@@ -81,10 +82,10 @@ async def get_binance_web3_smart_money_inflow(
     chain_id: str = Query(...),
     period: str = Query("24h"),
     tag_type: int = Query(2),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_smart_money_inflow_rank(chain_id=chain_id, period=period, tag_type=tag_type)
+        return await service.ranks.get_smart_money_inflow_rank(chain_id=chain_id, period=period, tag_type=tag_type)
     except Exception as exc:
         raise service_http_error("API /binance/web3/smart_money_inflow 错误", exc)
 
@@ -92,10 +93,10 @@ async def get_binance_web3_smart_money_inflow(
 @router.get("/binance/web3/meme_rank", response_model=BinanceWeb3MemeRankResponse)
 async def get_binance_web3_meme_rank(
     chain_id: str = Query("56"),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_meme_rank(chain_id=chain_id)
+        return await service.ranks.get_meme_rank(chain_id=chain_id)
     except Exception as exc:
         raise service_http_error("API /binance/web3/meme_rank 错误", exc)
 
@@ -107,10 +108,10 @@ async def get_binance_web3_address_pnl_rank(
     tag: str = Query("ALL"),
     page_no: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=25),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_address_pnl_rank(
+        return await service.ranks.get_address_pnl_rank(
             chain_id=chain_id,
             period=period,
             tag=tag,
@@ -125,10 +126,10 @@ async def get_binance_web3_address_pnl_rank(
 async def get_binance_web3_heat_rank(
     chain_id: str = Query("56"),
     size: int = Query(30, ge=1, le=50),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_web3_heat_rank(chain_id=chain_id, size=size)
+        return await service.ranks.get_web3_heat_rank(chain_id=chain_id, size=size)
     except Exception as exc:
         raise service_http_error("API /binance/web3/heat_rank 错误", exc)
 
@@ -136,10 +137,10 @@ async def get_binance_web3_heat_rank(
 @router.get("/binance/rwa/symbols", response_model=BinanceRwaSymbolListResponse)
 async def get_binance_rwa_symbols(
     platform_type: int | None = Query(1),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.list_rwa_symbols(platform_type=platform_type)
+        return await service.rwa.list_symbols(platform_type=platform_type)
     except Exception as exc:
         raise service_http_error("API /binance/rwa/symbols 错误", exc)
 
@@ -148,20 +149,20 @@ async def get_binance_rwa_symbols(
 async def get_binance_rwa_meta(
     chain_id: str = Query(...),
     contract_address: str = Query(...),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_rwa_meta(chain_id=chain_id, contract_address=contract_address)
+        return await service.rwa.get_meta(chain_id=chain_id, contract_address=contract_address)
     except Exception as exc:
         raise service_http_error("API /binance/rwa/meta 错误", exc)
 
 
 @router.get("/binance/rwa/market_status", response_model=BinanceRwaMarketStatusResponse)
 async def get_binance_rwa_market_status(
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_rwa_market_status()
+        return await service.rwa.get_market_status()
     except Exception as exc:
         raise service_http_error("API /binance/rwa/market_status 错误", exc)
 
@@ -170,10 +171,10 @@ async def get_binance_rwa_market_status(
 async def get_binance_rwa_asset_market_status(
     chain_id: str = Query(...),
     contract_address: str = Query(...),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_rwa_asset_market_status(chain_id=chain_id, contract_address=contract_address)
+        return await service.rwa.get_asset_market_status(chain_id=chain_id, contract_address=contract_address)
     except Exception as exc:
         raise service_http_error("API /binance/rwa/asset_market_status 错误", exc)
 
@@ -182,10 +183,10 @@ async def get_binance_rwa_asset_market_status(
 async def get_binance_rwa_dynamic(
     chain_id: str = Query(...),
     contract_address: str = Query(...),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_rwa_dynamic(chain_id=chain_id, contract_address=contract_address)
+        return await service.rwa.get_dynamic(chain_id=chain_id, contract_address=contract_address)
     except Exception as exc:
         raise service_http_error("API /binance/rwa/dynamic 错误", exc)
 
@@ -198,10 +199,10 @@ async def get_binance_rwa_kline(
     limit: int = Query(120, ge=1, le=300),
     start_time: int | None = Query(None),
     end_time: int | None = Query(None),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_rwa_kline(
+        return await service.rwa.get_kline(
             chain_id=chain_id,
             contract_address=contract_address,
             interval=interval,
@@ -217,10 +218,10 @@ async def get_binance_rwa_kline(
 async def get_binance_web3_token_dynamic(
     chain_id: str = Query(...),
     contract_address: str = Query(...),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_token_dynamic(chain_id=chain_id, contract_address=contract_address)
+        return await service.tokens.get_dynamic(chain_id=chain_id, contract_address=contract_address)
     except Exception as exc:
         raise service_http_error("API /binance/web3/token_dynamic 错误", exc)
 
@@ -234,10 +235,10 @@ async def get_binance_web3_token_kline(
     from_time: int | None = Query(None, alias="from"),
     to_time: int | None = Query(None, alias="to"),
     pm: str | None = Query("p"),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_token_kline(
+        return await service.tokens.get_kline(
             address=address,
             platform=platform,
             interval=interval,
@@ -254,9 +255,9 @@ async def get_binance_web3_token_kline(
 async def get_binance_web3_token_audit(
     binance_chain_id: str = Query(...),
     contract_address: str = Query(...),
-    service: BinanceWeb3Service = Depends(get_binance_web3_service),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     try:
-        return await service.get_token_audit(binance_chain_id=binance_chain_id, contract_address=contract_address)
+        return await service.tokens.get_audit(binance_chain_id=binance_chain_id, contract_address=contract_address)
     except Exception as exc:
         raise service_http_error("API /binance/web3/token_audit 错误", exc)

@@ -139,9 +139,9 @@ class BackgroundRuntimeController:
             assert factor_paper_manager is not None
 
             await binance_snapshot.start(
-                spot_ticker_loader=binance_market.get_spot_ticker_24hr,
-                usdm_ticker_loader=binance_market.get_usdm_ticker_24hr,
-                usdm_mark_loader=binance_market.get_usdm_mark_price,
+                spot_ticker_loader=binance_market.spot.get_ticker_24hr,
+                usdm_ticker_loader=binance_market.usdm.get_ticker_24hr,
+                usdm_mark_loader=binance_market.usdm.get_mark_price,
             )
             await paper_manager.restore_active_runs()
             await factor_paper_manager.restore_active_runs()

@@ -33,11 +33,13 @@ class MarketQueryAppService:
     def __init__(
         self,
         *,
+        market_data_service: MarketDataService,
         realtime_service: RealtimeService,
         history_service: HistoryService,
         binance_snapshot_service=None,
         llm_client_factory: Callable[[], Any | None] | None = None,
     ) -> None:
+        self.market_data_service = market_data_service
         self.realtime_service = realtime_service
         self.history_service = history_service
         self.binance_snapshot_service = binance_snapshot_service
@@ -48,7 +50,6 @@ class MarketQueryAppService:
     async def load_snapshot(
         self,
         *,
-        market_data_service: MarketDataService,
         symbol: str,
         timeframe: str,
         limit: int,
@@ -58,7 +59,7 @@ class MarketQueryAppService:
         validate_market_request(symbol, timeframe)
         result = await run_sync(
             lambda: self.realtime_service.compute_market_snapshot(
-                market_data_service,
+                self.market_data_service,
                 symbol,
                 timeframe,
                 limit,
@@ -73,7 +74,6 @@ class MarketQueryAppService:
     async def get_realtime(
         self,
         *,
-        market_data_service: MarketDataService,
         symbol: str,
         timeframe: str | None,
         limit: int | None,
@@ -81,7 +81,6 @@ class MarketQueryAppService:
         resolved_timeframe = timeframe or settings.TIMEFRAME
         resolved_limit = limit or settings.LIMIT
         snapshot = await self.load_snapshot(
-            market_data_service=market_data_service,
             symbol=symbol,
             timeframe=resolved_timeframe,
             limit=resolved_limit,
@@ -107,14 +106,12 @@ class MarketQueryAppService:
     async def get_realtime_ws_payload(
         self,
         *,
-        market_data_service: MarketDataService,
         symbol: str,
         timeframe: str,
         limit: int,
         use_ai: bool,
     ) -> RealtimeResponse:
         snapshot = await self.load_snapshot(
-            market_data_service=market_data_service,
             symbol=symbol,
             timeframe=timeframe,
             limit=limit,
@@ -142,7 +139,6 @@ class MarketQueryAppService:
     async def get_history(
         self,
         *,
-        market_data_service: MarketDataService,
         symbol: str,
         timeframe: str,
         end_ts: int,
@@ -151,7 +147,7 @@ class MarketQueryAppService:
         validate_market_request(symbol, timeframe)
         rows = await run_sync(
             lambda: self.history_service.get_history(
-                market_data_service,
+                self.market_data_service,
                 symbol,
                 timeframe,
                 end_ts,
@@ -163,7 +159,6 @@ class MarketQueryAppService:
     async def get_recent_klines(
         self,
         *,
-        market_data_service: MarketDataService,
         symbol: str,
         timeframe: str,
         limit: int,
@@ -171,7 +166,7 @@ class MarketQueryAppService:
         validate_market_request(symbol, timeframe)
         rows = await run_sync(
             lambda: self.history_service.get_recent_klines(
-                market_data_service,
+                self.market_data_service,
                 symbol,
                 timeframe,
                 limit,
@@ -182,7 +177,6 @@ class MarketQueryAppService:
     async def get_live_kline_tail(
         self,
         *,
-        market_data_service: MarketDataService,
         symbol: str,
         timeframe: str,
         limit: int,
@@ -190,7 +184,7 @@ class MarketQueryAppService:
         validate_market_request(symbol, timeframe)
         kline_data = await run_sync(
             lambda: self.history_service.get_live_tail(
-                market_data_service,
+                self.market_data_service,
                 symbol,
                 timeframe,
                 limit,
@@ -210,7 +204,6 @@ class MarketQueryAppService:
     async def get_current_price(
         self,
         *,
-        market_data_service: MarketDataService,
         symbol: str,
         timeframe: str,
     ) -> CurrentPriceResponse:
@@ -218,7 +211,6 @@ class MarketQueryAppService:
         current_price = await self._get_current_price_from_snapshot(symbol)
         if current_price is None:
             current_price = await self._get_current_price_from_kline_tail(
-                market_data_service=market_data_service,
                 symbol=symbol,
                 timeframe=timeframe,
             )
@@ -232,7 +224,6 @@ class MarketQueryAppService:
     async def get_current_price_batch(
         self,
         *,
-        market_data_service: MarketDataService,
         symbols: list[str],
         timeframe: str,
     ) -> CurrentPriceBatchResponse:
@@ -251,7 +242,6 @@ class MarketQueryAppService:
             source = "websocket_snapshot" if current_price is not None else "kline_tail"
             if current_price is None:
                 current_price = await self._get_current_price_from_kline_tail(
-                    market_data_service=market_data_service,
                     symbol=symbol,
                     timeframe=timeframe,
                 )
@@ -274,13 +264,12 @@ class MarketQueryAppService:
     async def _get_current_price_from_kline_tail(
         self,
         *,
-        market_data_service: MarketDataService,
         symbol: str,
         timeframe: str,
     ) -> float | None:
         kline_data = await run_sync(
             lambda: self.history_service.get_live_tail(
-                market_data_service,
+                self.market_data_service,
                 symbol,
                 timeframe,
                 1,
@@ -291,7 +280,6 @@ class MarketQueryAppService:
     async def get_full_history(
         self,
         *,
-        market_data_service: MarketDataService,
         symbol: str,
         timeframe: str,
         start_date: str,
@@ -300,7 +288,7 @@ class MarketQueryAppService:
     ) -> MarketHistoryResponse:
         validate_market_request(symbol, timeframe)
         rows = await self.history_service.get_full_history(
-            market_data_service=market_data_service,
+            market_data_service=self.market_data_service,
             symbol=symbol,
             timeframe=timeframe,
             start_date=start_date,
@@ -312,7 +300,6 @@ class MarketQueryAppService:
     async def get_full_history_batch(
         self,
         *,
-        market_data_service: MarketDataService,
         symbols: list[str],
         timeframe: str,
         start_date: str,
@@ -329,7 +316,7 @@ class MarketQueryAppService:
             normalized_symbols.append(symbol)
 
         rows = await self.history_service.get_full_history_batch(
-            market_data_service=market_data_service,
+            market_data_service=self.market_data_service,
             symbols=normalized_symbols,
             timeframe=timeframe,
             start_date=start_date,
@@ -344,7 +331,6 @@ class MarketQueryAppService:
     async def get_technical_metrics(
         self,
         *,
-        market_data_service: MarketDataService,
         symbol: str,
         timeframe: str,
         limit: int,
@@ -352,7 +338,6 @@ class MarketQueryAppService:
         volatility_period: int,
     ) -> TechnicalMetricsResponse:
         snapshot = await self.load_snapshot(
-            market_data_service=market_data_service,
             symbol=symbol,
             timeframe=timeframe,
             limit=limit,
