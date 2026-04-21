@@ -1,19 +1,21 @@
 import type {
   EditableStrategyTemplateConfig,
-  StrategyConditionNode,
-  StrategyEditorContract,
   StrategyGroupNode,
-  StrategyIndicatorEngine,
   StrategyRuleNode,
-  StrategyTemplateConfig,
 } from './contracts'
+import type {
+  StrategyConditionNodeResponse,
+  StrategyEditorContractResponse,
+  StrategyIndicatorEngineResponse,
+  StrategyTemplateConfigResponse,
+} from '../../types/backtest'
 import { isStrategyConditionNode, isStrategyGroupNode } from './contracts'
 
 export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
 
 export const buildId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
 
-export const normalizeEditableStrategyConfig = (value: StrategyTemplateConfig): EditableStrategyTemplateConfig => {
+export const normalizeEditableStrategyConfig = (value: StrategyTemplateConfigResponse): EditableStrategyTemplateConfig => {
   const config = clone(value) as EditableStrategyTemplateConfig
   config.indicators = config.indicators || {}
   config.risk.roi_targets = config.risk.roi_targets || []
@@ -21,12 +23,12 @@ export const normalizeEditableStrategyConfig = (value: StrategyTemplateConfig): 
   return config
 }
 
-export const createBlankConfig = (contract: StrategyEditorContract): EditableStrategyTemplateConfig => (
+export const createBlankConfig = (contract: StrategyEditorContractResponse): EditableStrategyTemplateConfig => (
   normalizeEditableStrategyConfig(contract.blank_config)
 )
 
 export const createBlankGroup = (
-  contract: StrategyEditorContract,
+  contract: StrategyEditorContractResponse,
   overrides: Partial<StrategyGroupNode> = {},
 ): StrategyGroupNode => ({
   ...clone(contract.blank_group),
@@ -35,16 +37,16 @@ export const createBlankGroup = (
 })
 
 export const createBlankCondition = (
-  contract: StrategyEditorContract,
-  overrides: Partial<StrategyConditionNode> = {},
-): StrategyConditionNode => ({
+  contract: StrategyEditorContractResponse,
+  overrides: Partial<StrategyConditionNodeResponse> = {},
+): StrategyConditionNodeResponse => ({
   ...clone(contract.blank_condition),
   ...overrides,
   left: clone(overrides.left ?? contract.blank_condition.left),
   right: clone(overrides.right ?? contract.blank_condition.right),
 })
 
-export const createBlankIndicatorDraft = (indicatorEngines: StrategyIndicatorEngine[] = []) => ({
+export const createBlankIndicatorDraft = (indicatorEngines: StrategyIndicatorEngineResponse[] = []) => ({
   key: '',
   name: '',
   engine_key: indicatorEngines[0]?.key || 'ema',
@@ -60,7 +62,7 @@ export const createBlankTemplateDraft = () => ({
   indicator_keys: [] as string[],
 })
 
-export const createBlankVersionDraft = (contract: StrategyEditorContract) => ({
+export const createBlankVersionDraft = (contract: StrategyEditorContractResponse) => ({
   key: contract.run_defaults?.strategy_key || '',
   name: 'Variant',
   template: '',
@@ -125,7 +127,16 @@ export const buildParameterSpaceJson = (
 export const treeUsesIndicator = (node: StrategyRuleNode | null | undefined, indicatorId: string): boolean => {
   if (!node) return false
   if (isStrategyConditionNode(node)) {
-    return [node.left, node.right].some((part) => part?.indicator === indicatorId || part?.base_indicator === indicatorId || part?.offset_indicator === indicatorId)
+    return [node.left, node.right].some((part) => {
+      if (!part) return false
+      if (part.kind === 'indicator' || part.kind === 'indicator_multiplier') {
+        return part.indicator === indicatorId
+      }
+      if (part.kind === 'indicator_offset') {
+        return part.base_indicator === indicatorId || part.offset_indicator === indicatorId
+      }
+      return false
+    })
   }
   return isStrategyGroupNode(node) && (node.children || []).some((child) => treeUsesIndicator(child, indicatorId))
 }
@@ -141,3 +152,4 @@ export const pruneTreeByIndicator = (node: StrategyGroupNode | null | undefined,
     if (isStrategyGroupNode(child)) pruneTreeByIndicator(child, indicatorId)
   }
 }
+

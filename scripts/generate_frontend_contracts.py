@@ -10,7 +10,6 @@ from typing import Any, get_args
 
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, TypeAdapter
-from pydantic_core import PydanticUndefined
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
@@ -29,7 +28,6 @@ class QueryParamContractField:
     alias: str
     schema: dict[str, Any]
     required: bool
-    default: Any
 
 
 @dataclass(frozen=True)
@@ -98,7 +96,6 @@ def collect_route_query_param_contracts() -> tuple[QueryParamContract, ...]:
                     )
                 ),
                 required=bool(getattr(param, "required", False)),
-                default=getattr(param, "default", None),
             )
             for param in route.dependant.query_params
         )
@@ -140,8 +137,9 @@ def render_api_routes() -> str:
         "// This file is generated from backend FastAPI route contracts.",
         "// Do not edit manually.",
         "",
-        "type RouteParams = Record<string, string | number>",
-        "export type ApiQueryMeta = { aliases?: Record<string, string>; repeatedKeys?: readonly string[] }",
+        "export type RouteParams = Record<string, string | number>",
+        "export type ApiQueryShape = object",
+        "export type EndpointQueryContract = { aliases?: Record<string, string>; repeatedKeys?: readonly string[] }",
         "",
         "const fillRoute = (template: string, params: RouteParams = {}) => template.replace(/\\{([^}]+)\\}/g, (_, key: string) => {",
         "  const value = params[key]",
@@ -154,15 +152,11 @@ def render_api_routes() -> str:
     query_meta: dict[str, dict[str, Any]] = {}
     for contract in collect_route_query_param_contracts():
         query_meta[contract.route_name] = query_meta_payload(contract)
-    route_query_lines = ["export const API_QUERY_META = {"]
-    body_default_lines = ["export const API_BODY_DEFAULTS = {"]
+    route_query_lines = ["const endpointQueryContracts = {"]
     for route in sorted(api_v1_routes(), key=lambda item: item.name):
         route_lines.append(f"  {route.name}: {json.dumps(strip_api_prefix(route.path))},")
         route_query_lines.append(
-            f"  {route.name}: {json.dumps(query_meta.get(route.name, empty_query_meta()), ensure_ascii=False)} as ApiQueryMeta,"
-        )
-        body_default_lines.append(
-            f"  {route.name}: {json.dumps(route_body_defaults(route), ensure_ascii=False)},"
+            f"  {route.name}: {json.dumps(query_meta.get(route.name, empty_query_meta()), ensure_ascii=False)} as EndpointQueryContract,"
         )
     route_lines.extend([
         "} as const",
@@ -171,12 +165,19 @@ def render_api_routes() -> str:
         "",
         "export const apiRoute = (name: ApiRouteName, params?: RouteParams) => fillRoute(routeTemplates[name], params)",
         "",
-        "export const serializeApiQueryParams = <T extends object>(params: T, meta?: ApiQueryMeta) => {",
+        "export const apiEndpoint = (name: ApiRouteName, params?: RouteParams) => ({",
+        "  name,",
+        "  url: apiRoute(name, params),",
+        "  query: endpointQueryContracts[name],",
+        "})",
+        "",
+        "export const serializeEndpointQuery = (name: ApiRouteName, params: ApiQueryShape = {}) => {",
+        "  const contract = endpointQueryContracts[name]",
         "  const query = new URLSearchParams()",
         "  Object.entries(params as Record<string, unknown>).forEach(([key, value]) => {",
         "    if (value === null || value === undefined || value === '') return",
-        "    const resolvedKey = meta?.aliases?.[key] ?? key",
-        "    const repeatedKeys = meta?.repeatedKeys ?? []",
+        "    const resolvedKey = contract?.aliases?.[key] ?? key",
+        "    const repeatedKeys = contract?.repeatedKeys ?? []",
         "    if (Array.isArray(value)) {",
         "      value.forEach((item) => {",
         "        if (item !== null && item !== undefined && item !== '') query.append(resolvedKey, String(item))",
@@ -194,8 +195,7 @@ def render_api_routes() -> str:
         "",
     ])
     route_query_lines.extend(["} as const", ""])
-    body_default_lines.extend(["} as const", ""])
-    return "\n".join(route_lines + route_query_lines + body_default_lines)
+    return "\n".join(route_lines + route_query_lines)
 
 
 def api_v1_routes() -> tuple[APIRoute, ...]:
@@ -213,16 +213,11 @@ def strip_api_prefix(path: str) -> str:
 
 
 def empty_query_meta() -> dict[str, Any]:
-    return {"defaults": {}, "repeatedKeys": [], "aliases": {}}
+    return {"repeatedKeys": [], "aliases": {}}
 
 
 def query_meta_payload(contract: QueryParamContract) -> dict[str, Any]:
     return {
-        "defaults": {
-            field.name: field.default
-            for field in contract.fields
-            if not field.required and field.default is not None
-        },
         "repeatedKeys": [
             field.name
             for field in contract.fields
@@ -234,39 +229,6 @@ def query_meta_payload(contract: QueryParamContract) -> dict[str, Any]:
             if field.alias != field.name
         },
     }
-
-
-def route_body_defaults(route: APIRoute) -> dict[str, Any]:
-    body_field = getattr(route, "body_field", None)
-    if body_field is None:
-        return {}
-    body_type = body_field.type_
-    if not isinstance(body_type, type) or not issubclass(body_type, BaseModel):
-        return {}
-    return model_defaults(body_type)
-
-
-def model_defaults(model: type[BaseModel]) -> dict[str, Any]:
-    defaults: dict[str, Any] = {}
-    for name, field in model.model_fields.items():
-        value = PydanticUndefined
-        if field.default is not PydanticUndefined:
-            value = field.default
-        elif field.default_factory is not None:
-            value = field.default_factory()
-        if value is not PydanticUndefined:
-            defaults[name] = jsonable_default(field.annotation, value)
-    return defaults
-
-
-def jsonable_default(annotation: Any, value: Any) -> Any:
-    if isinstance(value, BaseModel):
-        return value.model_dump(mode="json")
-    try:
-        # 前端默认 body 必须保持 JSON 结构，嵌套模型不能退化成 Python 字符串。
-        return TypeAdapter(annotation).dump_python(value, mode="json")
-    except Exception:
-        return json.loads(json.dumps(value))
 
 
 def render_file(
@@ -346,7 +308,7 @@ def emit_interface(name: str, schema: dict[str, Any]) -> list[str]:
     required = set(schema.get("required", []))
     lines = [f"export interface {name} {{"]
     for prop_name, prop_schema in properties.items():
-        optional = "?" if prop_name not in required else ""
+        optional = "?" if prop_name not in required and "const" not in prop_schema else ""
         lines.append(f"  {prop_name}{optional}: {render_type(prop_schema)}")
     if schema.get("additionalProperties"):
         lines.append(f"  [key: string]: {render_type(schema['additionalProperties'])}")
@@ -360,9 +322,6 @@ def emit_query_contract(contract: QueryParamContract) -> list[str]:
         optional = "?" if not field.required else ""
         lines.append(f"  {field.name}{optional}: {render_type(field.schema)}")
     lines.append("}")
-    lines.append(
-        f"export const {contract.name}Meta = {json.dumps(query_meta_payload(contract), ensure_ascii=False)} as const"
-    )
     return lines
 
 
@@ -383,6 +342,8 @@ def render_type(schema: dict[str, Any]) -> str:
         return " & ".join(dict.fromkeys(render_type(item) for item in schema["allOf"]))
     if "enum" in schema:
         return " | ".join(json.dumps(item) for item in schema["enum"])
+    if "const" in schema:
+        return json.dumps(schema["const"])
     if schema.get("type") == "array":
         return f"Array<{render_type(schema.get('items', {}))}>"
     if is_object_schema(schema):

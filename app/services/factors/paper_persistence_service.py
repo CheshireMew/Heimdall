@@ -5,7 +5,12 @@ from typing import Any
 
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestTrade
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
-from app.services.backtest.result_store import build_signal_rows, build_trade_rows
+from app.services.backtest.result_store import (
+    build_signal_rows,
+    build_trade_rows,
+    equity_point_record_from_row,
+    trade_record_from_row,
+)
 from app.contracts.backtest import BacktestEquityPointRecord, BacktestSignalRecord, BacktestTradeRecord
 from app.services.backtest.run_contract import update_paper_metadata
 from app.schemas.backtest_result import BacktestRunMetadataResponse
@@ -87,34 +92,8 @@ class FactorPaperPersistenceService:
             .order_by(BacktestEquityPoint.timestamp.asc())
             .all()
         )
-        trade_records = [
-            BacktestTradeRecord(
-                opened_at=item.opened_at,
-                closed_at=item.closed_at,
-                entry_price=item.entry_price,
-                exit_price=item.exit_price,
-                stake_amount=item.stake_amount,
-                amount=item.amount,
-                profit_abs=item.profit_abs,
-                profit_pct=item.profit_pct,
-                max_drawdown_pct=item.max_drawdown_pct,
-                duration_minutes=item.duration_minutes,
-                entry_tag=item.entry_tag,
-                exit_reason=item.exit_reason,
-                leverage=item.leverage,
-                pair=item.pair,
-            )
-            for item in trades
-        ]
-        equity_records = [
-            BacktestEquityPointRecord(
-                timestamp=item.timestamp,
-                equity=item.equity,
-                pnl_abs=item.pnl_abs,
-                drawdown_pct=item.drawdown_pct,
-            )
-            for item in equity
-        ]
+        trade_records = [trade_record_from_row(item) for item in trades]
+        equity_records = [equity_point_record_from_row(item) for item in equity]
         report = self.report_builder.build_report(
             trades=trade_records,
             equity_curve=equity_records,

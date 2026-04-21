@@ -6,7 +6,7 @@ from typing import Any
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import IndicatorDefinition, StrategyTemplateDefinition
 from app.services.backtest.scripted_template_runtime import get_template_runtime
-from app.services.backtest.indicator_engines import BUILTIN_INDICATOR_ENGINES
+from app.services.backtest.indicator_engines import INDICATOR_ENGINES
 from app.services.backtest.strategy_config_normalizer import (
     blank_strategy_config,
     normalize_indicator_params,
@@ -20,8 +20,8 @@ from app.services.backtest.strategy_definitions import BUILTIN_TEMPLATE_DEFINITI
 
 def get_indicator_engine_catalog() -> list[dict[str, Any]]:
     return [
-        {"key": key, **deepcopy(spec)}
-        for key, spec in BUILTIN_INDICATOR_ENGINES.items()
+        {"key": key, **engine.catalog_entry()}
+        for key, engine in INDICATOR_ENGINES.items()
     ]
 
 
@@ -31,9 +31,9 @@ def get_builtin_indicator_catalog() -> list[dict[str, Any]]:
             "key": key,
             "engine": key,
             "is_builtin": True,
-            **deepcopy(spec),
+            **engine.catalog_entry(),
         }
-        for key, spec in BUILTIN_INDICATOR_ENGINES.items()
+        for key, engine in INDICATOR_ENGINES.items()
     ]
 
 
@@ -61,11 +61,12 @@ def create_indicator_definition(
     database_runtime: DatabaseRuntime,
 ) -> dict[str, Any]:
     key = normalize_strategy_identifier(key, "指标标识")
-    if key in BUILTIN_INDICATOR_ENGINES:
+    if key in INDICATOR_ENGINES:
         raise ValueError("该指标标识已被内置指标占用")
-    engine_spec = BUILTIN_INDICATOR_ENGINES.get(engine_key)
-    if not engine_spec:
+    engine = INDICATOR_ENGINES.get(engine_key)
+    if not engine:
         raise ValueError("不支持的指标引擎")
+    engine_spec = engine.catalog_entry()
     normalized_params = normalize_indicator_params(
         params or deepcopy(engine_spec["params"]), engine_spec["params"]
     )

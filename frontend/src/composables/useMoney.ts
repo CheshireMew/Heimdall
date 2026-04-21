@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { useUserPreferences } from './useUserPreferences'
 import {
+  currencyAliases,
   currencyRates as rates,
   loadCurrencyRates,
   loadingRates,
@@ -8,15 +9,12 @@ import {
   ratesSource,
   ratesUpdatedAt,
   readCurrencyMeta,
+  resolveCurrencyAlias,
   supportedCurrencies,
 } from '@/modules/system'
 
-const USD_EQUIVALENT = new Set(['USD', 'USDT', 'USDC', 'FDUSD', 'BUSD', 'DAI', 'TUSD', 'USDP', 'PYUSD', 'USDS'])
-
 const normalizeCurrency = (value: string | null | undefined) => {
-  const code = String(value || 'USD').trim().toUpperCase()
-  if (USD_EQUIVALENT.has(code)) return 'USD'
-  return code
+  return resolveCurrencyAlias(value || 'USD')
 }
 
 const asNumber = (value: unknown) => {
@@ -101,6 +99,7 @@ export function useMoney() {
     displayCurrency,
     currencyOptions,
     selectedCurrencyMeta,
+    currencyAliases,
     rates,
     ratesSource,
     ratesUpdatedAt,

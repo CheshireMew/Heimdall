@@ -11,6 +11,7 @@ import app.lifecycle as lifecycle_module
 import app.main as main_module
 import app.web as web_module
 import app.background_runtime as background_runtime_module
+from app.exceptions import unhandled_exception_handler
 from app.runtime import (
     AppRuntimeServices,
     BacktestRuntime,
@@ -204,7 +205,7 @@ async def test_global_exception_handler_returns_internal_server_error():
         }
     )
 
-    response = await web_module.global_exception_handler(request, RuntimeError("boom"))
+    response = await unhandled_exception_handler(request, RuntimeError("boom"))
 
     assert response.status_code == 500
     assert response.body == b'{"detail":"Internal server error"}'

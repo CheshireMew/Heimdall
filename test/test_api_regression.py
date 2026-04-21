@@ -212,9 +212,9 @@ def test_factor_execution_routes_forward_full_payload(api_harness):
 
     assert backtest_response.status_code == 200
     assert paper_response.status_code == 200
-    assert api_harness["factor_execution"].calls[0]["research_run_id"] == 301
-    assert api_harness["factor_execution"].calls[0]["entry_threshold"] == 0.8
-    assert api_harness["factor_paper"].calls[0]["max_hold_bars"] == 20
+    assert api_harness["factor_execution"].calls[0].research_run_id == 301
+    assert api_harness["factor_execution"].calls[0].entry_threshold == 0.8
+    assert api_harness["factor_paper"].calls[0].max_hold_bars == 20
 
 
 def test_value_errors_are_mapped_to_bad_request(api_harness, monkeypatch):

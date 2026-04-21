@@ -1,6 +1,13 @@
 // This file is generated from backend FastAPI route contracts.
 // Do not edit manually.
 
+export interface ToolsPageContractResponse {
+  dca_defaults: DCARequestSchema
+  dca_strategies: Array<"standard" | "ema_deviation" | "rsi_dynamic" | "ahr999" | "fear_greed" | "value_averaging">
+  dca_multiplier_default: number
+  compare_defaults: PairCompareRequestSchema
+}
+
 export interface DCAResponse {
   symbol: string
   asset_class?: string | null
@@ -30,7 +37,7 @@ export interface DCARequestSchema {
   investment_time?: string
   timezone?: string
   days?: number | null
-  strategy?: string
+  strategy?: "standard" | "ema_deviation" | "rsi_dynamic" | "ahr999" | "fear_greed" | "value_averaging"
   strategy_params?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null } | null
 }
 

@@ -5,7 +5,7 @@ import type {
   BinanceWeb3TokenAuditResponse,
   BinanceWeb3TokenDynamicResponse,
   BinanceWeb3TokenKlineItemResponse,
-} from './contracts'
+} from '../../types/market'
 import { marketApi } from './api'
 import type { Web3TokenDialogState } from './binanceMarketShared'
 import type { CandlestickData, VolumeData } from './contracts'

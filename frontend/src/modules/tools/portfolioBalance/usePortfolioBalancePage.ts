@@ -4,7 +4,8 @@ import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/
 import { backtestApi } from '@/modules/backtest'
 import { toBaseSymbol } from '@/modules/market'
 import { todayLocalIsoDate } from '@/utils/localDate'
-import type { BacktestRun, PortfolioBacktestSummary, PortfolioBalancePortfolio } from './contracts'
+import type { BacktestRunResponse } from '../../../types/backtest'
+import type { PortfolioBacktestSummary, PortfolioBalancePortfolio } from './model'
 
 import { buildPortfolioBacktestSummary } from './backtest'
 import { fetchPortfolioPriceMap, loadPortfolioBacktestHistory } from './data'
@@ -20,20 +21,18 @@ import {
 import {
   copyPortfolioBalancePortfolio,
   createDefaultPortfolioCollection,
+  createDefaultPortfolioBalanceSnapshot,
   createPortfolioBalanceAsset,
   createPortfolioBalancePortfolio,
-  normalizePortfolioBalancePortfolio,
-  readPortfolioSyntheticPrice,
-} from './model'
-import { computePortfolioBalancePlan } from './plan'
-import {
-  createDefaultPortfolioBalanceSnapshot,
   buildPortfolioBalanceSnapshot,
   hasActiveAssets,
   hasMarketGap,
+  normalizePortfolioBalancePortfolio,
   normalizePortfolioBalanceSnapshot,
+  readPortfolioSyntheticPrice,
   touchPortfolio,
-} from './snapshot'
+} from './model'
+import { computePortfolioBalancePlan } from './plan'
 
 type RequestError = {
   message?: string
@@ -60,7 +59,7 @@ export function usePortfolioBalancePage() {
   const backtestLoading = ref(false)
   const sourceMessage = ref('')
   const sourceError = ref('')
-  const lastImportedRun = ref<BacktestRun | null>(null)
+  const lastImportedRun = ref<BacktestRunResponse | null>(null)
 
   const activePortfolio = computed(() => portfolios.find((portfolio) => portfolio.id === activePortfolioId.value) || portfolios[0] || null)
   const assets = computed(() => activePortfolio.value?.assets || [])

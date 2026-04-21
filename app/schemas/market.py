@@ -140,6 +140,7 @@ class CurrencyRatesResponse(BaseModel):
     base: str
     rates: dict[str, float]
     supported: list[DisplayCurrencyResponse]
+    aliases: dict[str, str] = Field(default_factory=dict)
     updated_at: str
     source: str
     is_fallback: bool = False

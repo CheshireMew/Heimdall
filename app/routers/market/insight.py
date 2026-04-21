@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 
 from app.dependencies import runtime_dependency
+from app.runtime_graph import MARKET_INSIGHT_APP_SERVICE, MARKET_QUERY_APP_SERVICE
 from app.rate_limit import limiter
-from app.routers.errors import service_http_error
 from app.schemas.market import CryptoIndexResponse, MarketIndicatorResponse, TechnicalMetricsResponse, TradeSetupResponse
 from config import settings
 
@@ -16,8 +16,8 @@ if TYPE_CHECKING:
 
 
 router = APIRouter(tags=["Market Data"])
-market_query_dependency = runtime_dependency("market.market_query_app_service")
-market_insight_dependency = runtime_dependency("market.market_insight_app_service")
+market_query_dependency = runtime_dependency(MARKET_QUERY_APP_SERVICE)
+market_insight_dependency = runtime_dependency(MARKET_INSIGHT_APP_SERVICE)
 
 
 @router.get("/indicators", response_model=list[MarketIndicatorResponse])
@@ -26,10 +26,7 @@ async def get_market_indicators(
     days: int = Query(settings.INDICATORS_DEFAULT_DAYS, description="历史数据天数"),
     service: MarketInsightAppService = Depends(market_insight_dependency),
 ):
-    try:
-        return await service.get_indicators_async(category=category, days=days)
-    except Exception as exc:
-        raise service_http_error("API /indicators 错误", exc)
+    return await service.get_indicators_async(category=category, days=days)
 
 
 @router.get("/technical-metrics", response_model=TechnicalMetricsResponse)
@@ -41,18 +38,13 @@ async def get_technical_metrics(
     volatility_period: int = Query(20, ge=2, le=365),
     service: MarketQueryAppService = Depends(market_query_dependency),
 ):
-    try:
-        return await service.get_technical_metrics(
-            symbol=symbol,
-            timeframe=timeframe,
-            limit=limit,
-            atr_period=atr_period,
-            volatility_period=volatility_period,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:
-        raise service_http_error("API /technical-metrics 错误", exc)
+    return await service.get_technical_metrics(
+        symbol=symbol,
+        timeframe=timeframe,
+        limit=limit,
+        atr_period=atr_period,
+        volatility_period=volatility_period,
+    )
 
 
 @router.get("/trade-setup", response_model=TradeSetupResponse)
@@ -66,20 +58,15 @@ async def get_trade_setup(
     mode: str = Query("rules", pattern="^(rules|ai)$"),
     service: MarketInsightAppService = Depends(market_insight_dependency),
 ):
-    try:
-        return await service.get_trade_setup(
-            symbol=symbol,
-            timeframe=timeframe,
-            limit=limit,
-            account_size=account_size,
-            style=style,
-            strategy=strategy,
-            mode=mode,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:
-        raise service_http_error("API /trade-setup 错误", exc)
+    return await service.get_trade_setup(
+        symbol=symbol,
+        timeframe=timeframe,
+        limit=limit,
+        account_size=account_size,
+        style=style,
+        strategy=strategy,
+        mode=mode,
+    )
 
 
 @router.get("/crypto_index", response_model=CryptoIndexResponse)
@@ -90,7 +77,4 @@ async def get_crypto_index(
     days: int = Query(90, ge=30, le=365, description="Historical days"),
     service: MarketInsightAppService = Depends(market_insight_dependency),
 ):
-    try:
-        return await service.get_crypto_index(top_n=top_n, days=days)
-    except Exception as exc:
-        raise service_http_error("Crypto index API error", exc)
+    return await service.get_crypto_index(top_n=top_n, days=days)

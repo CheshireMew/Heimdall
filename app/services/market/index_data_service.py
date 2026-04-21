@@ -1,21 +1,63 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
+
 from app.domain.market.index_catalog import (
     INDEX_CATALOG,
     IndexInstrument,
     get_index_instrument,
     get_supported_index_symbols,
 )
-from app.schemas.market import (
-    MarketIndexHistoryResponse,
-    MarketIndexResponse,
-    build_ohlcv_points,
-)
 from app.services.executor import run_sync
 from app.services.market.history_ranges import collect_missing_ranges
 from app.services.market.index_history_sources import IndexFetchResult, IndexHistorySources
 from app.services.market.kline_store import KlineStore
+
+
+@dataclass(frozen=True, slots=True)
+class OhlcvRecord:
+    timestamp: int
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+
+    def as_row(self) -> list[float]:
+        return [self.timestamp, self.open, self.high, self.low, self.close, self.volume]
+
+
+@dataclass(frozen=True, slots=True)
+class MarketIndexRecord:
+    symbol: str
+    name: str
+    market: str
+    currency: str
+    pricing_symbol: str | None
+    pricing_name: str | None
+    pricing_currency: str
+
+
+@dataclass(frozen=True, slots=True)
+class MarketIndexHistoryRecord:
+    symbol: str
+    name: str
+    market: str
+    currency: str
+    native_currency: str
+    timeframe: str
+    source: str
+    price_basis: str
+    pricing_symbol: str | None
+    pricing_name: str | None
+    pricing_currency: str
+    is_close_only: bool
+    data: list[OhlcvRecord]
+
+    @property
+    def count(self) -> int:
+        return len(self.data)
 
 
 class IndexDataService:
@@ -28,9 +70,9 @@ class IndexDataService:
         self.history_sources = history_sources or IndexHistorySources()
         self.supported_timeframes = {"1d"}
 
-    def list_indexes(self) -> list[MarketIndexResponse]:
+    def list_indexes(self) -> list[MarketIndexRecord]:
         return [
-            MarketIndexResponse(
+            MarketIndexRecord(
                 symbol=item.symbol,
                 name=item.name,
                 market=item.market,
@@ -42,7 +84,7 @@ class IndexDataService:
             for item in INDEX_CATALOG.values()
         ]
 
-    async def list_indexes_async(self) -> list[MarketIndexResponse]:
+    async def list_indexes_async(self) -> list[MarketIndexRecord]:
         return await run_sync(self.list_indexes)
 
     def get_instrument(self, symbol: str) -> IndexInstrument | None:
@@ -55,7 +97,7 @@ class IndexDataService:
         timeframe: str,
         start_date: str,
         end_date: str | None = None,
-    ) -> MarketIndexHistoryResponse:
+    ) -> MarketIndexHistoryRecord:
         instrument = self._validate(symbol, timeframe)
         return self._get_series_history(
             instrument=instrument,
@@ -78,7 +120,7 @@ class IndexDataService:
         timeframe: str,
         start_date: str,
         end_date: str | None = None,
-    ) -> MarketIndexHistoryResponse:
+    ) -> MarketIndexHistoryRecord:
         return await run_sync(
             lambda: self.get_history(
                 symbol=symbol,
@@ -95,7 +137,7 @@ class IndexDataService:
         timeframe: str,
         start_date: str,
         end_date: str | None = None,
-    ) -> MarketIndexHistoryResponse:
+    ) -> MarketIndexHistoryRecord:
         instrument = self._validate(symbol, timeframe)
         if not instrument.pricing_symbol or not instrument.pricing_storage_symbol or not instrument.pricing_provider:
             raise ValueError(f"{instrument.symbol} 暂无默认 ETF 代理价格")
@@ -120,7 +162,7 @@ class IndexDataService:
         timeframe: str,
         start_date: str,
         end_date: str | None = None,
-    ) -> MarketIndexHistoryResponse:
+    ) -> MarketIndexHistoryRecord:
         return await run_sync(
             lambda: self.get_pricing_history(
                 symbol=symbol,
@@ -130,20 +172,20 @@ class IndexDataService:
             )
         )
 
-    def get_latest(self, *, symbol: str) -> MarketIndexHistoryResponse:
+    def get_latest(self, *, symbol: str) -> MarketIndexHistoryRecord:
         result = self.get_history(symbol=symbol, timeframe="1d", start_date=self._latest_window_start())
         latest_data = result.data[-1:] if result.data else []
-        return result.model_copy(update={"data": latest_data, "count": len(latest_data)})
+        return replace(result, data=latest_data)
 
-    async def get_latest_async(self, *, symbol: str) -> MarketIndexHistoryResponse:
+    async def get_latest_async(self, *, symbol: str) -> MarketIndexHistoryRecord:
         return await run_sync(lambda: self.get_latest(symbol=symbol))
 
-    def get_latest_pricing(self, *, symbol: str) -> MarketIndexHistoryResponse:
+    def get_latest_pricing(self, *, symbol: str) -> MarketIndexHistoryRecord:
         result = self.get_pricing_history(symbol=symbol, timeframe="1d", start_date=self._latest_window_start())
         latest_data = result.data[-1:] if result.data else []
-        return result.model_copy(update={"data": latest_data, "count": len(latest_data)})
+        return replace(result, data=latest_data)
 
-    async def get_latest_pricing_async(self, *, symbol: str) -> MarketIndexHistoryResponse:
+    async def get_latest_pricing_async(self, *, symbol: str) -> MarketIndexHistoryRecord:
         return await run_sync(lambda: self.get_latest_pricing(symbol=symbol))
 
     def _get_series_history(
@@ -160,7 +202,7 @@ class IndexDataService:
         pricing_name: str | None,
         pricing_currency: str,
         native_currency: str,
-    ) -> MarketIndexHistoryResponse:
+    ) -> MarketIndexHistoryRecord:
         start_dt = self._parse_date(start_date)
         end_dt = self._parse_date(end_date) if end_date else datetime.now(timezone.utc)
         if start_dt > end_dt:
@@ -212,7 +254,7 @@ class IndexDataService:
                     merged[row[0]] = row
 
         data = sorted(merged.values(), key=lambda row: row[0])
-        return MarketIndexHistoryResponse(
+        return MarketIndexHistoryRecord(
             symbol=instrument.symbol,
             name=instrument.name,
             market=instrument.market,
@@ -225,8 +267,17 @@ class IndexDataService:
             pricing_name=pricing_name,
             pricing_currency=pricing_currency,
             is_close_only=bool(data) and is_close_only,
-            count=len(data),
-            data=build_ohlcv_points(data),
+            data=[self._ohlcv_record(row) for row in data],
+        )
+
+    def _ohlcv_record(self, row: list[float]) -> OhlcvRecord:
+        return OhlcvRecord(
+            timestamp=int(row[0]),
+            open=float(row[1]),
+            high=float(row[2]),
+            low=float(row[3]),
+            close=float(row[4]),
+            volume=float(row[5]),
         )
 
     def _validate(self, symbol: str, timeframe: str) -> IndexInstrument:

@@ -3,11 +3,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { watch } from 'vue'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import { useEcharts } from '@/composables/useEcharts'
 import { useTheme } from '@/composables/useTheme'
 import { useDateTime } from '@/composables/useDateTime'
 
@@ -24,8 +25,6 @@ const props = defineProps({
   }
 })
 
-const chartContainer = ref(null)
-let chartInstance = null
 const { theme } = useTheme()
 const { timezone, formatDate } = useDateTime()
 
@@ -97,52 +96,19 @@ const getChartOption = (indicator, isDark) => {
   }
 }
 
-const renderChart = () => {
-  if (!chartContainer.value || !props.indicator?.history) return
-  
-  if (!chartInstance) {
-    chartInstance = echarts.init(chartContainer.value)
-  }
-  
-  const isDark = theme.value === 'dark'
-  chartInstance.setOption(getChartOption(props.indicator, isDark))
-}
+const { chartContainer, renderChart } = useEcharts(() => (
+  props.indicator?.history ? getChartOption(props.indicator, theme.value === 'dark') : {}
+))
 
 watch(() => props.indicator, () => {
-    nextTick(() => {
-        renderChart()
-    })
+  renderChart()
 }, { deep: true })
 
 watch(theme, () => {
-  if (chartInstance) {
-    // Re-render entirely with new colors on theme change
-    renderChart()
-  }
+  renderChart()
 })
 
 watch(timezone, () => {
-  if (chartInstance) {
-    renderChart()
-  }
-})
-
-const handleResize = () => {
-  if (chartInstance) {
-    chartInstance.resize()
-  }
-}
-
-onMounted(() => {
   renderChart()
-  window.addEventListener('resize', handleResize)
-})
-
-onUnmounted(() => {
-  if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
-  }
-  window.removeEventListener('resize', handleResize)
 })
 </script>

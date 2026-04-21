@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 
 import { isRecord } from '@/composables/pageSnapshot'
-import { isIndexSymbol, marketApi } from '@/modules/market'
+import { ensureSymbolCatalogLoaded, isIndexSymbol, marketApi } from '@/modules/market'
 import { resolveSentimentBucket } from '@/modules/market/sentiment'
 import { localIsoDateDaysAgo } from '@/utils/localDate'
 
@@ -46,6 +46,7 @@ export const useDcaMarketContext = ({
 
   const fetchMarketIndicators = async () => {
     try {
+      await ensureSymbolCatalogLoaded()
       const currentSymbol = symbol()
       const [marketRes, indicatorsRes] = await Promise.all([
         isIndexSymbol(currentSymbol)

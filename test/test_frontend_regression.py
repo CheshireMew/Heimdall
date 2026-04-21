@@ -109,7 +109,7 @@ def test_generated_frontend_contracts_include_route_models():
     assert "interface MarketHistoryBatchResponse" in market_types
     assert "interface OhlcvPointResponse" in market_types
     assert "interface GetMarketFullHistoryQueryParams" in market_types
-    assert "GetMarketFullHistoryBatchQueryParamsMeta" in market_types
+    assert "GetMarketFullHistoryBatchQueryParamsMeta" not in market_types
     assert not any(path.name.endswith("-frontend.ts") for path in (FRONTEND_DIR / "types").glob("*.ts"))
 
 
@@ -146,19 +146,18 @@ def test_market_store_cache_contract_is_stable():
 
 def test_symbol_search_supports_usd_equivalent_cash_assets():
     catalog_source = read_frontend("modules/market/symbolCatalog.ts")
-    base_catalog_source = read_frontend("modules/market/baseSymbolCatalog.ts")
     portfolio_source = read_frontend("views/tools/PortfolioBalance.vue")
-    shared_source = read_frontend("modules/tools/portfolioBalance/shared.ts")
+    model_source = read_frontend("modules/tools/portfolioBalance/model.ts")
     generator_source = (ROOT_DIR / "scripts" / "generate_frontend_contracts.py").read_text(encoding="utf-8")
 
-    assert "baseSymbolCatalog" in catalog_source
+    assert "marketApi.getSymbols" in catalog_source
+    assert "readCashSymbolPrices" in catalog_source
+    assert "baseSymbolCatalog" not in catalog_source
     assert not any(path.name.startswith("generated") and path.name.endswith("Catalog.ts") for path in (FRONTEND_DIR / "modules" / "market").glob("*.ts"))
-    for symbol in ["USD", "USDT", "USDC"]:
-        assert symbol in base_catalog_source
+    assert not (FRONTEND_DIR / "modules" / "market" / "baseSymbolCatalog.ts").exists()
 
     assert "list_market_search_items" not in generator_source
-    assert "asset_class: 'cash'" in base_catalog_source
-    assert "USD_EQUIVALENT_SYMBOLS" in shared_source
+    assert "readCashSymbolPrices" in model_source
     assert "['crypto', 'index', 'cash']" in portfolio_source
 
 
@@ -201,18 +200,20 @@ def test_market_frontend_uses_generated_query_contracts():
     market_types = read_frontend("types/market.ts")
     contracts_source = read_frontend("modules/market/contracts.ts")
     api_source = read_frontend("modules/market/api.ts")
+    request_source = read_frontend("api/request.ts")
+    routes_source = read_frontend("api/routes.ts")
 
     assert "interface GetMarketFullHistoryQueryParams" in market_types
     assert "interface GetMarketFullHistoryBatchQueryParams" in market_types
-    assert "export const GetMarketFullHistoryBatchQueryParamsMeta" in market_types
-    assert "repeatedKeys" in market_types
-    assert "type RealtimeParams = GetRealtimeAnalysisQueryParams" in contracts_source
-    assert "type FullHistoryParams = GetMarketFullHistoryQueryParams" in contracts_source
+    assert "GetMarketFullHistoryBatchQueryParamsMeta" not in market_types
+    assert "repeatedKeys" in routes_source
+    assert "GetRealtimeAnalysisQueryParams" not in contracts_source
+    assert "GetMarketFullHistoryQueryParams" not in contracts_source
     assert "interface FullHistoryParams" not in contracts_source
-    assert "CURRENT_PRICE_BATCH_QUERY_META" in contracts_source
-    assert "FULL_HISTORY_BATCH_QUERY_META" in contracts_source
-    assert "serializeApiQueryParams" in api_source
-    assert "API_QUERY_META" in api_source
+    assert "CURRENT_PRICE_BATCH_QUERY_META" not in contracts_source
+    assert "FULL_HISTORY_BATCH_QUERY_META" not in contracts_source
+    assert "serializeEndpointQuery" in request_source
+    assert "API_QUERY_META" not in api_source
     assert "normalizePriceHistoryParams" not in api_source
     assert "serializeBatchFullHistoryParams" not in api_source
     assert "get_current_price_batch" in api_source

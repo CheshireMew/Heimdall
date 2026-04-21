@@ -27,9 +27,7 @@ from app.services.backtest.freqtrade_strategy_runtime import (
     resolve_freqtrade_strategy_runtime,
 )
 from app.services.backtest.indicator_engines import (
-    indicator_output_columns,
-    render_indicator_frame_code,
-    resolve_indicator_engine,
+    indicator_engine_definition,
 )
 from app.services.backtest.strategy_catalog import get_indicator_registry_map
 from app.services.backtest.strategy_config_normalizer import normalize_strategy_identifier
@@ -225,18 +223,22 @@ class {self.strategy_class_name}(IStrategy):
             frame_var = frame_vars[timeframe]
             for indicator_id, indicator, indicator_spec in indicator_items:
                 normalize_strategy_identifier(indicator_id, "指标标识")
+                engine = indicator_engine_definition(indicator.type, indicator_spec)
                 lines.extend(
-                    render_indicator_frame_code(
+                    engine.render_code(
                         frame_var,
                         indicator_id,
-                        resolve_indicator_engine(indicator.type, indicator_spec),
                         indicator.params,
                     )
                 )
 
         for timeframe in sorted([key for key in timeframes.keys() if key != base_timeframe], key=self._timeframe_sort_key):
             frame_var = frame_vars[timeframe]
-            columns = [column for indicator_id, _indicator, indicator_spec in timeframes[timeframe] for column in indicator_output_columns(indicator_id, indicator_spec)]
+            columns = [
+                column
+                for indicator_id, indicator, indicator_spec in timeframes[timeframe]
+                for column in indicator_engine_definition(indicator.type, indicator_spec).output_columns(indicator_id)
+            ]
             lines.append(f"        dataframe = self._merge_indicator_frame(dataframe, {frame_var}, {repr(columns)})")
         return "\n".join(lines)
 

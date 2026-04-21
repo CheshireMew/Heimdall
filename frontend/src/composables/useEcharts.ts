@@ -1,4 +1,4 @@
-import { nextTick, onBeforeUnmount, ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import * as echarts from 'echarts/core'
 
 export function useEcharts(buildOption: () => Record<string, unknown>) {
@@ -12,7 +12,17 @@ export function useEcharts(buildOption: () => Record<string, unknown>) {
     chartInstance.setOption(buildOption())
   }
 
+  const resizeChart = () => {
+    chartInstance?.resize()
+  }
+
+  onMounted(() => {
+    window.addEventListener('resize', resizeChart)
+    renderChart()
+  })
+
   onBeforeUnmount(() => {
+    window.removeEventListener('resize', resizeChart)
     if (!chartInstance) return
     chartInstance.dispose()
     chartInstance = null
@@ -21,5 +31,6 @@ export function useEcharts(buildOption: () => Record<string, unknown>) {
   return {
     chartContainer,
     renderChart,
+    resizeChart,
   }
 }

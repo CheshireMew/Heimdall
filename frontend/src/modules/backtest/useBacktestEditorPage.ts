@@ -4,13 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import type {
-  StrategyDefinition,
-  StrategyEditorContract,
-  StrategyIndicatorEngine,
-  StrategyIndicatorRegistryItem,
-  StrategyTemplate,
-  StrategyVersion,
-} from './contracts'
+  StrategyDefinitionResponse,
+  StrategyEditorContractResponse,
+  StrategyIndicatorEngineResponse,
+  StrategyIndicatorRegistryResponse,
+  StrategyTemplateResponse,
+  StrategyVersionResponse,
+} from '../../types/backtest'
 
 import type { BacktestEditorSeedPanel, BacktestVersionEditorPanel, StrategySelectionConfig } from './editorTypes'
 import {
@@ -36,21 +36,21 @@ export const useBacktestEditorPage = () => {
   )
   const restoredSnapshot = pageSnapshot.initial
 
-  const editorContract = ref<StrategyEditorContract | null>(null)
-  const strategies = ref<StrategyDefinition[]>([])
-  const templates = ref<StrategyTemplate[]>([])
-  const indicators = ref<StrategyIndicatorRegistryItem[]>([])
-  const indicatorEngines = ref<StrategyIndicatorEngine[]>([])
+  const editorContract = ref<StrategyEditorContractResponse | null>(null)
+  const strategies = ref<StrategyDefinitionResponse[]>([])
+  const templates = ref<StrategyTemplateResponse[]>([])
+  const indicators = ref<StrategyIndicatorRegistryResponse[]>([])
+  const indicatorEngines = ref<StrategyIndicatorEngineResponse[]>([])
   const config = reactive<StrategySelectionConfig>(restoredSnapshot.config)
   let snapshotStopHandle: WatchStopHandle | null = null
 
-  const selectedStrategy = computed<StrategyDefinition | null>(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
-  const selectedStrategyVersions = computed<StrategyVersion[]>(() => {
+  const selectedStrategy = computed<StrategyDefinitionResponse | null>(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
+  const selectedStrategyVersions = computed<StrategyVersionResponse[]>(() => {
     const versions = selectedStrategy.value?.versions
     if (!Array.isArray(versions)) return []
     return versions.filter(Boolean)
   })
-  const selectedVersion = computed<StrategyVersion | null>(() => selectedStrategyVersions.value.find((item) => item.version === config.strategy_version) || null)
+  const selectedVersion = computed<StrategyVersionResponse | null>(() => selectedStrategyVersions.value.find((item) => item.version === config.strategy_version) || null)
   const canCopyCurrentStrategy = computed(() => Boolean(selectedVersion.value) && Boolean(supportsVersionEditing(selectedStrategy.value)))
   const strategyCapabilityHint = computed(() => {
     if (!selectedStrategy.value) return ''
@@ -238,3 +238,4 @@ export const useBacktestEditorPage = () => {
     editorPanel,
   }
 }
+

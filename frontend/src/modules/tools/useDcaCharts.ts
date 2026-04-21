@@ -2,7 +2,7 @@ import { nextTick, onBeforeUnmount, ref, type Ref } from 'vue'
 import { Chart, registerables } from 'chart.js'
 
 import { useMoney } from '@/composables/useMoney'
-import type { DCAResponse } from './contracts'
+import type { DCAResponse } from '../../types/tools'
 
 
 Chart.register(...registerables)

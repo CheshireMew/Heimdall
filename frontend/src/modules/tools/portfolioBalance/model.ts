@@ -1,25 +1,167 @@
-import type {
-  PortfolioBalanceAssetInput,
-  PortfolioBacktestSummary,
-  PortfolioBacktestEquityPoint,
-  PortfolioBalanceBacktestConfig,
-  PortfolioHoldingsSource,
-  PortfolioBalancePortfolio,
-  PortfolioReviewFrequency,
-  PortfolioBalanceStrategyConfig,
-  PortfolioBalanceTrackingConfig,
-} from './contracts'
 import { isRecord, readNumber, readString } from '@/composables/pageSnapshot'
 import { isIndexSymbol, toBaseSymbol } from '@/modules/market'
+import { readCashSymbolPrices } from '@/modules/market'
+import { addDaysToLocalIsoDate, localIsoDateDaysAgo, parseLocalIsoDate, todayLocalIsoDate, toLocalIsoDate } from '@/utils/localDate'
 
-import {
-  clamp,
-  daysAgoIso,
-  DEFAULT_REVIEW_FREQUENCY,
-  PORTFOLIO_SYNTHETIC_PRICE_BY_SYMBOL,
-  sanitizeNumber,
-  todayIso,
-} from './shared'
+export type PortfolioReviewFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly'
+export type PortfolioSuggestedAction = 'wait' | 'cashflow' | 'full'
+export type PortfolioSuggestedReason = 'on_track' | 'scheduled_review' | 'band_breach' | 'cashflow_first' | 'full_rebalance' | 'below_threshold'
+export type PortfolioHoldingsSource = 'virtual' | 'paper'
+
+export const PERCENT_BASE = 100
+export const DEFAULT_REVIEW_FREQUENCY: PortfolioReviewFrequency = 'weekly'
+export const readPortfolioSyntheticPriceMap = () => readCashSymbolPrices()
+
+export const round = (value: number, digits = 2) => {
+  const base = 10 ** digits
+  return Math.round((value + Number.EPSILON) * base) / base
+}
+
+export const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+
+export const sanitizeNumber = (value: unknown, fallback = 0) => {
+  const candidate = typeof value === 'number' && Number.isFinite(value) ? value : fallback
+  return candidate >= 0 ? candidate : fallback
+}
+
+export const daysAgoIso = localIsoDateDaysAgo
+export const todayIso = todayLocalIsoDate
+export const parseIsoDate = (value: string) => parseLocalIsoDate(value)
+
+export const shiftReviewDate = (dateText: string, frequency: PortfolioReviewFrequency) => {
+  const source = parseIsoDate(dateText)
+  if (!source) return todayIso()
+
+  if (frequency === 'daily') return addDaysToLocalIsoDate(dateText, 1)
+  if (frequency === 'weekly') return addDaysToLocalIsoDate(dateText, 7)
+  const next = new Date(source)
+  next.setMonth(next.getMonth() + (frequency === 'monthly' ? 1 : 3))
+  return toLocalIsoDate(next)
+}
+
+export const diffDaysFromToday = (dateText: string) => {
+  const target = parseIsoDate(dateText)
+  if (!target) return 0
+  const today = new Date()
+  const current = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  return Math.ceil((target.getTime() - current.getTime()) / 86400000)
+}
+
+export interface PortfolioBalanceAssetInput {
+  id: string
+  symbol: string
+  targetWeight: number
+  units: number
+  currentPrice: number
+  seedValue: number
+}
+
+export interface PortfolioBalanceStrategyConfig {
+  rebalanceBand: number
+  minTradeAmount: number
+  reviewFrequency: PortfolioReviewFrequency
+}
+
+export interface PortfolioBalanceTrackingConfig {
+  virtualCapital: number
+  inceptionDate: string
+}
+
+export interface PortfolioBalanceBacktestConfig {
+  initialCapital: number
+  backtestStartDate: string
+}
+
+export interface PortfolioBalancePortfolio {
+  id: string
+  name: string
+  assets: PortfolioBalanceAssetInput[]
+  strategy: PortfolioBalanceStrategyConfig
+  tracking: PortfolioBalanceTrackingConfig
+  backtest: PortfolioBalanceBacktestConfig
+  lastBacktestResult?: PortfolioBacktestSummary | null
+  holdingsInitializedAt?: string | null
+  lastPriceUpdatedAt?: string | null
+  seedCapital?: number | null
+  holdingsSource?: PortfolioHoldingsSource | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PortfolioBalanceAssetPlan {
+  id: string
+  symbol: string
+  units: number
+  seedValue: number
+  currentValue: number
+  trackingDiffValue: number
+  price: number
+  currentWeight: number
+  normalizedTargetWeight: number
+  targetValue: number
+  driftValue: number
+  driftWeight: number
+  rebalanceAmount: number
+  rebalanceUnits: number
+  primaryAction: 'buy' | 'sell' | 'hold'
+  bandLowerWeight: number
+  bandUpperWeight: number
+  bandLowerValue: number
+  bandUpperValue: number
+  isOutOfBand: boolean
+  cashflowAmount: number
+  projectedValue: number
+  projectedWeight: number
+  projectedIsOutOfBand: boolean
+}
+
+export interface PortfolioBalancePlan {
+  totalValue: number
+  trackingCapital: number
+  targetWeightInputSum: number
+  usesEqualWeightFallback: boolean
+  totalBuyAmount: number
+  totalSellAmount: number
+  turnoverAmount: number
+  maxDriftWeight: number
+  outOfBandCount: number
+  projectedOutOfBandCount: number
+  reviewDue: boolean
+  shouldReviewNow: boolean
+  reviewFrequency: PortfolioReviewFrequency
+  nextReviewDate: string
+  daysUntilReview: number
+  suggestedAction: PortfolioSuggestedAction
+  suggestedReason: PortfolioSuggestedReason
+  assets: PortfolioBalanceAssetPlan[]
+}
+
+export interface PortfolioBacktestSummary {
+  startDate: string
+  endDate: string
+  initialValue: number
+  finalValue: number
+  totalReturnPct: number
+  annualizedReturnPct: number | null
+  maxDrawdownPct: number
+  reviewCount: number
+  outOfBandReviewCount: number
+  rebalanceCount: number
+  equityCurve: PortfolioBacktestEquityPoint[]
+}
+
+export interface PortfolioBacktestEquityPoint {
+  id: number
+  timestamp: string
+  equity: number
+  pnl_abs: number
+  drawdown_pct: number
+}
+
+export interface PortfolioBalanceSnapshot {
+  activePortfolioId: string
+  portfolios: PortfolioBalancePortfolio[]
+}
 
 let assetSequence = 0
 let portfolioSequence = 0
@@ -29,8 +171,9 @@ const createPortfolioId = () => `portfolio-${Date.now()}-${portfolioSequence++}`
 
 export const readPortfolioSyntheticPrice = (value: string) => {
   const symbol = toBaseSymbol(value)
-  return Object.prototype.hasOwnProperty.call(PORTFOLIO_SYNTHETIC_PRICE_BY_SYMBOL, symbol)
-    ? PORTFOLIO_SYNTHETIC_PRICE_BY_SYMBOL[symbol]
+  const syntheticPrices = readPortfolioSyntheticPriceMap()
+  return Object.prototype.hasOwnProperty.call(syntheticPrices, symbol)
+    ? syntheticPrices[symbol]
     : null
 }
 
@@ -294,3 +437,45 @@ export const normalizePortfolioBalancePortfolio = (value: unknown): PortfolioBal
     updatedAt: readString(value.updatedAt, defaults.updatedAt),
   }
 }
+
+export const createDefaultPortfolioBalanceSnapshot = (): PortfolioBalanceSnapshot => {
+  const portfolios = createDefaultPortfolioCollection()
+  return {
+    activePortfolioId: portfolios[0].id,
+    portfolios,
+  }
+}
+
+export const normalizePortfolioBalanceSnapshot = (
+  value: unknown,
+  fallback = createDefaultPortfolioBalanceSnapshot(),
+): PortfolioBalanceSnapshot => {
+  const defaults = fallback
+  if (!isRecord(value)) return defaults
+
+  const portfolios = Array.isArray(value.portfolios) && value.portfolios.length
+    ? value.portfolios.map((item) => normalizePortfolioBalancePortfolio(item))
+    : defaults.portfolios
+  const nextActivePortfolioId = readString(value.activePortfolioId, portfolios[0]?.id || defaults.activePortfolioId)
+
+  return {
+    activePortfolioId: nextActivePortfolioId,
+    portfolios: portfolios.length ? portfolios : [createPortfolioBalancePortfolio()],
+  }
+}
+
+export const buildPortfolioBalanceSnapshot = (snapshot: PortfolioBalanceSnapshot): PortfolioBalanceSnapshot => (
+  normalizePortfolioBalanceSnapshot(snapshot)
+)
+
+export const touchPortfolio = (portfolio: PortfolioBalancePortfolio) => {
+  portfolio.updatedAt = new Date().toISOString()
+}
+
+export const hasMarketGap = (portfolio: PortfolioBalancePortfolio) => (
+  portfolio.assets.some((asset) => toBaseSymbol(asset.symbol) && (!asset.currentPrice || asset.currentPrice <= 0))
+)
+
+export const hasActiveAssets = (portfolio: PortfolioBalancePortfolio) => (
+  portfolio.assets.some((asset) => Boolean(toBaseSymbol(asset.symbol)))
+)

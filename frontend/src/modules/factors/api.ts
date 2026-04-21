@@ -1,31 +1,36 @@
-import request, { longTaskRequest } from '@/api/request'
+import { apiGet, longTaskRequest } from '@/api/request'
 import { apiRoute } from '@/api/routes'
 import type { AxiosResponse } from 'axios'
 import type {
   FactorCatalogResponse,
+  FactorResearchContractResponse,
   FactorExecutionRequest,
   FactorExecutionResponse,
   FactorResearchRequest,
   FactorResearchResponse,
-  FactorResearchRun,
-  FactorResearchRunDetail,
-} from './contracts'
+  FactorResearchRunDetailResponse,
+  FactorResearchRunListItemResponse,
+} from '../../types/factor'
 
 export const factorApi = {
+  getContract(): Promise<AxiosResponse<FactorResearchContractResponse>> {
+    return apiGet('get_factor_contract')
+  },
+
   getCatalog(): Promise<AxiosResponse<FactorCatalogResponse>> {
-    return request.get(apiRoute('get_factor_catalog'))
+    return apiGet('get_factor_catalog')
   },
 
   analyze(body: FactorResearchRequest): Promise<AxiosResponse<FactorResearchResponse>> {
     return longTaskRequest.post(apiRoute('analyze_factors'), body)
   },
 
-  listRuns(limit: number = 20): Promise<AxiosResponse<FactorResearchRun[]>> {
-    return request.get(apiRoute('list_factor_runs'), { params: { limit } })
+  listRuns(limit: number = 20): Promise<AxiosResponse<FactorResearchRunListItemResponse[]>> {
+    return apiGet('list_factor_runs', { query: { limit } })
   },
 
-  getRun(runId: number): Promise<AxiosResponse<FactorResearchRunDetail>> {
-    return request.get(apiRoute('get_factor_run', { run_id: runId }))
+  getRun(runId: number): Promise<AxiosResponse<FactorResearchRunDetailResponse>> {
+    return apiGet('get_factor_run', { path: { run_id: runId } })
   },
 
   startBacktest(runId: number, body: FactorExecutionRequest): Promise<AxiosResponse<FactorExecutionResponse>> {

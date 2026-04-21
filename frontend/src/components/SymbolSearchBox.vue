@@ -93,7 +93,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { toBaseSymbol, useSymbolCatalog } from '@/modules/market'
-import type { MarketSymbolSearchResponse } from '@/modules/market/contracts'
+import type { MarketSymbolSearchResponse } from '../types/market'
 
 const props = withDefaults(defineProps<{
   modelValue: string | string[]

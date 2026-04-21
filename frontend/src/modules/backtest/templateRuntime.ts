@@ -1,8 +1,8 @@
-import type { StrategyTemplateRuntime } from './contracts'
+import type { StrategyTemplateRuntimeResponse } from '../../types/backtest'
 
 import type { EditorTemplateRuntimeCarrier } from './editorTypes'
 
-const DEFAULT_TEMPLATE_RUNTIME: Required<StrategyTemplateRuntime> = {
+const DEFAULT_TEMPLATE_RUNTIME: Required<StrategyTemplateRuntimeResponse> = {
   builder_kind: 'rules',
   capabilities: {
     signal_runtime: true,
@@ -11,7 +11,7 @@ const DEFAULT_TEMPLATE_RUNTIME: Required<StrategyTemplateRuntime> = {
   },
 }
 
-export const getTemplateRuntime = (value: EditorTemplateRuntimeCarrier): Required<StrategyTemplateRuntime> => {
+export const getTemplateRuntime = (value: EditorTemplateRuntimeCarrier): Required<StrategyTemplateRuntimeResponse> => {
   const runtime = value?.template_runtime
   if (!runtime || typeof runtime !== 'object') {
     return DEFAULT_TEMPLATE_RUNTIME
@@ -32,3 +32,4 @@ export const getTemplateRuntime = (value: EditorTemplateRuntimeCarrier): Require
 export const supportsPaperTrading = (value: EditorTemplateRuntimeCarrier) => getTemplateRuntime(value).capabilities.paper
 
 export const supportsVersionEditing = (value: EditorTemplateRuntimeCarrier) => getTemplateRuntime(value).capabilities.version_editing
+

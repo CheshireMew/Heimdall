@@ -1,4 +1,4 @@
-import { computed, reactive } from 'vue'
+import { computed, reactive, type WatchStopHandle } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -9,7 +9,14 @@ import {
 import { useTheme } from '@/composables/useTheme'
 
 import { buildFactorResearchSnapshot, createDefaultFactorResearchSnapshot, normalizeFactorResearchSnapshot } from './pageSnapshot'
-import { createFactorResearchState } from './state'
+import { factorApi } from './api'
+import {
+  createFactorExecutionForm,
+  createFactorResearchForm,
+  createFactorResearchState,
+  factorExecutionPayload,
+  factorResearchPayload,
+} from './state'
 import { useFactorResearchData } from './useFactorResearchData'
 import { useFactorResearchFormatting } from './useFactorResearchFormatting'
 import { useFactorResearchSelection } from './useFactorResearchSelection'
@@ -27,15 +34,38 @@ export const useFactorResearchPage = () => {
   const restoredSnapshot = pageSnapshot.initial
 
   const state = createFactorResearchState()
-  Object.assign(state.form, restoredSnapshot.form)
-  Object.assign(state.executionForm, restoredSnapshot.executionForm)
-  state.selectedRunId.value = restoredSnapshot.selectedRunId
-  state.selectedFactorId.value = restoredSnapshot.selectedFactorId
+  let snapshotStop: WatchStopHandle | null = null
   const isDark = computed(() => theme.value === 'dark')
+
+  const initializeContract = async () => {
+    const response = await factorApi.getContract()
+    const fallbackSnapshot = {
+      form: createFactorResearchForm(response.data),
+      executionForm: createFactorExecutionForm(response.data),
+      selectedRunId: null,
+      selectedFactorId: '',
+    }
+    const normalizedSnapshot = normalizeFactorResearchSnapshot(restoredSnapshot, fallbackSnapshot)
+    Object.assign(state.form, normalizedSnapshot.form)
+    Object.assign(state.executionForm, normalizedSnapshot.executionForm)
+    state.selectedRunId.value = normalizedSnapshot.selectedRunId
+    state.selectedFactorId.value = normalizedSnapshot.selectedFactorId
+    if (!snapshotStop) {
+      snapshotStop = pageSnapshot.bind(
+        [state.form, state.executionForm, state.selectedRunId, state.selectedFactorId],
+        () => buildFactorResearchSnapshot({
+          form: factorResearchPayload(state.form),
+          executionForm: factorExecutionPayload(state.executionForm),
+          selectedRunId: state.selectedRunId.value,
+          selectedFactorId: state.selectedFactorId.value,
+        }),
+      )
+    }
+  }
 
   const selection = useFactorResearchSelection(state)
   const formatting = useFactorResearchFormatting(state)
-  const data = useFactorResearchData(state, selection.applyRun, t, router)
+  const data = useFactorResearchData(state, selection.applyRun, t, router, initializeContract)
 
   const heroPanel = reactive({
     catalog: state.catalog,
@@ -89,34 +119,6 @@ export const useFactorResearchPage = () => {
     formatPct: formatting.formatPct,
     formatDate: formatting.formatDate,
   })
-
-  pageSnapshot.bind(
-    [state.form, state.executionForm, state.selectedRunId, state.selectedFactorId],
-    () => buildFactorResearchSnapshot({
-      form: {
-        symbol: state.form.symbol,
-        timeframe: state.form.timeframe,
-        days: state.form.days,
-        horizon_bars: state.form.horizon_bars,
-        max_lag_bars: state.form.max_lag_bars,
-        categories: [...state.form.categories],
-        factor_ids: [...state.form.factor_ids],
-      },
-      executionForm: {
-        initial_cash: state.executionForm.initial_cash,
-        fee_rate: state.executionForm.fee_rate,
-        position_size_pct: state.executionForm.position_size_pct,
-        stake_mode: state.executionForm.stake_mode,
-        entry_threshold: state.executionForm.entry_threshold,
-        exit_threshold: state.executionForm.exit_threshold,
-        stoploss_pct: state.executionForm.stoploss_pct,
-        takeprofit_pct: state.executionForm.takeprofit_pct,
-        max_hold_bars: state.executionForm.max_hold_bars,
-      },
-      selectedRunId: state.selectedRunId.value,
-      selectedFactorId: state.selectedFactorId.value,
-    }),
-  )
 
   return reactive({
     error: state.error,

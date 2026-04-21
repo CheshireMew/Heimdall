@@ -1,30 +1,95 @@
 import { computed, reactive, ref } from 'vue'
-import { API_BODY_DEFAULTS } from '@/api/routes'
-import type { FactorBlend, FactorCatalogItem, FactorCatalogResponse, FactorDetail, FactorExecutionRequest, FactorResearchRequest, FactorResearchRun, FactorResearchSummary, FactorScorecard } from './contracts'
+
+import type {
+  FactorBlendResponse,
+  FactorCatalogItemResponse,
+  FactorCatalogResponse,
+  FactorDetailResponse,
+  FactorExecutionRequest,
+  FactorResearchContractResponse,
+  FactorResearchRequest,
+  FactorResearchRunListItemResponse,
+  FactorResearchSummaryResponse,
+  FactorScorecardResponse,
+} from '../../types/factor'
 
 export type FactorResearchForm = Required<FactorResearchRequest>
 export type FactorExecutionForm = Required<FactorExecutionRequest>
 
-export const createFactorResearchForm = (): FactorResearchForm => ({
-  symbol: API_BODY_DEFAULTS.analyze_factors.symbol,
-  timeframe: API_BODY_DEFAULTS.analyze_factors.timeframe as '1h' | '4h' | '1d',
-  days: API_BODY_DEFAULTS.analyze_factors.days,
-  horizon_bars: API_BODY_DEFAULTS.analyze_factors.horizon_bars,
-  max_lag_bars: API_BODY_DEFAULTS.analyze_factors.max_lag_bars,
-  categories: [...API_BODY_DEFAULTS.analyze_factors.categories] as string[],
-  factor_ids: [...API_BODY_DEFAULTS.analyze_factors.factor_ids] as string[],
+export const createEmptyFactorResearchForm = (): FactorResearchForm => ({
+  symbol: '',
+  timeframe: '1d',
+  days: 0,
+  horizon_bars: 0,
+  max_lag_bars: 0,
+  categories: [],
+  factor_ids: [],
 })
 
-export const createFactorExecutionForm = (): FactorExecutionForm => ({
-  initial_cash: API_BODY_DEFAULTS.start_factor_backtest.initial_cash,
-  fee_rate: API_BODY_DEFAULTS.start_factor_backtest.fee_rate,
-  position_size_pct: API_BODY_DEFAULTS.start_factor_backtest.position_size_pct,
-  stake_mode: API_BODY_DEFAULTS.start_factor_backtest.stake_mode as 'fixed' | 'unlimited',
-  entry_threshold: API_BODY_DEFAULTS.start_factor_backtest.entry_threshold as number | null,
-  exit_threshold: API_BODY_DEFAULTS.start_factor_backtest.exit_threshold as number | null,
-  stoploss_pct: API_BODY_DEFAULTS.start_factor_backtest.stoploss_pct,
-  takeprofit_pct: API_BODY_DEFAULTS.start_factor_backtest.takeprofit_pct,
-  max_hold_bars: API_BODY_DEFAULTS.start_factor_backtest.max_hold_bars,
+export const createEmptyFactorExecutionForm = (): FactorExecutionForm => ({
+  initial_cash: 0,
+  fee_rate: 0,
+  position_size_pct: 0,
+  stake_mode: 'fixed',
+  entry_threshold: null,
+  exit_threshold: null,
+  stoploss_pct: 0,
+  takeprofit_pct: 0,
+  max_hold_bars: 0,
+})
+
+export const createFactorResearchForm = (
+  contract?: FactorResearchContractResponse | null,
+): FactorResearchForm => {
+  const defaults = contract?.research_defaults || {}
+  return {
+    symbol: defaults.symbol || '',
+    timeframe: (defaults.timeframe || '1d') as FactorResearchForm['timeframe'],
+    days: defaults.days ?? 0,
+    horizon_bars: defaults.horizon_bars ?? 0,
+    max_lag_bars: defaults.max_lag_bars ?? 0,
+    categories: [...(defaults.categories || [])],
+    factor_ids: [...(defaults.factor_ids || [])],
+  }
+}
+
+export const createFactorExecutionForm = (
+  contract?: FactorResearchContractResponse | null,
+): FactorExecutionForm => {
+  const defaults = contract?.execution_defaults || {}
+  return {
+    initial_cash: defaults.initial_cash ?? 0,
+    fee_rate: defaults.fee_rate ?? 0,
+    position_size_pct: defaults.position_size_pct ?? 0,
+    stake_mode: (defaults.stake_mode || 'fixed') as FactorExecutionForm['stake_mode'],
+    entry_threshold: defaults.entry_threshold ?? null,
+    exit_threshold: defaults.exit_threshold ?? null,
+    stoploss_pct: defaults.stoploss_pct ?? 0,
+    takeprofit_pct: defaults.takeprofit_pct ?? 0,
+    max_hold_bars: defaults.max_hold_bars ?? 0,
+  }
+}
+
+export const factorResearchPayload = (form: FactorResearchForm): FactorResearchForm => ({
+  symbol: form.symbol,
+  timeframe: form.timeframe,
+  days: form.days,
+  horizon_bars: form.horizon_bars,
+  max_lag_bars: form.max_lag_bars,
+  categories: [...form.categories],
+  factor_ids: [...form.factor_ids],
+})
+
+export const factorExecutionPayload = (form: FactorExecutionForm): FactorExecutionForm => ({
+  initial_cash: form.initial_cash,
+  fee_rate: form.fee_rate,
+  position_size_pct: form.position_size_pct,
+  stake_mode: form.stake_mode,
+  entry_threshold: form.entry_threshold,
+  exit_threshold: form.exit_threshold,
+  stoploss_pct: form.stoploss_pct,
+  takeprofit_pct: form.takeprofit_pct,
+  max_hold_bars: form.max_hold_bars,
 })
 
 export const createFactorResearchState = () => {
@@ -37,17 +102,17 @@ export const createFactorResearchState = () => {
     symbols: [] as string[],
     timeframes: [] as string[],
     categories: [] as string[],
-    factors: [] as FactorCatalogItem[],
+    factors: [] as FactorCatalogItemResponse[],
     forward_horizons: [] as number[],
     cleaning: {} as FactorCatalogResponse['cleaning'],
   })
-  const form = reactive(createFactorResearchForm())
-  const executionForm = reactive(createFactorExecutionForm())
-  const runs = ref<FactorResearchRun[]>([])
-  const summary = ref<FactorResearchSummary | null>(null)
-  const ranking = ref<FactorScorecard[]>([])
-  const details = ref<FactorDetail[]>([])
-  const blend = ref<FactorBlend | null>(null)
+  const form = reactive(createEmptyFactorResearchForm())
+  const executionForm = reactive(createEmptyFactorExecutionForm())
+  const runs = ref<FactorResearchRunListItemResponse[]>([])
+  const summary = ref<FactorResearchSummaryResponse | null>(null)
+  const ranking = ref<FactorScorecardResponse[]>([])
+  const details = ref<FactorDetailResponse[]>([])
+  const blend = ref<FactorBlendResponse | null>(null)
   const selectedFactorId = ref('')
   const selectedRunId = ref<number | null>(null)
 
@@ -85,3 +150,4 @@ export const createFactorResearchState = () => {
 }
 
 export type FactorResearchState = ReturnType<typeof createFactorResearchState>
+

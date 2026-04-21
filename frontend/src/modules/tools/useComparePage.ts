@@ -1,12 +1,12 @@
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, type WatchStopHandle } from 'vue'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
-import { isIndexSymbol } from '@/modules/market'
+import { ensureSymbolCatalogLoaded, isIndexSymbol } from '@/modules/market'
 import type { CandlestickData } from '@/modules/market/contracts'
-import type { MarketSymbolSearchResponse } from '@/modules/market/contracts'
+import type { MarketSymbolSearchResponse } from '../../types/market'
 import { useTheme } from '@/composables/useTheme'
 import { toolsApi } from './api'
-import { buildCompareSnapshot, createDefaultCompareSnapshot, normalizeCompareSnapshot } from './pageSnapshots'
+import { buildCompareSnapshot, createDefaultCompareSnapshot, createEmptyCompareSnapshot, normalizeCompareSnapshot } from './pageSnapshots'
 
 interface CompareLinePoint {
   time: number
@@ -27,8 +27,9 @@ interface ChartComponentRef {
 
 export function useComparePage() {
   const { theme } = useTheme()
-  const pageSnapshot = createPersistentPageSnapshot(PAGE_SNAPSHOT_KEYS.compare, normalizeCompareSnapshot, createDefaultCompareSnapshot())
+  const pageSnapshot = createPersistentPageSnapshot(PAGE_SNAPSHOT_KEYS.compare, normalizeCompareSnapshot, createEmptyCompareSnapshot())
   const restoredSnapshot = pageSnapshot.initial
+  let snapshotStop: WatchStopHandle | null = null
 
   const chartColors = computed(() => {
     const isDark = theme.value === 'dark'
@@ -41,7 +42,7 @@ export function useComparePage() {
     }
   })
 
-  const config = reactive(restoredSnapshot.config)
+  const config = reactive(createEmptyCompareSnapshot().config)
 
   const loading = ref(false)
   const dataA = ref<CandlestickData[]>([])
@@ -87,6 +88,7 @@ export function useComparePage() {
   const fetchComparisonData = async () => {
     loading.value = true
     try {
+      await ensureSymbolCatalogLoaded()
       if (isIndexSymbol(config.symbolA) || isIndexSymbol(config.symbolB)) {
         config.timeframe = '1d'
       }
@@ -118,14 +120,19 @@ export function useComparePage() {
 
   const symbolLabel = (symbol: string) => isIndexSymbol(symbol) ? symbol : `${symbol}/USDT`
 
-  onMounted(() => {
-    fetchComparisonData()
+  onMounted(async () => {
+    await ensureSymbolCatalogLoaded()
+    const response = await toolsApi.getContract()
+    const defaultSnapshot = createDefaultCompareSnapshot(response.data)
+    Object.assign(config, normalizeCompareSnapshot(restoredSnapshot, defaultSnapshot).config)
+    if (!snapshotStop) {
+      snapshotStop = pageSnapshot.bind(
+        config,
+        () => buildCompareSnapshot(config, defaultSnapshot),
+      )
+    }
+    await fetchComparisonData()
   })
-
-  pageSnapshot.bind(
-    config,
-    () => buildCompareSnapshot(config),
-  )
 
   onBeforeUnmount(() => {
     syncUnsubscribers.value.forEach((fn) => fn())

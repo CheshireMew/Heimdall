@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from app.runtime import AppRuntimeServices
+from app.runtime import AppRuntimeServices, runtime_role_has_target
+from app.runtime_graph import background_start_definitions, background_stop_definitions
 from config import settings
 
 
@@ -90,7 +91,7 @@ class BackgroundRuntimeController:
         return self._state
 
     def should_run(self) -> bool:
-        return settings.APP_RUNTIME_ROLE in {"all", "background"}
+        return runtime_role_has_target(settings.APP_RUNTIME_ROLE, "background")
 
     async def start(self) -> None:
         if not self.should_run():
@@ -125,26 +126,10 @@ class BackgroundRuntimeController:
     async def _bootstrap(self) -> None:
         try:
             self.runtime_services.validate_required_services("background")
-            scheduler_runtime = self.runtime_services.system.market_scheduler_runtime
-            assert scheduler_runtime is not None
-            scheduler_runtime.start()
-
-            binance_snapshot = self.runtime_services.market.binance_market_snapshot
-            binance_market = self.runtime_services.market.binance_market_intel
-            paper_manager = self.runtime_services.backtest.paper_run_manager
-            factor_paper_manager = self.runtime_services.factors.factor_paper_run_manager
-            assert binance_snapshot is not None
-            assert binance_market is not None
-            assert paper_manager is not None
-            assert factor_paper_manager is not None
-
-            await binance_snapshot.start(
-                spot_ticker_loader=binance_market.spot.get_ticker_24hr,
-                usdm_ticker_loader=binance_market.usdm.get_ticker_24hr,
-                usdm_mark_loader=binance_market.usdm.get_mark_price,
-            )
-            await paper_manager.restore_active_runs()
-            await factor_paper_manager.restore_active_runs()
+            for definition in background_start_definitions():
+                service = self.runtime_services.require_service(definition.ref)
+                assert definition.background_start is not None
+                await definition.background_start(service, self.runtime_services)
             self._state = BackgroundRuntimeState(status=BackgroundRuntimeStatus.READY, owner=True)
         except asyncio.CancelledError:
             raise
@@ -154,12 +139,9 @@ class BackgroundRuntimeController:
             _logger().error(f"后台运行时启动失败: {exc}", exc_info=True)
 
     async def _shutdown_runtime_services(self) -> None:
-        runtime_services = self.runtime_services
-        if runtime_services.market.binance_market_snapshot is not None:
-            await runtime_services.market.binance_market_snapshot.shutdown()
-        if runtime_services.factors.factor_paper_run_manager is not None:
-            await runtime_services.factors.factor_paper_run_manager.shutdown()
-        if runtime_services.backtest.paper_run_manager is not None:
-            await runtime_services.backtest.paper_run_manager.shutdown()
-        if runtime_services.system.market_scheduler_runtime is not None:
-            await runtime_services.system.market_scheduler_runtime.shutdown()
+        for definition in background_stop_definitions():
+            service = self.runtime_services.get_service(definition.ref)
+            if service is None:
+                continue
+            assert definition.background_stop is not None
+            await definition.background_stop(service, self.runtime_services)

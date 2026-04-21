@@ -142,7 +142,7 @@ import type {
   BinanceWeb3HeatRankItemResponse,
   BinanceWeb3TokenAuditResponse,
   BinanceWeb3TokenDynamicResponse,
-} from '@/modules/market/contracts'
+} from '../../types/market'
 
 defineProps<{
   open: boolean

@@ -1,6 +1,6 @@
 import { computed, ref, type ComputedRef } from 'vue'
 
-import type { BacktestDetailResponse, BacktestRun, StrategyVersion } from './contracts'
+import type { BacktestDetailResponse, BacktestRunResponse, StrategyVersionResponse } from '../../types/backtest'
 
 import { useBacktestRunChart } from './useBacktestRunChart'
 import { useBacktestRunExecution } from './useBacktestRunExecution'
@@ -14,7 +14,7 @@ interface UseBacktestRunsOptions {
   t: (key: string) => string
   config: BacktestRunSelectionConfig
   executionConfig?: BacktestPageConfig
-  selectedStrategyVersions: ComputedRef<StrategyVersion[]>
+  selectedStrategyVersions: ComputedRef<StrategyVersionResponse[]>
 }
 
 export const useBacktestRuns = ({
@@ -26,8 +26,8 @@ export const useBacktestRuns = ({
   const backtestLoading = ref(false)
   const paperLoading = ref(false)
   const isBusy = computed(() => backtestLoading.value || paperLoading.value)
-  const history = ref<BacktestRun[]>([])
-  const paperHistory = ref<BacktestRun[]>([])
+  const history = ref<BacktestRunResponse[]>([])
+  const paperHistory = ref<BacktestRunResponse[]>([])
   const historyMode = ref<'backtest' | 'paper'>('backtest')
   const selectedRun = ref<BacktestDetailResponse | null>(null)
   const selectedRunMode = ref<'backtest' | 'paper' | null>(null)
@@ -97,3 +97,4 @@ export const useBacktestRuns = ({
     ...execution,
   }
 }
+

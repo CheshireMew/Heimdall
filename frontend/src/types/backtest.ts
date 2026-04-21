@@ -151,7 +151,7 @@ export interface BacktestRunResponse {
   start_date: string | null
   end_date: string | null
   status: string
-  metadata?: BacktestRunMetadataResponse | null
+  metadata?: BacktestExecutionMetadataResponse | PaperLiveExecutionMetadataResponse | null
   report?: BacktestReportResponse | null
   created_at: string | null
   metrics: BacktestMetricsResponse
@@ -165,7 +165,7 @@ export interface BacktestDetailResponse {
   start_date: string | null
   end_date: string | null
   status: string
-  metadata?: BacktestRunMetadataResponse | null
+  metadata?: BacktestExecutionMetadataResponse | PaperLiveExecutionMetadataResponse | null
   report?: BacktestReportResponse | null
   created_at: string | null
   metrics: BacktestMetricsResponse
@@ -186,6 +186,40 @@ export interface BacktestEquityPointResponse {
   equity: number
   pnl_abs: number
   drawdown_pct: number
+}
+
+export interface BacktestExecutionMetadataResponse {
+  schema_version?: number | null
+  execution_mode: "backtest"
+  execution_model?: string | null
+  engine?: string | null
+  exchange?: string | null
+  market_type?: string | null
+  direction?: string | null
+  strategy_key?: string | null
+  strategy_name?: string | null
+  strategy_version?: number | null
+  strategy_template?: string | null
+  strategy_notes?: string | null
+  symbols?: Array<string>
+  execution_symbols?: Array<string>
+  price_source?: string | null
+  portfolio_label?: string | null
+  initial_cash?: number | null
+  fee_rate?: number | null
+  fee_ratio?: number | null
+  timeframe?: string | null
+  stake_currency?: string | null
+  portfolio?: BacktestPortfolioConfig | null
+  research?: BacktestResearchReportResponse | BacktestResearchConfig | null
+  selected_config?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
+  sample_ranges?: BacktestSampleRangesResponse | null
+  runtime_state?: BacktestRuntimeStateResponse | null
+  paper_live?: BacktestPaperLiveResponse | null
+  report?: BacktestReportResponse | null
+  raw_stats?: BacktestReportSnapshotResponse | null
+  factor_research?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
+  error?: string | null
 }
 
 export interface BacktestIterationSummaryResponse {
@@ -345,40 +379,6 @@ export interface BacktestRunDefaultsResponse {
   optimize_metric_options?: Array<StrategyOperatorResponse>
 }
 
-export interface BacktestRunMetadataResponse {
-  schema_version?: number | null
-  execution_mode?: string | null
-  execution_model?: string | null
-  engine?: string | null
-  exchange?: string | null
-  market_type?: string | null
-  direction?: string | null
-  strategy_key?: string | null
-  strategy_name?: string | null
-  strategy_version?: number | null
-  strategy_template?: string | null
-  strategy_notes?: string | null
-  symbols?: Array<string>
-  execution_symbols?: Array<string>
-  price_source?: string | null
-  portfolio_label?: string | null
-  initial_cash?: number | null
-  fee_rate?: number | null
-  fee_ratio?: number | null
-  timeframe?: string | null
-  stake_currency?: string | null
-  portfolio?: BacktestPortfolioConfig | null
-  research?: BacktestResearchReportResponse | BacktestResearchConfig | null
-  selected_config?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
-  sample_ranges?: BacktestSampleRangesResponse | null
-  runtime_state?: BacktestRuntimeStateResponse | null
-  paper_live?: BacktestPaperLiveResponse | null
-  report?: BacktestReportResponse | null
-  raw_stats?: BacktestReportSnapshotResponse | null
-  factor_research?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
-  error?: string | null
-}
-
 export interface BacktestRuntimeStateResponse {
   cash_balance: number
   last_processed?: { [key: string]: number | null }
@@ -436,13 +436,47 @@ export interface PaginationResponse {
   total_pages: number
 }
 
+export interface PaperLiveExecutionMetadataResponse {
+  schema_version?: number | null
+  execution_mode: "paper_live"
+  execution_model?: string | null
+  engine?: string | null
+  exchange?: string | null
+  market_type?: string | null
+  direction?: string | null
+  strategy_key?: string | null
+  strategy_name?: string | null
+  strategy_version?: number | null
+  strategy_template?: string | null
+  strategy_notes?: string | null
+  symbols?: Array<string>
+  execution_symbols?: Array<string>
+  price_source?: string | null
+  portfolio_label?: string | null
+  initial_cash?: number | null
+  fee_rate?: number | null
+  fee_ratio?: number | null
+  timeframe?: string | null
+  stake_currency?: string | null
+  portfolio?: BacktestPortfolioConfig | null
+  research?: BacktestResearchReportResponse | BacktestResearchConfig | null
+  selected_config?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
+  sample_ranges?: BacktestSampleRangesResponse | null
+  runtime_state?: BacktestRuntimeStateResponse | null
+  paper_live?: BacktestPaperLiveResponse | null
+  report?: BacktestReportResponse | null
+  raw_stats?: BacktestReportSnapshotResponse | null
+  factor_research?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
+  error?: string | null
+}
+
 export interface StrategyConditionNodeResponse {
   id: string
-  node_type?: string
+  node_type: "condition"
   label: string
-  left: StrategyRuleSourceResponse
+  left: StrategyPriceSourceResponse | StrategyIndicatorSourceResponse | StrategyValueSourceResponse | StrategyIndicatorMultiplierSourceResponse | StrategyIndicatorOffsetSourceResponse
   operator: "gt" | "gte" | "lt" | "lte"
-  right: StrategyRuleSourceResponse
+  right: StrategyPriceSourceResponse | StrategyIndicatorSourceResponse | StrategyValueSourceResponse | StrategyIndicatorMultiplierSourceResponse | StrategyIndicatorOffsetSourceResponse
   enabled?: boolean
 }
 
@@ -458,7 +492,7 @@ export interface StrategyGroupLogicResponse {
 
 export interface StrategyGroupNodeResponse {
   id: string
-  node_type?: string
+  node_type: "group"
   label: string
   logic: "and" | "or"
   enabled?: boolean
@@ -470,6 +504,24 @@ export interface StrategyIndicatorConfigResponse {
   type: string
   timeframe?: string
   params?: { [key: string]: number | boolean }
+}
+
+export interface StrategyIndicatorMultiplierSourceResponse {
+  kind: "indicator_multiplier"
+  indicator: string
+  output?: string
+  multiplier?: number
+  bars_ago?: number
+}
+
+export interface StrategyIndicatorOffsetSourceResponse {
+  kind: "indicator_offset"
+  base_indicator: string
+  base_output?: string
+  offset_indicator: string
+  offset_output?: string
+  offset_multiplier?: number
+  bars_ago?: number
 }
 
 export interface StrategyIndicatorOutputResponse {
@@ -487,6 +539,13 @@ export interface StrategyIndicatorParamResponse {
   step?: number | null
 }
 
+export interface StrategyIndicatorSourceResponse {
+  kind: "indicator"
+  indicator: string
+  output?: string
+  bars_ago?: number
+}
+
 export interface StrategyOperatorResponse {
   key: string
   label: string
@@ -497,6 +556,12 @@ export interface StrategyPartialExitResponse {
   profit: number
   size_pct: number
   enabled?: boolean
+}
+
+export interface StrategyPriceSourceResponse {
+  kind: "price"
+  field?: "open" | "high" | "low" | "close" | "volume"
+  bars_ago?: number
 }
 
 export interface StrategyRiskConfigResponse {
@@ -512,21 +577,6 @@ export interface StrategyRoiTargetResponse {
   minutes: number
   profit: number
   enabled?: boolean
-}
-
-export interface StrategyRuleSourceResponse {
-  kind: string
-  field?: string | null
-  indicator?: string | null
-  output?: string | null
-  bars_ago?: number | null
-  value?: number | null
-  multiplier?: number | null
-  base_indicator?: string | null
-  base_output?: string | null
-  offset_indicator?: string | null
-  offset_output?: string | null
-  offset_multiplier?: number | null
 }
 
 export interface StrategyRunProfileResponse {
@@ -583,14 +633,18 @@ export interface StrategyTrailingConfigResponse {
   only_offset_reached?: boolean
 }
 
+export interface StrategyValueSourceResponse {
+  kind: "value"
+  value: number
+  bars_ago?: number
+}
+
 export interface GetBacktestQueryParams {
   page?: number
   page_size?: number
 }
-export const GetBacktestQueryParamsMeta = {"defaults": {"page": 1, "page_size": 100}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetPaperRunQueryParams {
   page?: number
   page_size?: number
 }
-export const GetPaperRunQueryParamsMeta = {"defaults": {"page": 1, "page_size": 100}, "repeatedKeys": [], "aliases": {}} as const

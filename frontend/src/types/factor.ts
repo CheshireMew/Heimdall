@@ -1,6 +1,11 @@
 // This file is generated from backend FastAPI route contracts.
 // Do not edit manually.
 
+export interface FactorResearchContractResponse {
+  research_defaults: FactorResearchRequest
+  execution_defaults: FactorExecutionRequest
+}
+
 export interface FactorCatalogResponse {
   symbols: Array<string>
   timeframes: Array<string>
@@ -225,4 +230,3 @@ export interface FactorScorecardResponse {
 export interface ListFactorRunsQueryParams {
   limit?: number
 }
-export const ListFactorRunsQueryParamsMeta = {"defaults": {"limit": 20}, "repeatedKeys": [], "aliases": {}} as const

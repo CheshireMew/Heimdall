@@ -1,37 +1,37 @@
-import request, { longTaskRequest } from '@/api/request'
+import { apiDelete, apiGet, apiPost, longTaskRequest } from '@/api/request'
 import { apiRoute } from '@/api/routes'
 import type { AxiosResponse } from 'axios'
 import type {
   BacktestDetailResponse,
   BacktestDeleteResponse,
-  BacktestRun,
+  BacktestRunResponse,
   BacktestStartRequest,
   BacktestStartResponse,
   IndicatorDefinitionCreateRequest,
   PaperStartRequest,
   PaperStartResponse,
   PaperStopResponse,
-  StrategyEditorContract,
-  StrategyDefinition,
-  StrategyIndicatorEngine,
-  StrategyIndicatorRegistryItem,
-  StrategyTemplate,
+  StrategyEditorContractResponse,
+  StrategyDefinitionResponse,
+  StrategyIndicatorEngineResponse,
+  StrategyIndicatorRegistryResponse,
+  StrategyTemplateResponse,
   StrategyTemplateCreateRequest,
-  StrategyVersion,
+  StrategyVersionResponse,
   StrategyVersionCreateRequest,
-} from './contracts'
+} from '../../types/backtest'
 
 export const backtestApi = {
-  listRuns(): Promise<AxiosResponse<BacktestRun[]>> {
-    return request.get(apiRoute('list_backtests'))
+  listRuns(): Promise<AxiosResponse<BacktestRunResponse[]>> {
+    return apiGet('list_backtests')
   },
 
   startRun(body: BacktestStartRequest): Promise<AxiosResponse<BacktestStartResponse>> {
     return longTaskRequest.post(apiRoute('start_backtest'), body)
   },
 
-  listPaperRuns(): Promise<AxiosResponse<BacktestRun[]>> {
-    return request.get(apiRoute('list_paper_runs'))
+  listPaperRuns(): Promise<AxiosResponse<BacktestRunResponse[]>> {
+    return apiGet('list_paper_runs')
   },
 
   startPaperRun(body: PaperStartRequest): Promise<AxiosResponse<PaperStartResponse>> {
@@ -39,52 +39,53 @@ export const backtestApi = {
   },
 
   stopPaperRun(runId: number): Promise<AxiosResponse<PaperStopResponse>> {
-    return request.post(apiRoute('stop_paper_run', { run_id: runId }))
+    return apiPost('stop_paper_run', undefined, { path: { run_id: runId } })
   },
 
   deleteRun(backtestId: number): Promise<AxiosResponse<BacktestDeleteResponse>> {
-    return request.delete(apiRoute('delete_backtest', { backtest_id: backtestId }))
+    return apiDelete('delete_backtest', { path: { backtest_id: backtestId } })
   },
 
   deletePaperRun(runId: number): Promise<AxiosResponse<BacktestDeleteResponse>> {
-    return request.delete(apiRoute('delete_paper_run', { run_id: runId }))
+    return apiDelete('delete_paper_run', { path: { run_id: runId } })
   },
 
-  listStrategies(): Promise<AxiosResponse<StrategyDefinition[]>> {
-    return request.get(apiRoute('list_strategies'))
+  listStrategies(): Promise<AxiosResponse<StrategyDefinitionResponse[]>> {
+    return apiGet('list_strategies')
   },
 
-  listTemplates(): Promise<AxiosResponse<StrategyTemplate[]>> {
-    return request.get(apiRoute('list_strategy_templates'))
+  listTemplates(): Promise<AxiosResponse<StrategyTemplateResponse[]>> {
+    return apiGet('list_strategy_templates')
   },
 
-  getEditorContract(): Promise<AxiosResponse<StrategyEditorContract>> {
-    return request.get(apiRoute('get_strategy_editor_contract'))
+  getEditorContract(): Promise<AxiosResponse<StrategyEditorContractResponse>> {
+    return apiGet('get_strategy_editor_contract')
   },
 
-  createTemplate(body: StrategyTemplateCreateRequest): Promise<AxiosResponse<StrategyTemplate>> {
-    return request.post(apiRoute('create_strategy_template'), body)
+  createTemplate(body: StrategyTemplateCreateRequest): Promise<AxiosResponse<StrategyTemplateResponse>> {
+    return apiPost('create_strategy_template', body)
   },
 
-  listIndicators(): Promise<AxiosResponse<StrategyIndicatorRegistryItem[]>> {
-    return request.get(apiRoute('list_indicators'))
+  listIndicators(): Promise<AxiosResponse<StrategyIndicatorRegistryResponse[]>> {
+    return apiGet('list_indicators')
   },
 
-  listIndicatorEngines(): Promise<AxiosResponse<StrategyIndicatorEngine[]>> {
-    return request.get(apiRoute('list_indicator_engines'))
+  listIndicatorEngines(): Promise<AxiosResponse<StrategyIndicatorEngineResponse[]>> {
+    return apiGet('list_indicator_engines')
   },
 
-  createIndicator(body: IndicatorDefinitionCreateRequest): Promise<AxiosResponse<StrategyIndicatorRegistryItem>> {
-    return request.post(apiRoute('create_indicator'), body)
+  createIndicator(body: IndicatorDefinitionCreateRequest): Promise<AxiosResponse<StrategyIndicatorRegistryResponse>> {
+    return apiPost('create_indicator', body)
   },
 
-  createStrategyVersion(body: StrategyVersionCreateRequest): Promise<AxiosResponse<StrategyVersion>> {
-    return request.post(apiRoute('create_strategy_version'), body)
+  createStrategyVersion(body: StrategyVersionCreateRequest): Promise<AxiosResponse<StrategyVersionResponse>> {
+    return apiPost('create_strategy_version', body)
   },
 
   getRun(backtestId: number, page: number = 1, pageSize: number = 100): Promise<AxiosResponse<BacktestDetailResponse>> {
-    return request.get(apiRoute('get_backtest', { backtest_id: backtestId }), {
-      params: {
+    return apiGet('get_backtest', {
+      path: { backtest_id: backtestId },
+      query: {
         page,
         page_size: pageSize,
       },
@@ -92,8 +93,9 @@ export const backtestApi = {
   },
 
   getPaperRun(runId: number, page: number = 1, pageSize: number = 100): Promise<AxiosResponse<BacktestDetailResponse>> {
-    return request.get(apiRoute('get_paper_run', { run_id: runId }), {
-      params: {
+    return apiGet('get_paper_run', {
+      path: { run_id: runId },
+      query: {
         page,
         page_size: pageSize,
       },

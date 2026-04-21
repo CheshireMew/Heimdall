@@ -4,9 +4,8 @@ import { useRouter } from 'vue-router'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { addDaysToLocalIsoDate, todayLocalIsoDate } from '@/utils/localDate'
-import type { BacktestRun, StrategyDefinition, StrategyEditorContract, StrategyVersion } from './contracts'
+import type { BacktestRunResponse, StrategyDefinitionResponse, StrategyEditorContractResponse, StrategyVersionResponse } from '../../types/backtest'
 import { backtestApi } from './api'
-import { asNumber } from '@/modules/format'
 import {
   applyBacktestPageSnapshot,
   buildBacktestPageSnapshot,
@@ -14,6 +13,7 @@ import {
   createEmptyBacktestPageSnapshot,
   normalizeBacktestPageSnapshot,
 } from './pageSnapshots'
+import { profitColorClass, syncStrategyVersionSelection } from './selection'
 import { supportsPaperTrading, supportsVersionEditing } from './templateRuntime'
 import { useBacktestRuns } from './useBacktestRuns'
 import { defineReactiveView, type BacktestControlPanelView, type BacktestHistoryPanelView } from './viewTypes'
@@ -25,16 +25,16 @@ export const useBacktestPage = () => {
   let snapshotStopHandle: WatchStopHandle | null = null
 
   const ready = ref(false)
-  const editorContract = ref<StrategyEditorContract | null>(null)
-  const strategies = ref<StrategyDefinition[]>([])
+  const editorContract = ref<StrategyEditorContractResponse | null>(null)
+  const strategies = ref<StrategyDefinitionResponse[]>([])
   const config = reactive(createEmptyBacktestPageSnapshot().config)
 
-  const selectedStrategy = computed<StrategyDefinition | null>(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
-  const selectedStrategyVersions = computed<StrategyVersion[]>(() => {
+  const selectedStrategy = computed<StrategyDefinitionResponse | null>(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
+  const selectedStrategyVersions = computed<StrategyVersionResponse[]>(() => {
     const versions = selectedStrategy.value?.versions
     return Array.isArray(versions) ? versions.filter(Boolean) : []
   })
-  const selectedVersion = computed<StrategyVersion | null>(() => selectedStrategyVersions.value.find((item) => item.version === config.strategy_version) || null)
+  const selectedVersion = computed<StrategyVersionResponse | null>(() => selectedStrategyVersions.value.find((item) => item.version === config.strategy_version) || null)
   const canCopyCurrentStrategy = computed(() => Boolean(selectedVersion.value) && Boolean(supportsVersionEditing(selectedStrategy.value)))
   const canStartPaperRun = computed(() => Boolean(supportsPaperTrading(selectedStrategy.value)))
   const strategyCapabilityHint = computed(() => {
@@ -64,14 +64,6 @@ export const useBacktestPage = () => {
     editorContract.value?.run_defaults?.optimize_metric_options?.map((item) => item.key) || []
   ))
 
-  const profitColorClass = (value: unknown) => {
-    const numeric = asNumber(value)
-    if (numeric === null) return 'text-gray-500'
-    if (numeric > 0) return 'text-green-600 dark:text-green-400'
-    if (numeric < 0) return 'text-red-600 dark:text-red-400'
-    return 'text-gray-500'
-  }
-
   const syncRunTimeframe = () => {
     const runtime = selectedVersion.value?.runtime
     const preferred = runtime?.preferred_run_timeframe
@@ -85,16 +77,13 @@ export const useBacktestPage = () => {
   const syncStrategyVersion = () => {
     const versions = selectedStrategyVersions.value
     if (!versions.length) return
-    if (!versions.find((item) => item.version === config.strategy_version)) {
-      const fallback = versions.find((item) => item.is_default) || versions[0]
-      config.strategy_version = fallback.version
-    }
+    syncStrategyVersionSelection(config, versions)
     syncRunTimeframe()
     const validVersions = new Set(runs.versionCompareOptions.value.map((item) => item.version))
     runs.versionCompareSelections.value = runs.versionCompareSelections.value.filter((item) => validVersions.has(item))
   }
 
-  const bindSnapshot = (contract: StrategyEditorContract) => {
+  const bindSnapshot = (contract: StrategyEditorContractResponse) => {
     const defaults = createBacktestPageSnapshotDefaults(contract.run_defaults)
     const pageSnapshot = createPersistentPageSnapshot(
       PAGE_SNAPSHOT_KEYS.backtest,
@@ -149,7 +138,7 @@ export const useBacktestPage = () => {
     })
   }
 
-  const openRunDetail = (run: BacktestRun, mode: 'backtest' | 'paper' = runs.historyMode.value) => {
+  const openRunDetail = (run: BacktestRunResponse, mode: 'backtest' | 'paper' = runs.historyMode.value) => {
     if (!run?.id) return
     router.push(mode === 'paper' ? `/backtest/paper/${run.id}` : `/backtest/runs/${run.id}`)
   }
@@ -254,3 +243,4 @@ export const useBacktestPage = () => {
 }
 
 export type BacktestPageState = ReturnType<typeof useBacktestPage>
+

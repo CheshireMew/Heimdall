@@ -1,29 +1,9 @@
 import { isRecord, readBoolean, readEnum, readNumber, readString } from '@/composables/pageSnapshot'
-import type { BacktestRunDefaults } from './contracts'
+import type { BacktestRunDefaultsResponse } from '../../types/backtest'
+import type { BacktestPageConfig, BacktestRunSelectionConfig } from './viewTypes'
 
 export interface BacktestPageSnapshot {
-  config: {
-    strategy_key: string
-    strategy_version: number
-    timeframe: string
-    start_date: string
-    end_date: string
-    initial_cash: number
-    fee_rate: number
-    portfolio: {
-      max_open_trades: number
-      position_size_pct: number
-      stake_mode: 'fixed' | 'unlimited'
-    }
-    research: {
-      slippage_bps: number
-      funding_rate_daily: number
-      in_sample_ratio: number
-      optimize_metric: 'sharpe' | 'profit_pct' | 'calmar' | 'profit_factor'
-      optimize_trials: number
-      rolling_windows: number
-    }
-  }
+  config: BacktestPageConfig
   symbolsText: string
   historyMode: 'backtest' | 'paper'
 }
@@ -40,10 +20,7 @@ export interface BacktestEditorSnapshot {
 }
 
 export interface BacktestEditorPageSnapshot {
-  config: {
-    strategy_key: string
-    strategy_version: number
-  }
+  config: BacktestRunSelectionConfig
   editor: BacktestEditorSnapshot | null
 }
 
@@ -87,7 +64,7 @@ export const createEmptyBacktestPageSnapshot = (): BacktestPageSnapshot => ({
   historyMode: 'backtest',
 })
 
-export const createBacktestPageSnapshotDefaults = (runDefaults: BacktestRunDefaults): BacktestPageSnapshot => ({
+export const createBacktestPageSnapshotDefaults = (runDefaults: BacktestRunDefaultsResponse): BacktestPageSnapshot => ({
   config: {
     strategy_key: runDefaults.strategy_key ?? '',
     strategy_version: 1,
@@ -226,3 +203,4 @@ export const buildBacktestEditorPageSnapshot = (
   config,
   editor,
 })
+

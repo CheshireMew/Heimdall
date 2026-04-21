@@ -3,7 +3,7 @@
 </template>
 
 <script setup>
-import { onMounted, watch } from 'vue'
+import { watch } from 'vue'
 import * as echarts from 'echarts/core'
 import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
@@ -48,6 +48,4 @@ const { chartContainer, renderChart } = useEcharts(() => ({
   }))
 
 watch(() => [props.categories, props.values, props.dark], renderChart, { deep: true })
-
-onMounted(renderChart)
 </script>

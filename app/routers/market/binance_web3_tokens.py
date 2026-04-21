@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends, Query
 
 from app.dependencies import runtime_dependency
-from app.routers.errors import service_http_error
+from app.runtime_graph import MARKET_BINANCE_WEB3_SERVICE
 from app.schemas.binance_market import (
     BinanceWeb3TokenAuditResponse,
     BinanceWeb3TokenDynamicResponse,
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 router = APIRouter(tags=["Market Data"])
-binance_web3_dependency = runtime_dependency("market.binance_web3_service")
+binance_web3_dependency = runtime_dependency(MARKET_BINANCE_WEB3_SERVICE)
 
 
 @router.get("/binance/web3/token_dynamic", response_model=BinanceWeb3TokenDynamicResponse)
@@ -26,10 +26,7 @@ async def get_binance_web3_token_dynamic(
     contract_address: str = Query(...),
     service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
-    try:
-        return await service.tokens.get_dynamic(chain_id=chain_id, contract_address=contract_address)
-    except Exception as exc:
-        raise service_http_error("API /binance/web3/token_dynamic 错误", exc)
+    return await service.tokens.get_dynamic(chain_id=chain_id, contract_address=contract_address)
 
 
 @router.get("/binance/web3/token_kline", response_model=BinanceWeb3TokenKlineResponse)
@@ -43,18 +40,15 @@ async def get_binance_web3_token_kline(
     pm: str | None = Query("p"),
     service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
-    try:
-        return await service.tokens.get_kline(
-            address=address,
-            platform=platform,
-            interval=interval,
-            limit=limit,
-            from_time=from_time,
-            to_time=to_time,
-            pm=pm,
-        )
-    except Exception as exc:
-        raise service_http_error("API /binance/web3/token_kline 错误", exc)
+    return await service.tokens.get_kline(
+        address=address,
+        platform=platform,
+        interval=interval,
+        limit=limit,
+        from_time=from_time,
+        to_time=to_time,
+        pm=pm,
+    )
 
 
 @router.get("/binance/web3/token_audit", response_model=BinanceWeb3TokenAuditResponse)
@@ -63,7 +57,4 @@ async def get_binance_web3_token_audit(
     contract_address: str = Query(...),
     service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
-    try:
-        return await service.tokens.get_audit(binance_chain_id=binance_chain_id, contract_address=contract_address)
-    except Exception as exc:
-        raise service_http_error("API /binance/web3/token_audit 错误", exc)
+    return await service.tokens.get_audit(binance_chain_id=binance_chain_id, contract_address=contract_address)

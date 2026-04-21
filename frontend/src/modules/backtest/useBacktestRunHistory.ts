@@ -1,6 +1,6 @@
 import type { ComputedRef, Ref } from 'vue'
 
-import type { BacktestDetailResponse, BacktestRun } from './contracts'
+import type { BacktestDetailResponse, BacktestRunResponse } from '../../types/backtest'
 
 import { backtestApi } from './api'
 import type { BacktestRunMode } from './useBacktestRuns'
@@ -14,8 +14,8 @@ interface BacktestRunTarget {
 
 interface UseBacktestRunHistoryOptions {
   t: (key: string) => string
-  history: Ref<BacktestRun[]>
-  paperHistory: Ref<BacktestRun[]>
+  history: Ref<BacktestRunResponse[]>
+  paperHistory: Ref<BacktestRunResponse[]>
   historyMode: Ref<'backtest' | 'paper'>
   selectedRun: Ref<BacktestDetailResponse | null>
   selectedRunMode: Ref<'backtest' | 'paper' | null>
@@ -171,3 +171,4 @@ export const useBacktestRunHistory = ({
     refreshPaperSelection,
   }
 }
+

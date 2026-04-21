@@ -4,7 +4,7 @@ import type {
   BinanceMarkPriceItemResponse,
   BinanceTickerStatsItemResponse,
   BinanceWeb3HeatRankItemResponse,
-} from './contracts'
+} from '../../types/market'
 import { isRecord, readBoolean, readNumber, readString } from '@/composables/pageSnapshot'
 import { toBaseSymbol } from './symbolCatalog'
 
@@ -18,7 +18,7 @@ export type ContractBoardRow = DerivativeBoardRow & {
   market_label: string
 }
 
-export type DerivativeBoardRow = BinanceTickerStatsItemResponse & {
+export interface DerivativeBoardRow extends BinanceTickerStatsItemResponse {
   mark_price: number | null
   index_price: number | null
   funding_rate_pct: number | null

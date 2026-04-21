@@ -1,6 +1,6 @@
-import { isIndexSymbol, marketApi, toBaseSymbol } from '@/modules/market'
-import type { MarketHistoryBatchItemResponse, OhlcvPointResponse } from '@/modules/market/contracts'
-import type { PortfolioBalancePortfolio } from './contracts'
+import { ensureSymbolCatalogLoaded, isIndexSymbol, marketApi, toBaseSymbol } from '@/modules/market'
+import type { MarketHistoryBatchItemResponse, OhlcvPointResponse } from '../../../types/market'
+import type { PortfolioBalancePortfolio } from './model'
 
 import { buildPortfolioSyntheticHistory } from './backtest'
 import { collectPortfolioMarketTargets, readPortfolioSyntheticPrice } from './model'
@@ -92,6 +92,7 @@ const loadIndexHistory = async (symbol: string, startText: string) => {
 }
 
 export const fetchPortfolioPriceMap = async (portfolio: PortfolioBalancePortfolio) => {
+  await ensureSymbolCatalogLoaded()
   const priceBySymbol = new Map<string, number>()
   portfolio.assets.forEach((asset) => {
     const symbol = toBaseSymbol(asset.symbol)
@@ -163,6 +164,7 @@ export const loadPortfolioBacktestHistory = async (
   portfolio: PortfolioBalancePortfolio,
   startText: string,
 ) => {
+  await ensureSymbolCatalogLoaded()
   const historyBySymbol: Record<string, Array<{ date: string; close: number }>> = {}
 
   portfolio.assets.forEach((asset) => {

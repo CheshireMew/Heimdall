@@ -3,11 +3,12 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { watch } from 'vue'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import { useEcharts } from '@/composables/useEcharts'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
 import { useDateTime } from '@/composables/useDateTime'
@@ -22,12 +23,10 @@ const props = defineProps({
   },
 })
 
-const chartContainer = ref(null)
 const { theme } = useTheme()
 const { displayCurrency, toDisplayAmount, formatMoney } = useMoney()
 const { timezone, formatDateTime } = useDateTime()
 const { t, locale } = useI18n()
-let chartInstance = null
 
 const getOption = () => {
   const isDark = theme.value === 'dark'
@@ -126,24 +125,11 @@ const getOption = () => {
   }
 }
 
-const renderChart = () => {
-  if (!chartContainer.value) return
-  if (!chartInstance) {
-    chartInstance = echarts.init(chartContainer.value)
-  }
-  chartInstance.setOption(getOption())
-}
-
-const handleResize = () => {
-  if (chartInstance) {
-    chartInstance.resize()
-  }
-}
+const { chartContainer, renderChart } = useEcharts(getOption)
 
 watch(
   () => props.points,
-  async () => {
-    await nextTick()
+  () => {
     renderChart()
   },
   { deep: true },
@@ -163,18 +149,5 @@ watch(timezone, () => {
 
 watch(displayCurrency, () => {
   renderChart()
-})
-
-onMounted(() => {
-  renderChart()
-  window.addEventListener('resize', handleResize)
-})
-
-onUnmounted(() => {
-  if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
-  }
-  window.removeEventListener('resize', handleResize)
 })
 </script>

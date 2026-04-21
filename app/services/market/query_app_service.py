@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Callable, Literal
 
+from app.exceptions import ServiceUnavailableError
 from app.schemas.market import (
     CurrentPriceBatchItemResponse,
     CurrentPriceBatchResponse,
@@ -80,11 +81,18 @@ class MarketQueryAppService:
     ) -> RealtimeResponse:
         resolved_timeframe = timeframe or settings.TIMEFRAME
         resolved_limit = limit or settings.LIMIT
-        snapshot = await self.load_snapshot(
-            symbol=symbol,
-            timeframe=resolved_timeframe,
-            limit=resolved_limit,
-        )
+        try:
+            snapshot = await self.load_snapshot(
+                symbol=symbol,
+                timeframe=resolved_timeframe,
+                limit=resolved_limit,
+            )
+        except Exception as exc:
+            err_str = str(exc).lower()
+            if "network" in err_str or "connection" in err_str or "timeout" in err_str:
+                logger.error(f"实时行情连接失败: {exc}")
+                raise ServiceUnavailableError("无法连接到交易所 (Network Error)") from exc
+            raise
         kline_data = snapshot.kline_data
         indicators = snapshot.indicators
 

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 
+from app.exceptions import NotFoundError
 from app.lifecycle import build_health_payload
 from app.routers import backtest, config_router, factor, market, tools
 from config import settings
@@ -12,12 +13,6 @@ from config import settings
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST_DIR = BASE_DIR / "frontend" / "dist"
 FRONTEND_INDEX_FILE = FRONTEND_DIST_DIR / "index.html"
-
-
-def _logger():
-    from utils.logger import logger
-
-    return logger
 
 
 def _resolve_frontend_asset(path: str) -> Path | None:
@@ -55,20 +50,15 @@ async def health_check(request: Request):
 async def frontend_fallback(full_path: str):
     reserved_paths = {"api", "docs", "redoc", "openapi.json", "health"}
     if full_path in reserved_paths or any(full_path.startswith(f"{prefix}/") for prefix in reserved_paths):
-        raise HTTPException(status_code=404, detail="Not found")
+        raise NotFoundError("Not found")
 
     if not FRONTEND_INDEX_FILE.exists():
-        raise HTTPException(status_code=404, detail="Frontend build not found")
+        raise NotFoundError("Frontend build not found")
 
     asset = _resolve_frontend_asset(full_path)
     if asset:
         return FileResponse(str(asset))
     return FileResponse(str(FRONTEND_INDEX_FILE))
-
-
-async def global_exception_handler(request: Request, exc: Exception):
-    _logger().error(f"Unhandled: {request.method} {request.url} - {exc}", exc_info=True)
-    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 def register_app_routes(app: FastAPI) -> None:

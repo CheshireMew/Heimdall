@@ -3,10 +3,10 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useTheme } from '@/composables/useTheme'
-import type { BacktestRun, StrategyDefinition, StrategyVersion } from './contracts'
+import type { BacktestRunResponse, StrategyDefinitionResponse, StrategyVersionResponse } from '../../types/backtest'
 
 import { backtestApi } from './api'
-import { asNumber } from '@/modules/format'
+import { profitColorClass } from './selection'
 import { useBacktestRuns, type BacktestRunMode } from './useBacktestRuns'
 import { defineReactiveView, type BacktestDetailHeroView, type BacktestHistoryPanelView, type BacktestResultPanelView } from './viewTypes'
 
@@ -18,7 +18,7 @@ export const useBacktestDetailPage = () => {
   const router = useRouter()
   let paperRefreshTimer: number | null = null
 
-  const strategies = ref<StrategyDefinition[]>([])
+  const strategies = ref<StrategyDefinitionResponse[]>([])
   const config = reactive({
     strategy_key: '',
     strategy_version: 1,
@@ -33,8 +33,8 @@ export const useBacktestDetailPage = () => {
     downColor: '#ef4444',
   }))
 
-  const selectedStrategy = computed<StrategyDefinition | null>(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
-  const selectedStrategyVersions = computed<StrategyVersion[]>(() => {
+  const selectedStrategy = computed<StrategyDefinitionResponse | null>(() => strategies.value.find((item) => item.key === config.strategy_key) || null)
+  const selectedStrategyVersions = computed<StrategyVersionResponse[]>(() => {
     const versions = selectedStrategy.value?.versions
     if (!Array.isArray(versions)) return []
     return versions.filter(Boolean)
@@ -46,14 +46,6 @@ export const useBacktestDetailPage = () => {
     selectedStrategyVersions,
   })
 
-  const profitColorClass = (value: unknown) => {
-    const numeric = asNumber(value)
-    if (numeric === null) return 'text-gray-500'
-    if (numeric > 0) return 'text-green-600 dark:text-green-400'
-    if (numeric < 0) return 'text-red-600 dark:text-red-400'
-    return 'text-gray-500'
-  }
-
   const fetchStrategies = async () => {
     try {
       const res = await backtestApi.listStrategies()
@@ -64,9 +56,9 @@ export const useBacktestDetailPage = () => {
   }
 
   const syncConfigFromSelectedRun = () => {
-    const metadata = runs.selectedRun.value?.metadata || {}
-    config.strategy_key = metadata.strategy_key || ''
-    config.strategy_version = Number(metadata.strategy_version || 1)
+    const metadata = runs.selectedRun.value?.metadata
+    config.strategy_key = metadata?.strategy_key || ''
+    config.strategy_version = Number(metadata?.strategy_version || 1)
   }
 
   const currentTarget = computed(() => {
@@ -87,7 +79,7 @@ export const useBacktestDetailPage = () => {
     syncConfigFromSelectedRun()
   }
 
-  const openRunDetail = (run: BacktestRun, mode: 'backtest' | 'paper' = runs.historyMode.value) => {
+  const openRunDetail = (run: BacktestRunResponse, mode: 'backtest' | 'paper' = runs.historyMode.value) => {
     if (!run?.id) return
     const path = mode === 'paper' ? `/backtest/paper/${run.id}` : `/backtest/runs/${run.id}`
     if (router.currentRoute.value.fullPath === path) {
@@ -186,3 +178,4 @@ export const useBacktestDetailPage = () => {
 
 
 export type BacktestDetailPageState = ReturnType<typeof useBacktestDetailPage>
+

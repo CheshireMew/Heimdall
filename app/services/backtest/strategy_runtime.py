@@ -16,9 +16,7 @@ from app.schemas.strategy_contract import (
 from app.domain.market.timeframes import timeframe_to_minutes
 from app.services.backtest.scripted_template_runtime import get_template_runtime, template_supports_signal_runtime
 from app.services.backtest.indicator_engines import (
-    apply_indicator_frame,
-    indicator_warmup_bars,
-    resolve_indicator_engine,
+    indicator_engine_definition,
 )
 from app.services.backtest.strategy_catalog import get_indicator_registry_map, get_template_spec
 from app.services.backtest.strategy_config_normalizer import (
@@ -79,11 +77,10 @@ class StrategyRuntime:
         for indicator in normalized_config.indicators.values():
             indicator_type = indicator.type
             indicator_spec = indicator_registry.get(indicator_type) or {}
-            engine = resolve_indicator_engine(indicator_type, indicator_spec)
             params = indicator.params
             indicator_timeframe = self._resolve_indicator_timeframe(indicator, base_timeframe)
             scale = max(timeframe_to_minutes(indicator_timeframe) // base_minutes, 1)
-            warmups.append(indicator_warmup_bars(engine, params) * scale)
+            warmups.append(indicator_engine_definition(indicator_type, indicator_spec).warmup(params) * scale)
         return max(warmups) + 5
 
     def build_signal_snapshots(
@@ -181,10 +178,9 @@ class StrategyRuntime:
         for indicator_id, indicator in config.indicators.items():
             indicator_timeframe = self._resolve_indicator_timeframe(indicator, base_timeframe)
             indicator_spec = indicator_registry.get(indicator.type) or {}
-            apply_indicator_frame(
+            indicator_engine_definition(indicator.type, indicator_spec).apply(
                 timeframe_frames[indicator_timeframe],
                 indicator_id,
-                resolve_indicator_engine(indicator.type, indicator_spec),
                 indicator.params,
             )
         merged = frame.copy()

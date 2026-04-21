@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from app.services.backtest.run_repository import BacktestRunRepository
-from app.services.backtest.strategy_query_service import StrategyQueryService
-from app.services.executor import run_sync
+from app.exceptions import NotFoundError
 from app.schemas.backtest import (
     BacktestDetailResponse,
     BacktestRunResponse,
@@ -12,9 +10,14 @@ from app.schemas.backtest import (
     StrategyIndicatorRegistryResponse,
     StrategyTemplateResponse,
 )
+from app.services.backtest.run_repository import BacktestRunRepository
+from app.services.backtest.strategy_query_service import StrategyQueryService
+from app.services.executor import run_sync
 
 
 class BacktestQueryService:
+    """API adapter: async boundary that assembles app.schemas responses from repositories."""
+
     def __init__(
         self,
         *,
@@ -42,13 +45,19 @@ class BacktestQueryService:
     async def list_runs(self) -> list[BacktestRunResponse]:
         return await run_sync(self.run_repository.list_runs)
 
-    async def get_run(self, backtest_id: int, page: int, page_size: int) -> BacktestDetailResponse | None:
-        return await run_sync(lambda: self.run_repository.get_run(backtest_id, page, page_size))
+    async def get_run(self, backtest_id: int, page: int, page_size: int) -> BacktestDetailResponse:
+        result = await run_sync(lambda: self.run_repository.get_run(backtest_id, page, page_size))
+        if result is None:
+            raise NotFoundError("回测记录不存在")
+        return result
 
     async def list_paper_runs(self) -> list[BacktestRunResponse]:
         return await run_sync(lambda: self.run_repository.list_runs("paper_live"))
 
-    async def get_paper_run(self, run_id: int, page: int, page_size: int) -> BacktestDetailResponse | None:
-        return await run_sync(
+    async def get_paper_run(self, run_id: int, page: int, page_size: int) -> BacktestDetailResponse:
+        result = await run_sync(
             lambda: self.run_repository.get_run(run_id, page, page_size, "paper_live")
         )
+        if result is None:
+            raise NotFoundError("模拟盘记录不存在")
+        return result

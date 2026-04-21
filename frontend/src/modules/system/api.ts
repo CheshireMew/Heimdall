@@ -1,22 +1,21 @@
-import request from '@/api/request'
-import { apiRoute } from '@/api/routes'
+import { apiGet, apiPut } from '@/api/request'
 import type { AxiosResponse } from 'axios'
-import type { CurrencyRatesResponse, LlmProviderConfigResponse, LlmProviderConfigUpdateRequest, SystemConfigResponse } from './contracts'
+import type { CurrencyRatesResponse, LlmProviderConfigResponse, LlmProviderConfigUpdateRequest, SystemConfigResponse } from '../../types/config'
 
 export const systemApi = {
   getConfig(): Promise<AxiosResponse<SystemConfigResponse>> {
-    return request.get(apiRoute('get_config'))
+    return apiGet('get_config')
   },
 
   getCurrencyRates(): Promise<AxiosResponse<CurrencyRatesResponse>> {
-    return request.get(apiRoute('get_currencies'))
+    return apiGet('get_currencies')
   },
 
   getLlmConfig(): Promise<AxiosResponse<LlmProviderConfigResponse>> {
-    return request.get(apiRoute('get_llm_config'))
+    return apiGet('get_llm_config')
   },
 
   updateLlmConfig(body: LlmProviderConfigUpdateRequest): Promise<AxiosResponse<LlmProviderConfigResponse>> {
-    return request.put(apiRoute('update_llm_config'), body)
+    return apiPut('update_llm_config', body)
   },
 }

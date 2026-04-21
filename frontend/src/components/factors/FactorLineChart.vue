@@ -3,7 +3,7 @@
 </template>
 
 <script setup>
-import { onMounted, watch } from 'vue'
+import { watch } from 'vue'
 import * as echarts from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
@@ -53,6 +53,4 @@ const { chartContainer, renderChart } = useEcharts(() => ({
   }))
 
 watch(() => [props.categories, props.series, props.dark, props.yAxisLabel], renderChart, { deep: true })
-
-onMounted(renderChart)
 </script>

@@ -74,6 +74,7 @@ def build_backtest_metadata(
                 portfolio_label=symbols[0] if len(symbols) == 1 else f"{len(symbols)} symbols",
                 portfolio=build_portfolio_payload(portfolio),
             ),
+            "execution_mode": BACKTEST_EXECUTION_MODE,
             "research": build_research_payload(research),
         }
     )
@@ -140,6 +141,7 @@ def build_paper_metadata(
             portfolio_label=symbols[0] if len(symbols) == 1 else f"{len(symbols)} symbols",
             portfolio=build_portfolio_payload(portfolio),
         ),
+        "execution_mode": PAPER_LIVE_EXECUTION_MODE,
     }
     stop_reason = paper_live["stop_reason"] if isinstance(paper_live, dict) and "stop_reason" in paper_live else _MISSING
     return update_paper_metadata(

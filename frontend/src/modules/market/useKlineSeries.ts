@@ -1,9 +1,9 @@
 import { computed, onUnmounted, ref, watch, type Ref } from 'vue'
 import { marketApi } from './api'
 import { useMarketStore } from './store'
-import { isIndexSymbol } from './symbolCatalog'
+import { ensureSymbolCatalogLoaded, isIndexSymbol } from './symbolCatalog'
 import { toLocalIsoDate } from '@/utils/localDate'
-import type { OhlcvPointResponse } from './contracts'
+import type { OhlcvPointResponse } from '../../types/market'
 
 const REFRESH_INTERVAL_MS = 5000
 const LIVE_TAIL_LIMIT = 16
@@ -53,6 +53,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
       indexKlineData.value = []
       return
     }
+    await ensureSymbolCatalogLoaded()
     noMoreHistory.value = false
     if (isIndexSymbol(requestSymbol)) {
       const end = new Date()
@@ -120,6 +121,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
 
     loadingMore.value = true
     try {
+      await ensureSymbolCatalogLoaded()
       const requestSymbol = symbol.value
       const requestTimeframe = timeframe.value
       const oldest = klineData.value[0]
@@ -165,7 +167,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
     }
   }
 
-  watch([symbol, timeframe, enabled], () => {
+  watch([symbol, timeframe, enabled], async () => {
     stopAutoRefresh()
     tailRefreshPending = false
     if (!enabled.value || !symbol.value || !timeframe.value) {
@@ -173,10 +175,11 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
       noMoreHistory.value = false
       return
     }
+    await ensureSymbolCatalogLoaded()
     if (isIndexSymbol(symbol.value)) {
       indexKlineData.value = []
     }
-    void fetchLatest()
+    await fetchLatest()
     startAutoRefresh()
   }, { immediate: true })
 

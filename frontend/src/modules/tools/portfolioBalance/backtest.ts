@@ -4,14 +4,21 @@ import type {
   PortfolioBacktestEquityPoint,
   PortfolioBalanceBacktestConfig,
   PortfolioBalanceStrategyConfig,
-} from './contracts'
+} from './model'
 
 import {
   buildNormalizedPortfolioWeights,
   normalizePortfolioBalanceAsset,
   readPortfolioSyntheticPrice,
 } from './model'
-import { clamp, parseIsoDate, PERCENT_BASE, round, shiftReviewDate, todayIso } from './shared'
+import {
+  clamp,
+  parseIsoDate,
+  PERCENT_BASE,
+  round,
+  shiftReviewDate,
+  todayIso,
+} from './model'
 import { diffLocalIsoDateDays, toLocalIsoDate } from '@/utils/localDate'
 
 export interface PortfolioHistoryPoint {

@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from app.domain.market.timeframes import timeframe_to_timedelta
+from app.exceptions import NotFoundError
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun
 from app.contracts.backtest import (
@@ -20,7 +21,6 @@ from app.schemas.backtest import (
     PaperStopResponse,
 )
 from app.schemas.backtest_result import BacktestPortfolioSummaryResponse, BacktestStrategySummaryResponse
-from app.services.run_task_manager import RunTaskManager
 from app.services.executor import run_sync
 from app.services.backtest.result_store import replace_run_rows, result_signal_counts
 from app.services.backtest.run_contract import (
@@ -30,8 +30,8 @@ from app.services.backtest.run_contract import (
     parse_run_metadata,
     update_paper_metadata,
 )
-from app.services.backtest.run_lifecycle import RUN_STATUS_FAILED, RUN_STATUS_RUNNING, RUN_STATUS_STOPPED
-from app.services.paper_run_lifecycle import PaperRunLifecycle
+from app.services.backtest.run_lifecycle import RUN_STATUS_RUNNING, RUN_STATUS_STOPPED
+from app.services.paper_run_lifecycle import PaperRunController
 from config import settings
 from utils.time_utils import to_utc_naive_datetime, utc_now_naive
 
@@ -64,45 +64,41 @@ class PaperRunManager:
         self.report_builder = report_builder
         self.run_repository = run_repository
         self.database_runtime = database_runtime
-        self.lifecycle = PaperRunLifecycle(
+        self.controller = PaperRunController(
             engine=PAPER_LIVE_ENGINE,
             run_repository=run_repository,
             database_runtime=database_runtime,
             runtime_state=lambda metadata: metadata.runtime_state.model_dump() if metadata.runtime_state else {},
-        )
-        self._task_manager = RunTaskManager(
-            list_active_run_ids=self.lifecycle.list_active_run_ids,
             tick=self._tick,
-            mark_failed=lambda run_id, reason: self.lifecycle.mark_stopped(run_id, RUN_STATUS_FAILED, reason),
             interval_seconds=lambda: float(settings.WS_UPDATE_INTERVAL),
             error_label="模拟盘运行失败",
         )
 
     async def restore_active_runs(self) -> None:
-        await self._task_manager.restore_active_runs()
+        await self.controller.restore_active_runs()
 
     async def shutdown(self) -> None:
-        await self._task_manager.shutdown()
+        await self.controller.shutdown()
 
     async def start_run(self, command: PaperStartCommand) -> PaperStartResponse:
         run_id = await run_sync(lambda: self._create_run(command))
-        self._task_manager.ensure_task(run_id)
+        self.controller.activate_run(run_id)
         return PaperStartResponse(success=True, run_id=run_id, message="模拟盘已启动")
 
     async def stop_run(self, run_id: int) -> PaperStopResponse:
-        await run_sync(lambda: self.lifecycle.mark_stopped(run_id, RUN_STATUS_STOPPED, "manual_stop"))
-        await self._task_manager.cancel_task(run_id)
+        await run_sync(lambda: self.controller.mark_stopped(run_id, RUN_STATUS_STOPPED, "manual_stop"))
+        await self.controller.cancel_run(run_id)
         return PaperStopResponse(success=True, run_id=run_id, message="模拟盘已停止")
 
     async def delete_run(self, run_id: int) -> BacktestDeleteResponse:
-        await run_sync(lambda: self.lifecycle.mark_stopped(run_id, RUN_STATUS_STOPPED, "manual_delete"))
-        await self._task_manager.cancel_task(run_id)
+        await run_sync(lambda: self.controller.mark_stopped(run_id, RUN_STATUS_STOPPED, "manual_delete"))
+        await self.controller.cancel_run(run_id)
 
         deleted = await run_sync(
             lambda: self.run_repository.delete_run(run_id, PAPER_LIVE_EXECUTION_MODE),
         )
         if not deleted:
-            raise ValueError(f"模拟盘记录不存在: {run_id}")
+            raise NotFoundError(f"模拟盘记录不存在: {run_id}")
         return BacktestDeleteResponse(success=True, run_id=run_id, message="模拟盘记录已删除")
 
     def _tick(self, run_id: int) -> bool:

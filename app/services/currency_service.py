@@ -5,6 +5,7 @@ from typing import Any
 
 import httpx
 
+from app.domain.market.symbol_catalog import get_usd_equivalent_symbols
 from app.schemas.market import CurrencyRatesResponse
 from config import settings
 from utils.logger import logger
@@ -116,10 +117,15 @@ class CurrencyRateService:
             meta = DISPLAY_CURRENCY_META[code]
             supported.append({"code": code, **meta})
 
+        aliases = {code: code for code in self._supported_codes()}
+        for symbol in get_usd_equivalent_symbols():
+            aliases[str(symbol).upper()] = "USD"
+
         return CurrencyRatesResponse.model_validate({
             "base": "USD",
             "rates": {code: rates[code] for code in self._supported_codes()},
             "supported": supported,
+            "aliases": aliases,
             "updated_at": updated_at.isoformat(),
             "source": source,
             "is_fallback": is_fallback,

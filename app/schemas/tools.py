@@ -1,8 +1,20 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.schemas.json_types import JsonObject
+
+
+DcaStrategyKey = Literal[
+    "standard",
+    "ema_deviation",
+    "rsi_dynamic",
+    "ahr999",
+    "fear_greed",
+    "value_averaging",
+]
 
 
 class DCARequestSchema(BaseModel):
@@ -12,7 +24,7 @@ class DCARequestSchema(BaseModel):
     investment_time: str = '23:00'
     timezone: str = 'Asia/Shanghai'
     days: int | None = Field(None, gt=0, le=3650)
-    strategy: str = 'standard'
+    strategy: DcaStrategyKey = 'standard'
     strategy_params: JsonObject | None = Field(default_factory=dict)
 
 
@@ -72,3 +84,10 @@ class PairCompareToolResponse(BaseModel):
     ratio_symbol: str
     timeframe: str | None = None
     relative_strength: float | None = None
+
+
+class ToolsPageContractResponse(BaseModel):
+    dca_defaults: DCARequestSchema
+    dca_strategies: list[DcaStrategyKey]
+    dca_multiplier_default: float
+    compare_defaults: PairCompareRequestSchema

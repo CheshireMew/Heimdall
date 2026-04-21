@@ -15,12 +15,12 @@ from app.services.backtest.run_contract import (
     ensure_paper_runtime_state,
     parse_run_metadata,
 )
-from app.services.backtest.run_lifecycle import RUN_STATUS_FAILED, RUN_STATUS_RUNNING
+from app.services.backtest.run_lifecycle import RUN_STATUS_RUNNING
 from app.services.backtest.run_repository import BacktestRunRepository
 from app.services.backtest.strategy_support import blank_strategy_version_config_model
-from app.services.paper_run_lifecycle import PaperRunLifecycle
-from app.services.run_task_manager import RunTaskManager
+from app.services.paper_run_lifecycle import PaperRunController
 from app.services.executor import run_sync
+from app.contracts.factor import FactorExecutionConfig
 from app.services.factors.signal_execution_core import FactorSignalContext, FactorSignalExecutionCore
 from config import settings
 from utils.time_utils import utc_now_naive
@@ -47,55 +47,25 @@ class FactorPaperRunManager:
         self.execution_core = execution_core
         self.persistence_service = persistence_service
         self.database_runtime = database_runtime
-        self.lifecycle = PaperRunLifecycle(
+        self.controller = PaperRunController(
             engine=FACTOR_BLEND_PAPER_ENGINE,
             run_repository=run_repository,
             database_runtime=database_runtime,
             runtime_state=self._stoppable_runtime_state,
-        )
-        self._task_manager = RunTaskManager(
-            list_active_run_ids=self.lifecycle.list_active_run_ids,
             tick=self._tick,
-            mark_failed=lambda run_id, reason: self.lifecycle.mark_stopped(run_id, RUN_STATUS_FAILED, reason),
             interval_seconds=lambda: float(settings.WS_UPDATE_INTERVAL),
             error_label="因子模拟盘运行失败",
         )
 
     async def restore_active_runs(self) -> None:
-        await self._task_manager.restore_active_runs()
+        await self.controller.restore_active_runs()
 
     async def shutdown(self) -> None:
-        await self._task_manager.shutdown()
+        await self.controller.shutdown()
 
-    async def start_run(
-        self,
-        *,
-        research_run_id: int,
-        initial_cash: float,
-        fee_rate: float,
-        position_size_pct: float,
-        stake_mode: str = "fixed",
-        entry_threshold: float | None = None,
-        exit_threshold: float | None = None,
-        stoploss_pct: float = -0.08,
-        takeprofit_pct: float = 0.16,
-        max_hold_bars: int = 20,
-    ) -> FactorExecutionResponse:
-        run_id = await run_sync(
-            lambda: self._create_run(
-                research_run_id=research_run_id,
-                initial_cash=initial_cash,
-                fee_rate=fee_rate,
-                position_size_pct=position_size_pct,
-                stake_mode=stake_mode,
-                entry_threshold=entry_threshold,
-                exit_threshold=exit_threshold,
-                stoploss_pct=stoploss_pct,
-                takeprofit_pct=takeprofit_pct,
-                max_hold_bars=max_hold_bars,
-            ),
-        )
-        self._task_manager.ensure_task(run_id)
+    async def start_run(self, config: FactorExecutionConfig) -> FactorExecutionResponse:
+        run_id = await run_sync(lambda: self._create_run(config))
+        self.controller.activate_run(run_id)
         return FactorExecutionResponse(success=True, run_id=run_id, message="因子模拟盘已启动")
 
     def _tick(self, run_id: int) -> bool:
@@ -173,48 +143,35 @@ class FactorPaperRunManager:
             )
             return True
 
-    def _create_run(
-        self,
-        *,
-        research_run_id: int,
-        initial_cash: float,
-        fee_rate: float,
-        position_size_pct: float,
-        stake_mode: str,
-        entry_threshold: float | None,
-        exit_threshold: float | None,
-        stoploss_pct: float,
-        takeprofit_pct: float,
-        max_hold_bars: int,
-    ) -> int:
+    def _create_run(self, config: FactorExecutionConfig) -> int:
         factor_service = self.factor_service
-        research_run = factor_service.get_run(research_run_id)
+        research_run = factor_service.get_run(config.research_run_id)
         if not research_run:
             raise ValueError("因子研究记录不存在。")
         request_payload = research_run.request.model_dump()
         blend = research_run.blend.model_dump()
         now = utc_now_naive()
-        _, live_frame = factor_service.build_live_blend_frame(research_run_id, end_date=now)
+        _, live_frame = factor_service.build_live_blend_frame(config.research_run_id, end_date=now)
         timeframe_delta = timeframe_to_timedelta(request_payload["timeframe"])
         closed_frame = live_frame.loc[live_frame["timestamp"].apply(lambda ts: ts + timeframe_delta <= now)] if not live_frame.empty else live_frame
         last_processed = None if closed_frame.empty else int(closed_frame["timestamp"].iloc[-1].timestamp() * 1000)
         strategy = StrategyVersionRecord(
             strategy_key="factor_blend",
             strategy_name="Factor Blend",
-            version=research_run_id,
+            version=config.research_run_id,
             template="factor_blend",
             config=blank_strategy_version_config_model().model_dump(),
         )
         portfolio = BacktestPortfolioConfig(
             symbols=[request_payload["symbol"]],
             max_open_trades=1,
-            position_size_pct=position_size_pct,
-            stake_mode=stake_mode,
+            position_size_pct=config.position_size_pct,
+            stake_mode=config.stake_mode,
         )
         report = self.report_builder.build_report(
             trades=[],
-            equity_curve=[BacktestEquityPointRecord(timestamp=now, equity=initial_cash, pnl_abs=0.0, drawdown_pct=0.0)],
-            initial_cash=initial_cash,
+            equity_curve=[BacktestEquityPointRecord(timestamp=now, equity=config.initial_cash, pnl_abs=0.0, drawdown_pct=0.0)],
+            initial_cash=config.initial_cash,
             start_date=now,
             end_date=now,
         )
@@ -222,30 +179,30 @@ class FactorPaperRunManager:
             build_paper_metadata(
                 strategy=strategy,
                 symbols=[request_payload["symbol"]],
-                initial_cash=initial_cash,
-                fee_rate=fee_rate,
+                initial_cash=config.initial_cash,
+                fee_rate=config.fee_rate,
                 portfolio=portfolio,
                 runtime_state={
-                    "cash_balance": initial_cash,
+                    "cash_balance": config.initial_cash,
                     "last_processed": {request_payload["symbol"]: last_processed},
                     "positions": {},
                     "held_bars": 0,
                 },
-                paper_live={"cash_balance": initial_cash, "open_positions": 0, "positions": [], "last_updated": now.isoformat()},
+                paper_live={"cash_balance": config.initial_cash, "open_positions": 0, "positions": [], "last_updated": now.isoformat()},
                 report=report,
             )
         ).model_copy(
             update={
                 "factor_research": {
-                    "run_id": research_run_id,
+                    "run_id": config.research_run_id,
                     "dataset_id": research_run.dataset_id,
-                    "entry_threshold": float(blend.get("entry_threshold", 0.0) if entry_threshold is None else entry_threshold),
-                    "exit_threshold": float(blend.get("exit_threshold", 0.0) if exit_threshold is None else exit_threshold),
-                    "stoploss_pct": stoploss_pct,
-                    "takeprofit_pct": takeprofit_pct,
-                    "max_hold_bars": max_hold_bars,
-                    "position_size_pct": position_size_pct,
-                    "stake_mode": stake_mode,
+                    "entry_threshold": float(blend.get("entry_threshold", 0.0) if config.entry_threshold is None else config.entry_threshold),
+                    "exit_threshold": float(blend.get("exit_threshold", 0.0) if config.exit_threshold is None else config.exit_threshold),
+                    "stoploss_pct": config.stoploss_pct,
+                    "takeprofit_pct": config.takeprofit_pct,
+                    "max_hold_bars": config.max_hold_bars,
+                    "position_size_pct": config.position_size_pct,
+                    "stake_mode": config.stake_mode,
                     "blend": blend,
                 },
             }
@@ -267,7 +224,7 @@ class FactorPaperRunManager:
                 BacktestEquityPoint(
                     backtest_id=run.id,
                     timestamp=now,
-                    equity=initial_cash,
+                    equity=config.initial_cash,
                     pnl_abs=0.0,
                     drawdown_pct=0.0,
                 )

@@ -24,7 +24,7 @@ from app.contracts.backtest import (
 )
 from app.schemas.backtest_result import (
     BacktestReportResponse,
-    BacktestRunMetadataResponse,
+    BacktestRunMetadataContractResponse,
 )
 from app.contracts.backtest_defaults import (
     DEFAULT_FEE_RATE,
@@ -173,7 +173,7 @@ class BacktestRunResponse(BaseModel):
     start_date: str | None
     end_date: str | None
     status: str
-    metadata: BacktestRunMetadataResponse | None = None
+    metadata: BacktestRunMetadataContractResponse | None = None
     report: BacktestReportResponse | None = None
     created_at: str | None
     metrics: BacktestMetricsResponse

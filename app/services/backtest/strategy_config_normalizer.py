@@ -3,6 +3,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from pydantic import ValidationError
+
 from app.domain.market.timeframes import timeframe_to_minutes
 from app.schemas.strategy_contract import StrategyTemplateConfigResponse
 from app.services.backtest.strategy_contract_options import (
@@ -133,11 +135,16 @@ def normalize_strategy_config(config: dict[str, Any], default_config: dict[str, 
 
 
 def normalize_indicators(indicators: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(indicators, dict):
+        raise ValueError("indicators 必须是对象")
     normalized: dict[str, Any] = {}
     for indicator_id, indicator in (indicators or {}).items():
         indicator_key = normalize_strategy_identifier(indicator_id, "指标标识")
-        if not indicator_key or not isinstance(indicator, dict):
-            continue
+        if not isinstance(indicator, dict):
+            raise ValueError(f"指标 {indicator_key} 必须是对象")
+        unknown_fields = sorted(set(indicator) - {"label", "type", "timeframe", "params"})
+        if unknown_fields:
+            raise ValueError(f"指标 {indicator_key} 包含未知字段: {', '.join(unknown_fields)}")
         normalized[indicator_key] = {
             "label": str(indicator.get("label") or indicator_key),
             "type": str(indicator.get("type") or "").strip(),
@@ -150,16 +157,23 @@ def normalize_indicators(indicators: dict[str, Any]) -> dict[str, Any]:
 def normalize_indicator_timeframe(value: Any) -> str:
     timeframe = str(value or "base").strip()
     valid_keys = {item["key"] for item in TIMEFRAME_OPTIONS}
-    return timeframe if timeframe in valid_keys else "base"
+    if timeframe not in valid_keys:
+        raise ValueError(f"不支持的指标周期: {timeframe}")
+    return timeframe
 
 
 def normalize_execution(value: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError("execution 必须是对象")
+    unknown_fields = sorted(set(value) - {"market_type", "direction"})
+    if unknown_fields:
+        raise ValueError(f"execution 包含未知字段: {', '.join(unknown_fields)}")
     market_type = str((value or {}).get("market_type") or "spot").strip()
     direction = str((value or {}).get("direction") or "long_only").strip()
     if market_type not in {"spot", "futures"}:
-        market_type = "spot"
+        raise ValueError(f"不支持的交易市场: {market_type}")
     if direction not in {"long_only", "long_short"}:
-        direction = "long_only"
+        raise ValueError(f"不支持的交易方向: {direction}")
     if market_type == "spot":
         direction = "long_only"
     return {
@@ -169,11 +183,17 @@ def normalize_execution(value: dict[str, Any]) -> dict[str, Any]:
 
 
 def normalize_regime_priority(value: Any, fallback: list[str] | None = None) -> list[str]:
+    if value is None:
+        return list(fallback or ["trend", "range"])
+    if not isinstance(value, list):
+        raise ValueError("regime_priority 必须是列表")
     normalized: list[str] = []
-    for item in value or []:
+    for item in value:
         branch_key = str(item or "").strip()
-        if branch_key not in {"trend", "range"} or branch_key in normalized:
-            continue
+        if branch_key not in {"trend", "range"}:
+            raise ValueError(f"不支持的策略分支优先级: {branch_key}")
+        if branch_key in normalized:
+            raise ValueError(f"重复的策略分支优先级: {branch_key}")
         normalized.append(branch_key)
     for item in fallback or ["trend", "range"]:
         if item in {"trend", "range"} and item not in normalized:
@@ -185,7 +205,10 @@ def normalize_branch_node(branch: dict[str, Any] | None, fallback: dict[str, Any
     base = deepcopy(fallback or branch_defaults(branch_id, label))
     source = deepcopy(branch or base)
     if not isinstance(source, dict):
-        source = deepcopy(base)
+        raise ValueError(f"{branch_id} 分支必须是对象")
+    unknown_fields = sorted(set(source) - {"id", "label", "enabled", "regime", "long_entry", "long_exit", "short_entry", "short_exit"})
+    if unknown_fields:
+        raise ValueError(f"{branch_id} 分支包含未知字段: {', '.join(unknown_fields)}")
     return {
         "id": source.get("id") or base.get("id") or branch_id,
         "label": source.get("label") or base.get("label") or label,
@@ -226,17 +249,27 @@ def normalize_branch_node(branch: dict[str, Any] | None, fallback: dict[str, Any
 def normalize_group_node(node: dict[str, Any] | None, fallback: dict[str, Any], node_id: str, label: str) -> dict[str, Any]:
     base = deepcopy(fallback or build_group(node_id, label, "and", []))
     source = deepcopy(node or base)
+    if not isinstance(source, dict):
+        raise ValueError(f"规则组 {node_id} 必须是对象")
+    unknown_fields = sorted(set(source) - {"id", "node_type", "label", "logic", "enabled", "children"})
+    if unknown_fields:
+        raise ValueError(f"规则组 {node_id} 包含未知字段: {', '.join(unknown_fields)}")
     if source.get("node_type") != "group":
-        source = build_group(node_id, label, base.get("logic", "and"), source.get("children") or [], enabled=base.get("enabled", True))
+        raise ValueError(f"规则组 {node_id} 的 node_type 必须是 group")
     source["id"] = source.get("id") or node_id
     source["label"] = source.get("label") or label
-    source["logic"] = source.get("logic") if source.get("logic") in {"and", "or"} else base.get("logic", "and")
+    if source.get("logic") not in {"and", "or"}:
+        raise ValueError(f"规则组 {node_id} 的 logic 不支持: {source.get('logic')}")
+    if not isinstance(source.get("children") or [], list):
+        raise ValueError(f"规则组 {node_id} 的 children 必须是列表")
     source["enabled"] = bool(source.get("enabled", base.get("enabled", True)))
     source["children"] = [normalize_rule_node(child) for child in source.get("children") or []]
     return source
 
 
 def normalize_rule_node(node: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(node, dict):
+        raise ValueError("规则节点必须是对象")
     if (node or {}).get("node_type") == "group":
         return normalize_group_node(
             node,
@@ -244,19 +277,48 @@ def normalize_rule_node(node: dict[str, Any]) -> dict[str, Any]:
             node.get("id") or "group",
             node.get("label") or "条件组",
         )
+    if node.get("node_type") != "condition":
+        raise ValueError(f"规则节点 node_type 不支持: {node.get('node_type')}")
+    unknown_fields = sorted(set(node) - {"id", "node_type", "label", "left", "operator", "right", "enabled"})
+    if unknown_fields:
+        raise ValueError(f"规则节点 {node.get('id') or 'condition'} 包含未知字段: {', '.join(unknown_fields)}")
+    if node.get("operator") not in {"gt", "gte", "lt", "lte"}:
+        raise ValueError(f"不支持的条件操作符: {node.get('operator')}")
     return {
         "id": node.get("id") or "condition",
         "node_type": "condition",
         "label": node.get("label") or "条件",
         "left": normalize_rule_source(node.get("left") or {"kind": "price", "field": "close"}),
-        "operator": node.get("operator") if node.get("operator") in {"gt", "gte", "lt", "lte"} else "gt",
+        "operator": node.get("operator"),
         "right": normalize_rule_source(node.get("right") or {"kind": "value", "value": 0}),
         "enabled": bool(node.get("enabled", True)),
     }
 
 
 def normalize_rule_source(source: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(source, dict):
+        raise ValueError("条件源必须是对象")
+    unknown_fields_by_kind = {
+        "price": {"kind", "field", "bars_ago"},
+        "indicator": {"kind", "indicator", "output", "bars_ago"},
+        "value": {"kind", "value", "bars_ago"},
+        "indicator_multiplier": {"kind", "indicator", "output", "multiplier", "bars_ago"},
+        "indicator_offset": {
+            "kind",
+            "base_indicator",
+            "base_output",
+            "offset_indicator",
+            "offset_output",
+            "offset_multiplier",
+            "bars_ago",
+        },
+    }
     kind = str((source or {}).get("kind") or "").strip()
+    if kind not in unknown_fields_by_kind:
+        raise ValueError(f"不支持的条件源: {kind}")
+    unknown_fields = sorted(set(source) - unknown_fields_by_kind[kind])
+    if unknown_fields:
+        raise ValueError(f"条件源 {kind} 包含未知字段: {', '.join(unknown_fields)}")
     bars_ago = max(int((source or {}).get("bars_ago", 0) or 0), 0)
     if kind == "price":
         field = str((source or {}).get("field") or "close").strip()
@@ -294,6 +356,11 @@ def normalize_rule_source(source: dict[str, Any]) -> dict[str, Any]:
 
 
 def normalize_risk(risk: dict[str, Any], base_risk: dict[str, Any] | None = None) -> dict[str, Any]:
+    if not isinstance(risk, dict):
+        raise ValueError("risk 必须是对象")
+    unknown_fields = sorted(set(risk) - {"stoploss", "roi_targets", "trailing", "trade_plan", "partial_exits"})
+    if unknown_fields:
+        raise ValueError(f"risk 包含未知字段: {', '.join(unknown_fields)}")
     normalized = deepcopy(base_risk or risk_defaults())
     normalized["stoploss"] = float(risk.get("stoploss", normalized.get("stoploss", risk_defaults()["stoploss"])))
 
@@ -345,10 +412,12 @@ def normalize_risk(risk: dict[str, Any], base_risk: dict[str, Any] | None = None
 
 
 def normalize_parameter_space(parameter_space: dict[str, list[Any]]) -> dict[str, list[Any]]:
+    if not isinstance(parameter_space, dict):
+        raise ValueError("parameter_space 必须是对象")
     normalized: dict[str, list[Any]] = {}
     for key, values in (parameter_space or {}).items():
         if not isinstance(values, list):
-            continue
+            raise ValueError(f"parameter_space.{key} 必须是列表")
         normalized[str(key)] = list(values)
     return normalized
 
@@ -378,4 +447,7 @@ def _validate_strategy_config(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _validate_strategy_config_model(payload: dict[str, Any]) -> StrategyTemplateConfigResponse:
-    return StrategyTemplateConfigResponse.model_validate(payload)
+    try:
+        return StrategyTemplateConfigResponse.model_validate(payload)
+    except ValidationError as exc:
+        raise ValueError(f"策略配置不符合 contract: {exc}") from exc

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends, Query
 
 from app.dependencies import runtime_dependency
-from app.routers.errors import service_http_error
+from app.runtime_graph import MARKET_BINANCE_MARKET_INTEL
 from app.schemas.binance_market import BinanceBreakoutMonitorResponse, BinanceMarketPageResponse
 
 if TYPE_CHECKING:
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 router = APIRouter(tags=["Market Data"])
-binance_market_dependency = runtime_dependency("market.binance_market_intel")
+binance_market_dependency = runtime_dependency(MARKET_BINANCE_MARKET_INTEL)
 
 
 @router.get("/binance/market/page", response_model=BinanceMarketPageResponse)
@@ -23,14 +23,11 @@ async def get_binance_market_page(
     quote_asset: str = Query("USDT", min_length=2, max_length=10),
     service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
-    try:
-        return await service.page.get_page_payload(
-            min_rise_pct=min_rise_pct,
-            limit=limit,
-            quote_asset=quote_asset,
-        )
-    except Exception as exc:
-        raise service_http_error("API /binance/market/page 错误", exc)
+    return await service.page.get_page_payload(
+        min_rise_pct=min_rise_pct,
+        limit=limit,
+        quote_asset=quote_asset,
+    )
 
 
 @router.get("/binance/market/breakout_monitor", response_model=BinanceBreakoutMonitorResponse)
@@ -40,11 +37,8 @@ async def get_binance_market_breakout_monitor(
     quote_asset: str = Query("USDT", min_length=2, max_length=10),
     service: BinanceMarketIntelService = Depends(binance_market_dependency),
 ):
-    try:
-        return await service.page.get_breakout_monitor(
-            min_rise_pct=min_rise_pct,
-            limit=limit,
-            quote_asset=quote_asset,
-        )
-    except Exception as exc:
-        raise service_http_error("API /binance/market/breakout_monitor 错误", exc)
+    return await service.page.get_breakout_monitor(
+        min_rise_pct=min_rise_pct,
+        limit=limit,
+        quote_asset=quote_asset,
+    )

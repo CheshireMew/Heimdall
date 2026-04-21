@@ -15,7 +15,14 @@ from config import settings
 from utils.logger import logger
 
 
-VALID_STRATEGIES = ["standard", "ema_deviation", "rsi_dynamic", "ahr999", "fear_greed", "value_averaging"]
+DCA_STRATEGY_KEYS = (
+    "standard",
+    "ema_deviation",
+    "rsi_dynamic",
+    "ahr999",
+    "fear_greed",
+    "value_averaging",
+)
 
 
 class ToolsAppService:
@@ -41,8 +48,8 @@ class ToolsAppService:
         resolved_asset = resolve_market_asset(command.symbol)
         if resolved_asset is None or resolved_asset["asset_class"] == "cash":
             raise ValueError("无效标的")
-        if command.strategy not in VALID_STRATEGIES:
-            raise ValueError(f"无效策略。可选: {VALID_STRATEGIES}")
+        if command.strategy not in DCA_STRATEGY_KEYS:
+            raise ValueError(f"无效策略。可选: {list(DCA_STRATEGY_KEYS)}")
 
     def _validate_compare(self, command: ComparePairsCommand) -> tuple[str, str]:
         symbol_a = command.symbol_a.upper()

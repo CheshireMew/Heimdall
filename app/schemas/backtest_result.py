@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Annotated, Literal
+
 from pydantic import BaseModel, Field
 
 from app.contracts.backtest import BacktestPortfolioConfig, BacktestResearchConfig
@@ -150,7 +152,7 @@ class BacktestPaperLiveResponse(BaseModel):
 
 class BacktestRunMetadataResponse(BaseModel):
     schema_version: int | None = None
-    execution_mode: str | None = None
+    execution_mode: Literal["backtest", "paper_live"] | None = None
     execution_model: str | None = None
     engine: str | None = None
     exchange: str | None = None
@@ -180,3 +182,17 @@ class BacktestRunMetadataResponse(BaseModel):
     raw_stats: BacktestReportSnapshotResponse | None = None
     factor_research: JsonObject = Field(default_factory=dict)
     error: str | None = None
+
+
+class BacktestExecutionMetadataResponse(BacktestRunMetadataResponse):
+    execution_mode: Literal["backtest"] = "backtest"
+
+
+class PaperLiveExecutionMetadataResponse(BacktestRunMetadataResponse):
+    execution_mode: Literal["paper_live"] = "paper_live"
+
+
+BacktestRunMetadataContractResponse = Annotated[
+    BacktestExecutionMetadataResponse | PaperLiveExecutionMetadataResponse,
+    Field(discriminator="execution_mode"),
+]

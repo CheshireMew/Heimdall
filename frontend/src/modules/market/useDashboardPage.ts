@@ -1,10 +1,10 @@
-import { computed, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
 import { useMoney } from '@/composables/useMoney'
 import { useTheme } from '@/composables/useTheme'
-import type { MarketSymbolSearchResponse, TradeSetupResponse } from './contracts'
+import type { MarketSymbolSearchResponse, TradeSetupResponse } from '../../types/market'
 
-import { findSymbolCatalogItem, isIndexSymbol } from './symbolCatalog'
+import { ensureSymbolCatalogLoaded, findSymbolCatalogItem, isIndexSymbol } from './symbolCatalog'
 import { marketApi } from './api'
 import { useKlineSeries } from './useKlineSeries'
 
@@ -128,6 +128,10 @@ export function useDashboardPage() {
     clearTradeSetupPendingState()
     tradeSetupResult.value = null
     tradeSetupError.value = ''
+  })
+
+  onMounted(() => {
+    void ensureSymbolCatalogLoaded()
   })
 
   onUnmounted(() => {

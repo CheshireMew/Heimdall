@@ -1,17 +1,22 @@
 import { isRecord, readNumber, readString, readStringArray } from '@/composables/pageSnapshot'
 
-import { createFactorExecutionForm, createFactorResearchForm } from './state'
+import {
+  createEmptyFactorExecutionForm,
+  createEmptyFactorResearchForm,
+  type FactorExecutionForm,
+  type FactorResearchForm,
+} from './state'
 
 export interface FactorResearchSnapshot {
-  form: ReturnType<typeof createFactorResearchForm>
-  executionForm: ReturnType<typeof createFactorExecutionForm>
+  form: FactorResearchForm
+  executionForm: FactorExecutionForm
   selectedRunId: number | null
   selectedFactorId: string
 }
 
 export const createDefaultFactorResearchSnapshot = (): FactorResearchSnapshot => ({
-  form: createFactorResearchForm(),
-  executionForm: createFactorExecutionForm(),
+  form: createEmptyFactorResearchForm(),
+  executionForm: createEmptyFactorExecutionForm(),
   selectedRunId: null,
   selectedFactorId: '',
 })

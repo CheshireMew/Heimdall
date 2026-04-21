@@ -849,26 +849,22 @@ export interface GetBinanceMarketBreakoutMonitorQueryParams {
   limit?: number
   quote_asset?: string
 }
-export const GetBinanceMarketBreakoutMonitorQueryParamsMeta = {"defaults": {"min_rise_pct": 5.0, "limit": 18, "quote_asset": "USDT"}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceMarketPageQueryParams {
   min_rise_pct?: number
   limit?: number
   quote_asset?: string
 }
-export const GetBinanceMarketPageQueryParamsMeta = {"defaults": {"min_rise_pct": 5.0, "limit": 24, "quote_asset": "USDT"}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceRwaAssetMarketStatusQueryParams {
   chain_id: string
   contract_address: string
 }
-export const GetBinanceRwaAssetMarketStatusQueryParamsMeta = {"defaults": {}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceRwaDynamicQueryParams {
   chain_id: string
   contract_address: string
 }
-export const GetBinanceRwaDynamicQueryParamsMeta = {"defaults": {}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceRwaKlineQueryParams {
   chain_id: string
@@ -878,18 +874,15 @@ export interface GetBinanceRwaKlineQueryParams {
   start_time?: number | null
   end_time?: number | null
 }
-export const GetBinanceRwaKlineQueryParamsMeta = {"defaults": {"interval": "1d", "limit": 120}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceRwaMetaQueryParams {
   chain_id: string
   contract_address: string
 }
-export const GetBinanceRwaMetaQueryParamsMeta = {"defaults": {}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceRwaSymbolsQueryParams {
   platform_type?: number | null
 }
-export const GetBinanceRwaSymbolsQueryParamsMeta = {"defaults": {"platform_type": 1}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceSpotAggTradesQueryParams {
   symbol: string
@@ -897,25 +890,21 @@ export interface GetBinanceSpotAggTradesQueryParams {
   start_time?: number | null
   end_time?: number | null
 }
-export const GetBinanceSpotAggTradesQueryParamsMeta = {"defaults": {"limit": 50}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceSpotBookTickerQueryParams {
   symbols?: Array<string> | null
 }
-export const GetBinanceSpotBookTickerQueryParamsMeta = {"defaults": {}, "repeatedKeys": ["symbols"], "aliases": {}} as const
 
 export interface GetBinanceSpotDepthQueryParams {
   symbol: string
   limit?: number
 }
-export const GetBinanceSpotDepthQueryParamsMeta = {"defaults": {"limit": 20}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceSpotExchangeInfoQueryParams {
   symbols?: Array<string> | null
   permissions?: Array<string> | null
   symbol_status?: string | null
 }
-export const GetBinanceSpotExchangeInfoQueryParamsMeta = {"defaults": {}, "repeatedKeys": ["symbols", "permissions"], "aliases": {}} as const
 
 export interface GetBinanceSpotKlinesQueryParams {
   symbol: string
@@ -924,29 +913,24 @@ export interface GetBinanceSpotKlinesQueryParams {
   start_time?: number | null
   end_time?: number | null
 }
-export const GetBinanceSpotKlinesQueryParamsMeta = {"defaults": {"limit": 200}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceSpotPriceQueryParams {
   symbols?: Array<string> | null
 }
-export const GetBinanceSpotPriceQueryParamsMeta = {"defaults": {}, "repeatedKeys": ["symbols"], "aliases": {}} as const
 
 export interface GetBinanceSpotTicker24hrQueryParams {
   symbols?: Array<string> | null
 }
-export const GetBinanceSpotTicker24hrQueryParamsMeta = {"defaults": {}, "repeatedKeys": ["symbols"], "aliases": {}} as const
 
 export interface GetBinanceSpotTickerWindowQueryParams {
   symbols?: Array<string> | null
   window_size?: string | null
 }
-export const GetBinanceSpotTickerWindowQueryParamsMeta = {"defaults": {}, "repeatedKeys": ["symbols"], "aliases": {}} as const
 
 export interface GetBinanceSpotTradesQueryParams {
   symbol: string
   limit?: number
 }
-export const GetBinanceSpotTradesQueryParamsMeta = {"defaults": {"limit": 50}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceSpotUiKlinesQueryParams {
   symbol: string
@@ -955,7 +939,6 @@ export interface GetBinanceSpotUiKlinesQueryParams {
   start_time?: number | null
   end_time?: number | null
 }
-export const GetBinanceSpotUiKlinesQueryParamsMeta = {"defaults": {"limit": 200}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceUsdmBasisQueryParams {
   pair: string
@@ -963,7 +946,6 @@ export interface GetBinanceUsdmBasisQueryParams {
   period: string
   limit?: number
 }
-export const GetBinanceUsdmBasisQueryParamsMeta = {"defaults": {"limit": 30}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceUsdmFundingHistoryQueryParams {
   symbol?: string | null
@@ -971,57 +953,48 @@ export interface GetBinanceUsdmFundingHistoryQueryParams {
   start_time?: number | null
   end_time?: number | null
 }
-export const GetBinanceUsdmFundingHistoryQueryParamsMeta = {"defaults": {"limit": 100}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceUsdmLongShortRatioQueryParams {
   symbol: string
   period: string
   limit?: number
 }
-export const GetBinanceUsdmLongShortRatioQueryParamsMeta = {"defaults": {"limit": 30}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceUsdmMarkPriceQueryParams {
   symbol?: string | null
 }
-export const GetBinanceUsdmMarkPriceQueryParamsMeta = {"defaults": {}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceUsdmOpenInterestQueryParams {
   symbol: string
 }
-export const GetBinanceUsdmOpenInterestQueryParamsMeta = {"defaults": {}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceUsdmOpenInterestStatsQueryParams {
   symbol: string
   period: string
   limit?: number
 }
-export const GetBinanceUsdmOpenInterestStatsQueryParamsMeta = {"defaults": {"limit": 30}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceUsdmTakerVolumeQueryParams {
   symbol: string
   period: string
   limit?: number
 }
-export const GetBinanceUsdmTakerVolumeQueryParamsMeta = {"defaults": {"limit": 30}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceUsdmTicker24hrQueryParams {
   symbol?: string | null
 }
-export const GetBinanceUsdmTicker24hrQueryParamsMeta = {"defaults": {}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceUsdmTopTraderAccountsQueryParams {
   symbol: string
   period: string
   limit?: number
 }
-export const GetBinanceUsdmTopTraderAccountsQueryParamsMeta = {"defaults": {"limit": 30}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceUsdmTopTraderPositionsQueryParams {
   symbol: string
   period: string
   limit?: number
 }
-export const GetBinanceUsdmTopTraderPositionsQueryParamsMeta = {"defaults": {"limit": 30}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceWeb3AddressPnlRankQueryParams {
   chain_id: string
@@ -1030,25 +1003,21 @@ export interface GetBinanceWeb3AddressPnlRankQueryParams {
   page_no?: number
   page_size?: number
 }
-export const GetBinanceWeb3AddressPnlRankQueryParamsMeta = {"defaults": {"period": "30d", "tag": "ALL", "page_no": 1, "page_size": 25}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceWeb3HeatRankQueryParams {
   chain_id?: string
   size?: number
 }
-export const GetBinanceWeb3HeatRankQueryParamsMeta = {"defaults": {"chain_id": "56", "size": 30}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceWeb3MemeRankQueryParams {
   chain_id?: string
 }
-export const GetBinanceWeb3MemeRankQueryParamsMeta = {"defaults": {"chain_id": "56"}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceWeb3SmartMoneyInflowQueryParams {
   chain_id: string
   period?: string
   tag_type?: number
 }
-export const GetBinanceWeb3SmartMoneyInflowQueryParamsMeta = {"defaults": {"period": "24h", "tag_type": 2}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceWeb3SocialHypeQueryParams {
   chain_id: string
@@ -1057,19 +1026,16 @@ export interface GetBinanceWeb3SocialHypeQueryParams {
   sentiment?: string
   social_language?: string
 }
-export const GetBinanceWeb3SocialHypeQueryParamsMeta = {"defaults": {"target_language": "zh", "time_range": 1, "sentiment": "All", "social_language": "ALL"}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceWeb3TokenAuditQueryParams {
   binance_chain_id: string
   contract_address: string
 }
-export const GetBinanceWeb3TokenAuditQueryParamsMeta = {"defaults": {}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceWeb3TokenDynamicQueryParams {
   chain_id: string
   contract_address: string
 }
-export const GetBinanceWeb3TokenDynamicQueryParamsMeta = {"defaults": {}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetBinanceWeb3TokenKlineQueryParams {
   address: string
@@ -1080,7 +1046,6 @@ export interface GetBinanceWeb3TokenKlineQueryParams {
   to_time?: number | null
   pm?: string | null
 }
-export const GetBinanceWeb3TokenKlineQueryParamsMeta = {"defaults": {"interval": "15min", "limit": 240, "pm": "p"}, "repeatedKeys": [], "aliases": {"from_time": "from", "to_time": "to"}} as const
 
 export interface GetBinanceWeb3UnifiedTokenRankQueryParams {
   rank_type?: number
@@ -1091,30 +1056,25 @@ export interface GetBinanceWeb3UnifiedTokenRankQueryParams {
   page?: number
   size?: number
 }
-export const GetBinanceWeb3UnifiedTokenRankQueryParamsMeta = {"defaults": {"rank_type": 10, "period": 50, "sort_by": 0, "order_asc": false, "page": 1, "size": 20}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetCryptoIndexQueryParams {
   top_n?: number
   days?: number
 }
-export const GetCryptoIndexQueryParamsMeta = {"defaults": {"top_n": 20, "days": 90}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetCurrentFundingRateQueryParams {
   symbol: string
 }
-export const GetCurrentFundingRateQueryParamsMeta = {"defaults": {}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetCurrentPriceBatchQueryParams {
   symbols: Array<string>
   timeframe?: string
 }
-export const GetCurrentPriceBatchQueryParamsMeta = {"defaults": {"timeframe": "1d"}, "repeatedKeys": ["symbols"], "aliases": {}} as const
 
 export interface GetCurrentPriceQueryParams {
   symbol: string
   timeframe?: string
 }
-export const GetCurrentPriceQueryParamsMeta = {"defaults": {"timeframe": "1d"}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetFundingRateHistoryQueryParams {
   symbol: string
@@ -1122,7 +1082,6 @@ export interface GetFundingRateHistoryQueryParams {
   end_date?: string | null
   limit?: number | null
 }
-export const GetFundingRateHistoryQueryParamsMeta = {"defaults": {}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetIndexHistoryQueryParams {
   symbol: string
@@ -1130,7 +1089,6 @@ export interface GetIndexHistoryQueryParams {
   start_date?: string
   end_date?: string | null
 }
-export const GetIndexHistoryQueryParamsMeta = {"defaults": {"timeframe": "1d", "start_date": "2010-01-01"}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetIndexPricingHistoryQueryParams {
   symbol: string
@@ -1138,31 +1096,26 @@ export interface GetIndexPricingHistoryQueryParams {
   start_date?: string
   end_date?: string | null
 }
-export const GetIndexPricingHistoryQueryParamsMeta = {"defaults": {"timeframe": "1d", "start_date": "2010-01-01"}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetKlineTailQueryParams {
   symbol: string
   timeframe: string
   limit?: number
 }
-export const GetKlineTailQueryParamsMeta = {"defaults": {"limit": 2}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetLatestIndexPricingQueryParams {
   symbol: string
 }
-export const GetLatestIndexPricingQueryParamsMeta = {"defaults": {}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetLatestIndexQueryParams {
   symbol: string
 }
-export const GetLatestIndexQueryParamsMeta = {"defaults": {}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetLatestKlinesQueryParams {
   symbol: string
   timeframe: string
   limit?: number
 }
-export const GetLatestKlinesQueryParamsMeta = {"defaults": {"limit": 1000}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetMarketFullHistoryBatchQueryParams {
   symbols: Array<string>
@@ -1170,7 +1123,6 @@ export interface GetMarketFullHistoryBatchQueryParams {
   start_date?: string
   fetch_policy?: "cache_only" | "hydrate"
 }
-export const GetMarketFullHistoryBatchQueryParamsMeta = {"defaults": {"timeframe": "1d", "start_date": "2010-01-01", "fetch_policy": "hydrate"}, "repeatedKeys": ["symbols"], "aliases": {}} as const
 
 export interface GetMarketFullHistoryQueryParams {
   symbol: string
@@ -1178,7 +1130,6 @@ export interface GetMarketFullHistoryQueryParams {
   start_date?: string
   fetch_policy?: "cache_only" | "hydrate"
 }
-export const GetMarketFullHistoryQueryParamsMeta = {"defaults": {"timeframe": "1d", "start_date": "2010-01-01", "fetch_policy": "hydrate"}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetMarketHistoryQueryParams {
   symbol: string
@@ -1186,20 +1137,17 @@ export interface GetMarketHistoryQueryParams {
   end_ts: number
   limit?: number
 }
-export const GetMarketHistoryQueryParamsMeta = {"defaults": {"limit": 500}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetMarketIndicatorsQueryParams {
   category?: string | null
   days?: number
 }
-export const GetMarketIndicatorsQueryParamsMeta = {"defaults": {"days": 30}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetRealtimeAnalysisQueryParams {
   symbol: string
   timeframe?: string | null
   limit?: number | null
 }
-export const GetRealtimeAnalysisQueryParamsMeta = {"defaults": {}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetTechnicalMetricsQueryParams {
   symbol: string
@@ -1208,7 +1156,6 @@ export interface GetTechnicalMetricsQueryParams {
   atr_period?: number
   volatility_period?: number
 }
-export const GetTechnicalMetricsQueryParamsMeta = {"defaults": {"timeframe": "1d", "limit": 120, "atr_period": 14, "volatility_period": 20}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface GetTradeSetupQueryParams {
   symbol: string
@@ -1219,11 +1166,9 @@ export interface GetTradeSetupQueryParams {
   strategy?: string
   mode?: string
 }
-export const GetTradeSetupQueryParamsMeta = {"defaults": {"timeframe": "1h", "limit": 120, "account_size": 1000, "style": "Scalping", "strategy": "最大收益", "mode": "rules"}, "repeatedKeys": [], "aliases": {}} as const
 
 export interface SyncFundingRateHistoryQueryParams {
   symbol: string
   start_date?: string
   end_date?: string | null
 }
-export const SyncFundingRateHistoryQueryParamsMeta = {"defaults": {"start_date": "2019-09-01"}, "repeatedKeys": [], "aliases": {}} as const

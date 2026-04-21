@@ -2,7 +2,7 @@ import { onMounted, onUnmounted, watch } from 'vue'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { formatAdaptivePrice, formatCompactCurrency } from '@/modules/format'
-import type { BinanceBreakoutMonitorItemResponse } from './contracts'
+import type { BinanceBreakoutMonitorItemResponse } from '../../types/market'
 import {
   normalizeSnapshot,
   toItemKey,

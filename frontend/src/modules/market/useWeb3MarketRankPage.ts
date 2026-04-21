@@ -8,7 +8,7 @@ import type {
   BinanceWeb3RankItemResponse,
   BinanceWeb3SmartMoneyInflowItemResponse,
   BinanceWeb3SocialHypeItemResponse,
-} from './contracts'
+} from '../../types/market'
 
 const UNIFIED_OPTIONS = [
   { label: 'Trending', value: 10 },

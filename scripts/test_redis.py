@@ -1,7 +1,7 @@
 import time
 
 from app.infra.cache import build_cache_service
-from app.runtime_builder import build_app_runtime_services
+from app.runtime_graph import build_app_runtime_services
 
 
 def test_redis_connection():

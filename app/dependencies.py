@@ -5,7 +5,8 @@ from typing import Any, cast
 
 from starlette.requests import HTTPConnection
 
-from app.runtime import AppRuntimeServices, RuntimeSection
+from app.runtime import AppRuntimeServices
+from app.runtime_graph import RuntimeServiceRef
 
 
 def get_runtime_services(connection: HTTPConnection) -> AppRuntimeServices:
@@ -15,25 +16,10 @@ def get_runtime_services(connection: HTTPConnection) -> AppRuntimeServices:
     return cast(AppRuntimeServices, runtime_services)
 
 
-def runtime_dependency(path: str) -> Callable[[HTTPConnection], Any]:
-    section_name, service_name = _parse_runtime_path(path)
-
+def runtime_dependency(ref: RuntimeServiceRef) -> Callable[[HTTPConnection], Any]:
     def dependency(connection: HTTPConnection) -> Any:
         runtime_services = get_runtime_services(connection)
-        section = getattr(runtime_services, section_name, None)
-        if not isinstance(section, RuntimeSection):
-            raise RuntimeError(f"Runtime section is not initialized: {section_name}")
-        service = getattr(section, service_name, None)
-        if service is None:
-            raise RuntimeError(f"Runtime service is not initialized: {path}")
-        return service
+        return runtime_services.require_service(ref)
 
-    dependency.__name__ = f"runtime_dependency__{section_name}__{service_name}"
+    dependency.__name__ = f"runtime_dependency__{ref.section}__{ref.name}"
     return dependency
-
-
-def _parse_runtime_path(path: str) -> tuple[str, str]:
-    parts = path.split(".")
-    if len(parts) != 2 or not all(parts):
-        raise ValueError(f"Invalid runtime service path: {path}")
-    return parts[0], parts[1]

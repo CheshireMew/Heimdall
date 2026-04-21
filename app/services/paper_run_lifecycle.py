@@ -5,6 +5,8 @@ from typing import Any
 
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestRun
+from app.services.backtest.run_lifecycle import RUN_STATUS_FAILED
+from app.services.run_task_manager import RunTaskManager
 from app.services.backtest.run_contract import PAPER_LIVE_EXECUTION_MODE, parse_run_metadata, update_paper_metadata
 from utils.time_utils import utc_now_naive
 
@@ -47,3 +49,48 @@ class PaperRunLifecycle:
                 stop_reason=reason,
             )
             session.flush()
+
+
+class PaperRunController:
+    def __init__(
+        self,
+        *,
+        engine: str,
+        run_repository,
+        database_runtime: DatabaseRuntime,
+        runtime_state: Callable[[Any], dict[str, Any]],
+        tick: Callable[[int], bool],
+        interval_seconds: Callable[[], float],
+        error_label: str,
+    ) -> None:
+        self.lifecycle = PaperRunLifecycle(
+            engine=engine,
+            run_repository=run_repository,
+            database_runtime=database_runtime,
+            runtime_state=runtime_state,
+        )
+        self._task_manager = RunTaskManager(
+            list_active_run_ids=self.lifecycle.list_active_run_ids,
+            tick=tick,
+            mark_failed=self.mark_failed,
+            interval_seconds=interval_seconds,
+            error_label=error_label,
+        )
+
+    async def restore_active_runs(self) -> None:
+        await self._task_manager.restore_active_runs()
+
+    async def shutdown(self) -> None:
+        await self._task_manager.shutdown()
+
+    def activate_run(self, run_id: int) -> None:
+        self._task_manager.ensure_task(run_id)
+
+    async def cancel_run(self, run_id: int) -> None:
+        await self._task_manager.cancel_task(run_id)
+
+    def mark_failed(self, run_id: int, reason: str) -> None:
+        self.lifecycle.mark_stopped(run_id, RUN_STATUS_FAILED, reason)
+
+    def mark_stopped(self, run_id: int, status: str, reason: str) -> None:
+        self.lifecycle.mark_stopped(run_id, status, reason)

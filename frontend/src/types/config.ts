@@ -13,6 +13,7 @@ export interface CurrencyRatesResponse {
   base: string
   rates: { [key: string]: number }
   supported: Array<DisplayCurrencyResponse>
+  aliases?: { [key: string]: string }
   updated_at: string
   source: string
   is_fallback?: boolean

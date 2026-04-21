@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 
 from app.dependencies import runtime_dependency
-from app.routers.errors import service_http_error
+from app.runtime_graph import MARKET_QUERY_APP_SERVICE, MARKET_WEBSOCKET_SERVICE
 from app.schemas.market import RealtimeResponse
 from config import settings
 from utils.logger import logger
@@ -17,8 +17,8 @@ if TYPE_CHECKING:
 
 
 router = APIRouter(tags=["Market Data"])
-market_query_dependency = runtime_dependency("market.market_query_app_service")
-market_websocket_dependency = runtime_dependency("market.market_websocket_service")
+market_query_dependency = runtime_dependency(MARKET_QUERY_APP_SERVICE)
+market_websocket_dependency = runtime_dependency(MARKET_WEBSOCKET_SERVICE)
 
 
 @router.get("/realtime", response_model=RealtimeResponse)
@@ -28,20 +28,11 @@ async def get_realtime_analysis(
     limit: int | None = Query(default=None, ge=1, le=settings.API_MAX_LIMIT),
     service: MarketQueryAppService = Depends(market_query_dependency),
 ):
-    try:
-        return await service.get_realtime(
-            symbol=symbol,
-            timeframe=timeframe,
-            limit=limit,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:
-        err_str = str(exc).lower()
-        if "network" in err_str or "connection" in err_str or "timeout" in err_str:
-            logger.error(f"API /realtime 错误: {exc}")
-            raise HTTPException(status_code=503, detail="无法连接到交易所 (Network Error)")
-        raise service_http_error("API /realtime 错误", exc)
+    return await service.get_realtime(
+        symbol=symbol,
+        timeframe=timeframe,
+        limit=limit,
+    )
 
 
 @router.websocket("/ws/realtime")
@@ -52,10 +43,8 @@ async def websocket_realtime(
 ):
     await websocket.accept()
     try:
-        try:
-            params = websocket_service.parse_params(websocket, service.valid_symbols, service.valid_timeframes)
-        except ValueError as exc:
-            await websocket_service.reject(websocket, str(exc))
+        params = await websocket_service.parse_params_or_reject(websocket, service.valid_symbols, service.valid_timeframes)
+        if params is None:
             return
 
         while True:

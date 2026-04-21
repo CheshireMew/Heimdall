@@ -1,11 +1,11 @@
 import { watch } from 'vue'
-import type { FactorResearchRunDetail } from './contracts'
+import type { FactorResearchRunDetailResponse } from '../../types/factor'
 
 import type { FactorResearchState } from './state'
 
 
 export const useFactorResearchSelection = (state: FactorResearchState) => {
-  const applyRun = (run: FactorResearchRunDetail) => {
+  const applyRun = (run: FactorResearchRunDetailResponse) => {
     const previousSelectedFactorId = state.selectedFactorId.value
     state.selectedRunId.value = run.id
     state.summary.value = run.summary
@@ -70,3 +70,4 @@ export const useFactorResearchSelection = (state: FactorResearchState) => {
     selectFactor,
   }
 }
+

@@ -1,7 +1,8 @@
-import type { StrategyEditorContract } from './contracts'
+import type { StrategyEditorContractResponse } from '../../types/backtest'
 
 import { backtestApi } from './api'
 import type { UseBacktestEditorCatalogOptions } from './editorTypes'
+import { syncStrategyVersionSelection } from './selection'
 
 export const useBacktestEditorCatalog = ({
   t,
@@ -24,11 +25,7 @@ export const useBacktestEditorCatalog = ({
 
   const syncStrategyVersion = () => {
     const versions = selectedStrategyVersions.value
-    if (!versions.length) return
-    if (!versions.find((item) => item.version === config.strategy_version)) {
-      const fallback = versions.find((item) => item.is_default) || versions[0]
-      config.strategy_version = fallback.version
-    }
+    syncStrategyVersionSelection(config, versions)
   }
 
   const fetchStrategies = async () => {
@@ -93,3 +90,4 @@ export const useBacktestEditorCatalog = ({
     fetchEditorContract,
   }
 }
+

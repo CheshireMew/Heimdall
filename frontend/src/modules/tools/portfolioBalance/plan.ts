@@ -7,14 +7,22 @@ import type {
   PortfolioSuggestedAction,
   PortfolioSuggestedReason,
   PortfolioReviewFrequency,
-} from './contracts'
+} from './model'
 
 import {
   buildNormalizedPortfolioWeights,
   computePortfolioAssetHoldingValue,
   normalizePortfolioBalanceAsset,
 } from './model'
-import { clamp, diffDaysFromToday, parseIsoDate, PERCENT_BASE, round, shiftReviewDate, todayIso } from './shared'
+import {
+  clamp,
+  diffDaysFromToday,
+  parseIsoDate,
+  PERCENT_BASE,
+  round,
+  shiftReviewDate,
+  todayIso,
+} from './model'
 
 const decideSuggestedAction = (args: {
   hasAssets: boolean

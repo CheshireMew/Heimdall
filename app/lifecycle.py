@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.background_runtime import BackgroundRuntimeController, BackgroundRuntimeStatus
 from app.runtime import AppRuntimeServices
-from app.runtime_builder import build_app_runtime_services
+from app.runtime_graph import INFRA_DATABASE_RUNTIME, build_app_runtime_services
 
 
 def _logger():
@@ -25,7 +25,7 @@ def _init_db(database_runtime) -> None:
 
 async def _init_db_async(app) -> None:
     try:
-        database_runtime = app.state.runtime_services.infra.database_runtime
+        database_runtime = app.state.runtime_services.require_service(INFRA_DATABASE_RUNTIME)
         await asyncio.to_thread(_init_db, database_runtime)
     except asyncio.CancelledError:
         raise
@@ -59,11 +59,7 @@ async def _shutdown_background_services(app) -> None:
 
 def _dispose_runtime_services(app) -> None:
     runtime_services = getattr(app.state, "runtime_services", None)
-    database_runtime = (
-        getattr(getattr(runtime_services, "infra", None), "database_runtime", None)
-        if runtime_services is not None
-        else None
-    )
+    database_runtime = runtime_services.get_service(INFRA_DATABASE_RUNTIME) if runtime_services is not None else None
     if database_runtime is not None:
         database_runtime.dispose()
 

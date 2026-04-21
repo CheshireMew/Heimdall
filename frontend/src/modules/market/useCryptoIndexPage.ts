@@ -9,8 +9,7 @@ import {
   formatSignedPercent,
 } from '@/modules/format'
 import { marketApi } from './api'
-import type { CryptoIndexResponse } from './contracts'
-import type { CryptoIndexConstituent, CryptoIndexHistoryPoint } from './contracts'
+import type { CryptoIndexConstituentResponse, CryptoIndexHistoryPointResponse, CryptoIndexResponse } from '../../types/market'
 import { buildCryptoIndexSnapshot, createDefaultCryptoIndexSnapshot, normalizeCryptoIndexSnapshot } from './pageSnapshots'
 
 
@@ -41,7 +40,7 @@ export function useCryptoIndexPage() {
   const constituents = computed(() => data.value?.constituents || [])
   const basketMarketCap = computed(() => summary.value?.current_basket_market_cap || 0)
   const chartData = computed(() =>
-    (data.value?.history || []).map((point: CryptoIndexHistoryPoint) => ({
+    (data.value?.history || []).map((point: CryptoIndexHistoryPointResponse) => ({
       time: point.timestamp,
       value: point.index_value,
     })))
@@ -61,7 +60,7 @@ export function useCryptoIndexPage() {
     return value >= 0 ? 'text-emerald-500' : 'text-rose-500'
   }
 
-  const weightOf = (coin: CryptoIndexConstituent) => {
+  const weightOf = (coin: CryptoIndexConstituentResponse) => {
     if (!basketMarketCap.value || !coin.market_cap) {
       return 0
     }
@@ -149,3 +148,4 @@ export function useCryptoIndexPage() {
     changeClass,
   }
 }
+

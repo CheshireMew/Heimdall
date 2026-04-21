@@ -1,14 +1,14 @@
 import type {
-  FactorBlend,
-  FactorCatalogItem,
+  FactorBlendResponse,
+  FactorCatalogItemResponse,
   FactorCatalogResponse,
-  FactorDetail,
+  FactorDetailResponse,
   FactorExecutionRequest,
   FactorResearchRequest,
-  FactorResearchRun,
-  FactorResearchSummary,
-  FactorScorecard,
-} from './contracts'
+  FactorResearchRunListItemResponse,
+  FactorResearchSummaryResponse,
+  FactorScorecardResponse,
+} from '../../types/factor'
 
 export interface FactorResearchHeroView {
   catalog: { forward_horizons: number[] }
@@ -17,7 +17,7 @@ export interface FactorResearchHeroView {
 export interface FactorResearchFiltersView {
   form: FactorResearchRequest
   catalog: FactorCatalogResponse
-  factorPool: FactorCatalogItem[]
+  factorPool: FactorCatalogItemResponse[]
   loading: boolean
   catalogLoading: boolean
   runAnalysis: () => Promise<void>
@@ -30,9 +30,9 @@ export interface FactorResearchFiltersView {
 
 export interface FactorResearchSidebarView {
   runsLoading: boolean
-  runs: FactorResearchRun[]
+  runs: FactorResearchRunListItemResponse[]
   selectedRunId: number | null
-  blend: FactorBlend | null
+  blend: FactorBlendResponse | null
   executionForm: FactorExecutionRequest
   executionLoading: '' | 'backtest' | 'paper'
   loadRun: (runId: number) => Promise<void>
@@ -45,11 +45,11 @@ export interface FactorResearchSidebarView {
 
 export interface FactorResearchDetailView {
   isDark: boolean
-  ranking: FactorScorecard[]
+  ranking: FactorScorecardResponse[]
   loading: boolean
   selectedFactorId: string
-  selectedDetail: FactorDetail | null
-  blend: FactorBlend | null
+  selectedDetail: FactorDetailResponse | null
+  blend: FactorBlendResponse | null
   selectFactor: (factorId: string) => void
   scoreClass: (score: number) => string
   correlationClass: (value: number) => string
@@ -59,6 +59,7 @@ export interface FactorResearchDetailView {
 }
 
 export interface FactorResearchSummaryView {
-  summary: FactorResearchSummary | null
+  summary: FactorResearchSummaryResponse | null
   formatDate: (value: string | null | undefined) => string
 }
+

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.contracts.backtest import BacktestEquityPointRecord, BacktestTradeRecord
 from app.infra.db.schema import BacktestEquityPoint, BacktestSignal, BacktestTrade
 from utils.time_utils import to_utc_naive_datetime
 
@@ -83,6 +84,34 @@ def build_equity_rows(*, run_id: int, equity_curve) -> list[BacktestEquityPoint]
         )
         for item in equity_curve
     ]
+
+
+def trade_record_from_row(item: BacktestTrade) -> BacktestTradeRecord:
+    return BacktestTradeRecord(
+        opened_at=item.opened_at,
+        closed_at=item.closed_at,
+        entry_price=item.entry_price,
+        exit_price=item.exit_price,
+        stake_amount=item.stake_amount,
+        amount=item.amount,
+        profit_abs=item.profit_abs,
+        profit_pct=item.profit_pct,
+        max_drawdown_pct=item.max_drawdown_pct,
+        duration_minutes=item.duration_minutes,
+        entry_tag=item.entry_tag,
+        exit_reason=item.exit_reason,
+        leverage=item.leverage,
+        pair=item.pair,
+    )
+
+
+def equity_point_record_from_row(item: BacktestEquityPoint) -> BacktestEquityPointRecord:
+    return BacktestEquityPointRecord(
+        timestamp=item.timestamp,
+        equity=item.equity,
+        pnl_abs=item.pnl_abs,
+        drawdown_pct=item.drawdown_pct,
+    )
 
 
 def result_signal_counts(result) -> tuple[int, int, int]:

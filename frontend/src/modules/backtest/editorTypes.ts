@@ -2,19 +2,21 @@ import type { ComputedRef, Ref } from 'vue'
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 
 import type {
-  StrategyDefinition,
   EditableStrategyTemplateConfig,
-  StrategyEditorContract,
-  StrategyGroupLogic,
-  StrategyIndicatorEngine,
-  StrategyIndicatorParam,
-  StrategyIndicatorRegistryItem,
-  StrategyOperator,
-  StrategyTemplate,
-  StrategyTemplateConfig,
-  StrategyTemplateRuntime,
-  StrategyVersion,
 } from './contracts'
+import type {
+  StrategyDefinitionResponse,
+  StrategyEditorContractResponse,
+  StrategyGroupLogicResponse,
+  StrategyIndicatorEngineResponse,
+  StrategyIndicatorParamResponse,
+  StrategyIndicatorRegistryResponse,
+  StrategyOperatorResponse,
+  StrategyTemplateConfigResponse,
+  StrategyTemplateResponse,
+  StrategyTemplateRuntimeResponse,
+  StrategyVersionResponse,
+} from '../../types/backtest'
 
 import type { createBlankIndicatorDraft, createBlankTemplateDraft, createBlankVersionDraft } from './editorContract'
 import type { BacktestEditorSnapshot } from './pageSnapshots'
@@ -32,7 +34,7 @@ export type IndicatorDraft = ReturnType<typeof createBlankIndicatorDraft>
 export type TemplateDraft = ReturnType<typeof createBlankTemplateDraft>
 
 export type EditorTemplateRuntimeCarrier = {
-  template_runtime?: StrategyTemplateRuntime | null
+  template_runtime?: StrategyTemplateRuntimeResponse | null
 } | null | undefined
 
 export interface IndicatorCard {
@@ -40,7 +42,7 @@ export interface IndicatorCard {
   label: string
   typeLabel: string
   timeframeLabel: string
-  params: StrategyIndicatorParam[]
+  params: StrategyIndicatorParamResponse[]
 }
 
 export interface SourceOption {
@@ -57,23 +59,23 @@ export interface OptimizableTarget {
 
 export interface UseBacktestEditorOptions {
   t: (key: string) => string
-  editorContract: Ref<StrategyEditorContract | null>
-  templates: Ref<StrategyTemplate[]>
-  indicators: Ref<StrategyIndicatorRegistryItem[]>
-  indicatorEngines: Ref<StrategyIndicatorEngine[]>
-  selectedStrategy: ComputedRef<StrategyDefinition | null>
-  selectedVersion: ComputedRef<StrategyVersion | null>
+  editorContract: Ref<StrategyEditorContractResponse | null>
+  templates: Ref<StrategyTemplateResponse[]>
+  indicators: Ref<StrategyIndicatorRegistryResponse[]>
+  indicatorEngines: Ref<StrategyIndicatorEngineResponse[]>
+  selectedStrategy: ComputedRef<StrategyDefinitionResponse | null>
+  selectedVersion: ComputedRef<StrategyVersionResponse | null>
 }
 
 export interface UseBacktestEditorCatalogOptions {
   t: (key: string) => string
   config: StrategySelectionConfig
-  strategies: Ref<StrategyDefinition[]>
-  templates: Ref<StrategyTemplate[]>
-  indicators: Ref<StrategyIndicatorRegistryItem[]>
-  indicatorEngines: Ref<StrategyIndicatorEngine[]>
-  editorContract: Ref<StrategyEditorContract | null>
-  selectedStrategyVersions: ComputedRef<StrategyVersion[]>
+  strategies: Ref<StrategyDefinitionResponse[]>
+  templates: Ref<StrategyTemplateResponse[]>
+  indicators: Ref<StrategyIndicatorRegistryResponse[]>
+  indicatorEngines: Ref<StrategyIndicatorEngineResponse[]>
+  editorContract: Ref<StrategyEditorContractResponse | null>
+  selectedStrategyVersions: ComputedRef<StrategyVersionResponse[]>
   editor: BacktestEditorState
 }
 
@@ -92,9 +94,9 @@ export interface UseBacktestEditorSeedsOptions {
   route: RouteLocationNormalizedLoaded
   router: Router
   config: StrategySelectionConfig
-  strategies: Ref<StrategyDefinition[]>
-  selectedStrategy: ComputedRef<StrategyDefinition | null>
-  selectedVersion: ComputedRef<StrategyVersion | null>
+  strategies: Ref<StrategyDefinitionResponse[]>
+  selectedStrategy: ComputedRef<StrategyDefinitionResponse | null>
+  selectedVersion: ComputedRef<StrategyVersionResponse | null>
   editor: BacktestEditorState
   syncStrategyVersion: () => void
 }
@@ -109,11 +111,11 @@ export interface BacktestEditorState {
   versionDraft: EditableVersionDraft
   indicatorDraft: IndicatorDraft
   templateDraft: TemplateDraft
-  editableTemplates: ComputedRef<StrategyTemplate[]>
-  editorTemplate: ComputedRef<StrategyTemplate | null>
-  availableIndicators: ComputedRef<StrategyIndicatorRegistryItem[]>
-  operatorOptions: ComputedRef<StrategyOperator[]>
-  groupLogicOptions: ComputedRef<StrategyGroupLogic[]>
+  editableTemplates: ComputedRef<StrategyTemplateResponse[]>
+  editorTemplate: ComputedRef<StrategyTemplateResponse | null>
+  availableIndicators: ComputedRef<StrategyIndicatorRegistryResponse[]>
+  operatorOptions: ComputedRef<StrategyOperatorResponse[]>
+  groupLogicOptions: ComputedRef<StrategyGroupLogicResponse[]>
   indicatorCards: ComputedRef<IndicatorCard[]>
   sourceOptions: ComputedRef<SourceOption[]>
   indicatorSourceOptions: ComputedRef<SourceOption[]>
@@ -123,7 +125,7 @@ export interface BacktestEditorState {
   syncIndicatorDraftEngine: () => void
   applyDraftFromTemplate: (
     templateKey: string,
-    configValues?: Partial<StrategyTemplateConfig>,
+    configValues?: Partial<StrategyTemplateConfigResponse>,
     parameterSpaceValues?: Record<string, unknown[]>,
     overrides?: { description?: string },
   ) => void
@@ -145,10 +147,10 @@ export interface BacktestEditorState {
 
 export interface BacktestEditorSeedPanel {
   config: StrategySelectionConfig
-  strategies: StrategyDefinition[]
-  selectedStrategy: StrategyDefinition | null
-  selectedStrategyVersions: StrategyVersion[]
-  selectedVersion: StrategyVersion | null
+  strategies: StrategyDefinitionResponse[]
+  selectedStrategy: StrategyDefinitionResponse | null
+  selectedStrategyVersions: StrategyVersionResponse[]
+  selectedVersion: StrategyVersionResponse | null
   canCopyCurrentStrategy: boolean
   strategyCapabilityHint: string
   syncStrategyVersion: () => void
@@ -159,7 +161,7 @@ export interface BacktestEditorSeedPanel {
 
 export interface BacktestVersionMetaPanel {
   versionDraft: EditableVersionDraft
-  templates: StrategyTemplate[]
+  templates: StrategyTemplateResponse[]
   categoryLabel: (value: string) => string
   syncVersionDraftTemplate: () => void
   startBlankBuilder: () => void
@@ -172,7 +174,7 @@ export interface BacktestVersionMetaPanel {
 export interface BacktestIndicatorCreatorPanel {
   show: boolean
   indicatorDraft: IndicatorDraft
-  indicatorEngines: StrategyIndicatorEngine[]
+  indicatorEngines: StrategyIndicatorEngineResponse[]
   createIndicator: () => Promise<void>
   syncIndicatorDraftEngine: () => void
 }
@@ -180,23 +182,23 @@ export interface BacktestIndicatorCreatorPanel {
 export interface BacktestTemplateCreatorPanel {
   show: boolean
   templateDraft: TemplateDraft
-  indicators: StrategyIndicatorRegistryItem[]
+  indicators: StrategyIndicatorRegistryResponse[]
   toggleTemplateIndicator: (indicatorKey: string) => void
   createTemplate: () => Promise<void>
 }
 
 export interface BacktestStrategyBuilderPanel {
-  editorContract: StrategyEditorContract | null
+  editorContract: StrategyEditorContractResponse | null
   versionDraft: EditableVersionDraft
-  editorTemplate: StrategyTemplate | null
+  editorTemplate: StrategyTemplateResponse | null
   useGlobalIndicatorCatalog: boolean
-  availableIndicators: StrategyIndicatorRegistryItem[]
+  availableIndicators: StrategyIndicatorRegistryResponse[]
   newIndicatorType: string
   indicatorCards: IndicatorCard[]
   sourceOptions: SourceOption[]
   indicatorSourceOptions: SourceOption[]
-  operatorOptions: StrategyOperator[]
-  groupLogicOptions: StrategyGroupLogic[]
+  operatorOptions: StrategyOperatorResponse[]
+  groupLogicOptions: StrategyGroupLogicResponse[]
   optimizableTargets: OptimizableTarget[]
   syncExecutionConfig: () => void
   addIndicator: () => void
@@ -216,3 +218,4 @@ export interface BacktestVersionEditorPanel {
   strategyBuilderPanel: BacktestStrategyBuilderPanel
   createStrategyVersion: () => Promise<void>
 }
+

@@ -14,6 +14,7 @@ from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilde
 from app.services.backtest.freqtrade_trade_mapper import FreqtradeTradeMapper
 from app.contracts.backtest import BacktestExecutionResult, BacktestResearchConfig
 from app.schemas.backtest_result import BacktestReportResponse, BacktestReportSnapshotResponse, BacktestRunMetadataResponse
+from app.services.backtest.run_contract import BACKTEST_EXECUTION_MODE
 from config import settings
 
 
@@ -70,6 +71,7 @@ class FreqtradeResultBuilder:
         report.symbols = list(data_symbols)
         report.timeframe = timeframe
         metadata = BacktestRunMetadataResponse(
+            execution_mode=BACKTEST_EXECUTION_MODE,
             engine="Freqtrade",
             exchange=settings.EXCHANGE_ID,
             stake_currency=self.report_builder.quote_currency(data_symbols[0]),

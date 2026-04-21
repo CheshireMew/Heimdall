@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from app.domain.market.symbol_catalog import get_supported_crypto_symbols
+from app.exceptions import NotFoundError
 from app.schemas.factor import (
     FactorCatalogResponse,
     FactorResearchResponse,
@@ -60,11 +61,13 @@ class FactorResearchService:
     async def list_runs_async(self, limit: int = 20) -> list[FactorResearchRunListItemResponse]:
         return await run_sync(lambda: self.list_runs(limit=limit))
 
-    def get_run(self, run_id: int) -> FactorResearchRunDetailResponse | None:
+    def get_run(self, run_id: int) -> FactorResearchRunDetailResponse:
         row = self._get_run_record(run_id)
-        return FactorResearchRunDetailResponse.model_validate(row) if row else None
+        if row is None:
+            raise NotFoundError("Factor run not found")
+        return FactorResearchRunDetailResponse.model_validate(row)
 
-    async def get_run_async(self, run_id: int) -> FactorResearchRunDetailResponse | None:
+    async def get_run_async(self, run_id: int) -> FactorResearchRunDetailResponse:
         return await run_sync(lambda: self.get_run(run_id))
 
     def build_stored_blend_frame(self, run_id: int):

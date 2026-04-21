@@ -33,5 +33,17 @@ class MarketWebSocketService:
             "use_ai": use_ai,
         }
 
+    async def parse_params_or_reject(
+        self,
+        websocket: WebSocket,
+        valid_symbols: list[str],
+        valid_timeframes: list[str],
+    ) -> dict[str, Any] | None:
+        try:
+            return self.parse_params(websocket, valid_symbols, valid_timeframes)
+        except ValueError as exc:
+            await self.reject(websocket, str(exc))
+            return None
+
     async def reject(self, websocket: WebSocket, reason: str) -> None:
         await websocket.close(code=1008, reason=reason)

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
 import type {
   BinanceBreakoutMonitorItemResponse,
-} from './contracts'
+} from '../../types/market'
 import { toSlashMarketSymbol } from './symbolCatalog'
 import { displaySymbol, type ChartDialogState } from './binanceMarketShared'
 import { useKlineSeries } from './useKlineSeries'

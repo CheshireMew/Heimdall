@@ -1,15 +1,17 @@
 import { reactive } from 'vue'
 import type {
-  BacktestDetailResponse,
-  BacktestOptimizationTrial,
-  BacktestPairBreakdown,
-  BacktestRollingWindow,
-  BacktestRun,
   CandlestickData,
-  StrategyDefinition,
-  StrategyVersion,
   VolumeData,
 } from './contracts'
+import type {
+  BacktestDetailResponse,
+  BacktestOptimizationTrialResponse,
+  BacktestPairBreakdownResponse,
+  BacktestRollingWindowResponse,
+  BacktestRunResponse,
+  StrategyDefinitionResponse,
+  StrategyVersionResponse,
+} from '../../types/backtest'
 
 export const defineReactiveView = <T extends object>(value: object): T => {
   // Vue templates receive unwrapped refs, while TypeScript checks this boundary
@@ -45,7 +47,9 @@ export interface BacktestPageConfig extends BacktestRunSelectionConfig {
   }
 }
 
-export type BacktestDisplayRun = BacktestRun | BacktestDetailResponse
+type BacktestListRun = BacktestRunResponse
+type BacktestLoadedRun = BacktestDetailResponse
+export type BacktestDisplayRun = BacktestListRun | BacktestLoadedRun
 
 export interface BacktestChartData {
   candles: CandlestickData[]
@@ -72,17 +76,17 @@ export interface BacktestComparisonChart {
 export interface BacktestVersionCompareOption {
   version: number
   name: string
-  run: BacktestRun
+  run: BacktestRunResponse
 }
 
 export interface BacktestControlPanelView {
   config: BacktestPageConfig
   today: string
   ready: boolean
-  strategies: StrategyDefinition[]
-  selectedStrategy: StrategyDefinition | null
-  selectedStrategyVersions: StrategyVersion[]
-  selectedVersion: StrategyVersion | null
+  strategies: StrategyDefinitionResponse[]
+  selectedStrategy: StrategyDefinitionResponse | null
+  selectedStrategyVersions: StrategyVersionResponse[]
+  selectedVersion: StrategyVersionResponse | null
   canCopyCurrentStrategy: boolean
   canStartPaperRun: boolean
   strategyCapabilityHint: string
@@ -102,9 +106,9 @@ export interface BacktestControlPanelView {
 export interface BacktestHistoryPanelView {
   historyMode: 'backtest' | 'paper'
   enableHistoryCompare: boolean
-  visibleHistory: BacktestRun[]
+  visibleHistory: BacktestRunResponse[]
   compareRunIds: number[]
-  openRunDetail: (run: BacktestRun, mode?: 'backtest' | 'paper') => void
+  openRunDetail: (run: BacktestRunResponse, mode?: 'backtest' | 'paper') => void
   toggleCompareRun: (runId: number) => void
   portfolioLabel: (run: BacktestDisplayRun) => string
   runStatusLabel: (run: BacktestDisplayRun) => string
@@ -125,14 +129,14 @@ export interface BacktestResultPanelView {
     downColor: string
   }
   chartData: BacktestChartData
-  pairBreakdown: BacktestPairBreakdown[]
-  optimizationTrials: BacktestOptimizationTrial[]
-  rollingWindows: BacktestRollingWindow[]
-  selectedCompareRuns: BacktestRun[]
+  pairBreakdown: BacktestPairBreakdownResponse[]
+  optimizationTrials: BacktestOptimizationTrialResponse[]
+  rollingWindows: BacktestRollingWindowResponse[]
+  selectedCompareRuns: BacktestRunResponse[]
   recentRunCompare: BacktestComparisonChart
   versionCompareOptions: BacktestVersionCompareOption[]
   versionCompareSelections: number[]
-  selectedVersionCompareRuns: BacktestRun[]
+  selectedVersionCompareRuns: BacktestRunResponse[]
   versionRunCompare: BacktestComparisonChart
   profitColorClass: (value: unknown) => string
   runStatusLabel: (run: BacktestDisplayRun) => string
@@ -150,3 +154,5 @@ export interface BacktestDetailHeroView {
   portfolioLabel: (run: BacktestDisplayRun) => string
   runStatusLabel: (run: BacktestDisplayRun) => string
 }
+
+

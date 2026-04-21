@@ -1,16 +1,20 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class StrategyIndicatorOutputResponse(BaseModel):
+class StrategyContractModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class StrategyIndicatorOutputResponse(StrategyContractModel):
     key: str
     label: str
 
 
-class StrategyIndicatorParamResponse(BaseModel):
+class StrategyIndicatorParamResponse(StrategyContractModel):
     key: str
     label: str
     type: Literal["int", "float", "bool"]
@@ -20,22 +24,54 @@ class StrategyIndicatorParamResponse(BaseModel):
     step: float | None = None
 
 
-class StrategyRuleSourceResponse(BaseModel):
-    kind: str
-    field: str | None = None
-    indicator: str | None = None
-    output: str | None = None
-    bars_ago: int | None = None
-    value: float | None = None
-    multiplier: float | None = None
-    base_indicator: str | None = None
-    base_output: str | None = None
-    offset_indicator: str | None = None
-    offset_output: str | None = None
-    offset_multiplier: float | None = None
+class StrategyPriceSourceResponse(StrategyContractModel):
+    kind: Literal["price"] = "price"
+    field: Literal["open", "high", "low", "close", "volume"] = "close"
+    bars_ago: int = 0
 
 
-class StrategyConditionNodeResponse(BaseModel):
+class StrategyIndicatorSourceResponse(StrategyContractModel):
+    kind: Literal["indicator"] = "indicator"
+    indicator: str
+    output: str = "value"
+    bars_ago: int = 0
+
+
+class StrategyValueSourceResponse(StrategyContractModel):
+    kind: Literal["value"] = "value"
+    value: float
+    bars_ago: int = 0
+
+
+class StrategyIndicatorMultiplierSourceResponse(StrategyContractModel):
+    kind: Literal["indicator_multiplier"] = "indicator_multiplier"
+    indicator: str
+    output: str = "value"
+    multiplier: float = 1.0
+    bars_ago: int = 0
+
+
+class StrategyIndicatorOffsetSourceResponse(StrategyContractModel):
+    kind: Literal["indicator_offset"] = "indicator_offset"
+    base_indicator: str
+    base_output: str = "value"
+    offset_indicator: str
+    offset_output: str = "value"
+    offset_multiplier: float = 1.0
+    bars_ago: int = 0
+
+
+StrategyRuleSourceResponse = Annotated[
+    StrategyPriceSourceResponse
+    | StrategyIndicatorSourceResponse
+    | StrategyValueSourceResponse
+    | StrategyIndicatorMultiplierSourceResponse
+    | StrategyIndicatorOffsetSourceResponse,
+    Field(discriminator="kind"),
+]
+
+
+class StrategyConditionNodeResponse(StrategyContractModel):
     id: str
     node_type: Literal["condition"] = "condition"
     label: str
@@ -45,7 +81,7 @@ class StrategyConditionNodeResponse(BaseModel):
     enabled: bool = True
 
 
-class StrategyGroupNodeResponse(BaseModel):
+class StrategyGroupNodeResponse(StrategyContractModel):
     id: str
     node_type: Literal["group"] = "group"
     label: str
@@ -56,19 +92,19 @@ class StrategyGroupNodeResponse(BaseModel):
     )
 
 
-class StrategyIndicatorConfigResponse(BaseModel):
+class StrategyIndicatorConfigResponse(StrategyContractModel):
     label: str
     type: str
     timeframe: str = "base"
     params: dict[str, float | bool] = Field(default_factory=dict)
 
 
-class StrategyExecutionConfigResponse(BaseModel):
+class StrategyExecutionConfigResponse(StrategyContractModel):
     market_type: Literal["spot", "futures"] = "spot"
     direction: Literal["long_only", "long_short"] = "long_only"
 
 
-class StrategyStateBranchResponse(BaseModel):
+class StrategyStateBranchResponse(StrategyContractModel):
     id: str
     label: str
     enabled: bool = True
@@ -79,28 +115,28 @@ class StrategyStateBranchResponse(BaseModel):
     short_exit: StrategyGroupNodeResponse
 
 
-class StrategyRoiTargetResponse(BaseModel):
+class StrategyRoiTargetResponse(StrategyContractModel):
     id: str
     minutes: int
     profit: float
     enabled: bool = True
 
 
-class StrategyPartialExitResponse(BaseModel):
+class StrategyPartialExitResponse(StrategyContractModel):
     id: str
     profit: float
     size_pct: float
     enabled: bool = True
 
 
-class StrategyTrailingConfigResponse(BaseModel):
+class StrategyTrailingConfigResponse(StrategyContractModel):
     enabled: bool = False
     positive: float
     offset: float
     only_offset_reached: bool = True
 
 
-class StrategyTradePlanConfigResponse(BaseModel):
+class StrategyTradePlanConfigResponse(StrategyContractModel):
     enabled: bool = False
     stop_multiplier: float = 1.0
     min_stop_pct: float = 0.01
@@ -110,7 +146,7 @@ class StrategyTradePlanConfigResponse(BaseModel):
     resistance_indicator: str = ""
 
 
-class StrategyRiskConfigResponse(BaseModel):
+class StrategyRiskConfigResponse(StrategyContractModel):
     stoploss: float
     roi_targets: list[StrategyRoiTargetResponse] = Field(default_factory=list)
     trailing: StrategyTrailingConfigResponse
@@ -120,7 +156,7 @@ class StrategyRiskConfigResponse(BaseModel):
     )
 
 
-class StrategyTemplateConfigResponse(BaseModel):
+class StrategyTemplateConfigResponse(StrategyContractModel):
     indicators: dict[str, StrategyIndicatorConfigResponse] = Field(default_factory=dict)
     execution: StrategyExecutionConfigResponse
     regime_priority: list[Literal["trend", "range"]] = Field(

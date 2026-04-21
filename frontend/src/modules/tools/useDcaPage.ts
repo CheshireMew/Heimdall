@@ -1,14 +1,14 @@
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch, type WatchStopHandle } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
-import { isIndexSymbol } from '@/modules/market'
+import { ensureSymbolCatalogLoaded, isIndexSymbol } from '@/modules/market'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
 import { useUserPreferences } from '@/composables/useUserPreferences'
-import type { DCAResponse } from './contracts'
+import type { DCARequestSchema, DCAResponse } from '../../types/tools'
 import { toolsApi } from './api'
-import { buildDcaSnapshot, createDefaultDcaSnapshot, normalizeDcaConfig, normalizeDcaSnapshot } from './pageSnapshots'
+import { buildDcaSnapshot, createDefaultDcaConfig, createEmptyDcaConfig, createEmptyDcaSnapshot, normalizeDcaConfig, normalizeDcaSnapshot } from './pageSnapshots'
 import { createEmptyMarketData, useDcaMarketContext } from './useDcaMarketContext'
 import { useDcaCharts } from './useDcaCharts'
 
@@ -29,12 +29,13 @@ export function useDcaPage() {
   const pageSnapshot = createPersistentPageSnapshot(
     PAGE_SNAPSHOT_KEYS.dca,
     normalizeDcaSnapshot,
-    createDefaultDcaSnapshot(),
+    createEmptyDcaSnapshot(),
   )
   const restoredSnapshot = pageSnapshot.initial
-
-  const config = reactive(normalizeDcaConfig(restoredSnapshot?.config))
-  config.timezone = timezone.value
+  const config = reactive(createEmptyDcaConfig())
+  let snapshotStop: WatchStopHandle | null = null
+  const strategyKeys = ref<string[]>([])
+  const multiplierDefault = ref(0)
 
   const loading = ref(false)
   const result = ref<DCAResponse | null>(null)
@@ -57,7 +58,12 @@ export function useDcaPage() {
   const runSimulation = async () => {
     loading.value = true
     try {
-      const response = await toolsApi.runSimulation(config)
+      await ensureSymbolCatalogLoaded()
+      const payload: DCARequestSchema = {
+        ...config,
+        strategy: config.strategy || undefined,
+      }
+      const response = await toolsApi.runSimulation(payload)
       result.value = {
         ...response.data,
         current_price: typeof response.data.current_price !== 'undefined'
@@ -78,7 +84,7 @@ export function useDcaPage() {
 
   watch(() => config.strategy, (nextStrategy) => {
     if (nextStrategy === 'ema_deviation') {
-      config.strategy_params.multiplier = 3
+      if (!config.strategy_params.multiplier) config.strategy_params.multiplier = multiplierDefault.value
     } else if (['rsi_dynamic', 'fear_greed', 'ahr999'].includes(nextStrategy)) {
       config.strategy_params.multiplier = 1
     }
@@ -120,13 +126,28 @@ export function useDcaPage() {
     }
   })
 
-  pageSnapshot.bind(
-    config,
-    () => buildDcaSnapshot(normalizeDcaConfig(config)),
-  )
-
-  onMounted(() => {
-    fetchMarketIndicators()
+  onMounted(async () => {
+    const [contractResponse] = await Promise.all([
+      toolsApi.getContract(),
+      ensureSymbolCatalogLoaded(),
+    ])
+    strategyKeys.value = [...contractResponse.data.dca_strategies]
+    multiplierDefault.value = contractResponse.data.dca_multiplier_default
+    const defaultConfig = createDefaultDcaConfig(contractResponse.data)
+    const restoredConfig = normalizeDcaSnapshot(
+      restoredSnapshot,
+      { config: defaultConfig },
+      strategyKeys.value,
+    ).config
+    Object.assign(config, restoredConfig)
+    config.timezone = timezone.value
+    if (!snapshotStop) {
+      snapshotStop = pageSnapshot.bind(
+        config,
+        () => buildDcaSnapshot(config, defaultConfig, strategyKeys.value),
+      )
+    }
+    await fetchMarketIndicators()
     if (result.value) {
       renderCharts()
     }

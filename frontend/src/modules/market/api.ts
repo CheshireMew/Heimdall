@@ -1,5 +1,4 @@
-import request, { longTaskRequest } from '@/api/request'
-import { API_QUERY_META, apiRoute, serializeApiQueryParams } from '@/api/routes'
+import { apiGet, longTaskRequest } from '@/api/request'
 import type { AxiosResponse } from 'axios'
 import type {
   BinanceBreakoutMonitorResponse,
@@ -34,9 +33,6 @@ import type {
   CryptoIndexResponse,
   MarketIndexHistoryResponse,
   MarketSymbolSearchResponse,
-} from './contracts'
-import type {
-  BatchFullHistoryParams,
   GetBinanceMarketBreakoutMonitorQueryParams,
   GetBinanceMarketPageQueryParams,
   GetBinanceRwaAssetMarketStatusQueryParams,
@@ -59,182 +55,176 @@ import type {
   GetBinanceWeb3TokenDynamicQueryParams,
   GetBinanceWeb3TokenKlineQueryParams,
   GetBinanceWeb3UnifiedTokenRankQueryParams,
+  GetCryptoIndexQueryParams,
   GetCurrentPriceBatchQueryParams,
+  GetCurrentPriceQueryParams,
+  GetIndexHistoryQueryParams,
+  GetKlineTailQueryParams,
+  GetLatestKlinesQueryParams,
+  GetMarketFullHistoryBatchQueryParams,
+  GetMarketFullHistoryQueryParams,
+  GetMarketHistoryQueryParams,
+  GetMarketIndicatorsQueryParams,
+  GetRealtimeAnalysisQueryParams,
   GetTradeSetupQueryParams,
-  CryptoIndexParams,
-  CurrentPriceParams,
-  FullHistoryParams,
-  HistoryParams,
-  IndexHistoryParams,
-  IndicatorParams,
-  LatestKlineParams,
-  RealtimeParams,
-  TailKlineParams,
-} from './contracts'
+} from '../../types/market'
+
 export const marketApi = {
   getSymbols(): Promise<AxiosResponse<MarketSymbolSearchResponse[]>> {
-    return request.get(apiRoute('list_market_symbols'))
+    return apiGet('list_market_symbols')
   },
 
-  getRealtime(params: RealtimeParams): Promise<AxiosResponse<RealtimeResponse>> {
-    return request.get(apiRoute('get_realtime_analysis'), { params })
+  getRealtime(params: GetRealtimeAnalysisQueryParams): Promise<AxiosResponse<RealtimeResponse>> {
+    return apiGet('get_realtime_analysis', { query: params })
   },
 
   getTradeSetup(params: GetTradeSetupQueryParams & {
     signal?: AbortSignal
   }): Promise<AxiosResponse<TradeSetupResponse>> {
-    const client = params.mode === 'ai' ? longTaskRequest : request
+    const client = params.mode === 'ai' ? longTaskRequest : undefined
     const { signal, ...query } = params
-    return client.get(apiRoute('get_trade_setup'), {
-      params: query,
+    return apiGet('get_trade_setup', {
+      client,
+      query,
       signal,
       timeout: params.mode === 'ai' ? 180000 : 15000,
     })
   },
 
-  getIndicators(params: IndicatorParams): Promise<AxiosResponse<MarketIndicatorResponse[]>> {
-    return request.get(apiRoute('get_market_indicators'), { params })
+  getIndicators(params: GetMarketIndicatorsQueryParams): Promise<AxiosResponse<MarketIndicatorResponse[]>> {
+    return apiGet('get_market_indicators', { query: params })
   },
 
-  getPriceSeriesWindow(params: HistoryParams): Promise<AxiosResponse<MarketHistoryResponse>> {
-    return request.get(apiRoute('get_market_history'), { params })
+  getPriceSeriesWindow(params: GetMarketHistoryQueryParams): Promise<AxiosResponse<MarketHistoryResponse>> {
+    return apiGet('get_market_history', { query: params })
   },
 
-  getLatestKlines(params: LatestKlineParams): Promise<AxiosResponse<MarketHistoryResponse>> {
-    return request.get(apiRoute('get_latest_klines'), { params })
+  getLatestKlines(params: GetLatestKlinesQueryParams): Promise<AxiosResponse<MarketHistoryResponse>> {
+    return apiGet('get_latest_klines', { query: params })
   },
 
-  getPriceSeriesTail(params: TailKlineParams): Promise<AxiosResponse<KlineTailResponse>> {
-    return request.get(apiRoute('get_kline_tail'), { params })
+  getPriceSeriesTail(params: GetKlineTailQueryParams): Promise<AxiosResponse<KlineTailResponse>> {
+    return apiGet('get_kline_tail', { query: params })
   },
 
-  getCurrentPrice(params: CurrentPriceParams): Promise<AxiosResponse<CurrentPriceResponse>> {
-    return request.get(apiRoute('get_current_price'), { params })
+  getCurrentPrice(params: GetCurrentPriceQueryParams): Promise<AxiosResponse<CurrentPriceResponse>> {
+    return apiGet('get_current_price', { query: params })
   },
 
   getCurrentPriceBatch(params: GetCurrentPriceBatchQueryParams): Promise<AxiosResponse<CurrentPriceBatchResponse>> {
-    return request.get(apiRoute('get_current_price_batch'), {
-      params,
-      paramsSerializer: () => serializeApiQueryParams(params, API_QUERY_META.get_current_price_batch),
-    })
+    return apiGet('get_current_price_batch', { query: params })
   },
 
-  getPriceHistory(params: FullHistoryParams): Promise<AxiosResponse<MarketHistoryResponse>> {
-    return request.get(apiRoute('get_market_full_history'), { params })
+  getPriceHistory(params: GetMarketFullHistoryQueryParams): Promise<AxiosResponse<MarketHistoryResponse>> {
+    return apiGet('get_market_full_history', { query: params })
   },
 
-  getBatchPriceHistory(params: BatchFullHistoryParams): Promise<AxiosResponse<MarketHistoryBatchResponse>> {
-    return request.get(apiRoute('get_market_full_history_batch'), {
-      params,
-      paramsSerializer: () => serializeApiQueryParams(params, API_QUERY_META.get_market_full_history_batch),
-    })
+  getBatchPriceHistory(params: GetMarketFullHistoryBatchQueryParams): Promise<AxiosResponse<MarketHistoryBatchResponse>> {
+    return apiGet('get_market_full_history_batch', { query: params })
   },
 
-  getCryptoIndex(params: CryptoIndexParams): Promise<AxiosResponse<CryptoIndexResponse>> {
-    return request.get(apiRoute('get_crypto_index'), { params })
+  getCryptoIndex(params: GetCryptoIndexQueryParams): Promise<AxiosResponse<CryptoIndexResponse>> {
+    return apiGet('get_crypto_index', { query: params })
   },
 
-  getIndexHistory(params: IndexHistoryParams): Promise<AxiosResponse<MarketIndexHistoryResponse>> {
-    return request.get(apiRoute('get_index_history'), { params })
+  getIndexHistory(params: GetIndexHistoryQueryParams): Promise<AxiosResponse<MarketIndexHistoryResponse>> {
+    return apiGet('get_index_history', { query: params })
   },
 
-  getIndexPricingHistory(params: IndexHistoryParams): Promise<AxiosResponse<MarketIndexHistoryResponse>> {
-    return request.get(apiRoute('get_index_pricing_history'), { params })
+  getIndexPricingHistory(params: GetIndexHistoryQueryParams): Promise<AxiosResponse<MarketIndexHistoryResponse>> {
+    return apiGet('get_index_pricing_history', { query: params })
   },
 
   getBinanceSpotTicker24h(params: GetBinanceSpotTicker24hrQueryParams = {}): Promise<AxiosResponse<BinanceTickerStatsResponse>> {
-    return request.get(apiRoute('get_binance_spot_ticker_24hr'), { params, paramsSerializer: () => serializeApiQueryParams(params, API_QUERY_META.get_binance_spot_ticker_24hr) })
+    return apiGet('get_binance_spot_ticker_24hr', { query: params })
   },
 
   getBinanceBreakoutMonitor(params: GetBinanceMarketBreakoutMonitorQueryParams = {}): Promise<AxiosResponse<BinanceBreakoutMonitorResponse>> {
-    return request.get(apiRoute('get_binance_market_breakout_monitor'), { params })
+    return apiGet('get_binance_market_breakout_monitor', { query: params })
   },
 
   getBinanceMarketPage(params: GetBinanceMarketPageQueryParams = {}): Promise<AxiosResponse<BinanceMarketPageResponse>> {
-    return request.get(apiRoute('get_binance_market_page'), { params, timeout: 30000 })
+    return apiGet('get_binance_market_page', { query: params, timeout: 30000 })
   },
 
   getBinanceSpotPrice(params: GetBinanceSpotPriceQueryParams = {}): Promise<AxiosResponse<BinancePriceTickerResponse>> {
-    return request.get(apiRoute('get_binance_spot_price'), { params, paramsSerializer: () => serializeApiQueryParams(params, API_QUERY_META.get_binance_spot_price) })
+    return apiGet('get_binance_spot_price', { query: params })
   },
 
   getBinanceUsdmTicker24h(params: GetBinanceUsdmTicker24hrQueryParams = {}): Promise<AxiosResponse<BinanceTickerStatsResponse>> {
-    return request.get(apiRoute('get_binance_usdm_ticker_24hr'), { params })
+    return apiGet('get_binance_usdm_ticker_24hr', { query: params })
   },
 
   getBinanceUsdmMarkPrice(params: GetBinanceUsdmMarkPriceQueryParams = {}): Promise<AxiosResponse<BinanceMarkPriceResponse>> {
-    return request.get(apiRoute('get_binance_usdm_mark_price'), { params })
+    return apiGet('get_binance_usdm_mark_price', { query: params })
   },
 
   getBinanceUsdmTopTraderAccounts(params: GetBinanceUsdmTopTraderAccountsQueryParams): Promise<AxiosResponse<BinanceRatioSeriesResponse>> {
-    return request.get(apiRoute('get_binance_usdm_top_trader_accounts'), { params })
+    return apiGet('get_binance_usdm_top_trader_accounts', { query: params })
   },
 
   getBinanceUsdmTopTraderPositions(params: GetBinanceUsdmTopTraderPositionsQueryParams): Promise<AxiosResponse<BinanceRatioSeriesResponse>> {
-    return request.get(apiRoute('get_binance_usdm_top_trader_positions'), { params })
+    return apiGet('get_binance_usdm_top_trader_positions', { query: params })
   },
 
   getBinanceWeb3SocialHype(params: GetBinanceWeb3SocialHypeQueryParams): Promise<AxiosResponse<BinanceWeb3SocialHypeResponse>> {
-    return request.get(apiRoute('get_binance_web3_social_hype'), { params })
+    return apiGet('get_binance_web3_social_hype', { query: params })
   },
 
   getBinanceWeb3UnifiedTokenRank(params: GetBinanceWeb3UnifiedTokenRankQueryParams): Promise<AxiosResponse<BinanceWeb3UnifiedTokenRankResponse>> {
-    return request.get(apiRoute('get_binance_web3_unified_token_rank'), { params })
+    return apiGet('get_binance_web3_unified_token_rank', { query: params })
   },
 
   getBinanceWeb3SmartMoneyInflow(params: GetBinanceWeb3SmartMoneyInflowQueryParams): Promise<AxiosResponse<BinanceWeb3SmartMoneyInflowResponse>> {
-    return request.get(apiRoute('get_binance_web3_smart_money_inflow'), { params })
+    return apiGet('get_binance_web3_smart_money_inflow', { query: params })
   },
 
   getBinanceWeb3MemeRank(params: GetBinanceWeb3MemeRankQueryParams = {}): Promise<AxiosResponse<BinanceWeb3MemeRankResponse>> {
-    return request.get(apiRoute('get_binance_web3_meme_rank'), { params })
+    return apiGet('get_binance_web3_meme_rank', { query: params })
   },
 
   getBinanceWeb3AddressPnlRank(params: GetBinanceWeb3AddressPnlRankQueryParams): Promise<AxiosResponse<BinanceWeb3AddressPnlResponse>> {
-    return request.get(apiRoute('get_binance_web3_address_pnl_rank'), { params })
+    return apiGet('get_binance_web3_address_pnl_rank', { query: params })
   },
 
   getBinanceWeb3HeatRank(params: GetBinanceWeb3HeatRankQueryParams = {}): Promise<AxiosResponse<BinanceWeb3HeatRankResponse>> {
-    return request.get(apiRoute('get_binance_web3_heat_rank'), { params, timeout: 30000 })
+    return apiGet('get_binance_web3_heat_rank', { query: params, timeout: 30000 })
   },
 
   getBinanceWeb3TokenDynamic(params: GetBinanceWeb3TokenDynamicQueryParams): Promise<AxiosResponse<BinanceWeb3TokenDynamicResponse>> {
-    return request.get(apiRoute('get_binance_web3_token_dynamic'), { params })
+    return apiGet('get_binance_web3_token_dynamic', { query: params })
   },
 
   getBinanceWeb3TokenKline(params: GetBinanceWeb3TokenKlineQueryParams): Promise<AxiosResponse<BinanceWeb3TokenKlineResponse>> {
-    return request.get(apiRoute('get_binance_web3_token_kline'), {
-      params,
-      paramsSerializer: () => serializeApiQueryParams(params, API_QUERY_META.get_binance_web3_token_kline),
-    })
+    return apiGet('get_binance_web3_token_kline', { query: params })
   },
 
   getBinanceWeb3TokenAudit(params: GetBinanceWeb3TokenAuditQueryParams): Promise<AxiosResponse<BinanceWeb3TokenAuditResponse>> {
-    return request.get(apiRoute('get_binance_web3_token_audit'), { params })
+    return apiGet('get_binance_web3_token_audit', { query: params })
   },
 
   getBinanceRwaSymbols(params: GetBinanceRwaSymbolsQueryParams = {}): Promise<AxiosResponse<BinanceRwaSymbolListResponse>> {
-    return request.get(apiRoute('get_binance_rwa_symbols'), { params })
+    return apiGet('get_binance_rwa_symbols', { query: params })
   },
 
   getBinanceRwaMeta(params: GetBinanceRwaMetaQueryParams): Promise<AxiosResponse<BinanceRwaMetaResponse>> {
-    return request.get(apiRoute('get_binance_rwa_meta'), { params })
+    return apiGet('get_binance_rwa_meta', { query: params })
   },
 
   getBinanceRwaMarketStatus(): Promise<AxiosResponse<BinanceRwaMarketStatusResponse>> {
-    return request.get(apiRoute('get_binance_rwa_market_status'))
+    return apiGet('get_binance_rwa_market_status')
   },
 
   getBinanceRwaAssetMarketStatus(params: GetBinanceRwaAssetMarketStatusQueryParams): Promise<AxiosResponse<BinanceRwaMarketStatusResponse>> {
-    return request.get(apiRoute('get_binance_rwa_asset_market_status'), { params })
+    return apiGet('get_binance_rwa_asset_market_status', { query: params })
   },
 
   getBinanceRwaDynamic(params: GetBinanceRwaDynamicQueryParams): Promise<AxiosResponse<BinanceRwaDynamicResponse>> {
-    return request.get(apiRoute('get_binance_rwa_dynamic'), { params })
+    return apiGet('get_binance_rwa_dynamic', { query: params })
   },
 
   getBinanceRwaKline(params: GetBinanceRwaKlineQueryParams): Promise<AxiosResponse<BinanceRwaKlineResponse>> {
-    return request.get(apiRoute('get_binance_rwa_kline'), { params })
+    return apiGet('get_binance_rwa_kline', { query: params })
   },
 
 }

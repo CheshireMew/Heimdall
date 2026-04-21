@@ -6,7 +6,7 @@ import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
 import { formatMoney as formatDisplayMoney } from '@/modules/format'
-import type { OhlcvPointResponse } from './contracts'
+import type { OhlcvPointResponse } from '../../types/market'
 import { marketApi } from './api'
 import { buildHalvingSnapshot, createDefaultHalvingSnapshot, normalizeHalvingSnapshot } from './pageSnapshots'
 import { parseLocalIsoDate } from '@/utils/localDate'

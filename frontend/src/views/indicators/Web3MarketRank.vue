@@ -39,17 +39,7 @@
         </div>
       </section>
 
-      <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <article
-          v-for="card in summaryCards"
-          :key="card.label"
-          class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"
-        >
-          <p class="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ card.label }}</p>
-          <p class="mt-3 text-2xl font-semibold text-slate-900 dark:text-white">{{ card.primary }}</p>
-          <p class="mt-2 text-sm" :class="card.tone">{{ card.secondary }}</p>
-        </article>
-      </section>
+      <IndicatorSummaryCards :cards="summaryCards" />
 
       <section v-if="error" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
         {{ error }}
@@ -198,6 +188,7 @@
 defineOptions({ name: 'Web3MarketRank' })
 
 import { useWeb3MarketRankPage } from '@/modules/market'
+import IndicatorSummaryCards from '@/components/market/IndicatorSummaryCards.vue'
 
 const {
   error,

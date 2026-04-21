@@ -1183,17 +1183,17 @@ class StubFactorResearchService:
 
 class StubFactorExecutionService:
     def __init__(self) -> None:
-        self.calls: list[dict[str, object]] = []
+        self.calls: list[object] = []
 
-    async def run_backtest_async(self, **kwargs):
-        self.calls.append(kwargs)
+    async def run_backtest_async(self, config):
+        self.calls.append(config)
         return 707
 
 
 class StubFactorPaperRunManager:
     def __init__(self) -> None:
-        self.calls: list[dict[str, object]] = []
+        self.calls: list[object] = []
 
-    async def start_run(self, **kwargs):
-        self.calls.append(kwargs)
+    async def start_run(self, config):
+        self.calls.append(config)
         return {"success": True, "run_id": 808, "message": "Factor paper run started"}

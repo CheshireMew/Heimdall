@@ -1,19 +1,18 @@
 import { computed, ref } from 'vue'
-import { marketApi } from './api'
-import { BASE_SYMBOLS, USD_EQUIVALENT_SYMBOLS } from './baseSymbolCatalog'
-import type { MarketSymbolSearchResponse } from './contracts'
 
-const symbols = ref<MarketSymbolSearchResponse[]>([...BASE_SYMBOLS])
-const usdEquivalentSymbolSet = new Set<string>(USD_EQUIVALENT_SYMBOLS)
+import { marketApi } from './api'
+import type { MarketSymbolSearchResponse } from '../../types/market'
+
+const symbols = ref<MarketSymbolSearchResponse[]>([])
 const loading = ref(false)
 let loaded = false
+let loadingPromise: Promise<void> | null = null
 
-const fallbackAssetClass = (symbol: string) => {
+export const toBaseSymbol = (symbol: string) => {
   const value = String(symbol || '').trim().toUpperCase()
-  if (!value) return null
-  if (/^(US|CN|HK)_/.test(value)) return 'index'
-  if (usdEquivalentSymbolSet.has(value.split('/')[0])) return 'cash'
-  return null
+  const [base] = value.split('/')
+  const [assetCode] = base.split(':')
+  return assetCode.trim()
 }
 
 const lookupCatalogItem = (symbol: string) => {
@@ -26,22 +25,13 @@ const lookupCatalogItem = (symbol: string) => {
   }) || null
 }
 
-export const isIndexSymbol = (symbol: string) => (
-  lookupCatalogItem(symbol)?.asset_class === 'index'
-  || fallbackAssetClass(symbol) === 'index'
-)
-
-export const isUsdEquivalentSymbol = (symbol: string) => (
-  lookupCatalogItem(symbol)?.asset_class === 'cash'
-  || fallbackAssetClass(symbol) === 'cash'
-)
-
-export const toBaseSymbol = (symbol: string) => {
-  const value = String(symbol || '').trim().toUpperCase()
-  const [base] = value.split('/')
-  const [assetCode] = base.split(':')
-  return assetCode.trim()
+export const findSymbolCatalogItem = (symbol: string) => {
+  return lookupCatalogItem(symbol)
 }
+
+export const isIndexSymbol = (symbol: string) => lookupCatalogItem(symbol)?.asset_class === 'index'
+
+export const isUsdEquivalentSymbol = (symbol: string) => lookupCatalogItem(symbol)?.asset_class === 'cash'
 
 export const toSlashMarketSymbol = (symbol: string, quoteAsset = 'USDT') => {
   const value = String(symbol || '').trim().toUpperCase()
@@ -54,30 +44,40 @@ export const toSlashMarketSymbol = (symbol: string, quoteAsset = 'USDT') => {
   return value
 }
 
-export const findSymbolCatalogItem = (symbol: string) => {
-  return lookupCatalogItem(symbol)
-}
+export const readCashSymbolPrices = () => (
+  Object.fromEntries(
+    symbols.value
+      .filter((item) => item.asset_class === 'cash')
+      .map((item) => [toBaseSymbol(item.symbol), 1]),
+  ) as Record<string, number>
+)
 
-export function useSymbolCatalog() {
-  const loadSymbols = async () => {
-    if (loaded || loading.value) return
-    loading.value = true
-    try {
-      const response = await marketApi.getSymbols()
-      if (Array.isArray(response.data) && response.data.length) {
+export const ensureSymbolCatalogLoaded = async () => {
+  if (loaded) return
+  if (loadingPromise) return loadingPromise
+  loading.value = true
+  loadingPromise = marketApi.getSymbols()
+    .then((response) => {
+      if (Array.isArray(response.data)) {
         symbols.value = response.data
         loaded = true
       }
-    } catch (error) {
+    })
+    .catch((error) => {
       console.warn('Symbol catalog load failed', error)
-    } finally {
+      throw error
+    })
+    .finally(() => {
       loading.value = false
-    }
-  }
+      loadingPromise = null
+    })
+  return loadingPromise
+}
 
+export function useSymbolCatalog() {
   return {
     symbols: computed(() => symbols.value),
     loading,
-    loadSymbols,
+    loadSymbols: ensureSymbolCatalogLoaded,
   }
 }

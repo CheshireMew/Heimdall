@@ -8,4 +8,13 @@ export { useCryptoIndexPage } from './useCryptoIndexPage'
 export { useHalvingPage } from './useHalvingPage'
 export { useTokenizedSecuritiesPage } from './useTokenizedSecuritiesPage'
 export { useWeb3MarketRankPage } from './useWeb3MarketRankPage'
-export { findSymbolCatalogItem, isIndexSymbol, isUsdEquivalentSymbol, toBaseSymbol, toSlashMarketSymbol, useSymbolCatalog } from './symbolCatalog'
+export {
+  ensureSymbolCatalogLoaded,
+  findSymbolCatalogItem,
+  isIndexSymbol,
+  isUsdEquivalentSymbol,
+  readCashSymbolPrices,
+  toBaseSymbol,
+  toSlashMarketSymbol,
+  useSymbolCatalog,
+} from './symbolCatalog'

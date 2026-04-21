@@ -1,4 +1,4 @@
-import type { StrategyIndicatorConfig } from './contracts'
+import type { StrategyIndicatorConfigResponse } from '../../types/backtest'
 
 import { buildParameterSpaceJson, clone } from './editorContract'
 import { backtestApi } from './api'
@@ -38,7 +38,7 @@ export const useBacktestEditorActions = ({
       if (!editor.templateDraft.key.trim() || !editor.templateDraft.name.trim()) throw new Error(t('backtest.templateDraftRequired'))
       const indicatorKeys = Array.from(new Set([
         ...editor.templateDraft.indicator_keys,
-        ...Object.values(editor.versionDraft.config.indicators).map((item) => (item as StrategyIndicatorConfig).type),
+        ...Object.values(editor.versionDraft.config.indicators).map((item) => (item as StrategyIndicatorConfigResponse).type),
       ]))
       const res = await backtestApi.createTemplate({
         key: editor.templateDraft.key.trim(),
@@ -100,3 +100,4 @@ export const useBacktestEditorActions = ({
     createStrategyVersion,
   }
 }
+

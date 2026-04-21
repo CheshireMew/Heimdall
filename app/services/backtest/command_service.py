@@ -7,6 +7,7 @@ from app.contracts.backtest import (
     CreateStrategyVersionCommand,
     PaperStartCommand,
 )
+from app.exceptions import BadRequestError, NotFoundError
 from app.schemas.backtest import (
     BacktestDeleteResponse,
     BacktestStartResponse,
@@ -79,7 +80,7 @@ class BacktestCommandService:
         )
         runtime_contract = get_template_runtime_contract(strategy.template)
         if not template_supports_paper(runtime_contract):
-            raise ValueError("该策略当前只支持回测，不支持模拟盘")
+            raise BadRequestError("该策略当前只支持回测，不支持模拟盘")
         logger.info(
             f"启动模拟盘: strategy={strategy.strategy_key} v{strategy.version}, "
             f"symbols={','.join(command.portfolio.symbols)}, tf={command.timeframe}, "
@@ -97,7 +98,7 @@ class BacktestCommandService:
             lambda: self.run_repository.delete_run(backtest_id, "backtest"),
         )
         if not deleted:
-            raise ValueError(f"回测记录不存在: {backtest_id}")
+            raise NotFoundError(f"回测记录不存在: {backtest_id}")
         return BacktestDeleteResponse(success=True, run_id=backtest_id, message="回测记录已删除")
 
     async def delete_paper_run(self, run_id: int) -> BacktestDeleteResponse:

@@ -2,8 +2,8 @@ import { onMounted } from 'vue'
 import type { Router } from 'vue-router'
 
 import { factorApi } from './api'
-import type { FactorResearchState } from './state'
-import type { FactorResearchRunDetail } from './contracts'
+import { factorExecutionPayload, factorResearchPayload, type FactorResearchState } from './state'
+import type { FactorResearchRunDetailResponse } from '../../types/factor'
 
 const responseErrorDetail = (error: unknown): string | null => {
   if (!error || typeof error !== 'object' || !('response' in error)) return null
@@ -14,9 +14,10 @@ const responseErrorDetail = (error: unknown): string | null => {
 
 export const useFactorResearchData = (
   state: FactorResearchState,
-  applyRun: (run: FactorResearchRunDetail) => void,
+  applyRun: (run: FactorResearchRunDetailResponse) => void,
   t: (key: string) => string,
   router: Router,
+  initializeContract: () => Promise<void>,
 ) => {
   const fetchCatalog = async () => {
     state.catalogLoading.value = true
@@ -68,15 +69,7 @@ export const useFactorResearchData = (
     state.loading.value = true
     state.error.value = ''
     try {
-      const response = await factorApi.analyze({
-        symbol: state.form.symbol,
-        timeframe: state.form.timeframe,
-        days: state.form.days,
-        horizon_bars: state.form.horizon_bars,
-        max_lag_bars: state.form.max_lag_bars,
-        categories: [...state.form.categories],
-        factor_ids: [...state.form.factor_ids],
-      })
+      const response = await factorApi.analyze(factorResearchPayload(state.form))
       state.summary.value = response.data.summary
       state.ranking.value = response.data.ranking || []
       state.details.value = response.data.details || []
@@ -109,17 +102,7 @@ export const useFactorResearchData = (
     state.executionLoading.value = mode
     state.error.value = ''
     try {
-      const body = {
-        initial_cash: state.executionForm.initial_cash,
-        fee_rate: state.executionForm.fee_rate,
-        position_size_pct: state.executionForm.position_size_pct,
-        stake_mode: state.executionForm.stake_mode,
-        entry_threshold: state.executionForm.entry_threshold,
-        exit_threshold: state.executionForm.exit_threshold,
-        stoploss_pct: state.executionForm.stoploss_pct,
-        takeprofit_pct: state.executionForm.takeprofit_pct,
-        max_hold_bars: state.executionForm.max_hold_bars,
-      }
+      const body = factorExecutionPayload(state.executionForm)
       const response = mode === 'backtest'
         ? await factorApi.startBacktest(state.selectedRunId.value, body)
         : await factorApi.startPaper(state.selectedRunId.value, body)
@@ -133,6 +116,13 @@ export const useFactorResearchData = (
   }
 
   onMounted(async () => {
+    try {
+      await initializeContract()
+    } catch (err) {
+      console.error('Failed to load factor contract', err)
+      state.error.value = t('factorResearch.catalogFailed')
+      return
+    }
     await Promise.all([fetchCatalog(), fetchRuns()])
     if (state.error.value) return
     if (state.selectedRunId.value) {
@@ -155,3 +145,4 @@ export const useFactorResearchData = (
     startExecution,
   }
 }
+
