@@ -71,7 +71,7 @@ def collect_route_contract_models() -> tuple[RouteContractModel, ...]:
             models.setdefault((target_file, model.__name__), RouteContractModel(target_file, model))
         body_field = getattr(route, "body_field", None)
         if body_field is not None:
-            for model in extract_pydantic_models(body_field.type_):
+            for model in extract_pydantic_models(resolve_fastapi_field_annotation(body_field)):
                 models.setdefault((target_file, model.__name__), RouteContractModel(target_file, model))
     if not models:
         raise RuntimeError("No FastAPI contract models were discovered")
@@ -91,11 +91,11 @@ def collect_route_query_param_contracts() -> tuple[QueryParamContract, ...]:
                 name=param.name,
                 alias=getattr(param, "alias", param.name),
                 schema=remap_schema(
-                    TypeAdapter(param.type_).json_schema(
+                    TypeAdapter(resolve_fastapi_field_annotation(param)).json_schema(
                         ref_template="#/$defs/{model}"
                     )
                 ),
-                required=bool(getattr(param, "required", False)),
+                required=resolve_fastapi_field_required(param),
             )
             for param in route.dependant.query_params
         )
@@ -106,6 +106,32 @@ def collect_route_query_param_contracts() -> tuple[QueryParamContract, ...]:
             route_name=route.name,
         )
     return tuple(contracts.values())
+
+
+def resolve_fastapi_field_annotation(field: Any) -> Any:
+    for attr in ("type_", "annotation"):
+        annotation = getattr(field, attr, None)
+        if annotation is not None:
+            return annotation
+    field_info = getattr(field, "field_info", None)
+    annotation = getattr(field_info, "annotation", None)
+    if annotation is not None:
+        return annotation
+    raise TypeError(f"FastAPI field {getattr(field, 'name', '<unknown>')!r} does not expose a type annotation")
+
+
+def resolve_fastapi_field_required(field: Any) -> bool:
+    required = getattr(field, "required", None)
+    if required is not None:
+        return bool(required)
+    is_required = getattr(field, "is_required", None)
+    if callable(is_required):
+        return bool(is_required())
+    field_info = getattr(field, "field_info", None)
+    field_info_is_required = getattr(field_info, "is_required", None)
+    if callable(field_info_is_required):
+        return bool(field_info_is_required())
+    return False
 
 
 def extract_pydantic_models(annotation: Any) -> tuple[type[BaseModel], ...]:
