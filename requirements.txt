@@ -30,7 +30,10 @@ pandas>=2.0.0            # 数据分析处理 (DCA 模块)
 yfinance>=0.2.0          # 公开市场指数历史数据兜底源
 baostock>=0.8.9          # A 股指数日线历史数据兜底源
 akshare>=1.18.0          # 港股指数历史日线数据源
-freqtrade>=2026.2        # Freqtrade 本地回测引擎
+# Python 3.12 的 Freqtrade 依赖边界。
+# 该版本线可直接使用 Windows/Python 3.12 的 TA-Lib wheel，不再依赖本机编译 TA-Lib 0.5.x。
+TA-Lib==0.6.8
+freqtrade==2026.3        # Freqtrade 本地回测引擎
 
 # Legacy（可选，Flask已废弃）
 # flask>=3.0.0
@@ -38,5 +41,6 @@ freqtrade>=2026.2        # Freqtrade 本地回测引擎
 
 # 开发依赖
 pytest>=7.4.0            # 单元测试框架
+pytest-asyncio>=0.23.0   # pytest async def 测试支持
 # black>=23.0.0          # 代码格式化
 # flake8>=6.0.0          # 代码检查

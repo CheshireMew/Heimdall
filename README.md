@@ -32,8 +32,10 @@ npm run dev
 
 ### 1. 环境要求
 
-- Python 3.12+
+- Python 3.12.x
 - pip
+- Node.js / npm
+- 项目依赖边界固定为 `freqtrade==2026.3` + `TA-Lib==0.6.8`。
 
 ### 2. 克隆项目
 
@@ -44,8 +46,13 @@ cd Heimdall
 
 ### 3. 安装依赖
 
-```bash
-pip install -r requirements.txt
+```powershell
+py -3.12 -m venv venv
+.\venv\Scripts\python.exe -m pip install --upgrade pip setuptools wheel
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+
+cd frontend
+npm ci
 ```
 
 ### 4. 配置环境变量
