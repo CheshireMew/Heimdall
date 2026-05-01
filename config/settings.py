@@ -2,18 +2,14 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_DB_PATH = BASE_DIR / "data" / "heimdall.db"
-DEFAULT_POSTGRES_DEV_HOST = "localhost"
-DEFAULT_POSTGRES_DEV_PORT = 5432
-DEFAULT_POSTGRES_DEV_NAME = "heimdall"
-DEFAULT_POSTGRES_DEV_USER = "postgres"
 
 
 def _default_runtime_root() -> Path:
@@ -31,7 +27,9 @@ class AppSettings(BaseSettings):
     )
 
     EXCHANGE_ID: str = "binance"
-    SYMBOLS: list[str] = Field(default_factory=lambda: ["BTC/USDT", "ETH/USDT", "SOL/USDT", "DOGE/USDT"])
+    SYMBOLS: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["BTC/USDT", "ETH/USDT", "SOL/USDT", "DOGE/USDT"]
+    )
     TIMEFRAME: str = "1h"
     LIMIT: int = 1000
 
@@ -48,13 +46,6 @@ class AppSettings(BaseSettings):
     REDIS_PASSWORD: str = ""
 
     DATABASE_URL: str = ""
-    ALLOW_SQLITE_FALLBACK: bool = False
-    POSTGRES_DEV_URL: str = ""
-    POSTGRES_DEV_HOST: str = DEFAULT_POSTGRES_DEV_HOST
-    POSTGRES_DEV_PORT: int = DEFAULT_POSTGRES_DEV_PORT
-    POSTGRES_DEV_DB: str = DEFAULT_POSTGRES_DEV_NAME
-    POSTGRES_DEV_USER: str = DEFAULT_POSTGRES_DEV_USER
-    POSTGRES_DEV_PASSWORD: str = ""
 
     EMA_PERIOD: int = 20
     RSI_PERIOD: int = 14
@@ -62,7 +53,7 @@ class AppSettings(BaseSettings):
     MACD_SLOW: int = 26
     MACD_SIGNAL: int = 9
 
-    CORS_ORIGINS: list[str] = Field(
+    CORS_ORIGINS: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: [
             "http://localhost:4173",
             "http://127.0.0.1:4173",
@@ -147,7 +138,7 @@ class AppSettings(BaseSettings):
     CURRENCY_RATES_URL: str = "https://open.er-api.com/v6/latest/USD"
     CURRENCY_RATES_TIMEOUT: float = 5.0
     CURRENCY_RATES_TTL: int = 3600
-    DISPLAY_CURRENCIES: list[str] = Field(
+    DISPLAY_CURRENCIES: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["USD", "CNY", "EUR", "GBP", "JPY", "HKD", "SGD", "AUD"]
     )
 

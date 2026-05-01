@@ -136,14 +136,11 @@ def test_verify_database_schema_rejects_stamped_but_incomplete_schema(isolated_d
         schema_runtime.verify_database_schema(runtime)
 
 
-def test_database_resolution_requires_explicit_sqlite_fallback(monkeypatch):
-    monkeypatch.setattr("app.infra.db.database.can_connect_postgres", lambda _url: False)
-
-    with pytest.raises(RuntimeError, match="ALLOW_SQLITE_FALLBACK"):
+def test_database_resolution_requires_database_url():
+    with pytest.raises(RuntimeError, match="DATABASE_URL"):
         resolve_database_url(AppSettings(DATABASE_URL=""))
 
-    database_url, source = resolve_database_url(
-        AppSettings(DATABASE_URL="", ALLOW_SQLITE_FALLBACK=True)
-    )
-    assert database_url.startswith("sqlite:///")
-    assert source == "sqlite-fallback"
+    explicit_url = "postgresql://postgres@localhost:5432/heimdall"
+    database_url, source = resolve_database_url(AppSettings(DATABASE_URL=explicit_url))
+    assert database_url == explicit_url
+    assert source == "settings"

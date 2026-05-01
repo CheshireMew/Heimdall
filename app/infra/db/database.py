@@ -3,13 +3,12 @@ from __future__ import annotations
 import os
 from contextlib import contextmanager
 from pathlib import Path
-from urllib.parse import quote_plus
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import Session, sessionmaker
 
-from config.settings import DEFAULT_DB_PATH, AppSettings
+from config.settings import AppSettings
 
 
 class DatabaseRuntime:
@@ -17,7 +16,7 @@ class DatabaseRuntime:
         self.database_url = database_url
         self.source = source
         self.engine = self._create_engine(database_url)
-        self.session_factory = sessionmaker(bind=self.engine)
+        self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False)
 
     def get_session(self) -> Session:
         return self.session_factory()
@@ -51,7 +50,6 @@ class DatabaseRuntime:
         }
 
         if database_url.startswith("sqlite"):
-            # SQLite 仍保留跨线程访问选项，因为后台任务会走线程池。
             engine_kwargs["connect_args"] = {"check_same_thread": False}
         else:
             engine_kwargs["pool_size"] = 10
@@ -60,54 +58,15 @@ class DatabaseRuntime:
         return create_engine(database_url, **engine_kwargs)
 
 
-def build_postgres_dev_url(app_settings: AppSettings) -> str:
-    direct_url = app_settings.POSTGRES_DEV_URL.strip()
-    if direct_url:
-        return direct_url
-
-    auth = quote_plus(app_settings.POSTGRES_DEV_USER.strip())
-    if app_settings.POSTGRES_DEV_PASSWORD:
-        auth = f"{auth}:{quote_plus(app_settings.POSTGRES_DEV_PASSWORD)}"
-    return (
-        f"postgresql://{auth}@{app_settings.POSTGRES_DEV_HOST.strip()}:"
-        f"{app_settings.POSTGRES_DEV_PORT}/{app_settings.POSTGRES_DEV_DB.strip()}"
-    )
-
-
-def can_connect_postgres(database_url: str) -> bool:
-    probe_engine = None
-    try:
-        probe_engine = create_engine(
-            database_url,
-            pool_pre_ping=False,
-            connect_args={"connect_timeout": 1},
-        )
-        with probe_engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        return False
-    finally:
-        if probe_engine is not None:
-            probe_engine.dispose()
-
-
 def resolve_database_url(app_settings: AppSettings) -> tuple[str, str]:
-    explicit_url = app_settings.DATABASE_URL.strip()
-    if explicit_url:
-        return explicit_url, "explicit"
-
-    postgres_dev_url = build_postgres_dev_url(app_settings)
-    if can_connect_postgres(postgres_dev_url):
-        return postgres_dev_url, "postgres-dev"
-
-    if app_settings.ALLOW_SQLITE_FALLBACK:
-        return f"sqlite:///{DEFAULT_DB_PATH}", "sqlite-fallback"
-
-    raise RuntimeError(
-        "数据库启动边界不明确：DATABASE_URL 未配置，且本地 PostgreSQL 开发库不可连接。"
-        "如需真实运行，请配置 DATABASE_URL；如只做本地临时开发，请显式设置 ALLOW_SQLITE_FALLBACK=true。"
-    )
+    database_url = app_settings.DATABASE_URL.strip()
+    if not database_url:
+        raise RuntimeError(
+            "DATABASE_URL 未配置。Heimdall 的数据库唯一入口是 DATABASE_URL；"
+            "服务器部署请配置 PostgreSQL 连接串，例如 "
+            "postgresql://user:password@host:5432/heimdall。"
+        )
+    return database_url, "settings"
 
 
 def build_database_runtime(app_settings: AppSettings) -> DatabaseRuntime:

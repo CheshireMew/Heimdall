@@ -73,7 +73,7 @@ cp .env.example .env
 python scripts/prepare_db.py
 ```
 
-数据库结构由 Alembic 管理。应用启动时会先尝试连接本机 PostgreSQL 开发库；如果本机开发库不可用，才会回退到 SQLite。发现未迁移结构会直接报错，避免运行时继续写入错误表结构。
+数据库结构由 Alembic 管理。`DATABASE_URL` 是唯一数据库入口；服务器部署请配置 PostgreSQL 连接串，例如 `postgresql://user:password@host:5432/heimdall`。发现未配置数据库或未迁移结构会直接报错，避免运行时继续写入错误数据库或错误表结构。
 
 ## 🚀 快速开始
 
