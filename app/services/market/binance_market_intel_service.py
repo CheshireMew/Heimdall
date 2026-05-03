@@ -12,11 +12,16 @@ from .binance_usdm_market import BinanceUsdmMarketService
 
 if TYPE_CHECKING:
     from app.infra.cache import RedisService
+    from .binance_market_research_store import BinanceMarketResearchStore
+    from .funding_rate_store import FundingRateStore
 
 
 class BinanceMarketIntelService:
     def __init__(
         self,
+        *,
+        research_store: BinanceMarketResearchStore,
+        funding_rate_store: FundingRateStore,
         snapshot_service: BinanceMarketSnapshotService | None = None,
         cache_service: RedisService | None = None,
     ) -> None:
@@ -32,8 +37,12 @@ class BinanceMarketIntelService:
             user_agent="heimdall/market-intel",
             cache_service=cache_service,
         )
-        self.spot = BinanceSpotMarketService(spot_client)
-        self.usdm = BinanceUsdmMarketService(usdm_client)
+        self.spot = BinanceSpotMarketService(spot_client, research_store=research_store)
+        self.usdm = BinanceUsdmMarketService(
+            usdm_client,
+            research_store=research_store,
+            funding_rate_store=funding_rate_store,
+        )
         self.snapshot_service = snapshot_service or BinanceMarketSnapshotService()
         self.page = BinanceMarketPageService(
             spot=self.spot,

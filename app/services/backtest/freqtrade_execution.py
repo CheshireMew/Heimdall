@@ -286,8 +286,12 @@ class FreqtradeIterationExecutor:
                 start_ms=request_start_ms,
                 end_ms=end_ms,
             ):
-                rows = self.market_data_service.fetch_ohlcv_range(
+                range_result = self.market_data_service.load_ohlcv_range(
                     data_symbol, timeframe, warmup_start, end_date
+                )
+                rows = range_result.require_complete(
+                    symbol=data_symbol,
+                    timeframe=timeframe,
                 )
                 if not rows:
                     raise RuntimeError(

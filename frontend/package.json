@@ -5,9 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "sync:contracts": "python ../scripts/generate_frontend_contracts.py",
     "typecheck": "tsc --noEmit",
-    "build": "npm run sync:contracts && npm run typecheck && vite build",
+    "build": "npm run typecheck && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

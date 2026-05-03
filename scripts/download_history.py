@@ -1,51 +1,54 @@
-import asyncio
-from datetime import datetime, timedelta
+import sys
+from datetime import datetime
 
-from app.services.market.market_data_service import MarketDataService
+from app.runtime_builder import build_app_runtime_services
+from app.runtime_refs import INFRA_DATABASE_RUNTIME, MARKET_MARKET_DATA_SERVICE
 from utils.logger import logger
 
+
 def download_history(symbol, timeframe, start_year=None):
-    """
-    下载历史数据
-    :param start_year: 起始年份 (int)，如果为 None 则默认 2017 (Binance Launch)
-    """
-    provider = MarketDataService()
-    
+    runtime_services = build_app_runtime_services("api")
+    provider = runtime_services.require_service(MARKET_MARKET_DATA_SERVICE)
+
     end_date = datetime.now()
-    
-    if start_year:
-        start_date = datetime(year=start_year, month=1, day=1)
-    else:
-        # Default to 2017-01-01 if "ALL" requested or no days specified
-        start_date = datetime(year=2017, month=1, day=1)
-    
-    print(f"[START] 开始下载 {symbol} - {timeframe} 全量历史数据")
-    print(f"[DATE] 范围: {start_date} -> {end_date}")
-    print("[WAIT] 这将花费较长时间，请耐心等待...")
-    
+    start_date = datetime(year=start_year or 2017, month=1, day=1)
+
+    print(f"[START] Downloading history: {symbol} {timeframe}")
+    print(f"[DATE] Range: {start_date} -> {end_date}")
+
     try:
-        data = provider.fetch_ohlcv_range(symbol, timeframe, start_date, end_date)
-        
+        result = provider.load_ohlcv_range(symbol, timeframe, start_date, end_date)
+        data = result.rows
+
         if data:
-            print(f"[OK] 下载完成! 共 {len(data)} 条K线数据已存入数据库。")
-            print(f"[DATA] 实际覆盖: {datetime.fromtimestamp(data[0][0]/1000)} -> {datetime.fromtimestamp(data[-1][0]/1000)}")
+            print(f"[OK] Downloaded {len(data)} candles")
+            print(
+                "[DATA] Actual coverage: "
+                f"{datetime.fromtimestamp(data[0][0] / 1000)} -> "
+                f"{datetime.fromtimestamp(data[-1][0] / 1000)}"
+            )
+            if not result.complete:
+                print(f"[WARN] Incomplete coverage: {result.missing_ranges}")
         else:
-            print("[ERROR] 未获取到数据。")
-        
-    except Exception as e:
-        print(f"[ERROR] 下载失败: {e}")
-        logger.error(f"History download failed: {e}")
+            print("[ERROR] No data returned")
+    except Exception as exc:
+        print(f"[ERROR] Download failed: {exc}")
+        logger.error(f"History download failed: {exc}")
+    finally:
+        database_runtime = runtime_services.get_service(INFRA_DATABASE_RUNTIME)
+        if database_runtime is not None:
+            database_runtime.dispose()
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Usage: python download_history.py <SYMBOL> <TIMEFRAME> [START_YEAR]")
         print("Example: python download_history.py BTC/USDT 5m 2020")
-        print("Example (All Time): python download_history.py BTC/USDT 5m")
+        print("Example: python download_history.py BTC/USDT 5m")
         sys.exit(1)
-        
+
     symbol = sys.argv[1]
     timeframe = sys.argv[2]
-    # If 3rd arg provided, parse as year. Else default to all (2017).
     start_year = int(sys.argv[3]) if len(sys.argv) > 3 else 2017
-    
+
     download_history(symbol, timeframe, start_year)

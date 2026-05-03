@@ -40,7 +40,7 @@ class CachingTestCase(unittest.TestCase):
         
         # 1. First fetch: Should call exchange
         print("\n[Test] First fetch (empty cache)...")
-        data1 = self.provider.fetch_ohlcv_range(self.symbol, self.timeframe, start_date, end_date)
+        data1 = self.provider.load_ohlcv_range(self.symbol, self.timeframe, start_date, end_date).rows
         self.assertTrue(len(data1) > 0)
         
         # Verify DB has data
@@ -59,7 +59,7 @@ class CachingTestCase(unittest.TestCase):
             'fetch_ohlcv',
             wraps=self.provider.exchange_gateway.fetch_ohlcv,
         ) as mock_exchange_fetch:
-            data2 = self.provider.fetch_ohlcv_range(self.symbol, self.timeframe, exact_start, exact_end)
+            data2 = self.provider.load_ohlcv_range(self.symbol, self.timeframe, exact_start, exact_end).rows
 
             self.assertEqual(len(data1), len(data2))
             self.assertEqual(data1[0][0], data2[0][0])

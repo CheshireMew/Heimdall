@@ -4,6 +4,15 @@ import pytest
 
 from app.schemas.binance_market import BinanceKlineResponse, BinanceMarkPriceResponse, BinanceTickerStatsResponse
 from app.services.market.binance_market_intel_service import BinanceMarketIntelService
+from app.services.market.binance_market_research_store import BinanceMarketResearchStore
+from app.services.market.funding_rate_store import FundingRateStore
+
+
+def make_market_intel_service(installed_database_runtime) -> BinanceMarketIntelService:
+    return BinanceMarketIntelService(
+        research_store=BinanceMarketResearchStore(database_runtime=installed_database_runtime),
+        funding_rate_store=FundingRateStore(database_runtime=installed_database_runtime),
+    )
 
 
 def make_breakout_klines(start_price: float, bars: int = 80) -> list[dict]:
@@ -31,8 +40,8 @@ def make_breakout_klines(start_price: float, bars: int = 80) -> list[dict]:
 
 
 @pytest.mark.asyncio
-async def test_market_breakout_monitor_unifies_and_scores_candidates(monkeypatch):
-    service = BinanceMarketIntelService()
+async def test_market_breakout_monitor_unifies_and_scores_candidates(monkeypatch, installed_database_runtime):
+    service = make_market_intel_service(installed_database_runtime)
 
     async def fake_spot_ticker_24hr(**kwargs):
         return BinanceTickerStatsResponse.model_validate({
@@ -95,8 +104,8 @@ async def test_market_breakout_monitor_unifies_and_scores_candidates(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_market_page_payload_returns_partial_data_when_a_source_fails(monkeypatch):
-    service = BinanceMarketIntelService()
+async def test_market_page_payload_returns_partial_data_when_a_source_fails(monkeypatch, installed_database_runtime):
+    service = make_market_intel_service(installed_database_runtime)
 
     async def fake_spot_ticker_24hr(**kwargs):
         return BinanceTickerStatsResponse.model_validate({
@@ -132,3 +141,55 @@ async def test_market_page_payload_returns_partial_data_when_a_source_fails(monk
     assert response["usdm_ticker"]["items"] == []
     assert response["monitor"]["summary"]["monitored_count"] == 1
     assert {item["symbol"] for item in response["monitor"]["items"]} == {"DOGEUSDT"}
+
+
+@pytest.mark.asyncio
+async def test_market_page_payload_reuses_short_lived_cache(monkeypatch, installed_database_runtime):
+    service = make_market_intel_service(installed_database_runtime)
+    kline_calls = 0
+
+    async def fake_spot_ticker_24hr(**kwargs):
+        return BinanceTickerStatsResponse.model_validate({
+            "exchange": "binance",
+            "market": "spot",
+            "items": [
+                {"symbol": "DOGEUSDT", "last_price": 0.164, "price_change_pct": 8.6, "quote_volume": 310_000_000.0},
+            ],
+        })
+
+    async def fake_usdm_ticker_24hr(**kwargs):
+        return BinanceTickerStatsResponse.model_validate({
+            "exchange": "binance",
+            "market": "usdm",
+            "items": [],
+        })
+
+    async def fake_usdm_mark_price(**kwargs):
+        return BinanceMarkPriceResponse.model_validate({
+            "exchange": "binance",
+            "market": "usdm",
+            "items": [],
+        })
+
+    async def fake_spot_klines(**kwargs):
+        nonlocal kline_calls
+        kline_calls += 1
+        return BinanceKlineResponse.model_validate({
+            "exchange": "binance",
+            "market": "spot",
+            "symbol": "DOGEUSDT",
+            "interval": kwargs.get("interval", "15m"),
+            "items": make_breakout_klines(0.12),
+        })
+
+    monkeypatch.setattr(service.spot, "get_ticker_24hr", fake_spot_ticker_24hr)
+    monkeypatch.setattr(service.usdm, "get_ticker_24hr", fake_usdm_ticker_24hr)
+    monkeypatch.setattr(service.usdm, "get_mark_price", fake_usdm_mark_price)
+    monkeypatch.setattr(service.spot, "get_klines", fake_spot_klines)
+
+    first = (await service.page.get_page_payload(min_rise_pct=5.0, limit=24, quote_asset="USDT")).model_dump()
+    second = (await service.page.get_page_payload(min_rise_pct=5.0, limit=24, quote_asset="USDT")).model_dump()
+
+    assert kline_calls == 2
+    assert first["updated_at"] == second["updated_at"]
+    assert first["monitor"]["items"] == second["monitor"]["items"]

@@ -36,7 +36,7 @@ class FakeExchangeGateway:
         return
 
 
-def test_fetch_ohlcv_range_repairs_middle_gap():
+def test_load_ohlcv_range_repairs_middle_gap():
     base = datetime(2024, 1, 1, 0, 0, 0)
     one_hour_ms = 60 * 60 * 1000
     base_ts = int(base.timestamp() * 1000)
@@ -52,13 +52,15 @@ def test_fetch_ohlcv_range_repairs_middle_gap():
         kline_store=kline_store,
     )
 
-    data = service.fetch_ohlcv_range(
+    result = service.load_ohlcv_range(
         "BTC/USDT",
         "1h",
         base,
         base + timedelta(hours=2),
     )
 
+    data = result.rows
+    assert result.complete
     assert [row[0] for row in data] == [first_row[0], missing_row[0], third_row[0]]
     assert exchange_gateway.calls == [("BTC/USDT", "1h", missing_row[0], settings.EXCHANGE_FETCH_LIMIT)]
     assert kline_store.saved_rows == [missing_row]

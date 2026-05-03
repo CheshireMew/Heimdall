@@ -289,14 +289,19 @@ class MarketQueryAppService:
         persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
     ) -> MarketHistoryResponse:
         validate_market_request(symbol, timeframe)
-        rows = await self._load_full_history_rows(
+        rows, missing_ranges = await self._load_full_history_rows(
             symbol=symbol,
             timeframe=timeframe,
             start_date=start_date,
             fetch_policy=fetch_policy,
             persist_klines=persist_klines,
         )
-        return build_market_history_response(symbol=symbol, timeframe=timeframe, rows=rows)
+        return build_market_history_response(
+            symbol=symbol,
+            timeframe=timeframe,
+            rows=rows,
+            missing_ranges=missing_ranges,
+        )
 
     async def get_full_history_batch(
         self,
@@ -316,7 +321,7 @@ class MarketQueryAppService:
             seen_symbols.add(symbol)
             normalized_symbols.append(symbol)
 
-        rows = await asyncio.gather(
+        series = await asyncio.gather(
             *[
                 self._load_full_history_rows(
                     symbol=symbol,
@@ -330,7 +335,7 @@ class MarketQueryAppService:
         )
         return build_market_history_batch_response(
             timeframe=timeframe,
-            series_by_symbol=dict(zip(normalized_symbols, rows, strict=False)),
+            series_by_symbol=dict(zip(normalized_symbols, series, strict=False)),
         )
 
     async def _load_full_history_rows(
@@ -341,7 +346,7 @@ class MarketQueryAppService:
         start_date: str,
         fetch_policy: Literal["cache_only", "hydrate"],
         persist_klines: Callable[[str, str, list[list[float]]], None] | None,
-    ) -> list[list[float]]:
+    ) -> tuple[list[list[float]], list[tuple[int, int]]]:
         try:
             start_dt = datetime.strptime(start_date, "%Y-%m-%d")
         except ValueError as exc:
@@ -349,23 +354,25 @@ class MarketQueryAppService:
 
         end_dt = datetime.now()
         if fetch_policy == "cache_only":
-            return await run_sync(
-                lambda: self.market_data_service.get_cached_ohlcv_range(
+            result = await run_sync(
+                lambda: self.market_data_service.load_cached_ohlcv_range(
                     symbol,
                     timeframe,
                     start_dt,
                     end_dt,
                 ),
             )
-        return await run_sync(
-            lambda: self.market_data_service.fetch_ohlcv_range(
-                symbol,
-                timeframe,
-                start_dt,
-                end_dt,
-                persist_klines=persist_klines,
-            ),
-        )
+        else:
+            result = await run_sync(
+                lambda: self.market_data_service.load_ohlcv_range(
+                    symbol,
+                    timeframe,
+                    start_dt,
+                    end_dt,
+                    persist_klines=persist_klines,
+                ),
+            )
+        return result.rows, result.missing_ranges
 
     async def get_technical_metrics(
         self,

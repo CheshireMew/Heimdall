@@ -61,7 +61,7 @@ class FundingRateStore:
         *,
         exchange: str,
         market_type: str,
-        symbol: str,
+        symbol: str | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         limit: int | None = None,
@@ -70,8 +70,9 @@ class FundingRateStore:
             query = session.query(FundingRate).filter_by(
                 exchange=exchange,
                 market_type=market_type,
-                symbol=symbol,
             )
+            if symbol:
+                query = query.filter(FundingRate.symbol == symbol)
             if start_date:
                 query = query.filter(FundingRate.funding_time >= start_date)
             if end_date:

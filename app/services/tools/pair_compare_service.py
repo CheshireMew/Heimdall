@@ -82,7 +82,12 @@ class PairCompareService:
                 [point.timestamp, point.open, point.high, point.low, point.close, point.volume]
                 for point in result.data
             ]
-        return self.market_data_service.fetch_ohlcv_range(resolved["symbol"], base_timeframe, start_date, end_date)
+        return self.market_data_service.load_ohlcv_range(
+            resolved["symbol"],
+            base_timeframe,
+            start_date,
+            end_date,
+        ).require_complete(symbol=resolved["symbol"], timeframe=base_timeframe)
 
     def _aggregate_klines(self, klines: list[list[float]], target_timeframe: str) -> list[list[float]]:
         timeframe_minutes = {

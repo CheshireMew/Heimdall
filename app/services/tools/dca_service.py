@@ -79,7 +79,12 @@ class DCAService:
                     for point in index_pricing.data
                 ]
             else:
-                klines = self.market_data_service.fetch_ohlcv_range(normalized_symbol, "1h", fetch_start_utc, fetch_end_utc)
+                klines = self.market_data_service.load_ohlcv_range(
+                    normalized_symbol,
+                    "1h",
+                    fetch_start_utc,
+                    fetch_end_utc,
+                ).require_complete(symbol=normalized_symbol, timeframe="1h")
             if not klines:
                 return {"error": "该时间段无数据"}
 

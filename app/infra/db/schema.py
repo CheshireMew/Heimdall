@@ -224,6 +224,51 @@ class FundingRate(Base):
     def __repr__(self):
         return f"<FundingRate(symbol={self.symbol}, funding_time={self.funding_time}, funding_rate={self.funding_rate})>"
 
+
+class BinanceMarketResearchSeries(Base):
+    """Binance historical research series persisted after normalization."""
+    __tablename__ = 'binance_market_research_series'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    market = Column(String(20), nullable=False)
+    series = Column(String(60), nullable=False)
+    symbol = Column(String(40), nullable=False)
+    period = Column(String(20), nullable=False, default="")
+    contract_type = Column(String(30), nullable=False, default="")
+    item_key = Column(String(80), nullable=False)
+    timestamp = Column(BigInteger, nullable=False)
+    payload = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
+
+    __table_args__ = (
+        Index(
+            'ix_binance_market_research_unique',
+            'market',
+            'series',
+            'symbol',
+            'period',
+            'contract_type',
+            'item_key',
+            unique=True,
+        ),
+        Index(
+            'ix_binance_market_research_lookup',
+            'market',
+            'series',
+            'symbol',
+            'period',
+            'contract_type',
+            'timestamp',
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<BinanceMarketResearchSeries(market={self.market}, series={self.series}, symbol={self.symbol}, "
+            f"period={self.period}, contract_type={self.contract_type}, timestamp={self.timestamp})>"
+        )
+
+
 class Kline(Base):
     """K线数据表 (用于缓存)"""
     __tablename__ = 'klines'

@@ -127,6 +127,19 @@ def test_frontend_business_code_uses_module_contract_boundaries():
     assert offenders == []
 
 
+def test_frontend_components_do_not_import_generated_types_directly():
+    offenders = []
+    for root in [FRONTEND_DIR / "components", FRONTEND_DIR / "views"]:
+        for path in root.rglob("*"):
+            if path.suffix not in {".ts", ".vue"}:
+                continue
+            source = path.read_text(encoding="utf-8")
+            if re.search(r"from\s+['\"](?:\.\./)+types/", source) or "@/types" in source:
+                offenders.append(path.relative_to(FRONTEND_DIR).as_posix())
+
+    assert offenders == []
+
+
 def test_market_store_cache_contract_is_stable():
     source = read_frontend("modules/market/store.ts")
 
@@ -181,6 +194,35 @@ def test_market_history_api_requests_do_not_keep_a_second_cache():
         "get_index_pricing_history",
     ]:
         assert route_name in source
+
+
+def test_binance_market_frontend_does_not_persist_server_response_cache():
+    assert not (FRONTEND_DIR / "modules" / "market" / "binanceMarketCache.ts").exists()
+
+    offenders = []
+    for path in (FRONTEND_DIR / "modules" / "market").rglob("*"):
+        if path.suffix not in {".ts", ".vue"}:
+            continue
+        source = path.read_text(encoding="utf-8")
+        if "heimdall_binance_market_cache" in source or "readBinance" in source or "writeBinance" in source:
+            offenders.append(path.relative_to(FRONTEND_DIR).as_posix())
+
+    assert offenders == []
+
+
+def test_binance_market_frontend_uses_warm_start_snapshot_boundary():
+    snapshot_source = read_frontend("modules/market/binanceMarketWarmSnapshot.ts")
+    monitor_source = read_frontend("modules/market/useBinanceMarketMonitor.ts")
+    web3_source = read_frontend("modules/market/useBinanceWeb3Panel.ts")
+
+    assert "heimdall_binance_market_warm_snapshot" in snapshot_source
+    assert "restoreBinanceMarketWarmSnapshot" in monitor_source
+    assert "saveBinanceMarketWarmSnapshot" in monitor_source
+    assert "restoreBinanceWeb3HeatRankWarmSnapshot" in web3_source
+    assert "saveBinanceWeb3HeatRankWarmSnapshot" in web3_source
+    assert "binanceMarketCache" not in snapshot_source
+    assert "readBinance" not in snapshot_source
+    assert "writeBinance" not in snapshot_source
 
 
 def test_frontend_navigation_uses_single_manifest():

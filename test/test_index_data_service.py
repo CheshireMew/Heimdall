@@ -292,25 +292,46 @@ def test_pricing_history_uses_proxy_etf_source(monkeypatch):
     assert service.kline_store.saved[0][0] == "proxy:HK:HSI:02800"
 
 
-def test_fred_history_close_only_is_not_cached(monkeypatch):
-    service = IndexDataService(kline_store=FakeKlineStore())
-    instrument = get_index_instrument("US_VIX")
-    monkeypatch.setattr(settings, "FRED_API_KEY", "")
+def test_fred_history_close_only_is_normalized_and_cached(monkeypatch):
+    close_only_row = [
+        int(datetime(2024, 1, 2, tzinfo=timezone.utc).timestamp() * 1000),
+        13.2,
+        13.2,
+        13.2,
+        13.2,
+        0.0,
+    ]
+    history_sources = FakeIndexHistorySources({
+        ("2024-01-01", "2024-01-10"): [close_only_row],
+    })
+    service = IndexDataService(kline_store=FakeKlineStore(), history_sources=history_sources)
 
-    def fake_get(*args, **kwargs):
-        return FakeResponse(text="observation_date,VIXCLS\n2024-01-02,13.20\n2024-01-03,.\n")
+    def fake_fetch_history(instrument, start_dt, end_dt):
+        key = (start_dt.strftime("%Y-%m-%d"), end_dt.strftime("%Y-%m-%d"))
+        history_sources.calls.append(key)
+        return types.SimpleNamespace(
+            data=history_sources.rows_by_window.get(key, []),
+            source="fred",
+            is_close_only=True,
+        )
 
-    monkeypatch.setattr("app.services.market.index_history_fred.requests.get", fake_get)
+    history_sources.fetch_history = fake_fetch_history
 
-    result = service.history_sources.fetch_fred_history(
-        instrument,
-        datetime(2024, 1, 1, tzinfo=timezone.utc),
-        datetime(2024, 1, 10, tzinfo=timezone.utc),
+    result = service.get_history(
+        symbol="US_VIX",
+        timeframe="1d",
+        start_date="2024-01-01",
+        end_date="2024-01-10",
     )
 
     assert result.source == "fred"
     assert result.is_close_only is True
-    assert result.data == [
+    assert [ohlcv_row(item) for item in result.data] == [close_only_row]
+    assert service.kline_store.saved[0][0] == "index:US:VIX"
+
+
+def test_cached_close_only_index_history_keeps_close_only_flag():
+    cached_rows = [
         [
             int(datetime(2024, 1, 2, tzinfo=timezone.utc).timestamp() * 1000),
             13.2,
@@ -320,6 +341,18 @@ def test_fred_history_close_only_is_not_cached(monkeypatch):
             0.0,
         ]
     ]
+    service = IndexDataService(kline_store=FakeKlineStore(cached=cached_rows))
+
+    result = service.get_history(
+        symbol="US_VIX",
+        timeframe="1d",
+        start_date="2024-01-02",
+        end_date="2024-01-02",
+    )
+
+    assert result.source == "cache"
+    assert result.is_close_only is True
+    assert [ohlcv_row(item) for item in result.data] == cached_rows
 
 
 def test_cached_history_is_used_before_upstream_fetch(monkeypatch):

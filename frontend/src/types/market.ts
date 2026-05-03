@@ -37,6 +37,7 @@ export interface MarketHistoryResponse {
   symbol: string
   timeframe: string
   items?: Array<OhlcvPointResponse>
+  coverage?: MarketHistoryCoverageResponse
 }
 
 export interface KlineTailResponse {
@@ -819,6 +820,17 @@ export interface MACDResponse {
 export interface MarketHistoryBatchItemResponse {
   symbol: string
   items?: Array<OhlcvPointResponse>
+  coverage?: MarketHistoryCoverageResponse
+}
+
+export interface MarketHistoryCoverageResponse {
+  complete: boolean
+  missing_ranges?: Array<MarketHistoryMissingRangeResponse>
+}
+
+export interface MarketHistoryMissingRangeResponse {
+  start_ts: number
+  end_ts: number
 }
 
 export interface OhlcvPointResponse {

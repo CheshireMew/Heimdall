@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 from app.schemas.market import MarketIndexHistoryResponse, build_ohlcv_points
 
+from app.services.market.market_data_service import OhlcvRangeResult
 from app.services.tools.dca_service import DCAService as DCACalculator
 
 
@@ -33,8 +34,8 @@ class TestValueAveraging(unittest.TestCase):
             make_kline(d3, 1000.0),
         ]
 
-        self.calculator.market_data_service.fetch_ohlcv_range.return_value = mock_data
-        self.calculator.market_data_service.get_kline_data.return_value = [[
+        self.calculator.market_data_service.load_ohlcv_range.return_value = OhlcvRangeResult(mock_data, [])
+        self.calculator.market_data_service.get_recent_candles.return_value = [[
             int(d3.timestamp() * 1000), 1000.0, 1000.0, 1000.0, 1000.0, 1000
         ]]
 

@@ -30,15 +30,40 @@ class OhlcvPointResponse(BaseModel):
     volume: float
 
 
+class MarketHistoryMissingRangeResponse(BaseModel):
+    start_ts: int
+    end_ts: int
+
+
+class MarketHistoryCoverageResponse(BaseModel):
+    complete: bool
+    missing_ranges: list[MarketHistoryMissingRangeResponse] = Field(default_factory=list)
+
+
+def build_market_history_coverage(
+    missing_ranges: list[tuple[int, int]] | None = None,
+) -> MarketHistoryCoverageResponse:
+    ranges = missing_ranges or []
+    return MarketHistoryCoverageResponse(
+        complete=not ranges,
+        missing_ranges=[
+            MarketHistoryMissingRangeResponse(start_ts=int(start), end_ts=int(end))
+            for start, end in ranges
+        ],
+    )
+
+
 class MarketHistoryResponse(BaseModel):
     symbol: str
     timeframe: str
     items: list[OhlcvPointResponse] = Field(default_factory=list)
+    coverage: MarketHistoryCoverageResponse = Field(default_factory=build_market_history_coverage)
 
 
 class MarketHistoryBatchItemResponse(BaseModel):
     symbol: str
     items: list[OhlcvPointResponse] = Field(default_factory=list)
+    coverage: MarketHistoryCoverageResponse = Field(default_factory=build_market_history_coverage)
 
 
 class MarketHistoryBatchResponse(BaseModel):
@@ -294,19 +319,34 @@ def build_ohlcv_points(rows: list[list[float]]) -> list[OhlcvPointResponse]:
     ]
 
 
-def build_market_history_response(*, symbol: str, timeframe: str, rows: list[list[float]]) -> MarketHistoryResponse:
-    return MarketHistoryResponse(symbol=symbol, timeframe=timeframe, items=build_ohlcv_points(rows))
+def build_market_history_response(
+    *,
+    symbol: str,
+    timeframe: str,
+    rows: list[list[float]],
+    missing_ranges: list[tuple[int, int]] | None = None,
+) -> MarketHistoryResponse:
+    return MarketHistoryResponse(
+        symbol=symbol,
+        timeframe=timeframe,
+        items=build_ohlcv_points(rows),
+        coverage=build_market_history_coverage(missing_ranges),
+    )
 
 
 def build_market_history_batch_response(
     *,
     timeframe: str,
-    series_by_symbol: dict[str, list[list[float]]],
+    series_by_symbol: dict[str, tuple[list[list[float]], list[tuple[int, int]]]],
 ) -> MarketHistoryBatchResponse:
     return MarketHistoryBatchResponse(
         timeframe=timeframe,
         items=[
-            MarketHistoryBatchItemResponse(symbol=symbol, items=build_ohlcv_points(rows))
-            for symbol, rows in series_by_symbol.items()
+            MarketHistoryBatchItemResponse(
+                symbol=symbol,
+                items=build_ohlcv_points(rows),
+                coverage=build_market_history_coverage(missing_ranges),
+            )
+            for symbol, (rows, missing_ranges) in series_by_symbol.items()
         ],
     )

@@ -1,4 +1,11 @@
-import type { OhlcvPointResponse } from '../../types/market'
+import type {
+  BinanceBreakoutMonitorItemResponse,
+  BinanceWeb3HeatRankItemResponse,
+  BinanceWeb3TokenAuditResponse,
+  BinanceWeb3TokenDynamicResponse,
+  MarketSymbolSearchResponse,
+  OhlcvPointResponse,
+} from '../../types/market'
 
 export interface CandlestickData {
   time: number
@@ -29,3 +36,9 @@ export interface SentimentCache {
   value: SentimentData | null
   timestamp: number
 }
+
+export type BinanceBreakoutMonitorItem = BinanceBreakoutMonitorItemResponse
+export type BinanceWeb3HeatRankItem = BinanceWeb3HeatRankItemResponse
+export type BinanceWeb3TokenAudit = BinanceWeb3TokenAuditResponse
+export type BinanceWeb3TokenDynamic = BinanceWeb3TokenDynamicResponse
+export type MarketSymbolSearchItem = MarketSymbolSearchResponse

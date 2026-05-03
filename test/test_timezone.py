@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytz
 from utils.time_manager import TimeManager
+from app.services.market.market_data_service import OhlcvRangeResult
 from app.services.tools.dca_service import DCAService as DCACalculator
 
 class TestTimezoneLogic(unittest.TestCase):
@@ -47,10 +48,10 @@ class TestTimezoneLogic(unittest.TestCase):
             [ts_nomatch, 101, 101, 101, 101, 1000]
         ]
         
-        calc.market_data_service.fetch_ohlcv_range.return_value = mock_klines
+        calc.market_data_service.load_ohlcv_range.return_value = OhlcvRangeResult(mock_klines, [])
         
         # We need to ensure get_kline_data is also mocked for current price check
-        calc.market_data_service.get_kline_data.return_value = [[ts_match, 100, 100, 100, 100, 1000]]
+        calc.market_data_service.get_recent_candles.return_value = [[ts_match, 100, 100, 100, 100, 1000]]
         
         res = calc.calculate_dca(
             symbol="BTC/USDT",

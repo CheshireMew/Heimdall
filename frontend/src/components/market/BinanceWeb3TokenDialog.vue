@@ -137,22 +137,23 @@
 
 <script setup lang="ts">
 import TradingViewChart from '@/components/TradingViewChart.vue'
-import type { CandlestickData, VolumeData } from '@/modules/market/contracts'
 import type {
-  BinanceWeb3HeatRankItemResponse,
-  BinanceWeb3TokenAuditResponse,
-  BinanceWeb3TokenDynamicResponse,
-} from '../../types/market'
+  BinanceWeb3HeatRankItem,
+  BinanceWeb3TokenAudit,
+  BinanceWeb3TokenDynamic,
+  CandlestickData,
+  VolumeData,
+} from '@/modules/market/contracts'
 
 defineProps<{
   open: boolean
-  token: BinanceWeb3HeatRankItemResponse | null
+  token: BinanceWeb3HeatRankItem | null
   interval: string
   intervals: string[]
   detailLoading: boolean
   detailError: string
-  dynamic: BinanceWeb3TokenDynamicResponse | null
-  audit: BinanceWeb3TokenAuditResponse | null
+  dynamic: BinanceWeb3TokenDynamic | null
+  audit: BinanceWeb3TokenAudit | null
   chartData: CandlestickData[]
   volumeData: VolumeData[]
   chartColors: Record<string, string>

@@ -31,6 +31,7 @@ MARKET_INSIGHT_APP_SERVICE = RuntimeServiceRef("market", "market_insight_app_ser
 MARKET_WEBSOCKET_SERVICE = RuntimeServiceRef("market", "market_websocket_service")
 MARKET_INDEX_DATA_SERVICE = RuntimeServiceRef("market", "index_data_service")
 MARKET_BINANCE_MARKET_SNAPSHOT = RuntimeServiceRef("market", "binance_market_snapshot")
+MARKET_BINANCE_MARKET_RESEARCH_STORE = RuntimeServiceRef("market", "binance_market_research_store")
 MARKET_BINANCE_MARKET_INTEL = RuntimeServiceRef("market", "binance_market_intel")
 MARKET_BINANCE_WEB3_SERVICE = RuntimeServiceRef("market", "binance_web3_service")
 
@@ -59,4 +60,5 @@ FACTORS_PAPER_PERSISTENCE_SERVICE = RuntimeServiceRef("factors", "factor_paper_p
 FACTORS_PAPER_RUN_MANAGER = RuntimeServiceRef("factors", "factor_paper_run_manager")
 
 SYSTEM_CURRENCY_RATE_SERVICE = RuntimeServiceRef("system", "currency_rate_service")
+SYSTEM_LLM_CONFIG_SERVICE = RuntimeServiceRef("system", "llm_config_service")
 SYSTEM_MARKET_SCHEDULER_RUNTIME = RuntimeServiceRef("system", "market_scheduler_runtime")

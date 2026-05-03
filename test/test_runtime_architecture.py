@@ -25,7 +25,9 @@ def make_background_runtime_services() -> AppRuntimeServices:
         market=MarketRuntime(
             market_data_service=object(),
             market_indicator_repository=object(),
+            funding_rate_store=object(),
             binance_market_snapshot=object(),
+            binance_market_research_store=object(),
             binance_market_intel=object(),
         ),
         tools=ToolsRuntime(),
@@ -69,6 +71,7 @@ def make_api_runtime_services() -> AppRuntimeServices:
             market_websocket_service=object(),
             index_data_service=object(),
             binance_market_snapshot=object(),
+            binance_market_research_store=object(),
             binance_market_intel=object(),
             binance_web3_service=object(),
         ),
@@ -99,7 +102,7 @@ def make_api_runtime_services() -> AppRuntimeServices:
             factor_paper_persistence_service=object(),
             factor_paper_run_manager=object(),
         ),
-        system=SystemRuntime(currency_rate_service=object()),
+        system=SystemRuntime(currency_rate_service=object(), llm_config_service=object()),
     )
 
 

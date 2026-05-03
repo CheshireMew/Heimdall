@@ -325,7 +325,7 @@
                         v-for="item in filteredItems"
                         :key="`${item.market}-${item.symbol}`"
                         class="cursor-pointer border-t border-slate-100 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/50"
-                        :class="detailDialogOpen && detailKey === toItemKey(item) ? 'bg-cyan-50/80 dark:bg-cyan-500/10' : ''"
+                        :class="chartDialog.open && detailKey === toItemKey(item) ? 'bg-cyan-50/80 dark:bg-cyan-500/10' : ''"
                         @click="openMonitorDetail(item)"
                       >
                         <td class="px-5 py-4">
@@ -370,97 +370,6 @@
       </section>
     </div>
 
-    <div
-      v-if="detailDialogOpen && detailItem"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
-      @click.self="closeMonitorDetail"
-    >
-      <section class="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-[30px] border border-slate-200/80 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-800">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">{{ detailItem.market_label }}</span>
-              <button
-                type="button"
-                class="text-2xl font-semibold text-slate-900 transition hover:text-cyan-700 dark:text-white dark:hover:text-cyan-300"
-                @click="openChart(detailItem)"
-              >
-                {{ displaySymbol(detailItem.symbol) }}
-              </button>
-            </div>
-            <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">{{ detailItem.follow_status }}</p>
-          </div>
-          <div class="flex items-center gap-3">
-            <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1" :class="verdictTone(detailItem.verdict)">
-              {{ detailItem.verdict }}
-            </span>
-            <button
-              type="button"
-              class="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"
-              @click="closeMonitorDetail"
-            >
-              关闭
-            </button>
-          </div>
-        </div>
-
-        <div class="mt-5 grid grid-cols-2 gap-3">
-          <div class="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-900/70">
-            <div class="text-xs uppercase tracking-[0.18em] text-slate-400">当天</div>
-            <div class="mt-2 text-lg font-semibold" :class="valueTone(detailItem.price_change_pct)">{{ formatSigned(detailItem.price_change_pct) }}</div>
-          </div>
-          <div class="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-900/70">
-            <div class="text-xs uppercase tracking-[0.18em] text-slate-400">成交额</div>
-            <div class="mt-2 text-lg font-semibold text-slate-900 dark:text-white">{{ formatCompact(detailItem.quote_volume) }}</div>
-          </div>
-          <div class="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-900/70">
-            <div class="text-xs uppercase tracking-[0.18em] text-slate-400">自然度</div>
-            <div class="mt-2 text-lg font-semibold text-slate-900 dark:text-white">{{ formatScore(detailItem.natural_score) }}</div>
-          </div>
-          <div class="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-900/70">
-            <div class="text-xs uppercase tracking-[0.18em] text-slate-400">动能</div>
-            <div class="mt-2 text-lg font-semibold text-slate-900 dark:text-white">{{ formatScore(detailItem.momentum_score) }}</div>
-          </div>
-        </div>
-
-        <div class="mt-5 space-y-3 rounded-[26px] bg-slate-950 p-4 text-white ring-1 ring-slate-800 dark:bg-slate-900">
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-slate-400">15m / 1h</span>
-            <span>{{ formatSigned(detailItem.change_15m_pct) }} / {{ formatSigned(detailItem.change_1h_pct) }}</span>
-          </div>
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-slate-400">距高点</span>
-            <span :class="valueTone(detailItem.pullback_from_high_pct, false)">{{ formatSigned(detailItem.pullback_from_high_pct) }}</span>
-          </div>
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-slate-400">EMA20 偏离</span>
-            <span>{{ formatSigned(detailItem.ema20_gap_15m_pct) }} / {{ formatSigned(detailItem.ema20_gap_1h_pct) }}</span>
-          </div>
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-slate-400">RSI</span>
-            <span>{{ formatSigned(detailItem.rsi_15m, 1, '', false) }} / {{ formatSigned(detailItem.rsi_1h, 1, '', false) }}</span>
-          </div>
-          <div class="flex items-center justify-between text-sm" v-if="detailItem.funding_rate_pct !== null && detailItem.funding_rate_pct !== undefined">
-            <span class="text-slate-400">Funding</span>
-            <span :class="valueTone(detailItem.funding_rate_pct)">{{ formatSigned(detailItem.funding_rate_pct, 3) }}</span>
-          </div>
-        </div>
-
-        <div class="mt-5">
-          <h5 class="text-sm font-semibold text-slate-900 dark:text-white">判断依据</h5>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <span
-              v-for="reason in detailItem.reasons"
-              :key="reason"
-              class="rounded-full bg-cyan-50 px-3 py-1.5 text-sm text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300"
-            >
-              {{ reason }}
-            </span>
-          </div>
-        </div>
-      </section>
-    </div>
-
     <BinanceWeb3TokenDialog
       :open="web3Dialog.open"
       :token="web3Dialog.token"
@@ -493,6 +402,12 @@
       :chart-data="chartData"
       :volume-data="volumeData"
       :loading-more="chartLoadingMore"
+      :monitor-item="detailItem"
+      :format-score="formatScore"
+      :format-signed="formatSigned"
+      :format-compact="formatCompact"
+      :value-tone="valueTone"
+      :verdict-tone="verdictTone"
       @close="closeChart"
       @load-more="loadMoreChartHistory"
       @update:timeframe="chartTimeframe = $event"
@@ -539,7 +454,6 @@ const {
   filteredItems,
   detailKey,
   detailItem,
-  detailDialogOpen,
   chartDialog,
   chartSymbol,
   chartTitle,
@@ -553,7 +467,6 @@ const {
   openChart,
   closeChart,
   openMonitorDetail,
-  closeMonitorDetail,
   loadMoreChartHistory,
   summaryCards,
   fetchData,

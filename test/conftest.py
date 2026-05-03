@@ -56,6 +56,31 @@ class StubCurrencyRateService:
         }
 
 
+class StubLlmConfigService:
+    def read_config(self):
+        return {
+            "provider": "deepseek",
+            "apiKey": "",
+            "apiKeySet": False,
+            "apiKeyPreview": "",
+            "baseUrl": "https://api.deepseek.com/v1",
+            "modelId": "deepseek-chat",
+            "reasoningEnabled": False,
+            "presets": [
+                {
+                    "id": "deepseek",
+                    "label": "DeepSeek",
+                    "baseUrl": "https://api.deepseek.com/v1",
+                    "defaultModel": "deepseek-chat",
+                    "supportsReasoning": True,
+                }
+            ],
+        }
+
+    def save_config(self, payload):
+        return self.read_config()
+
+
 @pytest.fixture(autouse=True)
 def installed_database_runtime(tmp_path):
     database_url = f"sqlite:///{(tmp_path / 'test.db').as_posix()}"
@@ -112,6 +137,7 @@ def api_harness(installed_database_runtime):
         "factor_research": StubFactorResearchService(),
         "factor_execution": StubFactorExecutionService(),
         "factor_paper": StubFactorPaperRunManager(),
+        "llm_config": StubLlmConfigService(),
     }
     app = main_module.app
     app.state.runtime_services = AppRuntimeServices(
@@ -133,7 +159,10 @@ def api_harness(installed_database_runtime):
             factor_execution_service=services["factor_execution"],
             factor_paper_run_manager=services["factor_paper"],
         ),
-        system=SystemRuntime(currency_rate_service=services["currency_rate"]),
+        system=SystemRuntime(
+            currency_rate_service=services["currency_rate"],
+            llm_config_service=services["llm_config"],
+        ),
     )
     app.state.database_error = None
     original_lifespan = app.router.lifespan_context

@@ -55,7 +55,12 @@ class FactorFrameBuilder:
         end_date: datetime,
         forward_horizons: list[int],
     ) -> pd.DataFrame:
-        rows = self.market_data_service.fetch_ohlcv_range(symbol, timeframe, start_date, end_date)
+        rows = self.market_data_service.load_ohlcv_range(
+            symbol,
+            timeframe,
+            start_date,
+            end_date,
+        ).require_complete(symbol=symbol, timeframe=timeframe)
         if not rows:
             return pd.DataFrame()
         frame = pd.DataFrame(rows, columns=["timestamp_ms", "open", "high", "low", "close", "volume"])

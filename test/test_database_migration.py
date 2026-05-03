@@ -122,12 +122,13 @@ def test_prepare_db_migrates_partial_legacy_sqlite(isolated_db):
 
 def test_verify_database_schema_rejects_stamped_but_incomplete_schema(isolated_db):
     _, engine, runtime = isolated_db("bad_stamp.db")
+    head = ScriptDirectory.from_config(schema_runtime._alembic_config(runtime.database_url)).get_current_head()
     with engine.begin() as connection:
         connection.exec_driver_sql(
             "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"
         )
         connection.exec_driver_sql(
-            "INSERT INTO alembic_version VALUES ('003_current_schema')"
+            f"INSERT INTO alembic_version VALUES ('{head}')"
         )
         for table in Base.metadata.sorted_tables:
             connection.exec_driver_sql(f"CREATE TABLE {table.name} (id INTEGER)")

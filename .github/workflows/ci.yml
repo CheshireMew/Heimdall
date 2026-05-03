@@ -32,9 +32,6 @@ jobs:
   frontend:
     name: Frontend Build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -54,9 +51,13 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        working-directory: frontend
 
       - name: Install Python dependencies
         run: pip install -r ../requirements.txt
+        working-directory: frontend
 
       - name: Build
-        run: npm run build
+        run: npm run build:frontend
+        env:
+          HEIMDALL_PYTHON: python

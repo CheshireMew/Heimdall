@@ -7,6 +7,7 @@ import type {
   BinanceTickerStatsItemResponse,
 } from '../../types/market'
 import { marketApi } from './api'
+import { restoreBinanceMarketWarmSnapshot, saveBinanceMarketWarmSnapshot } from './binanceMarketWarmSnapshot'
 import type { BinanceMarketSnapshot, ContractBoardRow, ContractSortField, ContractSortState, MarketFilter, MonitorMode, SortDirection } from './binanceMarketShared'
 import {
   EMPTY_RESPONSE,
@@ -16,6 +17,9 @@ import {
   sortRowsByMetric,
   toItemKey,
 } from './binanceMarketShared'
+
+const MARKET_PAGE_LIMIT = 24
+const MARKET_PAGE_QUOTE_ASSET = 'USDT'
 
 export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
   const loading = ref(false)
@@ -34,9 +38,9 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
   const usdmTicker = ref<BinanceTickerStatsItemResponse[]>([])
   const usdmMark = ref<BinanceMarkPriceItemResponse[]>([])
   const detailKey = ref('')
-  const detailDialogOpen = ref(false)
   let refreshTimer: ReturnType<typeof setInterval> | null = null
   let thresholdTimer: ReturnType<typeof setTimeout> | null = null
+  let fetchPromise: Promise<void> | null = null
 
   const items = computed(() => monitor.value.items || [])
   const spotRows = computed(() => (
@@ -72,30 +76,58 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     ]
   })
 
+  const hasDisplayedData = () => (
+    Boolean(monitor.value.items?.length)
+    || spotTicker.value.length > 0
+    || usdmTicker.value.length > 0
+    || usdmMark.value.length > 0
+  )
+
+  const applyPayload = (
+    payload: Awaited<ReturnType<typeof marketApi.getBinanceMarketPage>>['data'],
+    options: { warmStart?: boolean } = {},
+  ) => {
+    monitor.value = payload.monitor || { ...EMPTY_RESPONSE }
+    spotTicker.value = payload.spot_ticker?.items || []
+    usdmTicker.value = payload.usdm_ticker?.items || []
+    usdmMark.value = payload.usdm_mark?.items || []
+    error.value = options.warmStart ? '' : formatLoadFailure([...(payload.load_errors || [])])
+  }
+
+  const restoreWarmSnapshot = () => {
+    const payload = restoreBinanceMarketWarmSnapshot(minRisePct.value, MARKET_PAGE_QUOTE_ASSET)
+    if (payload) applyPayload(payload, { warmStart: true })
+  }
+
   const fetchData = async () => {
-    loading.value = true
-    error.value = ''
+    if (fetchPromise) return fetchPromise
+    const task = (async () => {
+      loading.value = true
+      error.value = ''
+      try {
+        const response = await marketApi.getBinanceMarketPage({
+          min_rise_pct: minRisePct.value,
+          limit: MARKET_PAGE_LIMIT,
+          quote_asset: MARKET_PAGE_QUOTE_ASSET,
+        })
+        applyPayload(response.data)
+        saveBinanceMarketWarmSnapshot(minRisePct.value, MARKET_PAGE_QUOTE_ASSET, response.data)
+      } catch (requestError) {
+        error.value = hasDisplayedData()
+          ? '异动监控刷新失败，继续显示缓存数据'
+          : '异动监控加载失败'
+        console.error('Failed to load Binance market page', requestError)
+      } finally {
+        loading.value = false
+      }
+    })()
+    fetchPromise = task
     try {
-      const response = await marketApi.getBinanceMarketPage({
-        min_rise_pct: minRisePct.value,
-        limit: 24,
-        quote_asset: 'USDT',
-      })
-      const payload = response.data
-      monitor.value = payload?.monitor || { ...EMPTY_RESPONSE }
-      spotTicker.value = payload?.spot_ticker?.items || []
-      usdmTicker.value = payload?.usdm_ticker?.items || []
-      usdmMark.value = payload?.usdm_mark?.items || []
-      error.value = formatLoadFailure([...(payload?.load_errors || [])])
-    } catch (requestError) {
-      monitor.value = { ...EMPTY_RESPONSE }
-      spotTicker.value = []
-      usdmTicker.value = []
-      usdmMark.value = []
-      error.value = '异动监控加载失败'
-      console.error('Failed to load Binance market page', requestError)
+      await task
     } finally {
-      loading.value = false
+      if (fetchPromise === task) {
+        fetchPromise = null
+      }
     }
   }
 
@@ -122,6 +154,7 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
   watch(minRisePct, () => {
     if (thresholdTimer) clearTimeout(thresholdTimer)
     thresholdTimer = setTimeout(() => {
+      restoreWarmSnapshot()
       void fetchData()
     }, 350)
   })
@@ -143,18 +176,19 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
 
   const openMonitorDetail = (item: BinanceBreakoutMonitorItemResponse) => {
     detailKey.value = toItemKey(item)
-    detailDialogOpen.value = true
   }
 
-  const closeMonitorDetail = () => {
-    detailDialogOpen.value = false
+  const clearMonitorDetail = () => {
+    detailKey.value = ''
   }
 
   watch(items, () => {
-    if (detailDialogOpen.value && detailKey.value && !detailItem.value) {
-      closeMonitorDetail()
+    if (detailKey.value && !detailItem.value) {
+      clearMonitorDetail()
     }
   })
+
+  restoreWarmSnapshot()
 
   return {
     loading,
@@ -172,7 +206,6 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     contractSort,
     detailKey,
     detailItem,
-    detailDialogOpen,
     summaryCards,
     fetchData,
     startAutoRefresh,
@@ -180,6 +213,6 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     toggleSpotSort,
     toggleContractSort,
     openMonitorDetail,
-    closeMonitorDetail,
+    clearMonitorDetail,
   }
 }

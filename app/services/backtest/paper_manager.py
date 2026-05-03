@@ -267,7 +267,12 @@ class PaperRunManager(PaperRunHostedService):
         last_processed: dict[str, int | None] = {}
         closed_values: list[int] = []
         for symbol in symbols:
-            candles = self.freqtrade_service.market_data_service.fetch_live_ohlcv_range(symbol, timeframe, scan_start, now)
+            candles = self.freqtrade_service.market_data_service.load_live_ohlcv_range(
+                symbol,
+                timeframe,
+                scan_start,
+                now,
+            ).rows
             closed = [row for row in candles if row[0] + timeframe_ms <= cutoff_ms]
             latest_closed = int(closed[-1][0]) if closed else None
             last_processed[symbol] = latest_closed
@@ -292,7 +297,12 @@ class PaperRunManager(PaperRunHostedService):
         for trade in trades:
             if trade.closed_at is not None or not trade.pair:
                 continue
-            candles = self.freqtrade_service.market_data_service.fetch_ohlcv_range(trade.pair, timeframe, trade.opened_at, end_at)
+            candles = self.freqtrade_service.market_data_service.load_ohlcv_range(
+                trade.pair,
+                timeframe,
+                trade.opened_at,
+                end_at,
+            ).rows
             highs = [float(row[2]) for row in candles] or [trade.entry_price]
             lows = [float(row[3]) for row in candles] or [trade.entry_price]
             last_price = float(candles[-1][4]) if candles else trade.entry_price

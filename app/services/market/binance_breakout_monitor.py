@@ -11,6 +11,7 @@ from .binance_numbers import to_float
 
 
 KlineLoader = Callable[[str, str, str, int], Awaitable[dict[str, Any]]]
+ENRICH_CANDIDATE_TIMEOUT_SECONDS = 3.0
 
 
 class BinanceBreakoutMonitor:
@@ -140,9 +141,12 @@ class BinanceBreakoutMonitor:
 
     async def _enrich_candidate(self, item: dict[str, Any]) -> None:
         try:
-            kline_15m, kline_1h = await asyncio.gather(
-                self._kline_loader(item["market"], item["symbol"], "15m", 80),
-                self._kline_loader(item["market"], item["symbol"], "1h", 80),
+            kline_15m, kline_1h = await asyncio.wait_for(
+                asyncio.gather(
+                    self._kline_loader(item["market"], item["symbol"], "15m", 80),
+                    self._kline_loader(item["market"], item["symbol"], "1h", 80),
+                ),
+                timeout=ENRICH_CANDIDATE_TIMEOUT_SECONDS,
             )
         except Exception:
             item.setdefault("follow_status", "数据不足")

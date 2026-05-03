@@ -7,8 +7,11 @@ import type {
   BinanceWeb3TokenKlineItemResponse,
 } from '../../types/market'
 import { marketApi } from './api'
+import { restoreBinanceWeb3HeatRankWarmSnapshot, saveBinanceWeb3HeatRankWarmSnapshot } from './binanceMarketWarmSnapshot'
 import type { Web3TokenDialogState } from './binanceMarketShared'
 import type { CandlestickData, VolumeData } from './contracts'
+
+const WEB3_HEAT_RANK_SIZE = 30
 
 export function useBinanceWeb3Panel(initialChainId: string) {
   const web3ChainId = ref(initialChainId)
@@ -22,6 +25,7 @@ export function useBinanceWeb3Panel(initialChainId: string) {
   const web3Audit = ref<BinanceWeb3TokenAuditResponse | null>(null)
   const web3Kline = ref<BinanceWeb3TokenKlineItemResponse[]>([])
   const web3KlineInterval = ref('15min')
+  let heatRankFetchPromise: Promise<void> | null = null
 
   const web3ChartData = computed<CandlestickData[]>(() => (
     web3Kline.value
@@ -44,21 +48,48 @@ export function useBinanceWeb3Panel(initialChainId: string) {
       }))
   ))
 
+  const applyHeatRankPayload = (payload: Awaited<ReturnType<typeof marketApi.getBinanceWeb3HeatRank>>['data']) => {
+    web3HeatRank.value = payload.items || []
+  }
+
+  const restoreHeatRankWarmSnapshot = () => {
+    const payload = restoreBinanceWeb3HeatRankWarmSnapshot(web3ChainId.value, WEB3_HEAT_RANK_SIZE)
+    if (payload) {
+      applyHeatRankPayload(payload)
+      web3Error.value = ''
+      return true
+    }
+    return false
+  }
+
   const fetchWeb3HeatRank = async () => {
-    web3Loading.value = true
-    web3Error.value = ''
+    if (heatRankFetchPromise) return heatRankFetchPromise
+    const task = (async () => {
+      web3Loading.value = true
+      web3Error.value = ''
+      try {
+        const response = await marketApi.getBinanceWeb3HeatRank({
+          chain_id: web3ChainId.value,
+          size: WEB3_HEAT_RANK_SIZE,
+        })
+        applyHeatRankPayload(response.data)
+        saveBinanceWeb3HeatRankWarmSnapshot(web3ChainId.value, WEB3_HEAT_RANK_SIZE, response.data)
+      } catch (requestError) {
+        web3Error.value = web3HeatRank.value.length
+          ? 'Web3 热度榜刷新失败，继续显示缓存数据'
+          : 'Web3 热度榜加载失败'
+        console.error('Failed to load Binance Web3 heat rank', requestError)
+      } finally {
+        web3Loading.value = false
+      }
+    })()
+    heatRankFetchPromise = task
     try {
-      const response = await marketApi.getBinanceWeb3HeatRank({
-        chain_id: web3ChainId.value,
-        size: 30,
-      })
-      web3HeatRank.value = response.data?.items || []
-    } catch (requestError) {
-      web3HeatRank.value = []
-      web3Error.value = 'Web3 热度榜加载失败'
-      console.error('Failed to load Binance Web3 heat rank', requestError)
+      await task
     } finally {
-      web3Loading.value = false
+      if (heatRankFetchPromise === task) {
+        heatRankFetchPromise = null
+      }
     }
   }
 
@@ -113,11 +144,14 @@ export function useBinanceWeb3Panel(initialChainId: string) {
   }
 
   watch(web3ChainId, () => {
+    if (!restoreHeatRankWarmSnapshot()) web3HeatRank.value = []
     void fetchWeb3HeatRank()
   })
   watch(web3KlineInterval, () => {
     void loadWeb3TokenDetail()
   })
+
+  restoreHeatRankWarmSnapshot()
 
   return {
     web3ChainId,

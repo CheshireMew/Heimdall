@@ -1,4 +1,4 @@
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { getLocalStorage } from '@/utils/storage'
 
 export interface TimezoneOption {
@@ -15,8 +15,12 @@ export const TIMEZONE_OPTIONS: TimezoneOption[] = [
 ]
 
 const STORAGE_KEY = 'heimdall_user_preferences'
+const PREFERENCES_VERSION = 2
+const DEFAULT_TIMEZONE = 'Asia/Shanghai'
+const DEFAULT_DISPLAY_CURRENCY = 'USD'
 
 interface StoredPreferences {
+  version?: number
   timezone?: string
   displayCurrency?: string
 }
@@ -35,26 +39,34 @@ const readStoredPreferences = (): StoredPreferences => {
 
 const detectTimezone = () => {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_TIMEZONE
   } catch {
-    return 'Asia/Shanghai'
+    return DEFAULT_TIMEZONE
   }
 }
 
-const defaultCurrencyForTimezone = (timezone: string) => (
-  timezone === 'Asia/Shanghai' ? 'CNY' : 'USD'
-)
-
-const storedPreferences = readStoredPreferences()
-const timezone = ref(storedPreferences.timezone || detectTimezone())
-const displayCurrency = ref((storedPreferences.displayCurrency || defaultCurrencyForTimezone(timezone.value)).toUpperCase())
-
-watch([timezone, displayCurrency], () => {
+const persistPreferences = () => {
   getLocalStorage()?.setItem(STORAGE_KEY, JSON.stringify({
+    version: PREFERENCES_VERSION,
     timezone: timezone.value,
     displayCurrency: displayCurrency.value,
   }))
-})
+}
+
+const resolveStoredCurrency = (preferences: StoredPreferences) => {
+  if (
+    (preferences.version || 1) < PREFERENCES_VERSION
+    && preferences.timezone === DEFAULT_TIMEZONE
+    && preferences.displayCurrency?.toUpperCase() === 'CNY'
+  ) {
+    return DEFAULT_DISPLAY_CURRENCY
+  }
+  return (preferences.displayCurrency || DEFAULT_DISPLAY_CURRENCY).toUpperCase()
+}
+
+const storedPreferences = readStoredPreferences()
+const timezone = ref(storedPreferences.timezone || detectTimezone())
+const displayCurrency = ref(resolveStoredCurrency(storedPreferences))
 
 export function useUserPreferences() {
   const timezoneOptions = computed(() => {
@@ -64,11 +76,13 @@ export function useUserPreferences() {
   })
 
   const setTimezone = (value: string) => {
-    timezone.value = value || 'Asia/Shanghai'
+    timezone.value = value || DEFAULT_TIMEZONE
+    persistPreferences()
   }
 
   const setDisplayCurrency = (value: string) => {
-    displayCurrency.value = (value || 'USD').toUpperCase()
+    displayCurrency.value = (value || DEFAULT_DISPLAY_CURRENCY).toUpperCase()
+    persistPreferences()
   }
 
   return {

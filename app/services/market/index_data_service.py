@@ -214,7 +214,7 @@ class IndexDataService:
         cached = self.kline_store.get_range(storage_symbol, timeframe, start_ts, end_ts)
         merged = {row[0]: row for row in cached}
         source = "cache" if cached else "none"
-        is_close_only = not cached
+        is_close_only = self._rows_are_close_only(cached) if cached else True
 
         missing_ranges = collect_missing_ranges(
             cached_klines=cached,
@@ -247,7 +247,7 @@ class IndexDataService:
             source = fetch_result.source
             if not fetch_result.is_close_only:
                 is_close_only = False
-                self.kline_store.save(storage_symbol, timeframe, fetch_result.data)
+            self.kline_store.save(storage_symbol, timeframe, fetch_result.data)
 
             for row in fetch_result.data:
                 if start_ts <= row[0] <= end_ts:
@@ -269,6 +269,16 @@ class IndexDataService:
             is_close_only=bool(data) and is_close_only,
             data=[self._ohlcv_record(row) for row in data],
         )
+
+    def _rows_are_close_only(self, rows: list[list[float]]) -> bool:
+        if not rows:
+            return False
+        for row in rows:
+            if len(row) < 6:
+                return False
+            if not (row[1] == row[2] == row[3] == row[4] and row[5] == 0):
+                return False
+        return True
 
     def _ohlcv_record(self, row: list[float]) -> OhlcvRecord:
         return OhlcvRecord(

@@ -9,8 +9,6 @@ from app.schemas.config import LlmProviderConfigResponse, LlmProviderPresetRespo
 from config import settings
 
 
-CONFIG_PATH = settings.LLM_CONFIG_PATH
-
 LLM_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
     "deepseek": {
         "id": "deepseek",
@@ -71,108 +69,111 @@ LLM_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
 }
 
 
-def list_llm_presets() -> list[LlmProviderPresetResponse]:
-    return [LlmProviderPresetResponse.model_validate(deepcopy(item)) for item in LLM_PROVIDER_PRESETS.values()]
+class LlmConfigService:
+    def __init__(self, config_path: Path | None = None) -> None:
+        self.config_path = config_path or settings.LLM_CONFIG_PATH
 
+    def list_presets(self) -> list[LlmProviderPresetResponse]:
+        return [
+            LlmProviderPresetResponse.model_validate(deepcopy(item))
+            for item in LLM_PROVIDER_PRESETS.values()
+        ]
 
-def read_llm_config() -> LlmProviderConfigResponse:
-    raw = _read_raw_config()
-    provider = raw.get("provider") if raw.get("provider") in LLM_PROVIDER_PRESETS else "deepseek"
-    preset = LLM_PROVIDER_PRESETS[provider]
-    reasoning_enabled = bool(raw.get("reasoningEnabled", settings.AI_MODEL == "deepseek-reasoner"))
-    api_key = str(raw.get("apiKey") or settings.DEEPSEEK_API_KEY or "")
+    def read_config(self) -> LlmProviderConfigResponse:
+        raw = self._read_raw_config()
+        provider = self._resolve_provider(raw.get("provider"))
+        preset = LLM_PROVIDER_PRESETS[provider]
+        reasoning_enabled = bool(raw.get("reasoningEnabled", settings.AI_MODEL == "deepseek-reasoner"))
+        api_key = str(raw.get("apiKey") or settings.DEEPSEEK_API_KEY or "")
 
-    base_url = str(raw.get("baseUrl") or "")
-    model_id = str(raw.get("modelId") or "")
-    if provider != "custom":
-        base_url = preset["baseUrl"]
-        model_id = _preset_model(provider, reasoning_enabled)
+        base_url = str(raw.get("baseUrl") or "")
+        model_id = str(raw.get("modelId") or "")
+        if provider != "custom":
+            base_url = preset["baseUrl"]
+            model_id = self._preset_model(provider, reasoning_enabled)
 
-    return LlmProviderConfigResponse.model_validate({
-        "provider": provider,
-        "apiKey": "",
-        "apiKeySet": bool(api_key),
-        "apiKeyPreview": _mask_api_key(api_key),
-        "baseUrl": base_url,
-        "modelId": model_id,
-        "reasoningEnabled": reasoning_enabled if provider == "deepseek" else False,
-        "presets": list_llm_presets(),
-    })
+        return LlmProviderConfigResponse.model_validate({
+            "provider": provider,
+            "apiKey": "",
+            "apiKeySet": bool(api_key),
+            "apiKeyPreview": self._mask_api_key(api_key),
+            "baseUrl": base_url,
+            "modelId": model_id,
+            "reasoningEnabled": reasoning_enabled if provider == "deepseek" else False,
+            "presets": self.list_presets(),
+        })
 
+    def read_effective_config(self) -> dict[str, Any]:
+        raw = self._read_raw_config()
+        provider = self._resolve_provider(raw.get("provider"))
+        preset = LLM_PROVIDER_PRESETS[provider]
+        reasoning_enabled = bool(raw.get("reasoningEnabled", settings.AI_MODEL == "deepseek-reasoner"))
+        api_key = str(raw.get("apiKey") or settings.DEEPSEEK_API_KEY or "")
 
-def read_effective_llm_config() -> dict[str, Any]:
-    raw = _read_raw_config()
-    provider = raw.get("provider") if raw.get("provider") in LLM_PROVIDER_PRESETS else "deepseek"
-    preset = LLM_PROVIDER_PRESETS[provider]
-    reasoning_enabled = bool(raw.get("reasoningEnabled", settings.AI_MODEL == "deepseek-reasoner"))
-    api_key = str(raw.get("apiKey") or settings.DEEPSEEK_API_KEY or "")
+        if provider == "custom":
+            base_url = str(raw.get("baseUrl") or settings.DEEPSEEK_BASE_URL or "")
+            model_id = str(raw.get("modelId") or settings.AI_MODEL or "")
+        else:
+            base_url = preset["baseUrl"]
+            model_id = self._preset_model(provider, reasoning_enabled)
 
-    if provider == "custom":
-        base_url = str(raw.get("baseUrl") or settings.DEEPSEEK_BASE_URL or "")
-        model_id = str(raw.get("modelId") or settings.AI_MODEL or "")
-    else:
-        base_url = preset["baseUrl"]
-        model_id = _preset_model(provider, reasoning_enabled)
+        return {
+            "provider": provider,
+            "apiKey": api_key,
+            "baseUrl": base_url,
+            "modelId": model_id,
+            "reasoningEnabled": reasoning_enabled if provider == "deepseek" else False,
+        }
 
-    return {
-        "provider": provider,
-        "apiKey": api_key,
-        "baseUrl": base_url,
-        "modelId": model_id,
-        "reasoningEnabled": reasoning_enabled if provider == "deepseek" else False,
-    }
+    def save_config(self, payload: dict[str, Any]) -> LlmProviderConfigResponse:
+        existing = self._read_raw_config()
+        provider = self._resolve_provider(payload.get("provider"))
+        preset = LLM_PROVIDER_PRESETS[provider]
+        reasoning_enabled = bool(payload.get("reasoningEnabled")) if provider == "deepseek" else False
 
+        api_key = existing.get("apiKey", settings.DEEPSEEK_API_KEY or "")
+        if "apiKey" in payload and payload.get("apiKey") is not None:
+            api_key = str(payload.get("apiKey") or "").strip()
 
-def save_llm_config(payload: dict[str, Any]) -> LlmProviderConfigResponse:
-    existing = _read_raw_config()
-    provider = payload.get("provider") if payload.get("provider") in LLM_PROVIDER_PRESETS else "deepseek"
-    preset = LLM_PROVIDER_PRESETS[provider]
-    reasoning_enabled = bool(payload.get("reasoningEnabled")) if provider == "deepseek" else False
+        if provider == "custom":
+            base_url = str(payload.get("baseUrl") or "").strip()
+            model_id = str(payload.get("modelId") or "").strip()
+        else:
+            base_url = preset["baseUrl"]
+            model_id = self._preset_model(provider, reasoning_enabled)
 
-    api_key = existing.get("apiKey", settings.DEEPSEEK_API_KEY or "")
-    if "apiKey" in payload and payload.get("apiKey") is not None:
-        api_key = str(payload.get("apiKey") or "").strip()
+        saved = {
+            "provider": provider,
+            "apiKey": api_key,
+            "baseUrl": base_url,
+            "modelId": model_id,
+            "reasoningEnabled": reasoning_enabled,
+        }
+        self.config_path.parent.mkdir(parents=True, exist_ok=True)
+        self.config_path.write_text(json.dumps(saved, ensure_ascii=False, indent=2), encoding="utf-8")
+        return self.read_config()
 
-    if provider == "custom":
-        base_url = str(payload.get("baseUrl") or "").strip()
-        model_id = str(payload.get("modelId") or "").strip()
-    else:
-        base_url = preset["baseUrl"]
-        model_id = _preset_model(provider, reasoning_enabled)
+    def _resolve_provider(self, value: Any) -> str:
+        return str(value) if value in LLM_PROVIDER_PRESETS else "deepseek"
 
-    saved = {
-        "provider": provider,
-        "apiKey": api_key,
-        "baseUrl": base_url,
-        "modelId": model_id,
-        "reasoningEnabled": reasoning_enabled,
-    }
-    # 密钥属于本机运行时状态，不能落在仓库目录里；路径由 settings 统一指定。
-    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_PATH.write_text(json.dumps(saved, ensure_ascii=False, indent=2), encoding="utf-8")
-    return read_llm_config()
+    def _preset_model(self, provider: str, reasoning_enabled: bool) -> str:
+        if provider == "deepseek" and reasoning_enabled:
+            return "deepseek-reasoner"
+        return str(LLM_PROVIDER_PRESETS[provider]["defaultModel"])
 
+    def _read_raw_config(self) -> dict[str, Any]:
+        if not self.config_path.exists():
+            return {}
+        try:
+            data = json.loads(self.config_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {}
+        return data if isinstance(data, dict) else {}
 
-def _preset_model(provider: str, reasoning_enabled: bool) -> str:
-    if provider == "deepseek" and reasoning_enabled:
-        return "deepseek-reasoner"
-    return str(LLM_PROVIDER_PRESETS[provider]["defaultModel"])
-
-
-def _read_raw_config() -> dict[str, Any]:
-    if not CONFIG_PATH.exists():
-        return {}
-    try:
-        data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
-def _mask_api_key(api_key: str) -> str:
-    key = str(api_key or "").strip()
-    if not key:
-        return ""
-    if len(key) <= 8:
-        return key[:2] + "*" * max(len(key) - 4, 1) + key[-2:]
-    return f"{key[:4]}{'*' * 8}{key[-4:]}"
+    def _mask_api_key(self, api_key: str) -> str:
+        key = str(api_key or "").strip()
+        if not key:
+            return ""
+        if len(key) <= 8:
+            return key[:2] + "*" * max(len(key) - 4, 1) + key[-2:]
+        return f"{key[:4]}{'*' * 8}{key[-4:]}"

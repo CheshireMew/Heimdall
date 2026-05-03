@@ -195,10 +195,9 @@ pytest
 ### 前端契约与构建
 
 ```bash
-cd frontend
 npm run sync:contracts
-npm run typecheck
-npm run build
+npm --prefix frontend run typecheck
+npm run build:frontend
 ```
 
 `frontend/src/types/backtest.ts`、`factor.ts`、`market.ts`、`tools.ts`、`config.ts` 都由后端 Pydantic schema 生成，不要手写修改。

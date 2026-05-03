@@ -46,6 +46,7 @@ class MarketRuntime:
     market_websocket_service: Any | None = None
     index_data_service: Any | None = None
     binance_market_snapshot: Any | None = None
+    binance_market_research_store: Any | None = None
     binance_market_intel: Any | None = None
     binance_web3_service: Any | None = None
 
@@ -86,6 +87,7 @@ class FactorRuntime:
 @dataclass(slots=True)
 class SystemRuntime:
     currency_rate_service: Any | None = None
+    llm_config_service: Any | None = None
     market_scheduler_runtime: Any | None = None
 
 

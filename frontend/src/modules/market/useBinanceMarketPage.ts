@@ -30,22 +30,30 @@ export function useBinanceMarketPage() {
 
   const handleEscape = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && chart.chartDialog.value.open) {
-      chart.closeChart()
+      closeChart()
       return
     }
     if (event.key === 'Escape' && web3.web3Dialog.value.open) {
       web3.closeWeb3Token()
       return
     }
-    if (event.key === 'Escape' && market.detailDialogOpen.value) {
-      market.closeMonitorDetail()
-    }
   }
 
   const openChart = (
     item: Pick<BinanceBreakoutMonitorItemResponse, 'symbol'> & Partial<Pick<BinanceBreakoutMonitorItemResponse, 'market' | 'market_label'>>,
   ) => {
+    market.clearMonitorDetail()
     chart.openChart(item)
+  }
+
+  const openMonitorDetail = (item: BinanceBreakoutMonitorItemResponse) => {
+    market.openMonitorDetail(item)
+    chart.openChart(item)
+  }
+
+  const closeChart = () => {
+    market.clearMonitorDetail()
+    chart.closeChart()
   }
 
   onMounted(async () => {
@@ -100,13 +108,11 @@ export function useBinanceMarketPage() {
     contractSort: market.contractSort,
     detailKey: market.detailKey,
     detailItem: market.detailItem,
-    detailDialogOpen: market.detailDialogOpen,
     summaryCards: market.summaryCards,
     fetchData: market.fetchData,
     toggleSpotSort: market.toggleSpotSort,
     toggleContractSort: market.toggleContractSort,
-    openMonitorDetail: market.openMonitorDetail,
-    closeMonitorDetail: market.closeMonitorDetail,
+    openMonitorDetail,
     web3ChainId: web3.web3ChainId,
     web3ChainOptions: WEB3_CHAIN_OPTIONS,
     web3HeatRank: web3.web3HeatRank,
@@ -135,7 +141,7 @@ export function useBinanceMarketPage() {
     volumeData: chart.volumeData,
     chartLoadingMore: chart.chartLoadingMore,
     openChart,
-    closeChart: chart.closeChart,
+    closeChart,
     loadMoreChartHistory: chart.loadMoreChartHistory,
     formatSigned,
     formatScore,
