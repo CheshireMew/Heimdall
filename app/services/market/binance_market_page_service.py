@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING, Any
 
 from app.schemas.binance_market import BinanceBreakoutMonitorResponse, BinanceMarketPageResponse
-from utils.logger import logger
 
 from .binance_breakout_monitor import BinanceBreakoutMonitor
 from .binance_spot_market import BinanceSpotMarketService
@@ -20,7 +18,7 @@ class BinanceMarketPageService:
         *,
         spot: BinanceSpotMarketService,
         usdm: BinanceUsdmMarketService,
-        snapshot_service: BinanceMarketSnapshotService | None,
+        snapshot_service: BinanceMarketSnapshotService,
     ) -> None:
         self.spot = spot
         self.usdm = usdm
@@ -70,24 +68,13 @@ class BinanceMarketPageService:
         })
 
     async def _load_market_page_snapshot(self) -> dict[str, Any]:
-        if self.snapshot_service is not None:
-            return (await self.snapshot_service.get_market_page_snapshot()).model_dump()
-
-        source_plan = (
-            ("spot_ticker", "现货榜单", self.spot.get_ticker_24hr, self.breakout_monitor.empty_ticker_response, "spot"),
-            ("usdm_ticker", "U本位24H", self.usdm.get_ticker_24hr, self.breakout_monitor.empty_ticker_response, "usdm"),
-            ("usdm_mark", "U本位Funding", self.usdm.get_mark_price, self.breakout_monitor.empty_mark_price_response, "usdm"),
+        if not await self.snapshot_service.has_market_page_snapshot():
+            await self.snapshot_service.seed(
+                spot_ticker_loader=self.spot.get_ticker_24hr,
+                usdm_ticker_loader=self.usdm.get_ticker_24hr,
+                usdm_mark_loader=self.usdm.get_mark_price,
         )
-        raw_results = await asyncio.gather(*(loader() for _, _, loader, _, _ in source_plan), return_exceptions=True)
-        snapshot: dict[str, Any] = {"load_errors": []}
-        for (key, label, _, empty_factory, market), result in zip(source_plan, raw_results, strict=False):
-            if isinstance(result, Exception):
-                logger.warning("Binance market page source failed: %s (%s)", key, result)
-                snapshot[key] = empty_factory(market)
-                snapshot["load_errors"].append(label)
-                continue
-            snapshot[key] = result.model_dump() if hasattr(result, "model_dump") else result
-        return snapshot
+        return (await self.snapshot_service.get_market_page_snapshot()).model_dump()
 
     async def _get_market_klines(self, market: str, symbol: str, interval: str, limit: int) -> dict[str, Any]:
         if market == "spot":

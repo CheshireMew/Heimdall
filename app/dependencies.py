@@ -6,7 +6,7 @@ from typing import Any, cast
 from starlette.requests import HTTPConnection
 
 from app.runtime import AppRuntimeServices
-from app.runtime_graph import RuntimeServiceRef
+from app.runtime_refs import RuntimeServiceRef
 
 
 def get_runtime_services(connection: HTTPConnection) -> AppRuntimeServices:

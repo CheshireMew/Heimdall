@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 
 import type {
+  BinanceBreakoutMonitorItemResponse,
   BinanceBreakoutMonitorResponse,
   BinanceMarkPriceItemResponse,
   BinanceTickerStatsItemResponse,
@@ -32,7 +33,8 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
   const spotTicker = ref<BinanceTickerStatsItemResponse[]>([])
   const usdmTicker = ref<BinanceTickerStatsItemResponse[]>([])
   const usdmMark = ref<BinanceMarkPriceItemResponse[]>([])
-  const selectedKey = ref(snapshot.selectedKey)
+  const detailKey = ref('')
+  const detailDialogOpen = ref(false)
   let refreshTimer: ReturnType<typeof setInterval> | null = null
   let thresholdTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -59,12 +61,7 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     if (mode.value === 'focus' && item.verdict !== '优先关注') return false
     return true
   }))
-  const selectedItem = computed(() => (
-    filteredItems.value.find((item) => toItemKey(item) === selectedKey.value)
-    || filteredItems.value[0]
-    || items.value[0]
-    || null
-  ))
+  const detailItem = computed(() => items.value.find((item) => toItemKey(item) === detailKey.value) || null)
   const summaryCards = computed(() => {
     const summary = monitor.value.summary ?? EMPTY_RESPONSE.summary!
     return [
@@ -144,6 +141,21 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     spotSortDirection.value = spotSortDirection.value === 'desc' ? 'asc' : 'desc'
   }
 
+  const openMonitorDetail = (item: BinanceBreakoutMonitorItemResponse) => {
+    detailKey.value = toItemKey(item)
+    detailDialogOpen.value = true
+  }
+
+  const closeMonitorDetail = () => {
+    detailDialogOpen.value = false
+  }
+
+  watch(items, () => {
+    if (detailDialogOpen.value && detailKey.value && !detailItem.value) {
+      closeMonitorDetail()
+    }
+  })
+
   return {
     loading,
     error,
@@ -158,13 +170,16 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     spotSortDirection,
     contractRows,
     contractSort,
-    selectedKey,
-    selectedItem,
+    detailKey,
+    detailItem,
+    detailDialogOpen,
     summaryCards,
     fetchData,
     startAutoRefresh,
     stopAutoRefresh,
     toggleSpotSort,
     toggleContractSort,
+    openMonitorDetail,
+    closeMonitorDetail,
   }
 }

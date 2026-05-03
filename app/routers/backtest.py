@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query, Request
 
 from app.dependencies import runtime_dependency
 from app.exceptions import NotFoundError
-from app.runtime_graph import BACKTEST_COMMAND_SERVICE, BACKTEST_QUERY_SERVICE
+from app.runtime_refs import BACKTEST_COMMAND_SERVICE, BACKTEST_QUERY_SERVICE
 from app.rate_limit import limiter
 from app.schemas.backtest import (
     BacktestDetailResponse,

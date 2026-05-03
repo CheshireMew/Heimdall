@@ -8,7 +8,8 @@ from fastapi.responses import JSONResponse
 
 from app.background_runtime import BackgroundRuntimeController, BackgroundRuntimeStatus
 from app.runtime import AppRuntimeServices
-from app.runtime_graph import INFRA_DATABASE_RUNTIME, build_app_runtime_services
+from app.runtime_builder import build_app_runtime_services
+from app.runtime_refs import INFRA_DATABASE_RUNTIME
 
 
 def _logger():

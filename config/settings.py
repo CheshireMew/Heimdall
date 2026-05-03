@@ -73,6 +73,8 @@ class AppSettings(BaseSettings):
 
     EXCHANGE_MAX_RETRIES: int = 3
     EXCHANGE_RETRY_DELAY: int = 2
+    EXCHANGE_REQUEST_TIMEOUT_MS: int = 5000
+    EXCHANGE_TAIL_MAX_RETRIES: int = 1
     EXCHANGE_TASK_TIMEOUT: int = 90
     EXCHANGE_FETCH_LIMIT: int = 1000
 

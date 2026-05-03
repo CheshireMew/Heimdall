@@ -19,6 +19,7 @@ class ExchangeGateway:
         self._local = threading.local()
         self._exchange_config = {
             "enableRateLimit": True,
+            "timeout": settings.EXCHANGE_REQUEST_TIMEOUT_MS,
             "options": {
                 "defaultType": "spot",
             },
@@ -43,9 +44,11 @@ class ExchangeGateway:
         timeframe: str,
         since: Optional[int] = None,
         limit: Optional[int] = None,
+        max_retries: Optional[int] = None,
     ) -> Tuple[list[list[float]], int]:
         attempts = 0
-        for attempt in range(self.max_retries):
+        retry_count = max(max_retries if max_retries is not None else self.max_retries, 1)
+        for attempt in range(retry_count):
             attempts = attempt + 1
             try:
                 ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
@@ -53,7 +56,8 @@ class ExchangeGateway:
                     return ohlcv, attempts
             except Exception as e:
                 logger.warning(f"获取 K 线失败 (尝试 {attempts}): {e}")
-                time.sleep(self.retry_delay)
+                if attempt + 1 < retry_count:
+                    time.sleep(self.retry_delay)
         return [], attempts
 
     def sleep_for_rate_limit(self) -> None:

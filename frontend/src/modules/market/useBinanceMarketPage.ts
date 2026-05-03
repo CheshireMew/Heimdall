@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, watch } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { formatAdaptivePrice, formatCompactCurrency } from '@/modules/format'
@@ -31,24 +31,22 @@ export function useBinanceMarketPage() {
   const handleEscape = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && chart.chartDialog.value.open) {
       chart.closeChart()
+      return
     }
     if (event.key === 'Escape' && web3.web3Dialog.value.open) {
       web3.closeWeb3Token()
+      return
+    }
+    if (event.key === 'Escape' && market.detailDialogOpen.value) {
+      market.closeMonitorDetail()
     }
   }
 
   const openChart = (
     item: Pick<BinanceBreakoutMonitorItemResponse, 'symbol'> & Partial<Pick<BinanceBreakoutMonitorItemResponse, 'market' | 'market_label'>>,
   ) => {
-    if (item.market && item.symbol) {
-      market.selectedKey.value = `${item.market}:${item.symbol}`
-    }
     chart.openChart(item)
   }
-
-  watch([market.filteredItems, market.items], () => {
-    market.selectedKey.value = toItemKey(market.selectedItem.value)
-  })
 
   onMounted(async () => {
     window.addEventListener('keydown', handleEscape)
@@ -72,7 +70,6 @@ export function useBinanceMarketPage() {
       market.autoRefresh,
       market.spotSortDirection,
       market.contractSort,
-      market.selectedKey,
       web3.web3ChainId,
     ],
     () => buildBinanceMarketSnapshot({
@@ -83,7 +80,6 @@ export function useBinanceMarketPage() {
       spotSortDirection: market.spotSortDirection.value,
       contractSortField: market.contractSort.value.field,
       contractSortDirection: market.contractSort.value.direction,
-      selectedKey: market.selectedKey.value,
       web3ChainId: web3.web3ChainId.value,
     }),
   )
@@ -102,12 +98,15 @@ export function useBinanceMarketPage() {
     spotSortDirection: market.spotSortDirection,
     contractRows: market.contractRows,
     contractSort: market.contractSort,
-    selectedItem: market.selectedItem,
-    selectedKey: market.selectedKey,
+    detailKey: market.detailKey,
+    detailItem: market.detailItem,
+    detailDialogOpen: market.detailDialogOpen,
     summaryCards: market.summaryCards,
     fetchData: market.fetchData,
     toggleSpotSort: market.toggleSpotSort,
     toggleContractSort: market.toggleContractSort,
+    openMonitorDetail: market.openMonitorDetail,
+    closeMonitorDetail: market.closeMonitorDetail,
     web3ChainId: web3.web3ChainId,
     web3ChainOptions: WEB3_CHAIN_OPTIONS,
     web3HeatRank: web3.web3HeatRank,

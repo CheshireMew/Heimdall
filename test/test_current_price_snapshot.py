@@ -13,11 +13,11 @@ class FakeSnapshot:
         return self.prices.get(symbol)
 
 
-class FakeHistory:
+class FakeMarketDataService:
     def __init__(self) -> None:
         self.tail_calls: list[str] = []
 
-    def get_live_tail(self, market_data_service, symbol: str, timeframe: str, limit: int):
+    def get_recent_candles(self, symbol: str, timeframe: str, limit: int, **kwargs):
         self.tail_calls.append(symbol)
         return [[1717000000000, 1.0, 2.0, 0.5, 456.0, 1000.0]]
 
@@ -26,11 +26,10 @@ class FakeRealtime:
     pass
 
 
-def make_service(snapshot: FakeSnapshot, history: FakeHistory) -> MarketQueryAppService:
+def make_service(snapshot: FakeSnapshot, market_data_service: FakeMarketDataService) -> MarketQueryAppService:
     service = MarketQueryAppService(
-        market_data_service=object(),
+        market_data_service=market_data_service,
         realtime_service=FakeRealtime(),
-        history_service=history,
         binance_snapshot_service=snapshot,
     )
     service.valid_symbols = ["BTC/USDT", "ETH/USDT"]
@@ -40,8 +39,8 @@ def make_service(snapshot: FakeSnapshot, history: FakeHistory) -> MarketQueryApp
 
 @pytest.mark.asyncio
 async def test_current_price_prefers_websocket_snapshot():
-    history = FakeHistory()
-    service = make_service(FakeSnapshot({"BTC/USDT": 123.0}), history)
+    market_data_service = FakeMarketDataService()
+    service = make_service(FakeSnapshot({"BTC/USDT": 123.0}), market_data_service)
 
     response = await service.get_current_price(
         symbol="BTC/USDT",
@@ -49,13 +48,13 @@ async def test_current_price_prefers_websocket_snapshot():
     )
 
     assert response.current_price == 123.0
-    assert history.tail_calls == []
+    assert market_data_service.tail_calls == []
 
 
 @pytest.mark.asyncio
 async def test_current_price_falls_back_to_kline_tail():
-    history = FakeHistory()
-    service = make_service(FakeSnapshot({"BTC/USDT": None}), history)
+    market_data_service = FakeMarketDataService()
+    service = make_service(FakeSnapshot({"BTC/USDT": None}), market_data_service)
 
     response = await service.get_current_price(
         symbol="BTC/USDT",
@@ -63,13 +62,13 @@ async def test_current_price_falls_back_to_kline_tail():
     )
 
     assert response.current_price == 456.0
-    assert history.tail_calls == ["BTC/USDT"]
+    assert market_data_service.tail_calls == ["BTC/USDT"]
 
 
 @pytest.mark.asyncio
 async def test_current_price_batch_uses_shared_snapshot_first_logic():
-    history = FakeHistory()
-    service = make_service(FakeSnapshot({"BTC/USDT": 123.0, "ETH/USDT": None}), history)
+    market_data_service = FakeMarketDataService()
+    service = make_service(FakeSnapshot({"BTC/USDT": 123.0, "ETH/USDT": None}), market_data_service)
 
     response = await service.get_current_price_batch(
         symbols=["BTC/USDT", "ETH/USDT", "BTC/USDT"],
@@ -81,4 +80,4 @@ async def test_current_price_batch_uses_shared_snapshot_first_logic():
     assert response.items[0].source == "websocket_snapshot"
     assert response.items[1].current_price == 456.0
     assert response.items[1].source == "kline_tail"
-    assert history.tail_calls == ["ETH/USDT"]
+    assert market_data_service.tail_calls == ["ETH/USDT"]

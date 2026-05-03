@@ -48,7 +48,6 @@ export type BinanceMarketSnapshot = {
   spotSortDirection: SortDirection
   contractSortField: ContractSortField
   contractSortDirection: SortDirection
-  selectedKey: string
   web3ChainId: string
 }
 
@@ -85,7 +84,6 @@ export const createDefaultSnapshot = (): BinanceMarketSnapshot => ({
   spotSortDirection: 'desc',
   contractSortField: 'price_change_pct',
   contractSortDirection: 'desc',
-  selectedKey: '',
   web3ChainId: '56',
 })
 
@@ -127,7 +125,6 @@ export const normalizeSnapshot = (
     spotSortDirection: normalizeSortDirection(value.spotSortDirection),
     contractSortField: normalizeContractSortField(value.contractSortField),
     contractSortDirection: normalizeSortDirection(value.contractSortDirection),
-    selectedKey: readString(value.selectedKey, defaults.selectedKey),
     web3ChainId: readString(value.web3ChainId, defaults.web3ChainId),
   }
 }

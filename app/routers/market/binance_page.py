@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends, Query
 
 from app.dependencies import runtime_dependency
-from app.runtime_graph import MARKET_BINANCE_MARKET_INTEL
+from app.runtime_refs import MARKET_BINANCE_MARKET_INTEL
 from app.schemas.binance_market import BinanceBreakoutMonitorResponse, BinanceMarketPageResponse
 
 if TYPE_CHECKING:

@@ -109,7 +109,8 @@ class DCAService:
                 current_price = klines[-1][4]
             else:
                 try:
-                    current_price = self.market_data_service.get_latest_price(normalized_symbol, "1m") or history[-1]["price"]
+                    latest = self.market_data_service.get_recent_candles(normalized_symbol, "1m", limit=1)
+                    current_price = float(latest[-1][4]) if latest and len(latest[-1]) > 4 else history[-1]["price"]
                 except Exception as exc:
                     logger.warning(f"无法获取实时价格，降级使用最后一次定投价格: {exc}")
                     current_price = history[-1]["price"]

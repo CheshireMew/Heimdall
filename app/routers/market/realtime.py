@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 
 from app.dependencies import runtime_dependency
-from app.runtime_graph import MARKET_QUERY_APP_SERVICE, MARKET_WEBSOCKET_SERVICE
+from app.runtime_refs import MARKET_QUERY_APP_SERVICE, MARKET_WEBSOCKET_SERVICE
 from app.schemas.market import RealtimeResponse
 from config import settings
 from utils.logger import logger

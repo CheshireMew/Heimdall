@@ -6,6 +6,7 @@ from typing import Any
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestRun
 from app.services.backtest.run_lifecycle import RUN_STATUS_FAILED
+from app.services.executor import run_sync
 from app.services.run_task_manager import RunTaskManager
 from app.services.backtest.run_contract import PAPER_LIVE_EXECUTION_MODE, parse_run_metadata, update_paper_metadata
 from utils.time_utils import utc_now_naive
@@ -94,3 +95,37 @@ class PaperRunController:
 
     def mark_stopped(self, run_id: int, status: str, reason: str) -> None:
         self.lifecycle.mark_stopped(run_id, status, reason)
+
+
+class PaperRunHost:
+    def __init__(self, controller: PaperRunController) -> None:
+        self._controller = controller
+
+    async def restore_active_runs(self) -> None:
+        await self._controller.restore_active_runs()
+
+    async def shutdown(self) -> None:
+        await self._controller.shutdown()
+
+    def activate_created_run(self, run_id: int) -> None:
+        self._controller.activate_run(run_id)
+
+    async def stop_and_cancel_run(self, run_id: int, *, status: str, reason: str) -> None:
+        await run_sync(lambda: self._controller.mark_stopped(run_id, status, reason))
+        await self._controller.cancel_run(run_id)
+
+
+class PaperRunHostedService:
+    paper_host: PaperRunHost
+
+    async def restore_active_runs(self) -> None:
+        await self.paper_host.restore_active_runs()
+
+    async def shutdown(self) -> None:
+        await self.paper_host.shutdown()
+
+    def _activate_created_run(self, run_id: int) -> None:
+        self.paper_host.activate_created_run(run_id)
+
+    async def _stop_and_cancel_run(self, run_id: int, *, status: str, reason: str) -> None:
+        await self.paper_host.stop_and_cancel_run(run_id, status=status, reason=reason)

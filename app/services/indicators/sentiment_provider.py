@@ -5,8 +5,7 @@ from typing import List, Dict, Any
 from .base_provider import BaseIndicatorProvider, logger
 from config import settings
 from app.services.executor import run_sync
-from pytrends.request import TrendReq
-import pandas as pd
+
 
 class SentimentProvider(BaseIndicatorProvider):
     """
@@ -41,6 +40,8 @@ class SentimentProvider(BaseIndicatorProvider):
         results = []
         try:
             def _get():
+                from pytrends.request import TrendReq
+
                 pytrends = TrendReq(hl='en-US', tz=360)
                 # kw_list = ["buy bitcoin"]
                 pytrends.build_payload(["buy bitcoin"], cat=0, timeframe='now 7-d', geo='', gprop='')

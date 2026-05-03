@@ -5,6 +5,7 @@
 ccxt>=4.0.0              # 加密货币交易所数据接口
 requests>=2.31.0         # HTTP 请求库（用于 LLM API）
 httpx>=0.24.0            # 异步 HTTP 请求库
+pytrends>=4.9.2          # Google Trends indicator data
 
 
 # 可选依赖

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.runtime_builder import validate_runtime_services
 from app.runtime import (
     AppRuntimeServices,
     BacktestRuntime,
@@ -59,7 +60,6 @@ def make_api_runtime_services() -> AppRuntimeServices:
             realtime_service=object(),
             market_indicator_repository=object(),
             indicator_service=object(),
-            history_service=object(),
             funding_rate_store=object(),
             funding_rate_service=object(),
             funding_rate_app_service=object(),
@@ -68,6 +68,7 @@ def make_api_runtime_services() -> AppRuntimeServices:
             market_insight_app_service=object(),
             market_websocket_service=object(),
             index_data_service=object(),
+            binance_market_snapshot=object(),
             binance_market_intel=object(),
             binance_web3_service=object(),
         ),
@@ -105,14 +106,14 @@ def make_api_runtime_services() -> AppRuntimeServices:
 def test_background_role_validation_ignores_api_only_graph():
     services = make_background_runtime_services()
 
-    services.validate_required_services("background")
+    validate_runtime_services(services, "background")
     with pytest.raises(RuntimeError, match="market.realtime_service"):
-        services.validate_required_services("api")
+        validate_runtime_services(services, "api")
 
 
 def test_api_role_validation_ignores_background_only_graph():
     services = make_api_runtime_services()
 
-    services.validate_required_services("api")
-    with pytest.raises(RuntimeError, match="market.binance_market_snapshot"):
-        services.validate_required_services("background")
+    validate_runtime_services(services, "api")
+    with pytest.raises(RuntimeError, match="system.market_scheduler_runtime"):
+        validate_runtime_services(services, "background")

@@ -37,7 +37,6 @@ class MarketRuntime:
     realtime_service: Any | None = None
     market_indicator_repository: Any | None = None
     indicator_service: Any | None = None
-    history_service: Any | None = None
     funding_rate_store: Any | None = None
     funding_rate_service: Any | None = None
     funding_rate_app_service: Any | None = None
@@ -133,17 +132,3 @@ class AppRuntimeServices:
         if service is None:
             raise RuntimeError(f"Runtime service is not initialized: {ref.key}")
         return service
-
-    def missing_required_services(self, role: RuntimeRole = "all") -> list[str]:
-        from app.runtime_graph import active_service_definitions
-
-        missing: list[str] = []
-        for definition in active_service_definitions(role):
-            if self.get_service(definition.ref) is None:
-                missing.append(definition.ref.key)
-        return missing
-
-    def validate_required_services(self, role: RuntimeRole = "all") -> None:
-        missing = self.missing_required_services(role)
-        if missing:
-            raise RuntimeError(f"Runtime services missing: {', '.join(missing)}")

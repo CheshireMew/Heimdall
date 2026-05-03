@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from app.services.market.history_service import HistoryService
+from app.services.market.query_app_service import MarketQueryAppService
 from test.regression_support import make_strategy_config
 
 
@@ -239,11 +239,13 @@ def test_value_errors_are_mapped_to_bad_request(api_harness, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_full_history_rejects_invalid_start_date():
-    service = HistoryService()
+    service = MarketQueryAppService(
+        market_data_service=object(),
+        realtime_service=object(),
+    )
 
     with pytest.raises(ValueError, match="start_date 必须是 YYYY-MM-DD"):
         await service.get_full_history(
-            market_data_service=object(),
             symbol="BTC/USDT",
             timeframe="1d",
             start_date="2025/01/01",

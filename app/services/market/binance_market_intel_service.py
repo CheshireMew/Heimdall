@@ -6,12 +6,12 @@ from config import settings
 
 from .binance_api_support import BinanceApiSupport
 from .binance_market_page_service import BinanceMarketPageService
+from .binance_market_snapshot_service import BinanceMarketSnapshotService
 from .binance_spot_market import BinanceSpotMarketService
 from .binance_usdm_market import BinanceUsdmMarketService
 
 if TYPE_CHECKING:
     from app.infra.cache import RedisService
-    from .binance_market_snapshot_service import BinanceMarketSnapshotService
 
 
 class BinanceMarketIntelService:
@@ -34,8 +34,9 @@ class BinanceMarketIntelService:
         )
         self.spot = BinanceSpotMarketService(spot_client)
         self.usdm = BinanceUsdmMarketService(usdm_client)
+        self.snapshot_service = snapshot_service or BinanceMarketSnapshotService()
         self.page = BinanceMarketPageService(
             spot=self.spot,
             usdm=self.usdm,
-            snapshot_service=snapshot_service,
+            snapshot_service=self.snapshot_service,
         )

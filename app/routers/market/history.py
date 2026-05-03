@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Literal
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.dependencies import runtime_dependency
-from app.runtime_graph import MARKET_QUERY_APP_SERVICE
+from app.runtime_refs import MARKET_QUERY_APP_SERVICE
 from app.rate_limit import limiter
 from app.schemas.market import (
     CurrentPriceBatchResponse,

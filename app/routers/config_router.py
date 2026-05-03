@@ -7,7 +7,7 @@ from fastapi import Depends
 from app.dependencies import runtime_dependency
 from app.exceptions import AppError
 from app.infra.db import DatabaseRuntime
-from app.runtime_graph import INFRA_DATABASE_RUNTIME, SYSTEM_CURRENCY_RATE_SERVICE
+from app.runtime_refs import INFRA_DATABASE_RUNTIME, SYSTEM_CURRENCY_RATE_SERVICE
 from app.domain.market.symbol_catalog import get_supported_market_symbols
 from app.schemas.config import (
     LlmProviderConfigResponse,

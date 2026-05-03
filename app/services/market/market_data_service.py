@@ -93,6 +93,8 @@ class MarketDataService:
         symbol: str,
         timeframe: str = settings.TIMEFRAME,
         limit: int = settings.LIMIT,
+        *,
+        max_retries: int | None = None,
     ) -> list[list[float]]:
         start_time = time.time()
         attempts = 0
@@ -101,16 +103,13 @@ class MarketDataService:
             fetch_symbol = self._fetch_symbol(symbol)
             gateway = self._gateway_for_symbol(symbol)
             cache_key = f"{KEY_PREFIX_KLINE}:{storage_symbol}:{timeframe}:{limit}"
-            data, attempts = gateway.fetch_ohlcv(fetch_symbol, timeframe, limit=limit)
+            data, attempts = gateway.fetch_ohlcv(fetch_symbol, timeframe, limit=limit, max_retries=max_retries)
             if data and self.cache_service is not None:
                 self.cache_service.set(cache_key, data, ttl=settings.REDIS_KLINE_TTL)
             return data
         except Exception as e:
             logger.error(f"实时K线获取错误 (Exchange): {e}")
-            fetch_symbol = self._fetch_symbol(symbol)
-            gateway = self._gateway_for_symbol(symbol)
-            data, attempts = gateway.fetch_ohlcv(fetch_symbol, timeframe, limit=limit)
-            return data
+            return []
         finally:
             elapsed = time.time() - start_time
             logger.debug(
@@ -136,6 +135,7 @@ class MarketDataService:
         limit: int = settings.LIMIT,
         *,
         allow_cached_response: bool = False,
+        live_max_retries: int | None = None,
     ) -> list[list[float]]:
         end_ts = int(time.time() * 1000) + 1
         try:
@@ -151,7 +151,7 @@ class MarketDataService:
         ):
             return cached[-limit:]
 
-        live = self.get_live_kline_data(symbol, timeframe, limit=limit)
+        live = self.get_live_kline_data(symbol, timeframe, limit=limit, max_retries=live_max_retries)
         if live:
             merged = self._merge_klines(cached, live)
             try:
@@ -160,15 +160,6 @@ class MarketDataService:
                 logger.warning(f"最近 K 线回写缓存失败: {exc}")
             return merged[-limit:]
         return cached[-limit:]
-
-    def get_latest_price(self, symbol: str, timeframe: str = "1m") -> float | None:
-        recent = self.get_recent_candles(symbol, timeframe, limit=1)
-        if not recent or len(recent[-1]) <= 4:
-            return None
-        try:
-            return float(recent[-1][4])
-        except (TypeError, ValueError):
-            return None
 
     def fetch_ohlcv_range(
         self,

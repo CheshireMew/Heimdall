@@ -78,12 +78,6 @@ class BinanceBreakoutMonitor:
     def normalize_quote_asset(self, quote_asset: str | None) -> str:
         return str(quote_asset or "USDT").strip().upper()
 
-    def empty_ticker_response(self, market: str) -> dict[str, Any]:
-        return {"exchange": "binance", "market": market, "items": []}
-
-    def empty_mark_price_response(self, market: str) -> dict[str, Any]:
-        return {"exchange": "binance", "market": market, "items": []}
-
     def _collect_spot_candidates(
         self,
         rows: list[dict[str, Any]],

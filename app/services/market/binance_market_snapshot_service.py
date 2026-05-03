@@ -26,6 +26,7 @@ class BinanceMarketSnapshotService:
         self._spot_ticker: dict[str, dict[str, Any]] = {}
         self._usdm_ticker: dict[str, dict[str, Any]] = {}
         self._usdm_mark: dict[str, dict[str, Any]] = {}
+        self._loaded_sources: set[str] = set()
         self._updated_at: dict[str, int] = {}
         self._lock = asyncio.Lock()
         self._tasks: list[asyncio.Task] = []
@@ -92,11 +93,11 @@ class BinanceMarketSnapshotService:
     async def get_market_page_snapshot(self) -> BinanceMarketSourceSnapshotResponse:
         async with self._lock:
             load_errors: list[str] = []
-            if not self._spot_ticker:
+            if "spot_ticker" not in self._loaded_sources:
                 load_errors.append("现货榜单")
-            if not self._usdm_ticker:
+            if "usdm_ticker" not in self._loaded_sources:
                 load_errors.append("U本位24H")
-            if not self._usdm_mark:
+            if "usdm_mark" not in self._loaded_sources:
                 load_errors.append("U本位Funding")
             return BinanceMarketSourceSnapshotResponse(
                 spot_ticker=self._ticker_response("spot", self._spot_ticker.values()),
@@ -108,7 +109,11 @@ class BinanceMarketSnapshotService:
 
     async def has_snapshot(self) -> bool:
         async with self._lock:
-            return bool(self._spot_ticker or self._usdm_ticker or self._usdm_mark)
+            return bool(self._loaded_sources)
+
+    async def has_market_page_snapshot(self) -> bool:
+        async with self._lock:
+            return {"spot_ticker", "usdm_ticker", "usdm_mark"}.issubset(self._loaded_sources)
 
     async def get_current_price(self, symbol: str) -> float | None:
         ticker_symbol = self._to_ticker_symbol(symbol)
@@ -128,7 +133,7 @@ class BinanceMarketSnapshotService:
 
     async def _apply_spot_ticker_response(self, response: Any) -> None:
         payload = response.model_dump() if hasattr(response, "model_dump") else response
-        await self._merge_tickers("spot", payload.get("items", []))
+        await self._merge_tickers("spot_ticker", payload.get("items", []))
 
     async def _apply_usdm_ticker_response(self, response: Any) -> None:
         payload = response.model_dump() if hasattr(response, "model_dump") else response
@@ -181,7 +186,7 @@ class BinanceMarketSnapshotService:
                     await asyncio.sleep(self._reconnect_delay)
 
     async def _apply_spot_ticker_events(self, events: list[dict[str, Any]]) -> None:
-        await self._merge_tickers("spot", [self._ticker_from_event(event) for event in events])
+        await self._merge_tickers("spot_ticker", [self._ticker_from_event(event) for event in events])
 
     async def _apply_usdm_ticker_events(self, events: list[dict[str, Any]]) -> None:
         await self._merge_tickers("usdm_ticker", [self._ticker_from_event(event) for event in events])
@@ -189,15 +194,16 @@ class BinanceMarketSnapshotService:
     async def _apply_usdm_mark_events(self, events: list[dict[str, Any]]) -> None:
         await self._merge_marks([self._mark_from_event(event) for event in events])
 
-    async def _merge_tickers(self, scope: str, rows: list[dict[str, Any]]) -> None:
+    async def _merge_tickers(self, source: str, rows: list[dict[str, Any]]) -> None:
         now = int(time.time() * 1000)
-        target = self._spot_ticker if scope == "spot" else self._usdm_ticker
+        target = self._spot_ticker if source == "spot_ticker" else self._usdm_ticker
         async with self._lock:
             for row in rows:
                 symbol = str(row.get("symbol") or "").upper()
                 if symbol:
                     target[symbol] = row
-            self._updated_at[scope] = now
+            self._updated_at[source] = now
+            self._loaded_sources.add(source)
 
     async def _merge_marks(self, rows: list[dict[str, Any]]) -> None:
         now = int(time.time() * 1000)
@@ -207,6 +213,7 @@ class BinanceMarketSnapshotService:
                 if symbol:
                     self._usdm_mark[symbol] = row
             self._updated_at["usdm_mark"] = now
+            self._loaded_sources.add("usdm_mark")
 
     def _ticker_from_event(self, event: dict[str, Any]) -> dict[str, Any]:
         return {

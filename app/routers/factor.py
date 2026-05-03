@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends
 
 from app.dependencies import runtime_dependency
-from app.runtime_graph import (
+from app.runtime_refs import (
     FACTORS_EXECUTION_SERVICE,
     FACTORS_PAPER_RUN_MANAGER,
     FACTORS_RESEARCH_SERVICE,

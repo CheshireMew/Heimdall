@@ -7,7 +7,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from app.runtime import AppRuntimeServices, runtime_role_has_target
-from app.runtime_graph import background_start_definitions, background_stop_definitions
+from app.runtime_builder import background_start_definitions, background_stop_definitions, validate_runtime_services
 from config import settings
 
 
@@ -125,7 +125,7 @@ class BackgroundRuntimeController:
 
     async def _bootstrap(self) -> None:
         try:
-            self.runtime_services.validate_required_services("background")
+            validate_runtime_services(self.runtime_services, "background")
             for definition in background_start_definitions():
                 service = self.runtime_services.require_service(definition.ref)
                 assert definition.background_start is not None

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends, Request
 
 from app.dependencies import runtime_dependency
-from app.runtime_graph import TOOLS_TOOLS_APP_SERVICE
+from app.runtime_refs import TOOLS_TOOLS_APP_SERVICE
 from app.rate_limit import limiter
 from app.schemas.tools import (
     DCARequestSchema,

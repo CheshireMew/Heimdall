@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.dependencies import runtime_dependency
-from app.runtime_graph import MARKET_FUNDING_RATE_APP_SERVICE
+from app.runtime_refs import MARKET_FUNDING_RATE_APP_SERVICE
 from app.rate_limit import limiter
 from app.schemas.market import FundingRateHistoryResponse, FundingRateSnapshotResponse, FundingRateSyncResponse
 from config import settings

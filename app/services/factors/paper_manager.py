@@ -18,7 +18,7 @@ from app.services.backtest.run_contract import (
 from app.services.backtest.run_lifecycle import RUN_STATUS_RUNNING
 from app.services.backtest.run_repository import BacktestRunRepository
 from app.services.backtest.strategy_support import blank_strategy_version_config_model
-from app.services.paper_run_lifecycle import PaperRunController
+from app.services.paper_run_lifecycle import PaperRunController, PaperRunHost, PaperRunHostedService
 from app.services.executor import run_sync
 from app.contracts.factor import FactorExecutionConfig
 from app.services.factors.signal_execution_core import FactorSignalContext, FactorSignalExecutionCore
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from app.services.factors.paper_persistence_service import FactorPaperPersistenceService
     from app.services.factors.service import FactorResearchService
 
-class FactorPaperRunManager:
+class FactorPaperRunManager(PaperRunHostedService):
     def __init__(
         self,
         *,
@@ -47,25 +47,21 @@ class FactorPaperRunManager:
         self.execution_core = execution_core
         self.persistence_service = persistence_service
         self.database_runtime = database_runtime
-        self.controller = PaperRunController(
-            engine=FACTOR_BLEND_PAPER_ENGINE,
-            run_repository=run_repository,
-            database_runtime=database_runtime,
-            runtime_state=self._stoppable_runtime_state,
-            tick=self._tick,
-            interval_seconds=lambda: float(settings.WS_UPDATE_INTERVAL),
-            error_label="因子模拟盘运行失败",
+        self.paper_host = PaperRunHost(
+            PaperRunController(
+                engine=FACTOR_BLEND_PAPER_ENGINE,
+                run_repository=run_repository,
+                database_runtime=database_runtime,
+                runtime_state=self._stoppable_runtime_state,
+                tick=self._tick,
+                interval_seconds=lambda: float(settings.WS_UPDATE_INTERVAL),
+                error_label="因子模拟盘运行失败",
+            )
         )
-
-    async def restore_active_runs(self) -> None:
-        await self.controller.restore_active_runs()
-
-    async def shutdown(self) -> None:
-        await self.controller.shutdown()
 
     async def start_run(self, config: FactorExecutionConfig) -> FactorExecutionResponse:
         run_id = await run_sync(lambda: self._create_run(config))
-        self.controller.activate_run(run_id)
+        self._activate_created_run(run_id)
         return FactorExecutionResponse(success=True, run_id=run_id, message="因子模拟盘已启动")
 
     def _tick(self, run_id: int) -> bool:
