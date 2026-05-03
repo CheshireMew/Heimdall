@@ -1,8 +1,7 @@
 import type {
   BinanceBreakoutMonitorItemResponse,
   BinanceBreakoutMonitorResponse,
-  BinanceMarkPriceItemResponse,
-  BinanceTickerStatsItemResponse,
+  BinanceContractBoardItemResponse,
 } from '../../types/market'
 import { isRecord, readBoolean, readNumber } from '@/composables/pageSnapshot'
 import { toBaseSymbol } from './symbolCatalog'
@@ -13,16 +12,7 @@ export type SpotSortField = 'price_change_pct' | 'quote_volume'
 export type ContractSortField = 'price_change_pct' | 'funding_rate_pct' | 'quote_volume'
 export type SortDirection = 'desc' | 'asc'
 
-export type ContractBoardRow = DerivativeBoardRow & {
-  market: 'usdm'
-  market_label: string
-}
-
-export interface DerivativeBoardRow extends BinanceTickerStatsItemResponse {
-  mark_price: number | null
-  index_price: number | null
-  funding_rate_pct: number | null
-}
+export type ContractBoardRow = BinanceContractBoardItemResponse
 
 export type ContractSortState = {
   field: ContractSortField
@@ -177,52 +167,9 @@ export const compareNullableNumber = (
   return direction === 'desc' ? rightValue - leftValue : leftValue - rightValue
 }
 
-export const sortRowsByMetric = <TRow extends { quote_volume?: number | null; symbol?: string | null }>(
-  rows: TRow[],
-  selector: (row: TRow) => number | null | undefined,
-  direction: SortDirection,
-  limit = 15,
-) => (
-  [...rows]
-    .sort((left, right) => {
-      const primary = compareNullableNumber(selector(left), selector(right), direction)
-      if (primary !== 0) return primary
-      const byVolume = compareNullableNumber(left.quote_volume, right.quote_volume, 'desc')
-      if (byVolume !== 0) return byVolume
-      return String(left.symbol || '').localeCompare(String(right.symbol || ''))
-    })
-    .slice(0, limit)
-)
-
-export const sortContractRows = (rows: ContractBoardRow[], sort: ContractSortState) => (
-  sortRowsByMetric(rows, (row) => row[sort.field], sort.direction)
-)
-
-export const sortSpotRows = (rows: BinanceTickerStatsItemResponse[], sort: SpotSortState) => (
-  sortRowsByMetric(rows, (row) => row[sort.field], sort.direction)
-)
-
 export const sortDirectionIcon = (active: boolean, direction: SortDirection) => {
   if (!active) return '↕'
   return direction === 'desc' ? '↓' : '↑'
-}
-
-export const mergeDerivatives = (
-  tickerRows: BinanceTickerStatsItemResponse[] = [],
-  markRows: BinanceMarkPriceItemResponse[] = [],
-) => {
-  const markMap = new Map(markRows.map((item) => [item.symbol, item]))
-  return tickerRows
-    .map((item) => {
-      const mark = markMap.get(item.symbol || '')
-      return {
-        ...item,
-        mark_price: mark?.mark_price ?? null,
-        index_price: mark?.index_price ?? null,
-        funding_rate_pct: mark?.last_funding_rate != null ? mark.last_funding_rate * 100 : null,
-      } satisfies DerivativeBoardRow
-    })
-    .sort((left, right) => (right.quote_volume || 0) - (left.quote_volume || 0))
 }
 
 export const toItemKey = (

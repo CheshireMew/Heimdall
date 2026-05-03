@@ -208,12 +208,6 @@
       "noRows": "No Web3 heat data to show."
     },
     "addressPnlTitle": "Address PnL",
-    "summary": {
-      "heatLeader": "Heat Leader",
-      "socialSignal": "Social Signal",
-      "smartMoney": "Smart Money",
-      "pnlBoard": "PnL Board"
-    },
     "columns": {
       "rank": "Rank",
       "token": "Token",

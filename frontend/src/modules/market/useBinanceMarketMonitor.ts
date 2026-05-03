@@ -4,8 +4,11 @@ import { useI18n } from 'vue-i18n'
 import type {
   BinanceBreakoutMonitorItemResponse,
   BinanceBreakoutMonitorResponse,
-  BinanceMarkPriceItemResponse,
+  BinanceContractBoardResponse,
+  BinanceMarketBoardsResponse,
+  BinanceMarketPageResponse,
   BinanceTickerStatsItemResponse,
+  BinanceTickerStatsResponse,
 } from '../../types/market'
 import { marketApi } from './api'
 import { restoreBinanceMarketWarmSnapshot, saveBinanceMarketWarmSnapshot } from './binanceMarketWarmSnapshot'
@@ -22,9 +25,6 @@ import type {
 } from './binanceMarketShared'
 import {
   EMPTY_RESPONSE,
-  mergeDerivatives,
-  sortContractRows,
-  sortSpotRows,
   toItemKey,
 } from './binanceMarketShared'
 
@@ -52,29 +52,20 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     direction: snapshot.contractSortDirection,
   })
   const monitor = ref<BinanceBreakoutMonitorResponse>({ ...EMPTY_RESPONSE })
-  const spotTicker = ref<BinanceTickerStatsItemResponse[]>([])
-  const usdmTicker = ref<BinanceTickerStatsItemResponse[]>([])
-  const usdmMark = ref<BinanceMarkPriceItemResponse[]>([])
+  const spotBoards = ref<Record<string, BinanceTickerStatsResponse>>({})
+  const contractBoards = ref<Record<string, BinanceContractBoardResponse>>({})
   const detailKey = ref('')
   let refreshTimer: ReturnType<typeof setInterval> | null = null
   let thresholdTimer: ReturnType<typeof setTimeout> | null = null
   let fetchPromise: Promise<void> | null = null
 
   const items = computed(() => monitor.value.items || [])
-  const spotRows = computed(() => (
-    sortSpotRows(
-      spotTicker.value.filter((item) => item.symbol?.endsWith('USDT')),
-      spotSort.value,
-    )
+  const spotRows = computed<BinanceTickerStatsItemResponse[]>(() => (
+    spotBoards.value[boardKey(spotSort.value.field, spotSort.value.direction)]?.items || []
   ))
-  const contractSourceItems = computed<ContractBoardRow[]>(() => (
-    mergeDerivatives(usdmTicker.value, usdmMark.value).map((item) => ({
-      ...item,
-      market: 'usdm',
-      market_label: t('binanceMarket.market.contract'),
-    }))
+  const contractRows = computed<ContractBoardRow[]>(() => (
+    contractBoards.value[boardKey(contractSort.value.field, contractSort.value.direction)]?.items || []
   ))
-  const contractRows = computed(() => sortContractRows(contractSourceItems.value, contractSort.value))
   const filteredItems = computed(() => items.value.filter((item) => {
     if (marketFilter.value !== 'all' && item.market !== marketFilter.value) return false
     if (mode.value === 'natural' && !item.structure_ok) return false
@@ -110,24 +101,30 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
 
   const hasDisplayedData = () => (
     Boolean(monitor.value.items?.length)
-    || spotTicker.value.length > 0
-    || usdmTicker.value.length > 0
-    || usdmMark.value.length > 0
+    || Object.values(spotBoards.value).some((board) => Boolean(board.items?.length))
+    || Object.values(contractBoards.value).some((board) => Boolean(board.items?.length))
   )
 
-  const applyPayload = (
-    payload: Awaited<ReturnType<typeof marketApi.getBinanceMarketPage>>['data'],
-    options: { warmStart?: boolean } = {},
-  ) => {
-    monitor.value = payload.monitor || { ...EMPTY_RESPONSE }
-    spotTicker.value = payload.spot_ticker?.items || []
-    usdmTicker.value = payload.usdm_ticker?.items || []
-    usdmMark.value = payload.usdm_mark?.items || []
+  const applyMonitorPayload = (payload: BinanceBreakoutMonitorResponse) => {
+    monitor.value = payload || { ...EMPTY_RESPONSE }
+  }
+
+  const applyBoardsPayload = (payload: BinanceMarketBoardsResponse, options: { warmStart?: boolean } = {}) => {
+    spotBoards.value = payload.spot_boards || {}
+    contractBoards.value = payload.contract_boards || {}
     if (options.warmStart) {
       errorState.value = null
     } else {
       formatLoadFailureMessage([...(payload.load_errors || [])])
     }
+  }
+
+  const applyPayload = (
+    payload: BinanceMarketPageResponse,
+    options: { warmStart?: boolean } = {},
+  ) => {
+    applyMonitorPayload(payload.monitor)
+    applyBoardsPayload(payload, options)
   }
 
   const restoreWarmSnapshot = () => {
@@ -141,13 +138,30 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
       loading.value = true
       errorState.value = null
       try {
-        const response = await marketApi.getBinanceMarketPage({
+        const boardsTask = marketApi.getBinanceMarketBoards({
+          quote_asset: MARKET_PAGE_QUOTE_ASSET,
+        }).then((response) => {
+          applyBoardsPayload(response.data)
+          return response.data
+        })
+        const monitorTask = marketApi.getBinanceBreakoutMonitor({
           min_rise_pct: minRisePct.value,
           limit: MARKET_PAGE_LIMIT,
           quote_asset: MARKET_PAGE_QUOTE_ASSET,
+        }).then((response) => {
+          applyMonitorPayload(response.data)
+          return response.data
         })
-        applyPayload(response.data)
-        saveBinanceMarketWarmSnapshot(minRisePct.value, MARKET_PAGE_QUOTE_ASSET, response.data)
+        const [latestBoards, latestMonitor] = await Promise.all([boardsTask, monitorTask])
+        saveBinanceMarketWarmSnapshot(minRisePct.value, MARKET_PAGE_QUOTE_ASSET, {
+          exchange: latestBoards.exchange,
+          quote_asset: latestBoards.quote_asset,
+          updated_at: Math.max(latestBoards.updated_at || 0, latestMonitor.updated_at || 0),
+          monitor: latestMonitor,
+          spot_boards: latestBoards.spot_boards,
+          contract_boards: latestBoards.contract_boards,
+          load_errors: latestBoards.load_errors,
+        })
       } catch (requestError) {
         errorState.value = {
           key: hasDisplayedData()
@@ -261,3 +275,5 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     clearMonitorDetail,
   }
 }
+
+const boardKey = (field: string, direction: SortDirection) => `${field}_${direction}`

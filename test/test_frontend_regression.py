@@ -250,6 +250,10 @@ def test_binance_market_rank_tables_use_i18n_headers_and_sortable_volume_metrics
     assert "type SpotSortField = 'price_change_pct' | 'quote_volume'" in shared_source
     assert "type ContractSortField = 'price_change_pct' | 'funding_rate_pct' | 'quote_volume'" in shared_source
     assert "const spotSort = ref<SpotSortState>" in monitor_source
+    assert "payload.spot_boards" in monitor_source
+    assert "payload.contract_boards" in monitor_source
+    assert "payload.spot_ticker" not in monitor_source
+    assert "mergeDerivatives" not in shared_source
 
 
 def test_web3_heat_rank_lives_on_web3_rank_page_only():
@@ -275,6 +279,8 @@ def test_web3_heat_rank_lives_on_web3_rank_page_only():
     ]:
         assert removed_fetch not in web3_page_source
     assert "const web3Sort = ref<Web3HeatRankSortState>" in web3_heat_source
+    assert "getBinanceWeb3HeatRankBoards" in web3_heat_source
+    assert "compareNullableNumber" not in web3_heat_source
     assert "web3HeatRank" not in binance_market_view
     assert "BinanceWeb3TokenDialog" not in binance_market_view
 

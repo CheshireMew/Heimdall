@@ -61,4 +61,5 @@ FACTORS_PAPER_RUN_MANAGER = RuntimeServiceRef("factors", "factor_paper_run_manag
 
 SYSTEM_CURRENCY_RATE_SERVICE = RuntimeServiceRef("system", "currency_rate_service")
 SYSTEM_LLM_CONFIG_SERVICE = RuntimeServiceRef("system", "llm_config_service")
+SYSTEM_FRED_API_CONFIG_SERVICE = RuntimeServiceRef("system", "fred_api_config_service")
 SYSTEM_MARKET_SCHEDULER_RUNTIME = RuntimeServiceRef("system", "market_scheduler_runtime")

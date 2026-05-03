@@ -1,0 +1,7 @@
+{
+  "provider": "siliconflow",
+  "apiKey": "sk-existing",
+  "baseUrl": "https://api.siliconflow.cn/v1",
+  "modelId": "deepseek-ai/DeepSeek-V3.2",
+  "reasoningEnabled": false
+}

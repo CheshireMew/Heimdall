@@ -293,14 +293,40 @@ class BinanceBreakoutMonitorResponse(BaseModel):
     items: list[BinanceBreakoutMonitorItemResponse] = Field(default_factory=list)
 
 
+class BinanceContractBoardItemResponse(BaseModel):
+    market: str = "usdm"
+    market_label: str = "U 鏈綅"
+    symbol: str | None = None
+    price_change_pct: float | None = None
+    last_price: float | None = None
+    quote_volume: float | None = None
+    mark_price: float | None = None
+    index_price: float | None = None
+    funding_rate_pct: float | None = None
+
+
+class BinanceContractBoardResponse(BaseModel):
+    exchange: str
+    market: str
+    items: list[BinanceContractBoardItemResponse] = Field(default_factory=list)
+
+
+class BinanceMarketBoardsResponse(BaseModel):
+    exchange: str
+    quote_asset: str
+    updated_at: int
+    spot_boards: dict[str, BinanceTickerStatsResponse] = Field(default_factory=dict)
+    contract_boards: dict[str, BinanceContractBoardResponse] = Field(default_factory=dict)
+    load_errors: list[str] = Field(default_factory=list)
+
+
 class BinanceMarketPageResponse(BaseModel):
     exchange: str
     quote_asset: str
     updated_at: int
     monitor: BinanceBreakoutMonitorResponse
-    spot_ticker: BinanceTickerStatsResponse
-    usdm_ticker: BinanceTickerStatsResponse
-    usdm_mark: BinanceMarkPriceResponse
+    spot_boards: dict[str, BinanceTickerStatsResponse] = Field(default_factory=dict)
+    contract_boards: dict[str, BinanceContractBoardResponse] = Field(default_factory=dict)
     load_errors: list[str] = Field(default_factory=list)
 
 
@@ -453,6 +479,15 @@ class BinanceWeb3HeatRankResponse(BaseModel):
     chain_id: str
     size: int
     items: list[BinanceWeb3HeatRankItemResponse] = Field(default_factory=list)
+    formula: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class BinanceWeb3HeatRankBoardsResponse(BaseModel):
+    source: str
+    leaderboard: str
+    chain_id: str
+    size: int
+    boards: dict[str, BinanceWeb3HeatRankResponse] = Field(default_factory=dict)
     formula: dict[str, list[str]] = Field(default_factory=dict)
 
 

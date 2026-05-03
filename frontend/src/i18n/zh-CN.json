@@ -208,12 +208,6 @@
       "noRows": "当前没有可展示的 Web3 热度数据"
     },
     "addressPnlTitle": "地址收益榜",
-    "summary": {
-      "heatLeader": "热度第一",
-      "socialSignal": "社交信号",
-      "smartMoney": "聪明钱",
-      "pnlBoard": "收益榜"
-    },
     "columns": {
       "rank": "排名",
       "token": "代币",

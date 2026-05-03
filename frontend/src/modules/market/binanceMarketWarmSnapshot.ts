@@ -1,7 +1,7 @@
 import { getLocalStorage } from '@/utils/storage'
 import type { BinanceMarketPageResponse } from '../../types/market'
 
-const WARM_SNAPSHOT_VERSION = 1
+const WARM_SNAPSHOT_VERSION = 2
 const WARM_SNAPSHOT_TTL_MS = 1000 * 60 * 60 * 12
 const MARKET_KEY_PREFIX = 'heimdall_binance_market_warm_snapshot:market-page'
 
@@ -55,7 +55,7 @@ export const restoreBinanceMarketWarmSnapshot = (
 ): BinanceMarketPageResponse | null => {
   const payload = readEnvelope<BinanceMarketPageResponse>(marketPageKey(minRisePct, quoteAsset))
   if (!payload || payload.exchange !== 'binance' || payload.quote_asset !== quoteAsset.toUpperCase()) return null
-  if (!payload.monitor || !payload.spot_ticker || !payload.usdm_ticker || !payload.usdm_mark) return null
+  if (!payload.monitor || !payload.spot_boards || !payload.contract_boards) return null
   return payload
 }
 
@@ -64,6 +64,8 @@ export const saveBinanceMarketWarmSnapshot = (
   quoteAsset: string,
   payload: BinanceMarketPageResponse,
 ) => {
-  if (!payload.monitor?.items?.length && !payload.spot_ticker?.items?.length && !payload.usdm_ticker?.items?.length) return
+  const hasSpotRows = Object.values(payload.spot_boards || {}).some((board) => Boolean(board.items?.length))
+  const hasContractRows = Object.values(payload.contract_boards || {}).some((board) => Boolean(board.items?.length))
+  if (!payload.monitor?.items?.length && !hasSpotRows && !hasContractRows) return
   writeEnvelope(marketPageKey(minRisePct, quoteAsset), payload)
 }

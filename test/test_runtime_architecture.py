@@ -102,7 +102,11 @@ def make_api_runtime_services() -> AppRuntimeServices:
             factor_paper_persistence_service=object(),
             factor_paper_run_manager=object(),
         ),
-        system=SystemRuntime(currency_rate_service=object(), llm_config_service=object()),
+        system=SystemRuntime(
+            currency_rate_service=object(),
+            llm_config_service=object(),
+            fred_api_config_service=object(),
+        ),
     )
 
 

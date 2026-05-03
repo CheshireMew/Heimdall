@@ -8,6 +8,7 @@ from app.dependencies import runtime_dependency
 from app.runtime_refs import MARKET_BINANCE_WEB3_SERVICE
 from app.schemas.binance_market import (
     BinanceWeb3AddressPnlResponse,
+    BinanceWeb3HeatRankBoardsResponse,
     BinanceWeb3HeatRankResponse,
     BinanceWeb3MemeRankResponse,
     BinanceWeb3SmartMoneyInflowResponse,
@@ -106,3 +107,12 @@ async def get_binance_web3_heat_rank(
     service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):
     return await service.ranks.get_web3_heat_rank(chain_id=chain_id, size=size)
+
+
+@router.get("/binance/web3/heat_rank_boards", response_model=BinanceWeb3HeatRankBoardsResponse)
+async def get_binance_web3_heat_rank_boards(
+    chain_id: str | None = Query(None),
+    size: int = Query(30, ge=1, le=50),
+    service: BinanceWeb3Service = Depends(binance_web3_dependency),
+):
+    return await service.ranks.get_web3_heat_rank_boards(chain_id=chain_id, size=size)

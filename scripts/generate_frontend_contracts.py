@@ -153,7 +153,12 @@ def resolve_route_target_file(route: APIRoute) -> str:
         return "backtest.ts"
     if path.startswith("/api/v1/tools"):
         return "tools.ts"
-    if path.startswith("/api/v1/config") or path.startswith("/api/v1/currencies") or path.startswith("/api/v1/llm-config"):
+    if (
+        path.startswith("/api/v1/config")
+        or path.startswith("/api/v1/currencies")
+        or path.startswith("/api/v1/llm-config")
+        or path.startswith("/api/v1/fred-api-config")
+    ):
         return "config.ts"
     return "market.ts"
 

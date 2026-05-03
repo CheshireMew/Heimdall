@@ -9,6 +9,7 @@ import requests
 from app.domain.market.index_catalog import IndexInstrument
 from app.services.market.index_history_contracts import IndexFetchResult
 from app.services.market.index_history_parsing import IndexHistoryParsing
+from app.services.fred_api_config_service import get_fred_api_key
 from config import settings
 
 
@@ -22,8 +23,9 @@ class FredIndexHistoryProvider(IndexHistoryParsing):
         if not instrument.fred_series_id:
             return IndexFetchResult(data=[], source="fred")
 
-        if settings.FRED_API_KEY:
-            result = self._fetch_api_history(instrument, start_dt, end_dt)
+        fred_api_key = get_fred_api_key()
+        if fred_api_key:
+            result = self._fetch_api_history(instrument, start_dt, end_dt, fred_api_key)
             if result.data:
                 return result
 
@@ -74,12 +76,13 @@ class FredIndexHistoryProvider(IndexHistoryParsing):
         instrument: IndexInstrument,
         start_dt: datetime,
         end_dt: datetime,
+        fred_api_key: str,
     ) -> IndexFetchResult:
         response = requests.get(
             settings.FRED_API_URL,
             params={
                 "series_id": instrument.fred_series_id,
-                "api_key": settings.FRED_API_KEY,
+                "api_key": fred_api_key,
                 "file_type": "json",
                 "observation_start": start_dt.strftime("%Y-%m-%d"),
                 "observation_end": end_dt.strftime("%Y-%m-%d"),

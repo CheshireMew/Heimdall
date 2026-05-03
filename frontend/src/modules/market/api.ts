@@ -2,6 +2,7 @@ import { apiGet, longTaskRequest } from '@/api/request'
 import type { AxiosResponse } from 'axios'
 import type {
   BinanceBreakoutMonitorResponse,
+  BinanceMarketBoardsResponse,
   BinanceExchangeInfoResponse,
   BinanceMarkPriceResponse,
   BinanceMarketPageResponse,
@@ -13,6 +14,7 @@ import type {
   BinanceRwaMetaResponse,
   BinanceRwaSymbolListResponse,
   BinanceTickerStatsResponse,
+  BinanceWeb3HeatRankBoardsResponse,
   BinanceWeb3AddressPnlResponse,
   BinanceWeb3HeatRankResponse,
   BinanceWeb3MemeRankResponse,
@@ -34,6 +36,7 @@ import type {
   MarketIndexHistoryResponse,
   MarketSymbolSearchResponse,
   GetBinanceMarketBreakoutMonitorQueryParams,
+  GetBinanceMarketBoardsQueryParams,
   GetBinanceMarketPageQueryParams,
   GetBinanceRwaAssetMarketStatusQueryParams,
   GetBinanceRwaDynamicQueryParams,
@@ -47,6 +50,7 @@ import type {
   GetBinanceUsdmTopTraderAccountsQueryParams,
   GetBinanceUsdmTopTraderPositionsQueryParams,
   GetBinanceWeb3AddressPnlRankQueryParams,
+  GetBinanceWeb3HeatRankBoardsQueryParams,
   GetBinanceWeb3HeatRankQueryParams,
   GetBinanceWeb3MemeRankQueryParams,
   GetBinanceWeb3SmartMoneyInflowQueryParams,
@@ -143,6 +147,10 @@ export const marketApi = {
     return apiGet('get_binance_market_breakout_monitor', { query: params })
   },
 
+  getBinanceMarketBoards(params: GetBinanceMarketBoardsQueryParams = {}): Promise<AxiosResponse<BinanceMarketBoardsResponse>> {
+    return apiGet('get_binance_market_boards', { query: params, timeout: 15000 })
+  },
+
   getBinanceMarketPage(params: GetBinanceMarketPageQueryParams = {}): Promise<AxiosResponse<BinanceMarketPageResponse>> {
     return apiGet('get_binance_market_page', { query: params, timeout: 30000 })
   },
@@ -189,6 +197,10 @@ export const marketApi = {
 
   getBinanceWeb3HeatRank(params: GetBinanceWeb3HeatRankQueryParams = {}): Promise<AxiosResponse<BinanceWeb3HeatRankResponse>> {
     return apiGet('get_binance_web3_heat_rank', { query: params, timeout: 30000 })
+  },
+
+  getBinanceWeb3HeatRankBoards(params: GetBinanceWeb3HeatRankBoardsQueryParams = {}): Promise<AxiosResponse<BinanceWeb3HeatRankBoardsResponse>> {
+    return apiGet('get_binance_web3_heat_rank_boards', { query: params, timeout: 30000 })
   },
 
   getBinanceWeb3TokenDynamic(params: GetBinanceWeb3TokenDynamicQueryParams): Promise<AxiosResponse<BinanceWeb3TokenDynamicResponse>> {

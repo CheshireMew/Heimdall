@@ -2,13 +2,14 @@ import { computed, ref, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type {
+  BinanceWeb3HeatRankBoardsResponse,
   BinanceWeb3HeatRankItemResponse,
+  BinanceWeb3HeatRankResponse,
   BinanceWeb3TokenAuditResponse,
   BinanceWeb3TokenDynamicResponse,
   BinanceWeb3TokenKlineItemResponse,
 } from '../../types/market'
 import { marketApi } from './api'
-import { compareNullableNumber } from './binanceMarketShared'
 import type { CandlestickData, VolumeData } from './contracts'
 import { restoreWeb3HeatRankWarmSnapshot, saveWeb3HeatRankWarmSnapshot } from './web3MarketWarmSnapshot'
 import {
@@ -22,7 +23,7 @@ const WEB3_HEAT_RANK_SIZE = 30
 
 export function useWeb3HeatRankPanel(chainId: Ref<string>) {
   const { t } = useI18n()
-  const web3HeatRank = ref<BinanceWeb3HeatRankItemResponse[]>([])
+  const web3HeatRankBoards = ref<Record<string, BinanceWeb3HeatRankResponse>>({})
   const web3Sort = ref<Web3HeatRankSortState>({ field: 'heat_score', direction: 'desc' })
   const web3Loading = ref(false)
   const web3ErrorKey = ref('')
@@ -59,23 +60,12 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
       }))
   ))
 
-  const sortedWeb3HeatRank = computed(() => (
-    [...web3HeatRank.value]
-      .sort((left, right) => {
-        const primary = compareNullableNumber(web3SortValue(left, web3Sort.value.field), web3SortValue(right, web3Sort.value.field), web3Sort.value.direction)
-        if (primary !== 0) return primary
-        return (left.rank || 0) - (right.rank || 0)
-      })
+  const web3HeatRank = computed(() => (
+    web3HeatRankBoards.value[web3HeatRankBoardKey(web3Sort.value.field, web3Sort.value.direction)]?.items || []
   ))
 
-  const web3SortValue = (item: BinanceWeb3HeatRankItemResponse, field: Web3HeatRankSortField) => {
-    if (field === 'heat_score') return item.heat_score
-    const value = item.metrics?.[field]
-    return typeof value === 'number' ? value : null
-  }
-
-  const applyHeatRankPayload = (payload: Awaited<ReturnType<typeof marketApi.getBinanceWeb3HeatRank>>['data']) => {
-    web3HeatRank.value = payload.items || []
+  const applyHeatRankPayload = (payload: Awaited<ReturnType<typeof marketApi.getBinanceWeb3HeatRankBoards>>['data']) => {
+    web3HeatRankBoards.value = payload.boards || {}
   }
 
   const restoreHeatRankWarmSnapshot = () => {
@@ -94,13 +84,13 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
       web3Loading.value = true
       web3ErrorKey.value = ''
       try {
-        const response = await marketApi.getBinanceWeb3HeatRank({
+        const response = await marketApi.getBinanceWeb3HeatRankBoards({
           chain_id: web3ApiChainId(chainId.value),
           size: WEB3_HEAT_RANK_SIZE,
         })
         applyHeatRankPayload(response.data)
         saveWeb3HeatRankWarmSnapshot(chainId.value, WEB3_HEAT_RANK_SIZE, response.data)
-      } catch (requestError) {
+    } catch (requestError) {
         web3ErrorKey.value = web3HeatRank.value.length
           ? 'web3Rank.heatRankRefreshFailedWithCache'
           : 'web3Rank.heatRankLoadFailed'
@@ -181,7 +171,7 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
   }
 
   watch(chainId, () => {
-    if (!restoreHeatRankWarmSnapshot()) web3HeatRank.value = []
+    if (!restoreHeatRankWarmSnapshot()) web3HeatRankBoards.value = {}
     void fetchWeb3HeatRank()
   })
 
@@ -192,7 +182,7 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
   restoreHeatRankWarmSnapshot()
 
   return {
-    web3HeatRank: sortedWeb3HeatRank,
+    web3HeatRank,
     web3Sort,
     web3Loading,
     web3Error,
@@ -210,3 +200,5 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
     closeWeb3Token,
   }
 }
+
+const web3HeatRankBoardKey = (field: Web3HeatRankSortField, direction: Web3HeatRankSortState['direction']) => `${field}_${direction}`

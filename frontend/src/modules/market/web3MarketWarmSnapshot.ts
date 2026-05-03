@@ -1,7 +1,7 @@
 import { getLocalStorage } from '@/utils/storage'
-import type { BinanceWeb3HeatRankResponse } from '../../types/market'
+import type { BinanceWeb3HeatRankBoardsResponse } from '../../types/market'
 
-const WARM_SNAPSHOT_VERSION = 1
+const WARM_SNAPSHOT_VERSION = 2
 const WARM_SNAPSHOT_TTL_MS = 1000 * 60 * 60 * 12
 const WEB3_KEY_PREFIX = 'heimdall_web3_market_rank_warm_snapshot:heat-rank'
 
@@ -52,17 +52,17 @@ const web3HeatRankKey = (chainId: string, size: number) => (
 export const restoreWeb3HeatRankWarmSnapshot = (
   chainId: string,
   size: number,
-): BinanceWeb3HeatRankResponse | null => {
-  const payload = readEnvelope<BinanceWeb3HeatRankResponse>(web3HeatRankKey(chainId, size))
-  if (!payload || payload.chain_id !== chainId || payload.size !== size || !Array.isArray(payload.items)) return null
+): BinanceWeb3HeatRankBoardsResponse | null => {
+  const payload = readEnvelope<BinanceWeb3HeatRankBoardsResponse>(web3HeatRankKey(chainId, size))
+  if (!payload || payload.chain_id !== chainId || payload.size !== size || !payload.boards) return null
   return payload
 }
 
 export const saveWeb3HeatRankWarmSnapshot = (
   chainId: string,
   size: number,
-  payload: BinanceWeb3HeatRankResponse,
+  payload: BinanceWeb3HeatRankBoardsResponse,
 ) => {
-  if (!payload.items?.length) return
+  if (!Object.values(payload.boards || {}).some((board) => Boolean(board.items?.length))) return
   writeEnvelope(web3HeatRankKey(chainId, size), payload)
 }

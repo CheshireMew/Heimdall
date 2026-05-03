@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional
 from .base_provider import BaseIndicatorProvider, logger
 from config import settings
 from app.services.executor import run_sync
+from app.services.fred_api_config_service import get_fred_api_key
 
 class MacroProviderV2(BaseIndicatorProvider):
     """
@@ -22,14 +23,18 @@ class MacroProviderV2(BaseIndicatorProvider):
 
     def __init__(self):
         super().__init__()
-        self.fred_api_key = settings.FRED_API_KEY
         self.av_api_key = settings.ALPHA_VANTAGE_API_KEY
+
+    @property
+    def fred_api_key(self) -> str:
+        return get_fred_api_key()
 
     async def _fetch_fred_api(self, series_id: str, indicator_id: str) -> Optional[Dict[str, Any]]:
         """
         从 FRED 官方 API 获取数据（使用 sync requests 在线程池中执行，避免 httpx async TLS 问题）
         """
-        if not self.fred_api_key:
+        fred_api_key = self.fred_api_key
+        if not fred_api_key:
             logger.warning("FRED_API_KEY not configured, skipping FRED source")
             return None
 
@@ -37,7 +42,7 @@ class MacroProviderV2(BaseIndicatorProvider):
             url = settings.FRED_API_URL
             params = {
                 'series_id': series_id,
-                'api_key': self.fred_api_key,
+                'api_key': fred_api_key,
                 'file_type': 'json',
                 'sort_order': 'desc',
                 'limit': 1

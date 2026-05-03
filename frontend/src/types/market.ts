@@ -172,9 +172,17 @@ export interface BinanceMarketPageResponse {
   quote_asset: string
   updated_at: number
   monitor: BinanceBreakoutMonitorResponse
-  spot_ticker: BinanceTickerStatsResponse
-  usdm_ticker: BinanceTickerStatsResponse
-  usdm_mark: BinanceMarkPriceResponse
+  spot_boards?: { [key: string]: BinanceTickerStatsResponse }
+  contract_boards?: { [key: string]: BinanceContractBoardResponse }
+  load_errors?: Array<string>
+}
+
+export interface BinanceMarketBoardsResponse {
+  exchange: string
+  quote_asset: string
+  updated_at: number
+  spot_boards?: { [key: string]: BinanceTickerStatsResponse }
+  contract_boards?: { [key: string]: BinanceContractBoardResponse }
   load_errors?: Array<string>
 }
 
@@ -332,6 +340,15 @@ export interface BinanceWeb3HeatRankResponse {
   chain_id: string
   size: number
   items?: Array<BinanceWeb3HeatRankItemResponse>
+  formula?: { [key: string]: Array<string> }
+}
+
+export interface BinanceWeb3HeatRankBoardsResponse {
+  source: string
+  leaderboard: string
+  chain_id: string
+  size: number
+  boards?: { [key: string]: BinanceWeb3HeatRankResponse }
   formula?: { [key: string]: Array<string> }
 }
 
@@ -505,6 +522,24 @@ export interface BinanceBreakoutMonitorSummaryResponse {
   advancing_count?: number
   spot_count?: number
   contract_count?: number
+}
+
+export interface BinanceContractBoardItemResponse {
+  market?: string
+  market_label?: string
+  symbol?: string | null
+  price_change_pct?: number | null
+  last_price?: number | null
+  quote_volume?: number | null
+  mark_price?: number | null
+  index_price?: number | null
+  funding_rate_pct?: number | null
+}
+
+export interface BinanceContractBoardResponse {
+  exchange: string
+  market: string
+  items?: Array<BinanceContractBoardItemResponse>
 }
 
 export interface BinanceFundingHistoryItemResponse {
@@ -856,6 +891,10 @@ export interface TradeSetupResponseItem {
   source: string
 }
 
+export interface GetBinanceMarketBoardsQueryParams {
+  quote_asset?: string
+}
+
 export interface GetBinanceMarketBreakoutMonitorQueryParams {
   min_rise_pct?: number
   limit?: number
@@ -1014,6 +1053,11 @@ export interface GetBinanceWeb3AddressPnlRankQueryParams {
   tag?: string
   page_no?: number
   page_size?: number
+}
+
+export interface GetBinanceWeb3HeatRankBoardsQueryParams {
+  chain_id?: string | null
+  size?: number
 }
 
 export interface GetBinanceWeb3HeatRankQueryParams {

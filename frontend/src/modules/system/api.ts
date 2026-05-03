@@ -1,6 +1,13 @@
 import { apiGet, apiPut } from '@/api/request'
 import type { AxiosResponse } from 'axios'
-import type { CurrencyRatesResponse, LlmProviderConfigResponse, LlmProviderConfigUpdateRequest, SystemConfigResponse } from '../../types/config'
+import type {
+  CurrencyRatesResponse,
+  FredApiConfigResponse,
+  FredApiConfigUpdateRequest,
+  LlmProviderConfigResponse,
+  LlmProviderConfigUpdateRequest,
+  SystemConfigResponse,
+} from '../../types/config'
 
 export const systemApi = {
   getConfig(): Promise<AxiosResponse<SystemConfigResponse>> {
@@ -17,5 +24,13 @@ export const systemApi = {
 
   updateLlmConfig(body: LlmProviderConfigUpdateRequest): Promise<AxiosResponse<LlmProviderConfigResponse>> {
     return apiPut('update_llm_config', body)
+  },
+
+  getFredApiConfig(): Promise<AxiosResponse<FredApiConfigResponse>> {
+    return apiGet('get_fred_api_config')
+  },
+
+  updateFredApiConfig(body: FredApiConfigUpdateRequest): Promise<AxiosResponse<FredApiConfigResponse>> {
+    return apiPut('update_fred_api_config', body)
   },
 }

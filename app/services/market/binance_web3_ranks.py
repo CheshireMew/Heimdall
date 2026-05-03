@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import time
+from functools import cmp_to_key
 from typing import Any
 
 from app.schemas.binance_market import (
     BinanceWeb3AddressPnlResponse,
+    BinanceWeb3HeatRankBoardsResponse,
     BinanceWeb3HeatRankResponse,
     BinanceWeb3MemeRankResponse,
     BinanceWeb3SmartMoneyInflowResponse,
@@ -28,6 +31,7 @@ class BinanceWeb3RankService:
     def __init__(self, client: BinanceApiSupport) -> None:
         self.client = client
         self.heat_rank_composer = BinanceWeb3HeatRankComposer()
+        self._heat_rank_boards_cache: dict[tuple[str | None, int], tuple[float, BinanceWeb3HeatRankBoardsResponse]] = {}
 
     async def get_social_hype_leaderboard(
         self,
@@ -230,8 +234,60 @@ class BinanceWeb3RankService:
         chain_id: str | None = None,
         size: int = 30,
     ) -> BinanceWeb3HeatRankResponse:
+        boards = await self.get_web3_heat_rank_boards(chain_id=chain_id, size=size)
+        return boards.boards.get("heat_score_desc") or BinanceWeb3HeatRankResponse.model_validate({
+            "source": boards.source,
+            "leaderboard": "web3_heat_rank",
+            "chain_id": boards.chain_id,
+            "size": boards.size,
+            "items": [],
+            "formula": boards.formula,
+        })
+
+    async def get_web3_heat_rank_boards(
+        self,
+        *,
+        chain_id: str | None = None,
+        size: int = 30,
+    ) -> BinanceWeb3HeatRankBoardsResponse:
         resolved_chain_id = normalize_web3_chain_id(chain_id)
         response_chain_id = resolved_chain_id or WEB3_ALL_CHAINS_ID
+        cache_key = (resolved_chain_id, int(size))
+        cached = self._read_heat_rank_boards_cache(cache_key)
+        if cached is not None:
+            return cached
+        items = await self._compose_web3_heat_rank_items(resolved_chain_id=resolved_chain_id, response_chain_id=response_chain_id, size=size)
+        formula = self._heat_rank_formula()
+        boards = {
+            self._heat_board_key(field, direction): BinanceWeb3HeatRankResponse.model_validate({
+                "source": "binance-web3",
+                "leaderboard": "web3_heat_rank",
+                "chain_id": response_chain_id,
+                "size": size,
+                "items": self._sort_heat_rank_items(items, field, direction)[:size],
+                "formula": formula,
+            })
+            for field in ("heat_score", "percent_change_24h", "market_cap", "liquidity")
+            for direction in ("desc", "asc")
+        }
+        response = BinanceWeb3HeatRankBoardsResponse.model_validate({
+            "source": "binance-web3",
+            "leaderboard": "web3_heat_rank_boards",
+            "chain_id": response_chain_id,
+            "size": size,
+            "boards": boards,
+            "formula": formula,
+        })
+        self._write_heat_rank_boards_cache(cache_key, response)
+        return response
+
+    async def _compose_web3_heat_rank_items(
+        self,
+        *,
+        resolved_chain_id: str | None,
+        response_chain_id: str,
+        size: int,
+    ) -> list[dict[str, Any]]:
         source_size = min(100, max(50, size * 2))
         (
             top_search,
@@ -287,26 +343,83 @@ class BinanceWeb3RankService:
             smart_money=smart_money.get("items") or [],
             meme_rank=meme_rank.get("items") or [],
         )
-        return BinanceWeb3HeatRankResponse.model_validate({
-            "source": "binance-web3",
-            "leaderboard": "web3_heat_rank",
-            "chain_id": response_chain_id,
-            "size": size,
-            "items": items[:size],
-            "formula": {
-                "positive": [
-                    "top_search_rank",
-                    "trending_rank",
-                    "social_hype",
-                    "volume_growth",
-                    "transaction_growth",
-                    "unique_traders",
-                    "smart_money_inflow",
-                    "meme_rank",
-                ],
-                "penalty": ["low_liquidity", "contract_risk"],
-            },
-        })
+        return items
+
+    def _heat_rank_formula(self) -> dict[str, list[str]]:
+        return {
+            "positive": [
+                "top_search_rank",
+                "trending_rank",
+                "social_hype",
+                "volume_growth",
+                "transaction_growth",
+                "unique_traders",
+                "smart_money_inflow",
+                "meme_rank",
+            ],
+            "penalty": ["low_liquidity", "contract_risk"],
+        }
+
+    def _sort_heat_rank_items(self, items: list[dict[str, Any]], field: str, direction: str) -> list[dict[str, Any]]:
+        return sorted(
+            items,
+            key=cmp_to_key(lambda left, right: self._compare_heat_rank_items(left, right, field, direction)),
+        )
+
+    def _compare_heat_rank_items(self, left: dict[str, Any], right: dict[str, Any], field: str, direction: str) -> int:
+        primary = self._compare_nullable_number(
+            self._heat_rank_sort_value(left, field),
+            self._heat_rank_sort_value(right, field),
+            direction,
+        )
+        if primary != 0:
+            return primary
+        left_rank = to_int(left.get("rank")) or 0
+        right_rank = to_int(right.get("rank")) or 0
+        if left_rank != right_rank:
+            return left_rank - right_rank
+        left_symbol = str(left.get("symbol") or "")
+        right_symbol = str(right.get("symbol") or "")
+        return (left_symbol > right_symbol) - (left_symbol < right_symbol)
+
+    def _heat_rank_sort_value(self, item: dict[str, Any], field: str) -> Any:
+        if field == "heat_score":
+            return item.get("heat_score")
+        return (item.get("metrics") or {}).get(field)
+
+    def _compare_nullable_number(self, left: Any, right: Any, direction: str) -> int:
+        left_value = to_float(left)
+        right_value = to_float(right)
+        if left_value is None and right_value is None:
+            return 0
+        if left_value is None:
+            return 1
+        if right_value is None:
+            return -1
+        if left_value == right_value:
+            return 0
+        if direction == "desc":
+            return -1 if left_value > right_value else 1
+        return -1 if left_value < right_value else 1
+
+    def _read_heat_rank_boards_cache(self, key: tuple[str | None, int]) -> BinanceWeb3HeatRankBoardsResponse | None:
+        cached = self._heat_rank_boards_cache.get(key)
+        if cached is None:
+            return None
+        expires_at, response = cached
+        if expires_at <= time.monotonic():
+            self._heat_rank_boards_cache.pop(key, None)
+            return None
+        return response.model_copy(deep=True)
+
+    def _write_heat_rank_boards_cache(self, key: tuple[str | None, int], response: BinanceWeb3HeatRankBoardsResponse) -> None:
+        self._heat_rank_boards_cache[key] = (
+            time.monotonic() + 20.0,
+            response.model_copy(deep=True),
+        )
+
+    def _heat_board_key(self, field: str, direction: str) -> str:
+        return f"{field}_{direction}"
 
     async def _get_heat_rank_social_hype(self, *, chain_id: str | None) -> dict[str, Any] | BinanceWeb3SocialHypeResponse:
         if chain_id is not None:

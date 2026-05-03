@@ -5,6 +5,7 @@ from app.runtime_lifecycle import shutdown_service, start_market_scheduler
 from app.runtime_refs import (
     INFRA_DATABASE_RUNTIME,
     SYSTEM_CURRENCY_RATE_SERVICE,
+    SYSTEM_FRED_API_CONFIG_SERVICE,
     SYSTEM_LLM_CONFIG_SERVICE,
     SYSTEM_MARKET_SCHEDULER_RUNTIME,
 )
@@ -22,6 +23,12 @@ def _build_llm_config_service(_ctx: RuntimeBuildContext):
     return LlmConfigService()
 
 
+def _build_fred_api_config_service(_ctx: RuntimeBuildContext):
+    from app.services.fred_api_config_service import FredApiConfigService
+
+    return FredApiConfigService()
+
+
 def _build_market_scheduler_runtime(ctx: RuntimeBuildContext):
     from app.services.market_scheduler_runtime import MarketSchedulerRuntime
 
@@ -31,6 +38,7 @@ def _build_market_scheduler_runtime(ctx: RuntimeBuildContext):
 SYSTEM_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
     RuntimeServiceDefinition(SYSTEM_CURRENCY_RATE_SERVICE, frozenset({"api"}), _build_currency_rate_service),
     RuntimeServiceDefinition(SYSTEM_LLM_CONFIG_SERVICE, frozenset({"api"}), _build_llm_config_service),
+    RuntimeServiceDefinition(SYSTEM_FRED_API_CONFIG_SERVICE, frozenset({"api"}), _build_fred_api_config_service),
     RuntimeServiceDefinition(
         SYSTEM_MARKET_SCHEDULER_RUNTIME,
         frozenset({"background"}),

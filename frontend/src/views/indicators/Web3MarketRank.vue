@@ -20,8 +20,6 @@
         </div>
       </section>
 
-      <IndicatorSummaryCards :cards="summaryCards" />
-
       <section v-if="error" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
         {{ error }}
       </section>
@@ -184,7 +182,6 @@
 defineOptions({ name: 'Web3MarketRank' })
 
 import { useWeb3MarketRankPage } from '@/modules/market'
-import IndicatorSummaryCards from '@/components/market/IndicatorSummaryCards.vue'
 import BinanceWeb3TokenDialog from '@/components/market/BinanceWeb3TokenDialog.vue'
 import Web3TokenIcon from '@/components/market/Web3TokenIcon.vue'
 import { useI18n } from 'vue-i18n'
@@ -210,7 +207,6 @@ const {
   web3VolumeData,
   web3ChartColors,
   web3Sort,
-  summaryCards,
   fetchWeb3HeatRank,
   toggleWeb3Sort,
   openWeb3Token,

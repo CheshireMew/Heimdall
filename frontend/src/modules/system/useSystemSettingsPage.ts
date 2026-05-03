@@ -1,6 +1,11 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 
-import type { LlmProviderConfigResponse, LlmProviderPresetResponse, SystemConfigResponse } from '../../types/config'
+import type {
+  FredApiConfigResponse,
+  LlmProviderConfigResponse,
+  LlmProviderPresetResponse,
+  SystemConfigResponse,
+} from '../../types/config'
 import { systemApi } from './api'
 
 interface LlmConfigForm {
@@ -12,13 +17,23 @@ interface LlmConfigForm {
   reasoningEnabled: boolean
 }
 
+interface FredApiConfigForm {
+  apiKeySet: boolean
+  apiKeyPreview: string
+  source: string
+}
+
 export const useSystemSettingsPage = () => {
   const systemConfig = ref<SystemConfigResponse | null>(null)
   const presets = ref<LlmProviderPresetResponse[]>([])
   const apiKeyDraft = ref('')
+  const fredApiKeyDraft = ref('')
   const saving = ref(false)
+  const fredSaving = ref(false)
   const message = ref('')
   const error = ref('')
+  const fredMessage = ref('')
+  const fredError = ref('')
   const form = reactive<LlmConfigForm>({
     provider: 'deepseek',
     apiKeySet: false,
@@ -26,6 +41,11 @@ export const useSystemSettingsPage = () => {
     baseUrl: '',
     modelId: '',
     reasoningEnabled: false,
+  })
+  const fredForm = reactive<FredApiConfigForm>({
+    apiKeySet: false,
+    apiKeyPreview: '',
+    source: 'unset',
   })
 
   const selectedPreset = computed(() => presets.value.find((item) => item.id === form.provider) || null)
@@ -36,6 +56,7 @@ export const useSystemSettingsPage = () => {
     if (isCustomProvider.value) return Boolean(form.baseUrl && form.modelId)
     return true
   })
+  const canSaveFred = computed(() => Boolean(fredApiKeyDraft.value))
 
   const applyConfig = (config: LlmProviderConfigResponse) => {
     presets.value = config.presets || []
@@ -46,6 +67,13 @@ export const useSystemSettingsPage = () => {
     form.modelId = config.modelId || ''
     form.reasoningEnabled = Boolean(config.reasoningEnabled)
     apiKeyDraft.value = ''
+  }
+
+  const applyFredConfig = (config: FredApiConfigResponse) => {
+    fredForm.apiKeySet = Boolean(config.apiKeySet)
+    fredForm.apiKeyPreview = config.apiKeyPreview || ''
+    fredForm.source = config.source || 'unset'
+    fredApiKeyDraft.value = ''
   }
 
   const applyProviderPreset = () => {
@@ -70,15 +98,18 @@ export const useSystemSettingsPage = () => {
 
   const loadConfig = async () => {
     error.value = ''
+    fredError.value = ''
     try {
-      const [systemResponse, llmResponse] = await Promise.all([
+      const [systemResponse, llmResponse, fredResponse] = await Promise.all([
         systemApi.getConfig(),
         systemApi.getLlmConfig(),
+        systemApi.getFredApiConfig(),
       ])
       systemConfig.value = systemResponse.data
       applyConfig(llmResponse.data)
+      applyFredConfig(fredResponse.data)
     } catch (err) {
-      console.error('Load LLM config failed', err)
+      console.error('Load system config failed', err)
       error.value = '加载配置失败'
     }
   }
@@ -106,21 +137,47 @@ export const useSystemSettingsPage = () => {
     }
   }
 
+  const saveFredConfig = async () => {
+    if (!canSaveFred.value) return
+    fredSaving.value = true
+    fredMessage.value = ''
+    fredError.value = ''
+    try {
+      const response = await systemApi.updateFredApiConfig({
+        apiKey: fredApiKeyDraft.value,
+      })
+      applyFredConfig(response.data)
+      fredMessage.value = 'FRED API Key 已保存'
+    } catch (err) {
+      console.error('Save FRED API config failed', err)
+      fredError.value = '保存 FRED API Key 失败'
+    } finally {
+      fredSaving.value = false
+    }
+  }
+
   onMounted(loadConfig)
 
   return {
     systemConfig,
     presets,
     apiKeyDraft,
+    fredApiKeyDraft,
     saving,
+    fredSaving,
     message,
     error,
+    fredMessage,
+    fredError,
     form,
+    fredForm,
     selectedPreset,
     isCustomProvider,
     canSave,
+    canSaveFred,
     applyProviderPreset,
     handleProviderChange,
     saveConfig,
+    saveFredConfig,
   }
 }

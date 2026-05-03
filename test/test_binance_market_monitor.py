@@ -137,8 +137,8 @@ async def test_market_page_payload_returns_partial_data_when_a_source_fails(monk
     response = (await service.page.get_page_payload(min_rise_pct=5.0, limit=24, quote_asset="USDT")).model_dump()
 
     assert response["load_errors"] == ["U本位24H"]
-    assert response["spot_ticker"]["items"]
-    assert response["usdm_ticker"]["items"] == []
+    assert response["spot_boards"]["price_change_pct_desc"]["items"]
+    assert response["contract_boards"]["price_change_pct_desc"]["items"] == []
     assert response["monitor"]["summary"]["monitored_count"] == 1
     assert {item["symbol"] for item in response["monitor"]["items"]} == {"DOGEUSDT"}
 
@@ -193,3 +193,61 @@ async def test_market_page_payload_reuses_short_lived_cache(monkeypatch, install
     assert kline_calls == 2
     assert first["updated_at"] == second["updated_at"]
     assert first["monitor"]["items"] == second["monitor"]["items"]
+
+
+@pytest.mark.asyncio
+async def test_market_page_payload_returns_prebuilt_sorted_boards(monkeypatch, installed_database_runtime):
+    service = make_market_intel_service(installed_database_runtime)
+
+    async def fake_spot_ticker_24hr(**kwargs):
+        return BinanceTickerStatsResponse.model_validate({
+            "exchange": "binance",
+            "market": "spot",
+            "items": [
+                {"symbol": "LOWUSDT", "last_price": 1.0, "price_change_pct": -3.0, "quote_volume": 50.0},
+                {"symbol": "HIGHUSDT", "last_price": 2.0, "price_change_pct": 12.0, "quote_volume": 20.0},
+                {"symbol": "BTCFDUSD", "last_price": 68000.0, "price_change_pct": 30.0, "quote_volume": 1000.0},
+            ],
+        })
+
+    async def fake_usdm_ticker_24hr(**kwargs):
+        return BinanceTickerStatsResponse.model_validate({
+            "exchange": "binance",
+            "market": "usdm",
+            "items": [
+                {"symbol": "AUSDT", "last_price": 1.0, "price_change_pct": 5.0, "quote_volume": 10.0},
+                {"symbol": "BUSDT", "last_price": 2.0, "price_change_pct": 7.0, "quote_volume": 20.0},
+            ],
+        })
+
+    async def fake_usdm_mark_price(**kwargs):
+        return BinanceMarkPriceResponse.model_validate({
+            "exchange": "binance",
+            "market": "usdm",
+            "items": [
+                {"symbol": "AUSDT", "mark_price": 1.01, "last_funding_rate": 0.0003},
+                {"symbol": "BUSDT", "mark_price": 2.01, "last_funding_rate": -0.0002},
+            ],
+        })
+
+    async def fake_klines(**kwargs):
+        return BinanceKlineResponse.model_validate({
+            "exchange": "binance",
+            "market": kwargs.get("market", "spot"),
+            "symbol": kwargs.get("symbol", "HIGHUSDT"),
+            "interval": kwargs.get("interval", "15m"),
+            "items": make_breakout_klines(1.0),
+        })
+
+    monkeypatch.setattr(service.spot, "get_ticker_24hr", fake_spot_ticker_24hr)
+    monkeypatch.setattr(service.usdm, "get_ticker_24hr", fake_usdm_ticker_24hr)
+    monkeypatch.setattr(service.usdm, "get_mark_price", fake_usdm_mark_price)
+    monkeypatch.setattr(service.spot, "get_klines", fake_klines)
+    monkeypatch.setattr(service.usdm, "get_klines", fake_klines)
+
+    response = (await service.page.get_page_payload(min_rise_pct=5.0, limit=2, quote_asset="USDT")).model_dump()
+
+    assert [item["symbol"] for item in response["spot_boards"]["price_change_pct_desc"]["items"][:2]] == ["HIGHUSDT", "LOWUSDT"]
+    assert [item["symbol"] for item in response["spot_boards"]["price_change_pct_asc"]["items"][:2]] == ["LOWUSDT", "HIGHUSDT"]
+    assert [item["symbol"] for item in response["contract_boards"]["funding_rate_pct_desc"]["items"]] == ["AUSDT", "BUSDT"]
+    assert response["contract_boards"]["funding_rate_pct_desc"]["items"][0]["funding_rate_pct"] == 0.03

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.dependencies import runtime_dependency
 from app.runtime_refs import MARKET_BINANCE_MARKET_INTEL
-from app.schemas.binance_market import BinanceBreakoutMonitorResponse, BinanceMarketPageResponse
+from app.schemas.binance_market import BinanceBreakoutMonitorResponse, BinanceMarketBoardsResponse, BinanceMarketPageResponse
 
 if TYPE_CHECKING:
     from app.services.market.binance_market_intel_service import BinanceMarketIntelService
@@ -28,6 +28,14 @@ async def get_binance_market_page(
         limit=limit,
         quote_asset=quote_asset,
     )
+
+
+@router.get("/binance/market/boards", response_model=BinanceMarketBoardsResponse)
+async def get_binance_market_boards(
+    quote_asset: str = Query("USDT", min_length=2, max_length=10),
+    service: BinanceMarketIntelService = Depends(binance_market_dependency),
+):
+    return await service.page.get_market_boards(quote_asset=quote_asset)
 
 
 @router.get("/binance/market/breakout_monitor", response_model=BinanceBreakoutMonitorResponse)

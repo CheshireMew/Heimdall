@@ -88,6 +88,7 @@ class FactorRuntime:
 class SystemRuntime:
     currency_rate_service: Any | None = None
     llm_config_service: Any | None = None
+    fred_api_config_service: Any | None = None
     market_scheduler_runtime: Any | None = None
 
 

@@ -94,6 +94,7 @@ def make_factor_execution_payload() -> dict[str, Any]:
         ("get", "/api/v1/config", {}, lambda data: "exchange" in data),
         ("get", "/api/v1/currencies", {}, lambda data: data["rates"]["CNY"] == 7.2 and data["supported"][0]["code"] == "USD"),
         ("get", "/api/v1/llm-config", {}, lambda data: "deepseek" in [item["id"] for item in data["presets"]] and "apiKeyPreview" in data),
+        ("get", "/api/v1/fred-api-config", {}, lambda data: "apiKeyPreview" in data and data["source"] == "unset"),
         ("get", "/api/v1/realtime", {"params": {"symbol": "BTC/USDT"}}, lambda data: data["symbol"] == "BTC/USDT"),
         ("get", "/api/v1/price/current", {"params": {"symbol": "BTC/USDT"}}, lambda data: data["current_price"] == 68000.0),
         ("get", "/api/v1/price/current/batch", {"params": [("symbols", "BTC/USDT"), ("symbols", "ETH/USDT")]}, lambda data: len(data["items"]) == 2 and data["items"][0]["source"] == "websocket_snapshot"),

@@ -5,7 +5,7 @@
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ $t('settings.title') }}</h2>
       </div>
 
-      <section class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+      <section class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
         <div class="grid gap-4 md:grid-cols-3">
           <label class="block">
             <span class="mb-1 block text-xs font-bold uppercase text-gray-500 dark:text-gray-400">{{ $t('settings.language') }}</span>
@@ -25,7 +25,7 @@
         </div>
       </section>
 
-      <section class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+      <section class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
         <div class="mb-6 flex items-center justify-between gap-4">
           <div>
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">大模型提供商</h3>
@@ -104,7 +104,49 @@
         </div>
       </section>
 
-      <section class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+      <section class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+        <div class="mb-6 flex items-center justify-between gap-4">
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">FRED 数据源</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">用于美债收益率、联邦基金利率和宏观指数数据。</p>
+          </div>
+          <span
+            class="rounded-lg px-3 py-1 text-xs font-semibold"
+            :class="fredForm.apiKeySet ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'"
+          >
+            {{ fredForm.apiKeySet ? 'API Key 已设置' : 'API Key 未设置' }}
+          </span>
+        </div>
+
+        <div class="grid gap-5 md:grid-cols-[1fr_auto] md:items-end">
+          <label class="space-y-2">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">FRED API Key</span>
+            <input
+              v-model.trim="fredApiKeyDraft"
+              class="input"
+              type="password"
+              autocomplete="off"
+              :placeholder="fredForm.apiKeyPreview || '请输入 FRED API Key'"
+            />
+          </label>
+
+          <button
+            class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="fredSaving || !canSaveFred"
+            @click="saveFredConfig"
+          >
+            {{ fredSaving ? '保存中...' : '保存' }}
+          </button>
+        </div>
+
+        <div class="mt-3 flex items-center gap-3 text-sm">
+          <span class="text-gray-500 dark:text-gray-400">来源: {{ fredForm.source }}</span>
+          <span v-if="fredMessage" class="text-emerald-600 dark:text-emerald-300">{{ fredMessage }}</span>
+          <span v-if="fredError" class="text-rose-600 dark:text-rose-300">{{ fredError }}</span>
+        </div>
+      </section>
+
+      <section class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
         <div class="grid gap-3 text-sm text-gray-600 dark:text-gray-400 md:grid-cols-2">
           <div>{{ $t('settings.env') }}: {{ $t('settings.production') }}</div>
           <div>{{ $t('settings.version') }}: 2.0.0 (Vue + FastAPI)</div>
@@ -116,7 +158,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineOptions({ name: 'Settings' })
 
 import AppCurrencySelect from '@/components/AppCurrencySelect.vue'
@@ -132,15 +174,22 @@ const {
   systemConfig,
   presets,
   apiKeyDraft,
+  fredApiKeyDraft,
   saving,
+  fredSaving,
   message,
   error,
+  fredMessage,
+  fredError,
   form,
+  fredForm,
   isCustomProvider,
   canSave,
+  canSaveFred,
   applyProviderPreset,
   handleProviderChange,
   saveConfig,
+  saveFredConfig,
 } = useSystemSettingsPage()
 </script>
 

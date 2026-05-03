@@ -38,33 +38,6 @@ export function useWeb3MarketRankPage() {
     ]
   ))
 
-  const summaryCards = computed(() => [
-    {
-      label: t('web3Rank.summary.heatLeader'),
-      primary: heatRank.web3HeatRank.value[0]?.symbol || '--',
-      secondary: formatScore(heatRank.web3HeatRank.value[0]?.heat_score),
-      tone: 'text-cyan-500',
-    },
-    {
-      label: t('web3Rank.summary.socialSignal'),
-      primary: heatRank.web3HeatRank.value[0]?.sentiment || '--',
-      secondary: formatCompactNumber(heatRank.web3HeatRank.value[0]?.metrics?.social_hype),
-      tone: 'text-violet-500',
-    },
-    {
-      label: t('web3Rank.summary.smartMoney'),
-      primary: heatRank.web3HeatRank.value[0]?.symbol || '--',
-      secondary: formatCompactNumber(heatRank.web3HeatRank.value[0]?.metrics?.smart_money_inflow),
-      tone: 'text-cyan-500',
-    },
-    {
-      label: t('web3Rank.summary.pnlBoard'),
-      primary: addressPnl.value[0]?.address_label || addressPnl.value[0]?.address || '--',
-      secondary: formatCompactNumber(addressPnl.value[0]?.realized_pnl),
-      tone: changeClass(addressPnl.value[0]?.realized_pnl),
-    },
-  ])
-
   const web3ChartColors = computed(() => {
     const isDark = theme.value === 'dark'
     return {
@@ -133,7 +106,6 @@ export function useWeb3MarketRankPage() {
     toggleWeb3Sort: heatRank.toggleWeb3Sort,
     openWeb3Token: heatRank.openWeb3Token,
     closeWeb3Token: heatRank.closeWeb3Token,
-    summaryCards,
     fetchData,
     formatScore,
     formatPercent: formatSignedPercent,

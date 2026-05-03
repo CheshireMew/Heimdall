@@ -7,14 +7,22 @@ from fastapi import Depends
 from app.dependencies import runtime_dependency
 from app.exceptions import AppError
 from app.infra.db import DatabaseRuntime
-from app.runtime_refs import INFRA_DATABASE_RUNTIME, SYSTEM_CURRENCY_RATE_SERVICE, SYSTEM_LLM_CONFIG_SERVICE
+from app.runtime_refs import (
+    INFRA_DATABASE_RUNTIME,
+    SYSTEM_CURRENCY_RATE_SERVICE,
+    SYSTEM_FRED_API_CONFIG_SERVICE,
+    SYSTEM_LLM_CONFIG_SERVICE,
+)
 from app.domain.market.symbol_catalog import get_supported_market_symbols
 from app.schemas.config import (
+    FredApiConfigResponse,
+    FredApiConfigUpdateRequest,
     LlmProviderConfigResponse,
     LlmProviderConfigUpdateRequest,
     SystemConfigResponse,
 )
 from app.schemas.market import CurrencyRatesResponse
+from app.services.fred_api_config_service import FredApiConfigService
 from app.services.llm_config_service import LlmConfigService
 from app.services.currency_service import CurrencyRateService
 from config import settings
@@ -23,6 +31,7 @@ router = APIRouter()
 database_runtime_dependency = runtime_dependency(INFRA_DATABASE_RUNTIME)
 currency_rate_dependency = runtime_dependency(SYSTEM_CURRENCY_RATE_SERVICE)
 llm_config_dependency = runtime_dependency(SYSTEM_LLM_CONFIG_SERVICE)
+fred_api_config_dependency = runtime_dependency(SYSTEM_FRED_API_CONFIG_SERVICE)
 
 
 def _require_local_settings_request(request: Request) -> None:
@@ -80,6 +89,25 @@ async def update_llm_config(
     request: Request,
     payload: LlmProviderConfigUpdateRequest,
     service: LlmConfigService = Depends(llm_config_dependency),
+):
+    _require_local_settings_request(request)
+    return service.save_config(payload.model_dump())
+
+
+@router.get("/fred-api-config", response_model=FredApiConfigResponse)
+async def get_fred_api_config(
+    request: Request,
+    service: FredApiConfigService = Depends(fred_api_config_dependency),
+):
+    _require_local_settings_request(request)
+    return service.read_config()
+
+
+@router.put("/fred-api-config", response_model=FredApiConfigResponse)
+async def update_fred_api_config(
+    request: Request,
+    payload: FredApiConfigUpdateRequest,
+    service: FredApiConfigService = Depends(fred_api_config_dependency),
 ):
     _require_local_settings_request(request)
     return service.save_config(payload.model_dump())

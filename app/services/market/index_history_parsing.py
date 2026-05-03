@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from config import settings
+from app.services.fred_api_config_service import get_fred_api_key
 
 
 class IndexHistoryParsing:
@@ -69,8 +69,9 @@ class IndexHistoryParsing:
 
     def safe_error(self, exc: Exception) -> str:
         message = str(exc)
-        if settings.FRED_API_KEY:
-            message = message.replace(settings.FRED_API_KEY, "***")
+        fred_api_key = get_fred_api_key()
+        if fred_api_key:
+            message = message.replace(fred_api_key, "***")
         return message
 
     def date_to_ms(self, value: datetime) -> int:
