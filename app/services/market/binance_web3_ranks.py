@@ -15,7 +15,13 @@ from app.schemas.binance_market import (
 from .binance_api_support import BinanceApiSupport, compact_query
 from .binance_numbers import to_float, to_int
 from .binance_web3_heat_rank import BinanceWeb3HeatRankComposer
-from .binance_web3_support import asset_url, normalize_rank_token
+from .binance_web3_support import (
+    SUPPORTED_WEB3_CHAIN_IDS,
+    WEB3_ALL_CHAINS_ID,
+    asset_url,
+    normalize_rank_token,
+    normalize_web3_chain_id,
+)
 
 
 class BinanceWeb3RankService:
@@ -221,9 +227,11 @@ class BinanceWeb3RankService:
     async def get_web3_heat_rank(
         self,
         *,
-        chain_id: str = "56",
+        chain_id: str | None = None,
         size: int = 30,
     ) -> BinanceWeb3HeatRankResponse:
+        resolved_chain_id = normalize_web3_chain_id(chain_id)
+        response_chain_id = resolved_chain_id or WEB3_ALL_CHAINS_ID
         source_size = min(100, max(50, size * 2))
         (
             top_search,
@@ -233,40 +241,43 @@ class BinanceWeb3RankService:
             unique_rank,
             social_hype,
             smart_money,
+            meme_rank,
         ) = await asyncio.gather(
             self._safe_rank_call(
-                self.get_unified_token_rank(rank_type=11, chain_id=chain_id, period=50, sort_by=2, size=source_size),
+                self.get_unified_token_rank(rank_type=11, chain_id=resolved_chain_id, period=50, sort_by=2, size=source_size),
                 "top_search",
             ),
             self._safe_rank_call(
-                self.get_unified_token_rank(rank_type=10, chain_id=chain_id, period=50, sort_by=0, size=source_size),
+                self.get_unified_token_rank(rank_type=10, chain_id=resolved_chain_id, period=50, sort_by=0, size=source_size),
                 "trending",
             ),
             self._safe_rank_call(
-                self.get_unified_token_rank(rank_type=10, chain_id=chain_id, period=50, sort_by=70, size=source_size),
+                self.get_unified_token_rank(rank_type=10, chain_id=resolved_chain_id, period=50, sort_by=70, size=source_size),
                 "volume_rank",
             ),
             self._safe_rank_call(
-                self.get_unified_token_rank(rank_type=10, chain_id=chain_id, period=50, sort_by=60, size=source_size),
+                self.get_unified_token_rank(rank_type=10, chain_id=resolved_chain_id, period=50, sort_by=60, size=source_size),
                 "transaction_rank",
             ),
             self._safe_rank_call(
-                self.get_unified_token_rank(rank_type=10, chain_id=chain_id, period=50, sort_by=100, size=source_size),
+                self.get_unified_token_rank(rank_type=10, chain_id=resolved_chain_id, period=50, sort_by=100, size=source_size),
                 "unique_trader_rank",
             ),
             self._safe_rank_call(
-                self.get_social_hype_leaderboard(chain_id=chain_id, target_language="zh"),
+                self._get_heat_rank_social_hype(chain_id=resolved_chain_id),
                 "social_hype",
             ),
             self._safe_rank_call(
-                self.get_smart_money_inflow_rank(chain_id=chain_id, period="24h")
-                if chain_id in {"56", "CT_501"}
-                else self._empty_rank("smart_money_inflow"),
+                self._get_heat_rank_smart_money(chain_id=resolved_chain_id),
                 "smart_money_inflow",
+            ),
+            self._safe_rank_call(
+                self._get_heat_rank_meme(chain_id=resolved_chain_id),
+                "meme_rank",
             ),
         )
         items = self.heat_rank_composer.compose(
-            chain_id=chain_id,
+            chain_id=response_chain_id,
             top_search=top_search.get("items") or [],
             trending=trending.get("items") or [],
             volume_rank=volume_rank.get("items") or [],
@@ -274,11 +285,12 @@ class BinanceWeb3RankService:
             unique_rank=unique_rank.get("items") or [],
             social_hype=social_hype.get("items") or [],
             smart_money=smart_money.get("items") or [],
+            meme_rank=meme_rank.get("items") or [],
         )
         return BinanceWeb3HeatRankResponse.model_validate({
             "source": "binance-web3",
             "leaderboard": "web3_heat_rank",
-            "chain_id": chain_id,
+            "chain_id": response_chain_id,
             "size": size,
             "items": items[:size],
             "formula": {
@@ -290,17 +302,56 @@ class BinanceWeb3RankService:
                     "transaction_growth",
                     "unique_traders",
                     "smart_money_inflow",
+                    "meme_rank",
                 ],
                 "penalty": ["low_liquidity", "contract_risk"],
             },
         })
 
-    async def _empty_rank(self, leaderboard: str) -> dict[str, Any]:
+    async def _get_heat_rank_social_hype(self, *, chain_id: str | None) -> dict[str, Any] | BinanceWeb3SocialHypeResponse:
+        if chain_id is not None:
+            return await self.get_social_hype_leaderboard(chain_id=chain_id, target_language="zh")
+        results = await asyncio.gather(
+            *[
+                self._safe_rank_call(
+                    self.get_social_hype_leaderboard(chain_id=supported_chain_id, target_language="zh"),
+                    f"social_hype:{supported_chain_id}",
+                )
+                for supported_chain_id in SUPPORTED_WEB3_CHAIN_IDS
+            ]
+        )
         return {
             "source": "binance-web3",
-            "leaderboard": leaderboard,
-            "items": [],
+            "leaderboard": "social_hype",
+            "items": [item for result in results for item in result.get("items", [])],
         }
+
+    async def _get_heat_rank_smart_money(self, *, chain_id: str | None) -> dict[str, Any] | BinanceWeb3SmartMoneyInflowResponse:
+        if chain_id is not None:
+            return await self.get_smart_money_inflow_rank(chain_id=chain_id, period="24h")
+        results = await asyncio.gather(
+            *[
+                self._safe_rank_call(
+                    self.get_smart_money_inflow_rank(chain_id=supported_chain_id, period="24h"),
+                    f"smart_money_inflow:{supported_chain_id}",
+                )
+                for supported_chain_id in SUPPORTED_WEB3_CHAIN_IDS
+            ]
+        )
+        return {
+            "source": "binance-web3",
+            "leaderboard": "smart_money_inflow",
+            "items": [item for result in results for item in result.get("items", [])],
+        }
+
+    async def _get_heat_rank_meme(self, *, chain_id: str | None) -> dict[str, Any] | BinanceWeb3MemeRankResponse:
+        if chain_id not in (None, "56"):
+            return {
+                "source": "binance-web3",
+                "leaderboard": "meme_rank",
+                "items": [],
+            }
+        return await self.get_meme_rank(chain_id="56")
 
     async def _safe_rank_call(self, awaitable: Any, leaderboard: str) -> dict[str, Any]:
         try:

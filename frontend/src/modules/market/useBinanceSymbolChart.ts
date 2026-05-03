@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useTheme } from '@/composables/useTheme'
 import type {
@@ -9,11 +10,12 @@ import { displaySymbol, type ChartDialogState } from './binanceMarketShared'
 import { useKlineSeries } from './useKlineSeries'
 
 export function useBinanceSymbolChart() {
+  const { t } = useI18n()
   const { theme } = useTheme()
   const chartDialog = ref<ChartDialogState>({
     open: false,
     rawSymbol: '',
-    marketLabel: '',
+    market: '',
   })
   const chartTimeframe = ref('15m')
   const chartTimeframes = ['5m', '15m', '1h', '4h', '1d']
@@ -22,7 +24,11 @@ export function useBinanceSymbolChart() {
     toSlashMarketSymbol(chartDialog.value.rawSymbol, 'USDT')
   ))
   const chartTitle = computed(() => displaySymbol(chartDialog.value.rawSymbol))
-  const chartMarketLabel = computed(() => chartDialog.value.marketLabel || '市场')
+  const chartMarketLabel = computed(() => {
+    if (chartDialog.value.market === 'spot') return t('binanceMarket.market.spot')
+    if (chartDialog.value.market === 'usdm') return t('binanceMarket.market.usdm')
+    return t('binanceMarket.marketFallback')
+  })
   const chartEnabled = computed(() => chartDialog.value.open && Boolean(chartSymbol.value))
   const chartColors = computed(() => {
     const isDark = theme.value === 'dark'
@@ -49,7 +55,7 @@ export function useBinanceSymbolChart() {
     chartDialog.value = {
       open: true,
       rawSymbol,
-      marketLabel: item.market_label || (item.market === 'usdm' ? '合约' : '现货'),
+      market: item.market || 'spot',
     }
   }
 

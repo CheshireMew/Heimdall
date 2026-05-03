@@ -212,17 +212,71 @@ def test_binance_market_frontend_does_not_persist_server_response_cache():
 
 def test_binance_market_frontend_uses_warm_start_snapshot_boundary():
     snapshot_source = read_frontend("modules/market/binanceMarketWarmSnapshot.ts")
+    web3_snapshot_source = read_frontend("modules/market/web3MarketWarmSnapshot.ts")
     monitor_source = read_frontend("modules/market/useBinanceMarketMonitor.ts")
-    web3_source = read_frontend("modules/market/useBinanceWeb3Panel.ts")
+    web3_source = read_frontend("modules/market/useWeb3HeatRankPanel.ts")
 
     assert "heimdall_binance_market_warm_snapshot" in snapshot_source
+    assert "heimdall_web3_market_rank_warm_snapshot" in web3_snapshot_source
     assert "restoreBinanceMarketWarmSnapshot" in monitor_source
     assert "saveBinanceMarketWarmSnapshot" in monitor_source
-    assert "restoreBinanceWeb3HeatRankWarmSnapshot" in web3_source
-    assert "saveBinanceWeb3HeatRankWarmSnapshot" in web3_source
+    assert "restoreWeb3HeatRankWarmSnapshot" in web3_source
+    assert "saveWeb3HeatRankWarmSnapshot" in web3_source
     assert "binanceMarketCache" not in snapshot_source
     assert "readBinance" not in snapshot_source
     assert "writeBinance" not in snapshot_source
+
+
+def test_binance_market_rank_tables_use_i18n_headers_and_sortable_volume_metrics():
+    view_source = read_frontend("views/indicators/BinanceMarket.vue")
+    zh_source = read_frontend("i18n/zh-CN.json")
+    en_source = read_frontend("i18n/en.json")
+    shared_source = read_frontend("modules/market/binanceMarketShared.ts")
+    monitor_source = read_frontend("modules/market/useBinanceMarketMonitor.ts")
+
+    for key in ["binanceMarket.columns.asset", "binanceMarket.columns.price", "binanceMarket.columns.quoteVolume"]:
+        assert key in view_source
+    for label in ["标的", "价格", "成交额"]:
+        assert label in zh_source
+    for label in ["Asset", "Price", "Quote Volume"]:
+        assert label in en_source
+    for removed_web3_label in ["Web3 热度榜", "代币", "热度", "市值", "流动性", "聪明钱"]:
+        assert removed_web3_label not in view_source
+    for english_label in [">Symbol<", ">Quote Vol<"]:
+        assert english_label not in view_source
+
+    assert "toggleContractSort('quote_volume')" in view_source
+    assert "toggleSpotSort('quote_volume')" in view_source
+    assert "type SpotSortField = 'price_change_pct' | 'quote_volume'" in shared_source
+    assert "type ContractSortField = 'price_change_pct' | 'funding_rate_pct' | 'quote_volume'" in shared_source
+    assert "const spotSort = ref<SpotSortState>" in monitor_source
+
+
+def test_web3_heat_rank_lives_on_web3_rank_page_only():
+    binance_market_view = read_frontend("views/indicators/BinanceMarket.vue")
+    web3_rank_view = read_frontend("views/indicators/Web3MarketRank.vue")
+    web3_page_source = read_frontend("modules/market/useWeb3MarketRankPage.ts")
+    web3_heat_source = read_frontend("modules/market/useWeb3HeatRankPanel.ts")
+
+    assert not (FRONTEND_DIR / "modules" / "market" / "useBinanceWeb3Panel.ts").exists()
+    assert "useWeb3HeatRankPanel(chainId)" in web3_page_source
+    assert "web3HeatRank" in web3_rank_view
+    assert "BinanceWeb3TokenDialog" in web3_rank_view
+    assert "toggleWeb3Sort('percent_change_24h')" in web3_rank_view
+    assert "toggleWeb3Sort('market_cap')" in web3_rank_view
+    assert "toggleWeb3Sort('liquidity')" in web3_rank_view
+    for removed_board in ["Social Hype", "Unified Rank", "Smart Money Inflow", "Meme Rank"]:
+        assert removed_board not in web3_rank_view
+    for removed_fetch in [
+        "getBinanceWeb3SocialHype",
+        "getBinanceWeb3UnifiedTokenRank",
+        "getBinanceWeb3SmartMoneyInflow",
+        "getBinanceWeb3MemeRank",
+    ]:
+        assert removed_fetch not in web3_page_source
+    assert "const web3Sort = ref<Web3HeatRankSortState>" in web3_heat_source
+    assert "web3HeatRank" not in binance_market_view
+    assert "BinanceWeb3TokenDialog" not in binance_market_view
 
 
 def test_frontend_navigation_uses_single_manifest():

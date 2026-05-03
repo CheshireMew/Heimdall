@@ -4,11 +4,11 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const script = process.argv[2]
+const command = process.argv[2]
 const args = process.argv.slice(3)
 
-if (!script) {
-  console.error('Usage: node scripts/run_backend_python.mjs <script.py> [...args]')
+if (!command) {
+  console.error('Usage: node scripts/run_backend_python.mjs <script.py|-m module|-c code> [...args]')
   process.exit(2)
 }
 
@@ -27,8 +27,11 @@ if (!python) {
   process.exit(1)
 }
 
-const resolvedScript = path.isAbsolute(script) ? script : path.join(repoRoot, script)
-const result = spawnSync(python, [resolvedScript, ...args], {
+const pythonArgs = command.startsWith('-')
+  ? [command, ...args]
+  : [path.isAbsolute(command) ? command : path.join(repoRoot, command), ...args]
+
+const result = spawnSync(python, pythonArgs, {
   cwd: repoRoot,
   stdio: 'inherit',
   shell: false,

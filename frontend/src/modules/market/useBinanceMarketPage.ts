@@ -1,4 +1,5 @@
 import { onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { formatAdaptivePrice, formatCompactCurrency } from '@/modules/format'
@@ -6,12 +7,11 @@ import type { BinanceBreakoutMonitorItemResponse } from '../../types/market'
 import {
   normalizeSnapshot,
   toItemKey,
-  WEB3_CHAIN_OPTIONS,
-  WEB3_KLINE_INTERVALS,
   displaySymbol,
   formatScore,
   formatSigned,
   formatTime,
+  sortDirectionIcon,
   valueTone,
   verdictTone,
   createDefaultSnapshot,
@@ -19,22 +19,17 @@ import {
 } from './binanceMarketShared'
 import { useBinanceMarketMonitor } from './useBinanceMarketMonitor'
 import { useBinanceSymbolChart } from './useBinanceSymbolChart'
-import { useBinanceWeb3Panel } from './useBinanceWeb3Panel'
 
 export function useBinanceMarketPage() {
+  const { t, locale } = useI18n()
   const pageSnapshot = createPersistentPageSnapshot(PAGE_SNAPSHOT_KEYS.binanceMarket, normalizeSnapshot, createDefaultSnapshot())
   const restoredSnapshot = pageSnapshot.initial
   const market = useBinanceMarketMonitor(restoredSnapshot)
-  const web3 = useBinanceWeb3Panel(restoredSnapshot.web3ChainId)
   const chart = useBinanceSymbolChart()
 
   const handleEscape = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && chart.chartDialog.value.open) {
       closeChart()
-      return
-    }
-    if (event.key === 'Escape' && web3.web3Dialog.value.open) {
-      web3.closeWeb3Token()
       return
     }
   }
@@ -44,6 +39,38 @@ export function useBinanceMarketPage() {
   ) => {
     market.clearMonitorDetail()
     chart.openChart(item)
+  }
+
+  const formatMarketLabel = (item: Pick<BinanceBreakoutMonitorItemResponse, 'market'> | null | undefined) => {
+    if (item?.market === 'spot') return t('binanceMarket.market.spot')
+    if (item?.market === 'usdm') return t('binanceMarket.market.usdm')
+    return t('binanceMarket.marketFallback')
+  }
+
+  const statusKeys: Record<string, string> = {
+    '优先关注': 'binanceMarket.status.focus',
+    '继续跟踪': 'binanceMarket.status.tracking',
+    '只做观察': 'binanceMarket.status.watch',
+    '数据不足': 'binanceMarket.status.insufficient',
+    '继续上行': 'binanceMarket.status.advancing',
+    '高位蓄势': 'binanceMarket.status.consolidating',
+    '冲高回撤': 'binanceMarket.status.pullback',
+  }
+
+  const reasonKeys: Record<string, string> = {
+    '离高点不远，回撤不深': 'binanceMarket.reasons.nearHigh',
+    '价格仍压在强势区间上沿': 'binanceMarket.reasons.strongRange',
+    '短线节奏均匀，不是单根硬拉': 'binanceMarket.reasons.evenPace',
+    '15 分钟仍站在均线之上': 'binanceMarket.reasons.aboveEma15m',
+    '1 小时趋势还没掉头': 'binanceMarket.reasons.hourTrend',
+    '最近 1 小时还在续涨': 'binanceMarket.reasons.hourRising',
+    '短周期数据暂时不足': 'binanceMarket.reasons.insufficientShortCycle',
+  }
+
+  const translateKnownValue = (value: string | null | undefined, keys: Record<string, string>) => {
+    if (!value) return '--'
+    const key = keys[value]
+    return key ? t(key) : value
   }
 
   const openMonitorDetail = (item: BinanceBreakoutMonitorItemResponse) => {
@@ -58,10 +85,7 @@ export function useBinanceMarketPage() {
 
   onMounted(async () => {
     window.addEventListener('keydown', handleEscape)
-    await Promise.all([
-      market.fetchData(),
-      web3.fetchWeb3HeatRank(),
-    ])
+    await market.fetchData()
     market.startAutoRefresh()
   })
 
@@ -76,19 +100,18 @@ export function useBinanceMarketPage() {
       market.mode,
       market.marketFilter,
       market.autoRefresh,
-      market.spotSortDirection,
+      market.spotSort,
       market.contractSort,
-      web3.web3ChainId,
     ],
     () => buildBinanceMarketSnapshot({
       minRisePct: market.minRisePct.value,
       mode: market.mode.value,
       marketFilter: market.marketFilter.value,
       autoRefresh: market.autoRefresh.value,
-      spotSortDirection: market.spotSortDirection.value,
+      spotSortField: market.spotSort.value.field,
+      spotSortDirection: market.spotSort.value.direction,
       contractSortField: market.contractSort.value.field,
       contractSortDirection: market.contractSort.value.direction,
-      web3ChainId: web3.web3ChainId.value,
     }),
   )
 
@@ -103,7 +126,7 @@ export function useBinanceMarketPage() {
     items: market.items,
     filteredItems: market.filteredItems,
     spotRows: market.spotRows,
-    spotSortDirection: market.spotSortDirection,
+    spotSort: market.spotSort,
     contractRows: market.contractRows,
     contractSort: market.contractSort,
     detailKey: market.detailKey,
@@ -113,23 +136,6 @@ export function useBinanceMarketPage() {
     toggleSpotSort: market.toggleSpotSort,
     toggleContractSort: market.toggleContractSort,
     openMonitorDetail,
-    web3ChainId: web3.web3ChainId,
-    web3ChainOptions: WEB3_CHAIN_OPTIONS,
-    web3HeatRank: web3.web3HeatRank,
-    web3Loading: web3.web3Loading,
-    web3Error: web3.web3Error,
-    web3Dialog: web3.web3Dialog,
-    web3Dynamic: web3.web3Dynamic,
-    web3Audit: web3.web3Audit,
-    web3DetailLoading: web3.web3DetailLoading,
-    web3DetailError: web3.web3DetailError,
-    web3KlineInterval: web3.web3KlineInterval,
-    web3KlineIntervals: WEB3_KLINE_INTERVALS,
-    web3ChartData: web3.web3ChartData,
-    web3VolumeData: web3.web3VolumeData,
-    fetchWeb3HeatRank: web3.fetchWeb3HeatRank,
-    openWeb3Token: web3.openWeb3Token,
-    closeWeb3Token: web3.closeWeb3Token,
     chartDialog: chart.chartDialog,
     chartSymbol: chart.chartSymbol,
     chartTitle: chart.chartTitle,
@@ -145,10 +151,15 @@ export function useBinanceMarketPage() {
     loadMoreChartHistory: chart.loadMoreChartHistory,
     formatSigned,
     formatScore,
-    formatTime,
+    formatTime: (value: number | null | undefined) => formatTime(value, locale.value),
     formatPrice: (value: number | null | undefined) => formatAdaptivePrice(value, 'USDT', '--'),
     formatCompact: (value: number | null | undefined) => formatCompactCurrency(value, 'USDT'),
     displaySymbol,
+    formatMarketLabel,
+    formatVerdict: (value: string | null | undefined) => translateKnownValue(value, statusKeys),
+    formatFollowStatus: (value: string | null | undefined) => translateKnownValue(value, statusKeys),
+    formatReason: (value: string | null | undefined) => translateKnownValue(value, reasonKeys),
+    sortDirectionIcon,
     valueTone,
     verdictTone,
     toItemKey,

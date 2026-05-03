@@ -86,8 +86,10 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
             market=MarketRuntime(
                 market_data_service=object(),
                 market_indicator_repository=object(),
+                funding_rate_store=object(),
                 binance_market_snapshot=snapshot,
                 binance_market_intel=binance_market,
+                binance_market_research_store=object(),
             ),
             tools=ToolsRuntime(),
             backtest=BacktestRuntime(

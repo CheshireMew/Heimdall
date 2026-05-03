@@ -1017,7 +1017,7 @@ export interface GetBinanceWeb3AddressPnlRankQueryParams {
 }
 
 export interface GetBinanceWeb3HeatRankQueryParams {
-  chain_id?: string
+  chain_id?: string | null
   size?: number
 }
 

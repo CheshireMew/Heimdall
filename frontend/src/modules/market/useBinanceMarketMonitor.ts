@@ -1,4 +1,5 @@
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import type {
   BinanceBreakoutMonitorItemResponse,
@@ -8,27 +9,44 @@ import type {
 } from '../../types/market'
 import { marketApi } from './api'
 import { restoreBinanceMarketWarmSnapshot, saveBinanceMarketWarmSnapshot } from './binanceMarketWarmSnapshot'
-import type { BinanceMarketSnapshot, ContractBoardRow, ContractSortField, ContractSortState, MarketFilter, MonitorMode, SortDirection } from './binanceMarketShared'
+import type {
+  BinanceMarketSnapshot,
+  ContractBoardRow,
+  ContractSortField,
+  ContractSortState,
+  MarketFilter,
+  MonitorMode,
+  SortDirection,
+  SpotSortField,
+  SpotSortState,
+} from './binanceMarketShared'
 import {
   EMPTY_RESPONSE,
-  formatLoadFailure,
   mergeDerivatives,
   sortContractRows,
-  sortRowsByMetric,
+  sortSpotRows,
   toItemKey,
 } from './binanceMarketShared'
 
 const MARKET_PAGE_LIMIT = 24
 const MARKET_PAGE_QUOTE_ASSET = 'USDT'
+const LOAD_ERROR_LABEL_KEYS: Record<string, string> = {
+  '现货榜单': 'binanceMarket.loadErrorLabels.spotRank',
+}
 
 export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
+  const { t, locale } = useI18n()
   const loading = ref(false)
-  const error = ref('')
+  const errorState = ref<{ key: string; params?: Record<string, string | number> } | null>(null)
+  const error = computed(() => (errorState.value ? t(errorState.value.key, errorState.value.params ?? {}) : ''))
   const minRisePct = ref(snapshot.minRisePct)
   const mode = ref<MonitorMode>(snapshot.mode)
   const marketFilter = ref<MarketFilter>(snapshot.marketFilter)
   const autoRefresh = ref(snapshot.autoRefresh)
-  const spotSortDirection = ref<SortDirection>(snapshot.spotSortDirection)
+  const spotSort = ref<SpotSortState>({
+    field: snapshot.spotSortField,
+    direction: snapshot.spotSortDirection,
+  })
   const contractSort = ref<ContractSortState>({
     field: snapshot.contractSortField,
     direction: snapshot.contractSortDirection,
@@ -44,17 +62,16 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
 
   const items = computed(() => monitor.value.items || [])
   const spotRows = computed(() => (
-    sortRowsByMetric(
+    sortSpotRows(
       spotTicker.value.filter((item) => item.symbol?.endsWith('USDT')),
-      (row) => row.price_change_pct,
-      spotSortDirection.value,
+      spotSort.value,
     )
   ))
   const contractSourceItems = computed<ContractBoardRow[]>(() => (
     mergeDerivatives(usdmTicker.value, usdmMark.value).map((item) => ({
       ...item,
       market: 'usdm',
-      market_label: '合约',
+      market_label: t('binanceMarket.market.contract'),
     }))
   ))
   const contractRows = computed(() => sortContractRows(contractSourceItems.value, contractSort.value))
@@ -69,12 +86,27 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
   const summaryCards = computed(() => {
     const summary = monitor.value.summary ?? EMPTY_RESPONSE.summary!
     return [
-      { label: '入选标的', value: String(summary.monitored_count || 0), hint: `>${monitor.value.min_rise_pct || minRisePct.value}%` },
-      { label: '走势自然', value: String(summary.natural_count || 0), hint: '节奏更顺' },
-      { label: '仍有动能', value: String(summary.momentum_count || 0), hint: '还在续推' },
-      { label: '优先关注', value: String(summary.focus_count || 0), hint: '结构 + 动能' },
+      { label: t('binanceMarket.summary.monitored'), value: String(summary.monitored_count || 0), hint: `>${monitor.value.min_rise_pct || minRisePct.value}%` },
+      { label: t('binanceMarket.summary.natural'), value: String(summary.natural_count || 0), hint: t('binanceMarket.summary.naturalHint') },
+      { label: t('binanceMarket.summary.momentum'), value: String(summary.momentum_count || 0), hint: t('binanceMarket.summary.momentumHint') },
+      { label: t('binanceMarket.summary.focus'), value: String(summary.focus_count || 0), hint: t('binanceMarket.summary.focusHint') },
     ]
   })
+
+  const formatLoadFailureMessage = (labels: string[]) => {
+    if (!labels.length) {
+      errorState.value = null
+      return
+    }
+    const separator = locale.value === 'zh-CN' ? '、' : ', '
+    const localizedLabels = labels
+      .map((label) => (LOAD_ERROR_LABEL_KEYS[label] ? t(LOAD_ERROR_LABEL_KEYS[label]) : label))
+      .join(separator)
+    errorState.value = {
+      key: 'binanceMarket.loadFailure',
+      params: { labels: localizedLabels },
+    }
+  }
 
   const hasDisplayedData = () => (
     Boolean(monitor.value.items?.length)
@@ -91,7 +123,11 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     spotTicker.value = payload.spot_ticker?.items || []
     usdmTicker.value = payload.usdm_ticker?.items || []
     usdmMark.value = payload.usdm_mark?.items || []
-    error.value = options.warmStart ? '' : formatLoadFailure([...(payload.load_errors || [])])
+    if (options.warmStart) {
+      errorState.value = null
+    } else {
+      formatLoadFailureMessage([...(payload.load_errors || [])])
+    }
   }
 
   const restoreWarmSnapshot = () => {
@@ -103,7 +139,7 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     if (fetchPromise) return fetchPromise
     const task = (async () => {
       loading.value = true
-      error.value = ''
+      errorState.value = null
       try {
         const response = await marketApi.getBinanceMarketPage({
           min_rise_pct: minRisePct.value,
@@ -113,9 +149,11 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
         applyPayload(response.data)
         saveBinanceMarketWarmSnapshot(minRisePct.value, MARKET_PAGE_QUOTE_ASSET, response.data)
       } catch (requestError) {
-        error.value = hasDisplayedData()
-          ? '异动监控刷新失败，继续显示缓存数据'
-          : '异动监控加载失败'
+        errorState.value = {
+          key: hasDisplayedData()
+            ? 'binanceMarket.refreshFailedWithCache'
+            : 'binanceMarket.monitorLoadFailed',
+        }
         console.error('Failed to load Binance market page', requestError)
       } finally {
         loading.value = false
@@ -170,8 +208,15 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     contractSort.value = { field, direction: 'desc' }
   }
 
-  const toggleSpotSort = () => {
-    spotSortDirection.value = spotSortDirection.value === 'desc' ? 'asc' : 'desc'
+  const toggleSpotSort = (field: SpotSortField) => {
+    if (spotSort.value.field === field) {
+      spotSort.value = {
+        ...spotSort.value,
+        direction: spotSort.value.direction === 'desc' ? 'asc' : 'desc',
+      }
+      return
+    }
+    spotSort.value = { field, direction: 'desc' }
   }
 
   const openMonitorDetail = (item: BinanceBreakoutMonitorItemResponse) => {
@@ -201,7 +246,7 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     items,
     filteredItems,
     spotRows,
-    spotSortDirection,
+    spotSort,
     contractRows,
     contractSort,
     detailKey,

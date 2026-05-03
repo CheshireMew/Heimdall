@@ -4,13 +4,24 @@ from typing import Any
 
 from .binance_numbers import safe_float, to_float, to_int
 
+WEB3_ALL_CHAINS_ID = "all"
+SUPPORTED_WEB3_CHAIN_IDS = ("1", "56", "8453", "CT_501")
+WEB3_CHAIN_PLATFORMS = {
+    "1": "ethereum",
+    "56": "bsc",
+    "8453": "base",
+    "CT_501": "solana",
+}
+
 
 def asset_url(path: Any) -> str | None:
     if path in (None, ""):
         return None
-    value = str(path)
+    value = str(path).strip()
     if value.startswith("http://") or value.startswith("https://"):
         return value
+    if value.startswith("//"):
+        return f"https:{value}"
     return f"https://bin.bnbstatic.com{value}"
 
 
@@ -86,12 +97,16 @@ def token_key(item: dict[str, Any]) -> str | None:
 
 
 def chain_platform(chain_id: Any) -> str | None:
-    return {
-        "1": "ethereum",
-        "56": "bsc",
-        "8453": "base",
-        "CT_501": "solana",
-    }.get(str(chain_id))
+    return WEB3_CHAIN_PLATFORMS.get(str(chain_id))
+
+
+def normalize_web3_chain_id(chain_id: Any) -> str | None:
+    if chain_id is None:
+        return None
+    value = str(chain_id).strip()
+    if not value or value.lower() == WEB3_ALL_CHAINS_ID:
+        return None
+    return value
 
 
 def ratio_score(value: Any, max_value: float | int | None) -> float:

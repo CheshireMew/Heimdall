@@ -101,7 +101,7 @@ async def get_binance_web3_address_pnl_rank(
 
 @router.get("/binance/web3/heat_rank", response_model=BinanceWeb3HeatRankResponse)
 async def get_binance_web3_heat_rank(
-    chain_id: str = Query("56"),
+    chain_id: str | None = Query(None),
     size: int = Query(30, ge=1, le=50),
     service: BinanceWeb3Service = Depends(binance_web3_dependency),
 ):

@@ -19,6 +19,7 @@ class BinanceWeb3HeatRankComposer:
         unique_rank: list[dict[str, Any]],
         social_hype: list[dict[str, Any]],
         smart_money: list[dict[str, Any]],
+        meme_rank: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         tokens: dict[str, dict[str, Any]] = {}
 
@@ -80,6 +81,16 @@ class BinanceWeb3HeatRankComposer:
             if item.get("risk_level") is not None:
                 token["metrics"]["smart_money_risk_level"] = item.get("risk_level")
 
+        max_meme_score = max([safe_float(item.get("score")) or 0 for item in meme_rank] or [0])
+        for index, item in enumerate(meme_rank, start=1):
+            token = ensure(item)
+            if token is None:
+                continue
+            meme_score = safe_float(item.get("score"))
+            token["ranks"]["meme"] = to_int(item.get("rank")) or index
+            token["metrics"]["meme_score"] = meme_score
+            token["metrics"]["meme_score_normalized"] = ratio_score(meme_score, max_meme_score)
+
         scored = [self._score_token(item) for item in tokens.values()]
         scored.sort(key=lambda item: (-item["heat_score"], item.get("symbol") or ""))
         for index, item in enumerate(scored, start=1):
@@ -130,6 +141,7 @@ class BinanceWeb3HeatRankComposer:
             "transaction_growth": self._growth_component(metrics.get("count_1h"), metrics.get("count_24h"), 15),
             "unique_traders": self._rank_component(ranks.get("unique_traders"), 100, 10),
             "smart_money": (metrics.get("smart_money_inflow_normalized") or 0) * 15,
+            "meme": (metrics.get("meme_score_normalized") or 0) * 8,
         }
         penalties = {
             "low_liquidity": self._liquidity_penalty(metrics.get("liquidity")),

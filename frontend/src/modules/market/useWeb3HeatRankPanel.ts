@@ -1,4 +1,5 @@
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, type Ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import type {
   BinanceWeb3HeatRankItemResponse,
@@ -7,20 +8,29 @@ import type {
   BinanceWeb3TokenKlineItemResponse,
 } from '../../types/market'
 import { marketApi } from './api'
-import { restoreBinanceWeb3HeatRankWarmSnapshot, saveBinanceWeb3HeatRankWarmSnapshot } from './binanceMarketWarmSnapshot'
-import type { Web3TokenDialogState } from './binanceMarketShared'
+import { compareNullableNumber } from './binanceMarketShared'
 import type { CandlestickData, VolumeData } from './contracts'
+import { restoreWeb3HeatRankWarmSnapshot, saveWeb3HeatRankWarmSnapshot } from './web3MarketWarmSnapshot'
+import {
+  web3ApiChainId,
+  type Web3HeatRankSortField,
+  type Web3HeatRankSortState,
+  type Web3TokenDialogState,
+} from './web3MarketShared'
 
 const WEB3_HEAT_RANK_SIZE = 30
 
-export function useBinanceWeb3Panel(initialChainId: string) {
-  const web3ChainId = ref(initialChainId)
+export function useWeb3HeatRankPanel(chainId: Ref<string>) {
+  const { t } = useI18n()
   const web3HeatRank = ref<BinanceWeb3HeatRankItemResponse[]>([])
+  const web3Sort = ref<Web3HeatRankSortState>({ field: 'heat_score', direction: 'desc' })
   const web3Loading = ref(false)
-  const web3Error = ref('')
+  const web3ErrorKey = ref('')
+  const web3Error = computed(() => (web3ErrorKey.value ? t(web3ErrorKey.value) : ''))
   const web3Dialog = ref<Web3TokenDialogState>({ open: false, token: null })
   const web3DetailLoading = ref(false)
-  const web3DetailError = ref('')
+  const web3DetailErrorKey = ref('')
+  const web3DetailError = computed(() => (web3DetailErrorKey.value ? t(web3DetailErrorKey.value) : ''))
   const web3Dynamic = ref<BinanceWeb3TokenDynamicResponse | null>(null)
   const web3Audit = ref<BinanceWeb3TokenAuditResponse | null>(null)
   const web3Kline = ref<BinanceWeb3TokenKlineItemResponse[]>([])
@@ -38,6 +48,7 @@ export function useBinanceWeb3Panel(initialChainId: string) {
         close: Number(item.close),
       }))
   ))
+
   const web3VolumeData = computed<VolumeData[]>(() => (
     web3Kline.value
       .filter((item) => item.open_time && item.volume != null)
@@ -48,15 +59,30 @@ export function useBinanceWeb3Panel(initialChainId: string) {
       }))
   ))
 
+  const sortedWeb3HeatRank = computed(() => (
+    [...web3HeatRank.value]
+      .sort((left, right) => {
+        const primary = compareNullableNumber(web3SortValue(left, web3Sort.value.field), web3SortValue(right, web3Sort.value.field), web3Sort.value.direction)
+        if (primary !== 0) return primary
+        return (left.rank || 0) - (right.rank || 0)
+      })
+  ))
+
+  const web3SortValue = (item: BinanceWeb3HeatRankItemResponse, field: Web3HeatRankSortField) => {
+    if (field === 'heat_score') return item.heat_score
+    const value = item.metrics?.[field]
+    return typeof value === 'number' ? value : null
+  }
+
   const applyHeatRankPayload = (payload: Awaited<ReturnType<typeof marketApi.getBinanceWeb3HeatRank>>['data']) => {
     web3HeatRank.value = payload.items || []
   }
 
   const restoreHeatRankWarmSnapshot = () => {
-    const payload = restoreBinanceWeb3HeatRankWarmSnapshot(web3ChainId.value, WEB3_HEAT_RANK_SIZE)
+    const payload = restoreWeb3HeatRankWarmSnapshot(chainId.value, WEB3_HEAT_RANK_SIZE)
     if (payload) {
       applyHeatRankPayload(payload)
-      web3Error.value = ''
+      web3ErrorKey.value = ''
       return true
     }
     return false
@@ -66,18 +92,18 @@ export function useBinanceWeb3Panel(initialChainId: string) {
     if (heatRankFetchPromise) return heatRankFetchPromise
     const task = (async () => {
       web3Loading.value = true
-      web3Error.value = ''
+      web3ErrorKey.value = ''
       try {
         const response = await marketApi.getBinanceWeb3HeatRank({
-          chain_id: web3ChainId.value,
+          chain_id: web3ApiChainId(chainId.value),
           size: WEB3_HEAT_RANK_SIZE,
         })
         applyHeatRankPayload(response.data)
-        saveBinanceWeb3HeatRankWarmSnapshot(web3ChainId.value, WEB3_HEAT_RANK_SIZE, response.data)
+        saveWeb3HeatRankWarmSnapshot(chainId.value, WEB3_HEAT_RANK_SIZE, response.data)
       } catch (requestError) {
-        web3Error.value = web3HeatRank.value.length
-          ? 'Web3 热度榜刷新失败，继续显示缓存数据'
-          : 'Web3 热度榜加载失败'
+        web3ErrorKey.value = web3HeatRank.value.length
+          ? 'web3Rank.heatRankRefreshFailedWithCache'
+          : 'web3Rank.heatRankLoadFailed'
         console.error('Failed to load Binance Web3 heat rank', requestError)
       } finally {
         web3Loading.value = false
@@ -97,7 +123,7 @@ export function useBinanceWeb3Panel(initialChainId: string) {
     const token = web3Dialog.value.token
     if (!web3Dialog.value.open || !token?.chain_id || !token?.contract_address || !token?.platform) return
     web3DetailLoading.value = true
-    web3DetailError.value = ''
+    web3DetailErrorKey.value = ''
     try {
       const [dynamicRes, auditRes, klineRes] = await Promise.all([
         marketApi.getBinanceWeb3TokenDynamic({
@@ -119,7 +145,7 @@ export function useBinanceWeb3Panel(initialChainId: string) {
       web3Audit.value = auditRes.data
       web3Kline.value = klineRes.data?.items || []
     } catch (requestError) {
-      web3DetailError.value = 'Token 详情加载失败'
+      web3DetailErrorKey.value = 'web3Rank.tokenDetailLoadFailed'
       web3Dynamic.value = null
       web3Audit.value = null
       web3Kline.value = []
@@ -140,13 +166,25 @@ export function useBinanceWeb3Panel(initialChainId: string) {
     web3Dynamic.value = null
     web3Audit.value = null
     web3Kline.value = []
-    web3DetailError.value = ''
+    web3DetailErrorKey.value = ''
   }
 
-  watch(web3ChainId, () => {
+  const toggleWeb3Sort = (field: Web3HeatRankSortField) => {
+    if (web3Sort.value.field === field) {
+      web3Sort.value = {
+        ...web3Sort.value,
+        direction: web3Sort.value.direction === 'desc' ? 'asc' : 'desc',
+      }
+      return
+    }
+    web3Sort.value = { field, direction: 'desc' }
+  }
+
+  watch(chainId, () => {
     if (!restoreHeatRankWarmSnapshot()) web3HeatRank.value = []
     void fetchWeb3HeatRank()
   })
+
   watch(web3KlineInterval, () => {
     void loadWeb3TokenDetail()
   })
@@ -154,8 +192,8 @@ export function useBinanceWeb3Panel(initialChainId: string) {
   restoreHeatRankWarmSnapshot()
 
   return {
-    web3ChainId,
-    web3HeatRank,
+    web3HeatRank: sortedWeb3HeatRank,
+    web3Sort,
     web3Loading,
     web3Error,
     web3Dialog,
@@ -167,6 +205,7 @@ export function useBinanceWeb3Panel(initialChainId: string) {
     web3ChartData,
     web3VolumeData,
     fetchWeb3HeatRank,
+    toggleWeb3Sort,
     openWeb3Token,
     closeWeb3Token,
   }

@@ -6,8 +6,8 @@
           <section class="space-y-4">
             <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
-                <h3 class="text-xl font-semibold text-slate-900 dark:text-white">排行榜</h3>
-                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">左边保留原来的行情浏览位。</p>
+                <h3 class="text-xl font-semibold text-slate-900 dark:text-white">{{ t('binanceMarket.rankTitle') }}</h3>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ t('binanceMarket.rankSubtitle') }}</p>
               </div>
 
               <div class="flex flex-wrap items-center gap-3 text-sm">
@@ -16,8 +16,8 @@
                   @click="autoRefresh = !autoRefresh"
                   class="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 ring-1 ring-slate-200 transition hover:bg-slate-100 dark:bg-slate-900 dark:ring-slate-700 dark:hover:bg-slate-800"
                 >
-                  <span class="text-slate-500 dark:text-slate-400">自动刷新</span>
-                  <span :class="autoRefresh ? 'font-semibold text-cyan-600 dark:text-cyan-400' : 'text-slate-400 dark:text-slate-500'">{{ autoRefresh ? '开启' : '关闭' }}</span>
+                  <span class="text-slate-500 dark:text-slate-400">{{ t('binanceMarket.autoRefresh') }}</span>
+                  <span :class="autoRefresh ? 'font-semibold text-cyan-600 dark:text-cyan-400' : 'text-slate-400 dark:text-slate-500'">{{ autoRefresh ? t('binanceMarket.autoRefreshOn') : t('binanceMarket.autoRefreshOff') }}</span>
                 </button>
 
                 <button
@@ -25,7 +25,7 @@
                   :disabled="loading"
                   class="rounded-xl bg-slate-900 px-4 py-1.5 font-medium text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-cyan-600 dark:hover:bg-cyan-500"
                 >
-                  {{ loading ? '刷新中...' : '刷新' }}
+                  {{ loading ? t('binanceMarket.refreshing') : t('binanceMarket.refresh') }}
                 </button>
               </div>
             </div>
@@ -34,11 +34,11 @@
               <article class="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-700 dark:bg-slate-800/90 xl:col-span-2">
                 <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
                   <div>
-                    <h4 class="text-lg font-semibold text-slate-900 dark:text-white">合约榜</h4>
-                    <p class="text-sm text-slate-500 dark:text-slate-400">点 24H 或资金费率切换排序</p>
+                    <h4 class="text-lg font-semibold text-slate-900 dark:text-white">{{ t('binanceMarket.tables.rankContract') }}</h4>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">{{ t('binanceMarket.tables.contractSortHint') }}</p>
                   </div>
                   <div class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                    {{ contractSort.field === 'price_change_pct' ? '按 24H 排序' : '按资金费率排序' }}
+                    {{ contractSort.field === 'price_change_pct' ? t('binanceMarket.tables.sortBy24h') : contractSort.field === 'funding_rate_pct' ? t('binanceMarket.tables.sortByFunding') : t('binanceMarket.tables.sortByVolume') }}
                   </div>
                 </div>
 
@@ -46,7 +46,7 @@
                   <table class="min-w-full text-left text-sm">
                     <thead class="bg-slate-50 text-slate-500 dark:bg-slate-900/70 dark:text-slate-400">
                       <tr>
-                        <th class="px-5 py-3 font-semibold">Symbol</th>
+                        <th class="px-5 py-3 font-semibold">{{ t('binanceMarket.columns.asset') }}</th>
                         <th class="px-5 py-3 font-semibold">
                           <button
                             type="button"
@@ -54,11 +54,11 @@
                             class="inline-flex items-center gap-2 transition"
                             :class="contractSort.field === 'price_change_pct' ? 'text-slate-900 dark:text-white' : 'hover:text-slate-700 dark:hover:text-slate-200'"
                           >
-                            <span>24H</span>
-                            <span class="text-xs">{{ contractSort.field === 'price_change_pct' ? (contractSort.direction === 'desc' ? '↓' : '↑') : '↕' }}</span>
+                            <span>{{ t('binanceMarket.columns.change24hShort') }}</span>
+                            <span class="text-xs">{{ sortDirectionIcon(contractSort.field === 'price_change_pct', contractSort.direction) }}</span>
                           </button>
                         </th>
-                        <th class="px-5 py-3 font-semibold">Price</th>
+                        <th class="px-5 py-3 font-semibold">{{ t('binanceMarket.columns.price') }}</th>
                         <th class="px-5 py-3 font-semibold">
                           <button
                             type="button"
@@ -66,11 +66,21 @@
                             class="inline-flex items-center gap-2 transition"
                             :class="contractSort.field === 'funding_rate_pct' ? 'text-slate-900 dark:text-white' : 'hover:text-slate-700 dark:hover:text-slate-200'"
                           >
-                            <span>Funding</span>
-                            <span class="text-xs">{{ contractSort.field === 'funding_rate_pct' ? (contractSort.direction === 'desc' ? '↓' : '↑') : '↕' }}</span>
+                            <span>{{ t('binanceMarket.columns.funding') }}</span>
+                            <span class="text-xs">{{ sortDirectionIcon(contractSort.field === 'funding_rate_pct', contractSort.direction) }}</span>
                           </button>
                         </th>
-                        <th class="px-5 py-3 font-semibold">Quote Vol</th>
+                        <th class="px-5 py-3 font-semibold">
+                          <button
+                            type="button"
+                            @click="toggleContractSort('quote_volume')"
+                            class="inline-flex items-center gap-2 transition"
+                            :class="contractSort.field === 'quote_volume' ? 'text-slate-900 dark:text-white' : 'hover:text-slate-700 dark:hover:text-slate-200'"
+                          >
+                            <span>{{ t('binanceMarket.columns.quoteVolume') }}</span>
+                            <span class="text-xs">{{ sortDirectionIcon(contractSort.field === 'quote_volume', contractSort.direction) }}</span>
+                          </button>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -95,7 +105,7 @@
                         <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ formatCompact(item.quote_volume) }}</td>
                       </tr>
                       <tr v-if="!contractRows.length">
-                        <td colspan="5" class="px-5 py-8 text-center text-sm text-slate-400 dark:text-slate-500">当前没有可展示的合约数据</td>
+                        <td colspan="5" class="px-5 py-8 text-center text-sm text-slate-400 dark:text-slate-500">{{ t('binanceMarket.tables.noContractRows') }}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -105,30 +115,41 @@
               <article class="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-700 dark:bg-slate-800/90 xl:col-span-2">
                 <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
                   <div>
-                    <h4 class="text-lg font-semibold text-slate-900 dark:text-white">现货榜</h4>
-                    <p class="text-sm text-slate-500 dark:text-slate-400">点 24H 切换涨跌排序</p>
+                    <h4 class="text-lg font-semibold text-slate-900 dark:text-white">{{ t('binanceMarket.tables.rankSpot') }}</h4>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">{{ t('binanceMarket.tables.spotSortHint') }}</p>
                   </div>
                   <div class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                    {{ spotSortDirection === 'desc' ? '按涨幅排序' : '按跌幅排序' }}
+                    {{ spotSort.field === 'price_change_pct' ? (spotSort.direction === 'desc' ? t('binanceMarket.tables.sortByGainers') : t('binanceMarket.tables.sortByLosers')) : t('binanceMarket.tables.sortByVolume') }}
                   </div>
                 </div>
                 <div class="overflow-x-auto">
                   <table class="min-w-full text-left text-sm">
                     <thead class="bg-slate-50 text-slate-500 dark:bg-slate-900/70 dark:text-slate-400">
                       <tr>
-                        <th class="px-5 py-3 font-semibold">Symbol</th>
+                        <th class="px-5 py-3 font-semibold">{{ t('binanceMarket.columns.asset') }}</th>
                         <th class="px-5 py-3 font-semibold">
                           <button
                             type="button"
-                            @click="toggleSpotSort"
-                            class="inline-flex items-center gap-2 text-slate-900 transition dark:text-white"
+                            @click="toggleSpotSort('price_change_pct')"
+                            class="inline-flex items-center gap-2 transition"
+                            :class="spotSort.field === 'price_change_pct' ? 'text-slate-900 dark:text-white' : 'hover:text-slate-700 dark:hover:text-slate-200'"
                           >
-                            <span>24H</span>
-                            <span class="text-xs">{{ spotSortDirection === 'desc' ? '↓' : '↑' }}</span>
+                            <span>{{ t('binanceMarket.columns.change24hShort') }}</span>
+                            <span class="text-xs">{{ sortDirectionIcon(spotSort.field === 'price_change_pct', spotSort.direction) }}</span>
                           </button>
                         </th>
-                        <th class="px-5 py-3 font-semibold">Price</th>
-                        <th class="px-5 py-3 font-semibold">Quote Vol</th>
+                        <th class="px-5 py-3 font-semibold">{{ t('binanceMarket.columns.price') }}</th>
+                        <th class="px-5 py-3 font-semibold">
+                          <button
+                            type="button"
+                            @click="toggleSpotSort('quote_volume')"
+                            class="inline-flex items-center gap-2 transition"
+                            :class="spotSort.field === 'quote_volume' ? 'text-slate-900 dark:text-white' : 'hover:text-slate-700 dark:hover:text-slate-200'"
+                          >
+                            <span>{{ t('binanceMarket.columns.quoteVolume') }}</span>
+                            <span class="text-xs">{{ sortDirectionIcon(spotSort.field === 'quote_volume', spotSort.direction) }}</span>
+                          </button>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -137,7 +158,7 @@
                           <button
                             type="button"
                             class="rounded-full px-2 py-1 transition hover:bg-cyan-50 hover:text-cyan-700 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-300"
-                            @click="openChart({ ...item, market_label: '现货' })"
+                            @click="openChart({ ...item, market: 'spot' })"
                           >
                             {{ displaySymbol(item.symbol) }}
                           </button>
@@ -147,78 +168,7 @@
                         <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ formatCompact(item.quote_volume) }}</td>
                       </tr>
                       <tr v-if="!spotRows.length">
-                        <td colspan="4" class="px-5 py-8 text-center text-sm text-slate-400 dark:text-slate-500">当前没有可展示的现货数据</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </article>
-
-              <article class="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-700 dark:bg-slate-800/90 xl:col-span-2">
-                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-                  <div>
-                    <h4 class="text-lg font-semibold text-slate-900 dark:text-white">Web3 热度榜</h4>
-                    <p class="text-sm text-slate-500 dark:text-slate-400">搜索、趋势、社交、交易和聪明钱合成</p>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <select
-                      v-model="web3ChainId"
-                      class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                    >
-                      <option v-for="item in web3ChainOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-                    </select>
-                    <button
-                      type="button"
-                      class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-cyan-600 dark:hover:bg-cyan-500"
-                      :disabled="web3Loading"
-                      @click="fetchWeb3HeatRank"
-                    >
-                      {{ web3Loading ? '刷新中...' : '刷新' }}
-                    </button>
-                  </div>
-                </div>
-                <div v-if="web3Error" class="border-b border-rose-100 bg-rose-50 px-5 py-3 text-sm text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">{{ web3Error }}</div>
-                <div class="overflow-x-auto">
-                  <table class="min-w-full text-left text-sm">
-                    <thead class="bg-slate-50 text-slate-500 dark:bg-slate-900/70 dark:text-slate-400">
-                      <tr>
-                        <th class="px-5 py-3 font-semibold">Rank</th>
-                        <th class="px-5 py-3 font-semibold">Token</th>
-                        <th class="px-5 py-3 font-semibold">Score</th>
-                        <th class="px-5 py-3 font-semibold">24H</th>
-                        <th class="px-5 py-3 font-semibold">MCap</th>
-                        <th class="px-5 py-3 font-semibold">Liq</th>
-                        <th class="px-5 py-3 font-semibold">Smart</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                        v-for="item in web3HeatRank"
-                        :key="`${item.chain_id}-${item.contract_address}`"
-                        class="cursor-pointer border-t border-slate-100 transition hover:bg-cyan-50/70 dark:border-slate-700 dark:hover:bg-cyan-500/10"
-                        @click="openWeb3Token(item)"
-                      >
-                        <td class="px-5 py-4 text-slate-500 dark:text-slate-400">{{ item.rank ?? '--' }}</td>
-                        <td class="px-5 py-4">
-                          <div class="flex items-center gap-3">
-                            <img v-if="item.icon_url" :src="item.icon_url" alt="" class="h-7 w-7 rounded-full" />
-                            <span v-else class="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-700" />
-                            <div>
-                              <button type="button" class="font-semibold text-slate-900 transition hover:text-cyan-700 dark:text-white dark:hover:text-cyan-300">
-                                {{ item.symbol || '--' }}
-                              </button>
-                              <div class="max-w-[160px] truncate text-xs text-slate-400 dark:text-slate-500">{{ item.contract_address }}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td class="px-5 py-4 font-semibold text-cyan-700 dark:text-cyan-300">{{ formatScore(item.heat_score) }}</td>
-                        <td class="px-5 py-4" :class="valueTone(item.metrics?.percent_change_24h)">{{ formatSigned(item.metrics?.percent_change_24h) }}</td>
-                        <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ formatCompact(item.metrics?.market_cap) }}</td>
-                        <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ formatCompact(item.metrics?.liquidity) }}</td>
-                        <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ formatCompact(item.metrics?.smart_money_inflow) }}</td>
-                      </tr>
-                      <tr v-if="!web3HeatRank.length">
-                        <td colspan="7" class="px-5 py-8 text-center text-sm text-slate-400 dark:text-slate-500">当前没有可展示的 Web3 热度数据</td>
+                        <td colspan="4" class="px-5 py-8 text-center text-sm text-slate-400 dark:text-slate-500">{{ t('binanceMarket.tables.noSpotRows') }}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -252,13 +202,13 @@
             <div class="flex flex-col gap-3 rounded-[30px] border border-slate-200/70 bg-white/90 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/90">
               <div class="flex flex-col gap-4 px-2 xl:flex-row xl:items-center xl:justify-between">
                 <div class="flex flex-wrap items-baseline gap-3">
-                  <h2 class="text-xl font-bold text-slate-900 dark:text-white">异动监控</h2>
+                  <h2 class="text-xl font-bold text-slate-900 dark:text-white">{{ t('binanceMarket.tables.monitor') }}</h2>
                   <span class="rounded bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white dark:bg-cyan-500 dark:text-slate-950">{{ monitor.quote_asset }}</span>
-                  <span class="text-xs text-slate-500 dark:text-slate-400">更新于 {{ formatTime(monitor.updated_at) }}</span>
+                  <span class="text-xs text-slate-500 dark:text-slate-400">{{ t('binanceMarket.updatedAt', { time: formatTime(monitor.updated_at) }) }}</span>
                 </div>
 
                 <label class="flex w-fit items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 text-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
-                  <span class="text-slate-500 dark:text-slate-400">涨幅阈值</span>
+                  <span class="text-slate-500 dark:text-slate-400">{{ t('binanceMarket.minRisePct') }}</span>
                   <input v-model.number="minRisePct" type="number" min="1" max="30" step="0.5" class="w-14 bg-transparent text-center font-semibold text-slate-900 outline-none dark:text-white" />
                 </label>
               </div>
@@ -266,10 +216,10 @@
                 <div class="flex flex-wrap gap-2 rounded-full border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
                   <button
                     v-for="item in [
-                      { key: 'focus', label: '优先关注' },
-                      { key: 'momentum', label: '有动能' },
-                      { key: 'natural', label: '走势自然' },
-                      { key: 'all', label: '全部' },
+                      { key: 'focus', label: t('binanceMarket.filters.focus') },
+                      { key: 'momentum', label: t('binanceMarket.filters.momentum') },
+                      { key: 'natural', label: t('binanceMarket.filters.natural') },
+                      { key: 'all', label: t('binanceMarket.filters.all') },
                     ]"
                     :key="item.key"
                     @click="mode = item.key"
@@ -283,9 +233,9 @@
                 <div class="flex flex-wrap gap-2 rounded-full border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
                   <button
                     v-for="item in [
-                      { key: 'all', label: '全部市场' },
-                      { key: 'spot', label: '现货' },
-                      { key: 'usdm', label: 'U 本位' },
+                      { key: 'all', label: t('binanceMarket.market.all') },
+                      { key: 'spot', label: t('binanceMarket.market.spot') },
+                      { key: 'usdm', label: t('binanceMarket.market.usdm') },
                     ]"
                     :key="item.key"
                     @click="marketFilter = item.key"
@@ -302,8 +252,8 @@
               <article class="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-700 dark:bg-slate-800/90">
                 <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
                   <div>
-                    <h4 class="text-lg font-semibold text-slate-900 dark:text-white">监控列表</h4>
-                    <p class="text-sm text-slate-500 dark:text-slate-400">{{ filteredItems.length }} 个结果</p>
+                    <h4 class="text-lg font-semibold text-slate-900 dark:text-white">{{ t('binanceMarket.tables.monitorList') }}</h4>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">{{ t('binanceMarket.resultCount', { count: filteredItems.length }) }}</p>
                   </div>
                 </div>
 
@@ -311,13 +261,13 @@
                   <table class="min-w-full text-left text-sm">
                     <thead class="bg-slate-50 text-slate-500 dark:bg-slate-900/70 dark:text-slate-400">
                       <tr>
-                        <th class="px-5 py-3 font-semibold">标的</th>
-                        <th class="px-4 py-3 font-semibold">当天</th>
+                        <th class="px-5 py-3 font-semibold">{{ t('binanceMarket.columns.asset') }}</th>
+                        <th class="px-4 py-3 font-semibold">{{ t('binanceMarket.columns.today') }}</th>
                         <th class="px-4 py-3 font-semibold">15m</th>
                         <th class="px-4 py-3 font-semibold">1h</th>
-                        <th class="px-4 py-3 font-semibold">自然度</th>
-                        <th class="px-4 py-3 font-semibold">动能</th>
-                        <th class="px-5 py-3 font-semibold">状态</th>
+                        <th class="px-4 py-3 font-semibold">{{ t('binanceMarket.columns.naturalScore') }}</th>
+                        <th class="px-4 py-3 font-semibold">{{ t('binanceMarket.columns.momentumScore') }}</th>
+                        <th class="px-5 py-3 font-semibold">{{ t('binanceMarket.columns.status') }}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -330,7 +280,7 @@
                       >
                         <td class="px-5 py-4">
                           <div class="flex items-center gap-3">
-                            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">{{ item.market_label }}</span>
+                            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">{{ formatMarketLabel(item) }}</span>
                             <div>
                               <button
                                 type="button"
@@ -350,13 +300,13 @@
                         <td class="px-4 py-4 text-slate-700 dark:text-slate-300">{{ formatScore(item.momentum_score) }}</td>
                         <td class="px-5 py-4">
                           <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1" :class="verdictTone(item.verdict)">
-                            {{ item.verdict }}
+                            {{ formatVerdict(item.verdict) }}
                           </span>
                         </td>
                       </tr>
                       <tr v-if="!filteredItems.length">
                         <td colspan="7" class="px-5 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
-                          当前筛选下没有结果
+                          {{ t('binanceMarket.tables.noMonitorRows') }}
                         </td>
                       </tr>
                     </tbody>
@@ -369,27 +319,6 @@
         </div>
       </section>
     </div>
-
-    <BinanceWeb3TokenDialog
-      :open="web3Dialog.open"
-      :token="web3Dialog.token"
-      :interval="web3KlineInterval"
-      :intervals="web3KlineIntervals"
-      :detail-loading="web3DetailLoading"
-      :detail-error="web3DetailError"
-      :dynamic="web3Dynamic"
-      :audit="web3Audit"
-      :chart-data="web3ChartData"
-      :volume-data="web3VolumeData"
-      :chart-colors="chartColors"
-      :format-score="formatScore"
-      :format-price="formatPrice"
-      :format-signed="formatSigned"
-      :format-compact="formatCompact"
-      :value-tone="valueTone"
-      @close="closeWeb3Token"
-      @update:interval="web3KlineInterval = $event"
-    />
 
     <BinanceSymbolChartDialog
       :open="chartDialog.open"
@@ -408,6 +337,9 @@
       :format-compact="formatCompact"
       :value-tone="valueTone"
       :verdict-tone="verdictTone"
+      :format-verdict="formatVerdict"
+      :format-follow-status="formatFollowStatus"
+      :format-reason="formatReason"
       @close="closeChart"
       @load-more="loadMoreChartHistory"
       @update:timeframe="chartTimeframe = $event"
@@ -419,8 +351,10 @@
 defineOptions({ name: 'BinanceMarket' })
 
 import BinanceSymbolChartDialog from '@/components/market/BinanceSymbolChartDialog.vue'
-import BinanceWeb3TokenDialog from '@/components/market/BinanceWeb3TokenDialog.vue'
 import { useBinanceMarketPage } from '@/modules/market'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const {
   loading,
@@ -431,26 +365,9 @@ const {
   autoRefresh,
   monitor,
   spotRows,
-  spotSortDirection,
+  spotSort,
   contractRows,
   contractSort,
-  web3ChainId,
-  web3ChainOptions,
-  web3HeatRank,
-  web3Loading,
-  web3Error,
-  web3Dialog,
-  web3Dynamic,
-  web3Audit,
-  web3DetailLoading,
-  web3DetailError,
-  web3KlineInterval,
-  web3KlineIntervals,
-  web3ChartData,
-  web3VolumeData,
-  fetchWeb3HeatRank,
-  openWeb3Token,
-  closeWeb3Token,
   filteredItems,
   detailKey,
   detailItem,
@@ -478,6 +395,11 @@ const {
   formatPrice,
   formatCompact,
   displaySymbol,
+  formatMarketLabel,
+  formatVerdict,
+  formatFollowStatus,
+  formatReason,
+  sortDirectionIcon,
   valueTone,
   verdictTone,
   toItemKey,

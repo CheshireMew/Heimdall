@@ -10,8 +10,8 @@
   "scripts": {
     "sync:contracts": "node scripts/run_backend_python.mjs scripts/generate_frontend_contracts.py",
     "build:frontend": "npm run sync:contracts && npm --prefix frontend run build",
-    "test": "python -m pytest",
-    "test:backend": "python -m pytest"
+    "test": "node scripts/run_backend_python.mjs -m pytest",
+    "test:backend": "node scripts/run_backend_python.mjs -m pytest"
   },
   "repository": {
     "type": "git",

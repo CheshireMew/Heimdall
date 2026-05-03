@@ -3,14 +3,14 @@ import type {
   BinanceBreakoutMonitorResponse,
   BinanceMarkPriceItemResponse,
   BinanceTickerStatsItemResponse,
-  BinanceWeb3HeatRankItemResponse,
 } from '../../types/market'
-import { isRecord, readBoolean, readNumber, readString } from '@/composables/pageSnapshot'
+import { isRecord, readBoolean, readNumber } from '@/composables/pageSnapshot'
 import { toBaseSymbol } from './symbolCatalog'
 
 export type MonitorMode = 'all' | 'natural' | 'momentum' | 'focus'
 export type MarketFilter = 'all' | 'spot' | 'usdm'
-export type ContractSortField = 'price_change_pct' | 'funding_rate_pct'
+export type SpotSortField = 'price_change_pct' | 'quote_volume'
+export type ContractSortField = 'price_change_pct' | 'funding_rate_pct' | 'quote_volume'
 export type SortDirection = 'desc' | 'asc'
 
 export type ContractBoardRow = DerivativeBoardRow & {
@@ -29,15 +29,15 @@ export type ContractSortState = {
   direction: SortDirection
 }
 
+export type SpotSortState = {
+  field: SpotSortField
+  direction: SortDirection
+}
+
 export type ChartDialogState = {
   open: boolean
   rawSymbol: string
-  marketLabel: string
-}
-
-export type Web3TokenDialogState = {
-  open: boolean
-  token: BinanceWeb3HeatRankItemResponse | null
+  market: string
 }
 
 export type BinanceMarketSnapshot = {
@@ -45,10 +45,10 @@ export type BinanceMarketSnapshot = {
   mode: MonitorMode
   marketFilter: MarketFilter
   autoRefresh: boolean
+  spotSortField: SpotSortField
   spotSortDirection: SortDirection
   contractSortField: ContractSortField
   contractSortDirection: SortDirection
-  web3ChainId: string
 }
 
 export const EMPTY_RESPONSE: BinanceBreakoutMonitorResponse = {
@@ -68,23 +68,15 @@ export const EMPTY_RESPONSE: BinanceBreakoutMonitorResponse = {
   items: [],
 }
 
-export const WEB3_CHAIN_OPTIONS = [
-  { label: 'BSC', value: '56' },
-  { label: 'Base', value: '8453' },
-  { label: 'Solana', value: 'CT_501' },
-]
-
-export const WEB3_KLINE_INTERVALS = ['5min', '15min', '1h', '4h', '1d']
-
 export const createDefaultSnapshot = (): BinanceMarketSnapshot => ({
   minRisePct: 5,
   mode: 'focus',
   marketFilter: 'all',
   autoRefresh: true,
+  spotSortField: 'price_change_pct',
   spotSortDirection: 'desc',
   contractSortField: 'price_change_pct',
   contractSortDirection: 'desc',
-  web3ChainId: '56',
 })
 
 export const normalizeMode = (value: unknown): MonitorMode => (
@@ -100,7 +92,13 @@ export const normalizeMarketFilter = (value: unknown): MarketFilter => (
 )
 
 export const normalizeContractSortField = (value: unknown): ContractSortField => (
-  value === 'price_change_pct' || value === 'funding_rate_pct'
+  value === 'price_change_pct' || value === 'funding_rate_pct' || value === 'quote_volume'
+    ? value
+    : 'price_change_pct'
+)
+
+export const normalizeSpotSortField = (value: unknown): SpotSortField => (
+  value === 'price_change_pct' || value === 'quote_volume'
     ? value
     : 'price_change_pct'
 )
@@ -122,10 +120,10 @@ export const normalizeSnapshot = (
     mode: normalizeMode(value.mode),
     marketFilter: normalizeMarketFilter(value.marketFilter),
     autoRefresh: readBoolean(value.autoRefresh, defaults.autoRefresh),
+    spotSortField: normalizeSpotSortField(value.spotSortField),
     spotSortDirection: normalizeSortDirection(value.spotSortDirection),
     contractSortField: normalizeContractSortField(value.contractSortField),
     contractSortDirection: normalizeSortDirection(value.contractSortDirection),
-    web3ChainId: readString(value.web3ChainId, defaults.web3ChainId),
   }
 }
 
@@ -145,9 +143,9 @@ export const formatScore = (value: number | null | undefined) => {
   return `${Math.round(Number(value))}`
 }
 
-export const formatTime = (timestamp: number | null | undefined) => {
+export const formatTime = (timestamp: number | null | undefined, locale?: string) => {
   if (!timestamp) return '--'
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(locale, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
@@ -200,6 +198,15 @@ export const sortContractRows = (rows: ContractBoardRow[], sort: ContractSortSta
   sortRowsByMetric(rows, (row) => row[sort.field], sort.direction)
 )
 
+export const sortSpotRows = (rows: BinanceTickerStatsItemResponse[], sort: SpotSortState) => (
+  sortRowsByMetric(rows, (row) => row[sort.field], sort.direction)
+)
+
+export const sortDirectionIcon = (active: boolean, direction: SortDirection) => {
+  if (!active) return '↕'
+  return direction === 'desc' ? '↓' : '↑'
+}
+
 export const mergeDerivatives = (
   tickerRows: BinanceTickerStatsItemResponse[] = [],
   markRows: BinanceMarkPriceItemResponse[] = [],
@@ -221,11 +228,6 @@ export const mergeDerivatives = (
 export const toItemKey = (
   item: Pick<BinanceBreakoutMonitorItemResponse, 'market' | 'symbol'> | Pick<ContractBoardRow, 'market' | 'symbol'> | null | undefined,
 ) => (item ? `${item.market}:${item.symbol}` : '')
-
-export const formatLoadFailure = (labels: string[]) => {
-  if (!labels.length) return ''
-  return `${labels.join('、')}加载失败`
-}
 
 export const displaySymbol = (value: string | null | undefined) => {
   const symbol = String(value || '').trim().toUpperCase()
