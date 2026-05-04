@@ -9,6 +9,7 @@ import type {
   BacktestPairBreakdownResponse,
   BacktestRollingWindowResponse,
   BacktestRunResponse,
+  StrategyEvolutionResponse,
   StrategyDefinitionResponse,
   StrategyVersionResponse,
 } from '../../types/backtest'
@@ -132,6 +133,8 @@ export interface BacktestResultPanelView {
   pairBreakdown: BacktestPairBreakdownResponse[]
   optimizationTrials: BacktestOptimizationTrialResponse[]
   rollingWindows: BacktestRollingWindowResponse[]
+  evolutionLoading: boolean
+  evolutionResult: StrategyEvolutionResponse | null
   selectedCompareRuns: BacktestRunResponse[]
   recentRunCompare: BacktestComparisonChart
   versionCompareOptions: BacktestVersionCompareOption[]
@@ -145,6 +148,7 @@ export interface BacktestResultPanelView {
   configLabel: (value: Record<string, unknown> | null | undefined) => string
   compareRunLabel: (run: BacktestDisplayRun) => string
   toggleVersionCompare: (version: number) => void
+  evolveStrategy: () => Promise<void>
 }
 
 export interface BacktestDetailHeroView {

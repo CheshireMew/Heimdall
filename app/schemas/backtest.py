@@ -20,6 +20,7 @@ from app.contracts.backtest import (
     CreateIndicatorDefinitionCommand,
     CreateStrategyTemplateCommand,
     CreateStrategyVersionCommand,
+    EvolveStrategyFromBacktestCommand,
     PaperStartCommand,
 )
 from app.schemas.backtest_result import (
@@ -341,6 +342,50 @@ class StrategyVersionCreateRequest(BaseModel):
             notes=self.notes,
             make_default=self.make_default,
         )
+
+
+class StrategyEvolutionRequest(BaseModel):
+    version_name: str | None = None
+    notes: str | None = None
+    make_default: bool = True
+    dry_run: bool = False
+
+    def to_command(self, backtest_id: int) -> EvolveStrategyFromBacktestCommand:
+        return EvolveStrategyFromBacktestCommand(
+            backtest_id=backtest_id,
+            version_name=self.version_name,
+            notes=self.notes,
+            make_default=self.make_default,
+            dry_run=self.dry_run,
+        )
+
+
+class StrategyEvolutionDefectResponse(BaseModel):
+    key: str
+    severity: Literal["info", "warning", "critical"]
+    title: str
+    evidence: list[str] = Field(default_factory=list)
+    recommendation: str
+
+
+class StrategyEvolutionChangeResponse(BaseModel):
+    path: str
+    before: JsonValue | None = None
+    after: JsonValue | None = None
+    reason: str
+
+
+class StrategyEvolutionResponse(BaseModel):
+    source_backtest_id: int
+    strategy_key: str
+    source_version: int | None = None
+    created: bool
+    message: str
+    defects: list[StrategyEvolutionDefectResponse] = Field(default_factory=list)
+    changes: list[StrategyEvolutionChangeResponse] = Field(default_factory=list)
+    evolved_version: StrategyVersionResponse | None = None
+    base_config: StrategyTemplateConfigResponse
+    evolved_config: StrategyTemplateConfigResponse
 
 
 class IndicatorDefinitionCreateRequest(BaseModel):

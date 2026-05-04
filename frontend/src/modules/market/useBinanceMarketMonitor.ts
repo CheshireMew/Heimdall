@@ -5,7 +5,6 @@ import type {
   BinanceBreakoutMonitorItemResponse,
   BinanceBreakoutMonitorResponse,
   BinanceContractBoardResponse,
-  BinanceMarketBoardsResponse,
   BinanceMarketPageResponse,
   BinanceTickerStatsItemResponse,
   BinanceTickerStatsResponse,
@@ -56,6 +55,7 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
   const contractBoards = ref<Record<string, BinanceContractBoardResponse>>({})
   const detailKey = ref('')
   let refreshTimer: ReturnType<typeof setInterval> | null = null
+  let pendingRefreshTimer: ReturnType<typeof setTimeout> | null = null
   let thresholdTimer: ReturnType<typeof setTimeout> | null = null
   let fetchPromise: Promise<void> | null = null
 
@@ -109,7 +109,10 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     monitor.value = payload || { ...EMPTY_RESPONSE }
   }
 
-  const applyBoardsPayload = (payload: BinanceMarketBoardsResponse, options: { warmStart?: boolean } = {}) => {
+  const applyBoardsPayload = (
+    payload: Pick<BinanceMarketPageResponse, 'spot_boards' | 'contract_boards' | 'load_errors'>,
+    options: { warmStart?: boolean } = {},
+  ) => {
     spotBoards.value = payload.spot_boards || {}
     contractBoards.value = payload.contract_boards || {}
     if (options.warmStart) {
@@ -127,6 +130,19 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     applyBoardsPayload(payload, options)
   }
 
+  const schedulePendingRefresh = (payload: BinanceMarketPageResponse) => {
+    if (pendingRefreshTimer) {
+      clearTimeout(pendingRefreshTimer)
+      pendingRefreshTimer = null
+    }
+    const status = payload.refresh_status
+    if (!status || status.monitor_ready) return
+    pendingRefreshTimer = setTimeout(() => {
+      pendingRefreshTimer = null
+      void fetchData()
+    }, status.refreshing ? 2500 : 5000)
+  }
+
   const restoreWarmSnapshot = () => {
     const payload = restoreBinanceMarketWarmSnapshot(minRisePct.value, MARKET_PAGE_QUOTE_ASSET)
     if (payload) applyPayload(payload, { warmStart: true })
@@ -138,30 +154,14 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
       loading.value = true
       errorState.value = null
       try {
-        const boardsTask = marketApi.getBinanceMarketBoards({
-          quote_asset: MARKET_PAGE_QUOTE_ASSET,
-        }).then((response) => {
-          applyBoardsPayload(response.data)
-          return response.data
-        })
-        const monitorTask = marketApi.getBinanceBreakoutMonitor({
+        const response = await marketApi.getBinanceMarketPage({
           min_rise_pct: minRisePct.value,
           limit: MARKET_PAGE_LIMIT,
           quote_asset: MARKET_PAGE_QUOTE_ASSET,
-        }).then((response) => {
-          applyMonitorPayload(response.data)
-          return response.data
         })
-        const [latestBoards, latestMonitor] = await Promise.all([boardsTask, monitorTask])
-        saveBinanceMarketWarmSnapshot(minRisePct.value, MARKET_PAGE_QUOTE_ASSET, {
-          exchange: latestBoards.exchange,
-          quote_asset: latestBoards.quote_asset,
-          updated_at: Math.max(latestBoards.updated_at || 0, latestMonitor.updated_at || 0),
-          monitor: latestMonitor,
-          spot_boards: latestBoards.spot_boards,
-          contract_boards: latestBoards.contract_boards,
-          load_errors: latestBoards.load_errors,
-        })
+        applyPayload(response.data)
+        schedulePendingRefresh(response.data)
+        saveBinanceMarketWarmSnapshot(minRisePct.value, MARKET_PAGE_QUOTE_ASSET, response.data)
       } catch (requestError) {
         errorState.value = {
           key: hasDisplayedData()
@@ -199,6 +199,10 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
     if (thresholdTimer) {
       clearTimeout(thresholdTimer)
       thresholdTimer = null
+    }
+    if (pendingRefreshTimer) {
+      clearTimeout(pendingRefreshTimer)
+      pendingRefreshTimer = null
     }
   }
 

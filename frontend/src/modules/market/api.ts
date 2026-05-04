@@ -1,8 +1,7 @@
 import { apiGet, longTaskRequest } from '@/api/request'
 import type { AxiosResponse } from 'axios'
 import type {
-  BinanceBreakoutMonitorResponse,
-  BinanceMarketBoardsResponse,
+  BinanceContractResearchDetailResponse,
   BinanceExchangeInfoResponse,
   BinanceMarkPriceResponse,
   BinanceMarketPageResponse,
@@ -35,8 +34,7 @@ import type {
   CryptoIndexResponse,
   MarketIndexHistoryResponse,
   MarketSymbolSearchResponse,
-  GetBinanceMarketBreakoutMonitorQueryParams,
-  GetBinanceMarketBoardsQueryParams,
+  GetBinanceMarketContractDetailQueryParams,
   GetBinanceMarketPageQueryParams,
   GetBinanceRwaAssetMarketStatusQueryParams,
   GetBinanceRwaDynamicQueryParams,
@@ -143,16 +141,12 @@ export const marketApi = {
     return apiGet('get_binance_spot_ticker_24hr', { query: params })
   },
 
-  getBinanceBreakoutMonitor(params: GetBinanceMarketBreakoutMonitorQueryParams = {}): Promise<AxiosResponse<BinanceBreakoutMonitorResponse>> {
-    return apiGet('get_binance_market_breakout_monitor', { query: params })
-  },
-
-  getBinanceMarketBoards(params: GetBinanceMarketBoardsQueryParams = {}): Promise<AxiosResponse<BinanceMarketBoardsResponse>> {
-    return apiGet('get_binance_market_boards', { query: params, timeout: 15000 })
+  getBinanceMarketContractDetail(params: GetBinanceMarketContractDetailQueryParams): Promise<AxiosResponse<BinanceContractResearchDetailResponse>> {
+    return apiGet('get_binance_market_contract_detail', { query: params, timeout: 30000 })
   },
 
   getBinanceMarketPage(params: GetBinanceMarketPageQueryParams = {}): Promise<AxiosResponse<BinanceMarketPageResponse>> {
-    return apiGet('get_binance_market_page', { query: params, timeout: 30000 })
+    return apiGet('get_binance_market_page', { query: params, timeout: 5000 })
   },
 
   getBinanceSpotPrice(params: GetBinanceSpotPriceQueryParams = {}): Promise<AxiosResponse<BinancePriceTickerResponse>> {

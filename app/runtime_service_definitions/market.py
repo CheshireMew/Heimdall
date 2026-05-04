@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from app.runtime_definition import RuntimeBuildContext, RuntimeServiceDefinition
-from app.runtime_lifecycle import shutdown_service, start_binance_snapshot
+from app.runtime_lifecycle import shutdown_service, start_binance_market_page_refresher, start_binance_snapshot
 from app.runtime_refs import (
     INFRA_CACHE_SERVICE,
     INFRA_DATABASE_RUNTIME,
@@ -147,7 +147,10 @@ def _build_binance_market_intel(ctx: RuntimeBuildContext):
 def _build_binance_web3_service(ctx: RuntimeBuildContext):
     from app.services.market.binance_web3_service import BinanceWeb3Service
 
-    return BinanceWeb3Service(cache_service=ctx.require(INFRA_CACHE_SERVICE))
+    return BinanceWeb3Service(
+        cache_service=ctx.require(INFRA_CACHE_SERVICE),
+        kline_store=ctx.require(INFRA_KLINE_STORE),
+    )
 
 
 MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
@@ -238,11 +241,15 @@ MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
             MARKET_BINANCE_MARKET_RESEARCH_STORE,
             MARKET_FUNDING_RATE_STORE,
         ),
+        background_start=start_binance_market_page_refresher,
+        background_stop=shutdown_service,
+        background_start_order=25,
+        background_stop_order=5,
     ),
     RuntimeServiceDefinition(
         MARKET_BINANCE_WEB3_SERVICE,
         frozenset({"api"}),
         _build_binance_web3_service,
-        deps=(INFRA_CACHE_SERVICE,),
+        deps=(INFRA_CACHE_SERVICE, INFRA_KLINE_STORE),
     ),
 )

@@ -102,7 +102,7 @@ def make_factor_execution_payload() -> dict[str, Any]:
         ("get", "/api/v1/full_history", {"params": {"symbol": "BTC/USDT", "timeframe": "1d", "start_date": "2025-01-01"}}, lambda data: data["timeframe"] == "1d" and len(data["items"]) == 3),
         ("get", "/api/v1/indicators", {}, lambda data: data[0]["indicator_id"] == "FEAR_GREED"),
         ("get", "/api/v1/funding-rate/current", {"params": {"symbol": "BTCUSDT"}}, lambda data: data["symbol"] == "BTCUSDT"),
-        ("get", "/api/v1/binance/market/breakout_monitor", {}, lambda data: data["summary"]["focus_count"] == 1 and data["items"][0]["verdict"] == "优先关注"),
+        ("get", "/api/v1/binance/market/page", {}, lambda data: data["monitor"]["summary"]["focus_count"] == 1 and data["monitor"]["items"][0]["verdict"] == "优先关注"),
         ("post", "/api/v1/funding-rate/sync", {"params": {"symbol": "BTCUSDT", "start_date": "2025-01-01"}}, lambda data: data["inserted"] == 50),
         ("get", "/api/v1/funding-rate/history", {"params": {"symbol": "BTCUSDT"}}, lambda data: data["count"] == 1),
         ("get", "/api/v1/technical-metrics", {"params": {"symbol": "BTC/USDT"}}, lambda data: data["sample_size"] == 120),
@@ -115,6 +115,7 @@ def make_factor_execution_payload() -> dict[str, Any]:
         ("get", "/api/v1/backtest/editor-contract", {}, lambda data: data["blank_group"]["node_type"] == "group"),
         ("get", "/api/v1/backtest/indicators", {}, lambda data: data[0]["key"] == "ema_fast"),
         ("get", "/api/v1/backtest/indicator-engines", {}, lambda data: data[0]["engine"] == "builtin.ema"),
+        ("post", "/api/v1/backtest/101/evolve", {"json": {"dry_run": True}}, lambda data: data["defects"][0]["key"] == "negative_expectancy" and data["created"] is False),
         ("get", "/api/v1/backtest/list", {}, lambda data: data[0]["id"] == 101),
         ("get", "/api/v1/backtest/101", {}, lambda data: data["pagination"]["total"] == 1),
         ("get", "/api/v1/paper/list", {}, lambda data: data[0]["metadata"]["execution_mode"] == "paper_live"),
@@ -163,18 +164,24 @@ def test_backtest_mutation_routes_normalize_contracts(api_harness):
             "make_default": True,
         },
     )
+    evolve_response = client.post(
+        "/api/v1/backtest/101/evolve",
+        json={"version_name": "EMA RSI MACD evolved", "make_default": False},
+    )
 
     assert start_response.status_code == 200
     assert paper_response.status_code == 200
     assert template_response.status_code == 200
     assert indicator_response.status_code == 200
     assert strategy_response.status_code == 200
+    assert evolve_response.status_code == 200
 
     start_command = api_harness["backtest_command"].received_commands["start_backtest"]
     paper_command = api_harness["backtest_command"].received_commands["start_paper_run"]
     template_command = api_harness["backtest_command"].received_commands["create_template"]
     indicator_command = api_harness["backtest_command"].received_commands["create_indicator"]
     strategy_command = api_harness["backtest_command"].received_commands["create_strategy_version"]
+    evolve_command = api_harness["backtest_command"].received_commands["evolve_strategy_from_backtest"]
 
     assert start_command.portfolio.symbols == ["BTC/USDT", "ETH/USDT"]
     assert start_command.research.optimize_metric == "sharpe"
@@ -182,6 +189,8 @@ def test_backtest_mutation_routes_normalize_contracts(api_harness):
     assert template_command.key == "trend_following_v2"
     assert indicator_command.engine_key == "builtin.ema"
     assert strategy_command.make_default is True
+    assert evolve_command.backtest_id == 101
+    assert evolve_command.make_default is False
 
 
 def test_backtest_delete_and_stop_routes(api_harness):

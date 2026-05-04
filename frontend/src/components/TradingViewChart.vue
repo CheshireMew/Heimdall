@@ -88,6 +88,35 @@ let volumeSeries = null
 let tradePriceLines = []
 let overlayFrame = 0
 
+const resolvePricePrecision = () => {
+    const prices = props.data.flatMap(item => [item.open, item.high, item.low, item.close])
+        .map(Number)
+        .filter(value => Number.isFinite(value) && Math.abs(value) > 0)
+    if (!prices.length) return 2
+
+    const minPrice = Math.min(...prices.map(value => Math.abs(value)))
+    if (minPrice >= 100) return 2
+    if (minPrice >= 1) return 4
+
+    return Math.min(10, Math.max(2, Math.ceil(Math.abs(Math.log10(minPrice))) + 3))
+}
+
+const buildMainPriceFormat = () => {
+    const precision = resolvePricePrecision()
+    return {
+        type: 'price',
+        precision,
+        minMove: 10 ** -precision,
+    }
+}
+
+const syncMainPriceFormat = () => {
+    if (!mainSeries) return
+    mainSeries.applyOptions({
+        priceFormat: buildMainPriceFormat(),
+    })
+}
+
 const buildAutoscaleInfoProvider = () => (baseImplementation) => {
     const baseInfo = baseImplementation()
     const setup = props.tradeSetup
@@ -262,6 +291,7 @@ const initChart = () => {
     if (props.chartType === 'area') {
         mainSeries = chart.addSeries(AreaSeries, {
             lineColor: '#2962FF', topColor: '#2962FF', bottomColor: 'rgba(41, 98, 255, 0.28)',
+            priceFormat: buildMainPriceFormat(),
         });
     } else {
         mainSeries = chart.addSeries(CandlestickSeries, {
@@ -270,6 +300,7 @@ const initChart = () => {
             borderVisible: false,
             wickUpColor: props.colors.upColor,
             wickDownColor: props.colors.downColor,
+            priceFormat: buildMainPriceFormat(),
         })
     }
 
@@ -280,6 +311,7 @@ const initChart = () => {
 
 const updateData = () => {
     syncVolumeSeries()
+    syncMainPriceFormat()
     if (mainSeries && props.data.length > 0) mainSeries.setData(props.data)
     if (volumeSeries && props.volumeData.length > 0) volumeSeries.setData(props.volumeData)
     syncAutoscale()

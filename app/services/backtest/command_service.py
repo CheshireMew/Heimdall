@@ -5,6 +5,7 @@ from app.contracts.backtest import (
     CreateIndicatorDefinitionCommand,
     CreateStrategyTemplateCommand,
     CreateStrategyVersionCommand,
+    EvolveStrategyFromBacktestCommand,
     PaperStartCommand,
 )
 from app.exceptions import BadRequestError, NotFoundError
@@ -14,6 +15,7 @@ from app.schemas.backtest import (
     PaperStartResponse,
     PaperStopResponse,
     StrategyIndicatorRegistryResponse,
+    StrategyEvolutionResponse,
     StrategyTemplateResponse,
     StrategyVersionResponse,
 )
@@ -22,6 +24,7 @@ from app.services.backtest.run_repository import BacktestRunRepository
 from app.services.backtest.run_service import BacktestRunService
 from app.services.backtest.scripted_template_runtime import template_supports_paper
 from app.services.backtest.strategy_catalog import get_template_runtime_contract
+from app.services.backtest.strategy_evolution_service import StrategyEvolutionService
 from app.services.backtest.strategy_query_service import StrategyQueryService
 from app.services.backtest.strategy_support import (
     build_strategy_version_response_payload,
@@ -46,6 +49,11 @@ class BacktestCommandService:
         self.run_service = run_service
         self.paper_manager = paper_manager
         self.run_repository = run_repository
+        self.strategy_evolution_service = StrategyEvolutionService(
+            run_repository=run_repository,
+            strategy_query_service=strategy_query_service,
+            strategy_write_service=strategy_write_service,
+        )
 
     async def start_backtest(self, command: BacktestStartCommand) -> BacktestStartResponse:
         strategy = self.strategy_query_service.get_strategy_version(
@@ -151,4 +159,11 @@ class BacktestCommandService:
         )
         return StrategyVersionResponse.model_validate(
             build_strategy_version_response_payload(result)
+        )
+
+    async def evolve_strategy_from_backtest(
+        self, command: EvolveStrategyFromBacktestCommand
+    ) -> StrategyEvolutionResponse:
+        return await run_sync(
+            lambda: self.strategy_evolution_service.evolve_from_backtest(command),
         )

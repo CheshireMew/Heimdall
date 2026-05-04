@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import hashlib
+import time
 import uuid
 
+from app.domain.market.constants import KLINE_SYMBOL_MAX_LENGTH
 from app.schemas.binance_market import (
     BinanceWeb3TokenAuditResponse,
     BinanceWeb3TokenDynamicResponse,
     BinanceWeb3TokenKlineResponse,
 )
+from app.services.market.history_ranges import collect_missing_ranges, is_recent_cache_usable, timeframe_to_ms
+from app.services.market.kline_store import KlineStore
 
 from .binance_api_support import BinanceApiSupport, compact_query
 from .binance_numbers import to_float, to_int
@@ -14,13 +19,14 @@ from .binance_web3_support import normalize_token_dynamic
 
 
 class BinanceWeb3TokenService:
-    def __init__(self, *, web3_client: BinanceApiSupport, kline_client: BinanceApiSupport) -> None:
+    def __init__(self, *, web3_client: BinanceApiSupport, kline_client: BinanceApiSupport, kline_store: KlineStore) -> None:
         self.web3_client = web3_client
         self.kline_client = kline_client
+        self.kline_store = kline_store
 
     async def get_dynamic(self, *, chain_id: str | None = None, contract_address: str | None = None) -> BinanceWeb3TokenDynamicResponse:
         if not chain_id or not contract_address:
-            raise ValueError("chain_id 和 contract_address 不能为空")
+            raise ValueError("chain_id and contract_address are required")
         payload = await self.web3_client.get_json(
             "/bapi/defi/v4/public/wallet-direct/buw/wallet/market/token/dynamic/info/ai",
             params={"chainId": chain_id, "contractAddress": contract_address},
@@ -45,45 +51,78 @@ class BinanceWeb3TokenService:
         pm: str | None = None,
     ) -> BinanceWeb3TokenKlineResponse:
         if not address or not platform or not interval:
-            raise ValueError("address、platform 和 interval 不能为空")
-        payload = await self.kline_client.get_json(
-            "/u-kline/v1/k-line/candles",
-            params=compact_query(
-                {
-                    "address": address,
-                    "platform": platform,
-                    "interval": interval,
-                    "limit": limit or 240,
-                    "from": from_time,
-                    "to": to_time,
-                    "pm": pm or "p",
-                }
-            ),
-            ttl=30,
+            raise ValueError("address, platform and interval are required")
+
+        address_key = address.strip().lower()
+        platform_key = platform.strip().lower()
+        interval_key = interval.strip()
+        limit_value = int(limit or 240)
+        storage_symbol = self._storage_symbol(address=address_key, platform=platform_key)
+        end_ts = to_time or int(time.time() * 1000)
+        interval_ms = timeframe_to_ms(interval_key)
+
+        if interval_ms <= 0:
+            rows = await self._fetch_kline_rows(
+                address=address_key,
+                platform=platform_key,
+                interval=interval_key,
+                limit=limit_value,
+                from_time=from_time,
+                to_time=to_time,
+                pm=pm,
+            )
+            self.kline_store.save(storage_symbol, interval_key, rows)
+            return self._build_kline_response(address=address_key, platform=platform_key, interval=interval_key, rows=rows[-limit_value:])
+
+        start_ts = from_time if from_time is not None else end_ts - (interval_ms * max(limit_value, 1))
+        cached_rows = self.kline_store.get_range(storage_symbol, interval_key, start_ts, end_ts)
+        if from_time is None and to_time is None and is_recent_cache_usable(
+            cached=cached_rows,
+            timeframe=interval_key,
+            limit=limit_value,
+            now_ms=end_ts,
+        ):
+            return self._build_kline_response(
+                address=address_key,
+                platform=platform_key,
+                interval=interval_key,
+                rows=cached_rows[-limit_value:],
+            )
+
+        new_rows: list[list[float]] = []
+        for gap_start, gap_end in collect_missing_ranges(
+            cached_klines=cached_rows,
+            timeframe=interval_key,
+            start_ts=start_ts,
+            end_ts_exclusive=end_ts,
+        ):
+            new_rows.extend(
+                await self._fetch_kline_rows(
+                    address=address_key,
+                    platform=platform_key,
+                    interval=interval_key,
+                    limit=limit_value,
+                    from_time=gap_start,
+                    to_time=gap_end,
+                    pm=pm,
+                )
+            )
+
+        if new_rows:
+            self.kline_store.save(storage_symbol, interval_key, new_rows)
+
+        merged_rows = self._merge_rows(cached_rows, new_rows)
+        window_rows = [row for row in merged_rows if start_ts <= int(row[0]) <= end_ts]
+        return self._build_kline_response(
+            address=address_key,
+            platform=platform_key,
+            interval=interval_key,
+            rows=window_rows[-limit_value:],
         )
-        return BinanceWeb3TokenKlineResponse.model_validate({
-            "source": "binance-web3",
-            "address": address,
-            "platform": platform,
-            "interval": interval,
-            "items": [
-                {
-                    "open_time": to_int(row[5]) if len(row) > 5 else None,
-                    "open": to_float(row[0]) if len(row) > 0 else None,
-                    "high": to_float(row[1]) if len(row) > 1 else None,
-                    "low": to_float(row[2]) if len(row) > 2 else None,
-                    "close": to_float(row[3]) if len(row) > 3 else None,
-                    "volume": to_float(row[4]) if len(row) > 4 else None,
-                    "trade_count": to_int(row[6]) if len(row) > 6 else None,
-                }
-                for row in payload.get("data") or []
-                if isinstance(row, list)
-            ],
-        })
 
     async def get_audit(self, *, binance_chain_id: str | None = None, contract_address: str | None = None) -> BinanceWeb3TokenAuditResponse:
         if not binance_chain_id or not contract_address:
-            raise ValueError("binance_chain_id 和 contract_address 不能为空")
+            raise ValueError("binance_chain_id and contract_address are required")
         payload = await self.web3_client.post_json(
             "/bapi/defi/v1/public/wallet-direct/security/token/audit",
             body={
@@ -108,3 +147,93 @@ class BinanceWeb3TokenService:
             "is_verified": (data.get("extraInfo") or {}).get("isVerified"),
             "risk_items": data.get("riskItems") or [],
         })
+
+    async def _fetch_kline_rows(
+        self,
+        *,
+        address: str,
+        platform: str,
+        interval: str,
+        limit: int,
+        from_time: int | None,
+        to_time: int | None,
+        pm: str | None,
+    ) -> list[list[float]]:
+        payload = await self.kline_client.get_json(
+            "/u-kline/v1/k-line/candles",
+            params=compact_query(
+                {
+                    "address": address,
+                    "platform": platform,
+                    "interval": interval,
+                    "limit": limit,
+                    "from": from_time,
+                    "to": to_time,
+                    "pm": pm or "p",
+                }
+            ),
+            ttl=30,
+            use_cache=False,
+        )
+        return self._normalize_kline_rows(payload.get("data") or [])
+
+    def _build_kline_response(
+        self,
+        *,
+        address: str,
+        platform: str,
+        interval: str,
+        rows: list[list[float]],
+    ) -> BinanceWeb3TokenKlineResponse:
+        return BinanceWeb3TokenKlineResponse.model_validate({
+            "source": "binance-web3",
+            "address": address,
+            "platform": platform,
+            "interval": interval,
+            "items": [
+                {
+                    "open_time": int(row[0]),
+                    "open": float(row[1]),
+                    "high": float(row[2]),
+                    "low": float(row[3]),
+                    "close": float(row[4]),
+                    "volume": float(row[5]),
+                    "trade_count": None,
+                }
+                for row in rows
+            ],
+        })
+
+    def _normalize_kline_rows(self, rows: list) -> list[list[float]]:
+        normalized: list[list[float]] = []
+        for row in rows:
+            if not isinstance(row, list) or len(row) <= 5:
+                continue
+            open_time = to_int(row[5])
+            open_price = to_float(row[0])
+            high = to_float(row[1])
+            low = to_float(row[2])
+            close = to_float(row[3])
+            volume = to_float(row[4])
+            if None in (open_time, open_price, high, low, close, volume):
+                continue
+            normalized.append([open_time, open_price, high, low, close, volume])
+        return self._merge_rows(normalized)
+
+    @staticmethod
+    def _merge_rows(*batches: list[list[float]]) -> list[list[float]]:
+        merged: dict[int, list[float]] = {}
+        for batch in batches:
+            for row in batch:
+                if row:
+                    merged[int(row[0])] = row
+        return sorted(merged.values(), key=lambda item: item[0])
+
+    @staticmethod
+    def _storage_symbol(*, address: str, platform: str) -> str:
+        candidate = f"WEB3:{platform}:{address}"
+        if len(candidate) <= KLINE_SYMBOL_MAX_LENGTH:
+            return candidate
+        digest = hashlib.sha256(candidate.encode("utf-8")).hexdigest()[:40]
+        platform_prefix_length = max(1, KLINE_SYMBOL_MAX_LENGTH - len("WEB3::") - len(digest))
+        return f"WEB3:{platform[:platform_prefix_length]}:{digest}"

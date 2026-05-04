@@ -144,6 +144,26 @@ export interface StrategyVersionCreateRequest {
   make_default?: boolean
 }
 
+export interface StrategyEvolutionResponse {
+  source_backtest_id: number
+  strategy_key: string
+  source_version?: number | null
+  created: boolean
+  message: string
+  defects?: Array<StrategyEvolutionDefectResponse>
+  changes?: Array<StrategyEvolutionChangeResponse>
+  evolved_version?: StrategyVersionResponse | null
+  base_config: StrategyTemplateConfigResponse
+  evolved_config: StrategyTemplateConfigResponse
+}
+
+export interface StrategyEvolutionRequest {
+  version_name?: string | null
+  notes?: string | null
+  make_default?: boolean
+  dry_run?: boolean
+}
+
 export interface BacktestRunResponse {
   id: number
   symbol: string
@@ -224,7 +244,7 @@ export interface BacktestExecutionMetadataResponse {
 
 export interface BacktestIterationSummaryResponse {
   range?: BacktestDateRangeResponse | null
-  config?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
+  config: StrategyTemplateConfigResponse
   report?: BacktestReportSnapshotResponse | null
 }
 
@@ -240,14 +260,14 @@ export interface BacktestOptimizationSummaryResponse {
   metric: string
   trial_count: number
   best_score?: number | null
-  best_config?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
+  best_config?: StrategyTemplateConfigResponse | null
   trials?: Array<BacktestOptimizationTrialResponse>
 }
 
 export interface BacktestOptimizationTrialResponse {
   trial: number
   score?: number | null
-  config?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
+  config: StrategyTemplateConfigResponse
   report?: BacktestReportSnapshotResponse | null
 }
 
@@ -347,7 +367,7 @@ export interface BacktestResearchConfig {
 }
 
 export interface BacktestResearchReportResponse {
-  selected_config?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
+  selected_config?: StrategyTemplateConfigResponse | null
   in_sample_ratio: number
   slippage_bps: number
   funding_rate_daily: number
@@ -361,7 +381,7 @@ export interface BacktestRollingWindowResponse {
   index: number
   train?: BacktestDateRangeResponse | null
   test: BacktestDateRangeResponse
-  config?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
+  config: StrategyTemplateConfigResponse
   optimization?: BacktestOptimizationSummaryResponse | null
   report?: BacktestReportSnapshotResponse | null
 }
@@ -478,6 +498,21 @@ export interface StrategyConditionNodeResponse {
   operator: "gt" | "gte" | "lt" | "lte"
   right: StrategyPriceSourceResponse | StrategyIndicatorSourceResponse | StrategyValueSourceResponse | StrategyIndicatorMultiplierSourceResponse | StrategyIndicatorOffsetSourceResponse
   enabled?: boolean
+}
+
+export interface StrategyEvolutionChangeResponse {
+  path: string
+  before?: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null
+  after?: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null
+  reason: string
+}
+
+export interface StrategyEvolutionDefectResponse {
+  key: string
+  severity: "info" | "warning" | "critical"
+  title: string
+  evidence?: Array<string>
+  recommendation: string
 }
 
 export interface StrategyExecutionConfigResponse {

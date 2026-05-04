@@ -1,5 +1,6 @@
 import type {
   BinanceBreakoutMonitorItemResponse,
+  BinanceContractResearchDetailResponse,
   BinanceWeb3HeatRankItemResponse,
   BinanceWeb3TokenAuditResponse,
   BinanceWeb3TokenDynamicResponse,
@@ -38,6 +39,7 @@ export interface SentimentCache {
 }
 
 export type BinanceBreakoutMonitorItem = BinanceBreakoutMonitorItemResponse
+export type BinanceContractResearchDetail = BinanceContractResearchDetailResponse
 export type BinanceWeb3HeatRankItem = BinanceWeb3HeatRankItemResponse
 export type BinanceWeb3TokenAudit = BinanceWeb3TokenAuditResponse
 export type BinanceWeb3TokenDynamic = BinanceWeb3TokenDynamicResponse

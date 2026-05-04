@@ -63,6 +63,12 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
         spot = FakeSpotMarket()
         usdm = FakeUsdmMarket()
 
+        def start(self):
+            events.append("binance_market_start")
+
+        async def shutdown(self):
+            events.append("binance_market_shutdown")
+
     class FakeDatabaseRuntime:
         def dispose(self):
             events.append("dispose_db")
@@ -124,8 +130,11 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
     assert events[0] == "inside"
     assert events.index("init_db") < events.index("start_scheduler")
     assert events.index("snapshot_start") < events.index("restore")
+    assert events.index("snapshot_start") < events.index("binance_market_start")
+    assert events.index("binance_market_start") < events.index("restore")
     assert events.count("restore") == 2
-    assert events[-5:] == [
+    assert events[-6:] == [
+        "binance_market_shutdown",
         "snapshot_shutdown",
         "shutdown",
         "shutdown",

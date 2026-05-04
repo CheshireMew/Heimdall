@@ -194,6 +194,33 @@ async def test_usdm_klines_keep_full_binance_payload_in_research_store(installed
 
 
 @pytest.mark.asyncio
+async def test_usdm_contract_research_detail_collects_derivative_series(installed_database_runtime):
+    service, _, _ = make_service(
+        installed_database_runtime,
+        [
+            [{"symbol": "BTCUSDT", "sumOpenInterest": "100", "sumOpenInterestValue": "6800000", "timestamp": 1717000000000}],
+            [{"pair": "BTCUSDT", "contractType": "PERPETUAL", "basis": "1.2", "basisRate": "0.0002", "timestamp": 1717000000000}],
+            [{"buySellRatio": "1.4", "buyVol": "140", "sellVol": "100", "timestamp": 1717000000000}],
+            [{"symbol": "BTCUSDT", "side": "SELL", "avgPrice": "68000", "executedQty": "0.5", "cumQuote": "34000", "time": 1717000000000}],
+            [{"symbol": "BTCUSDT", "longShortRatio": "1.1", "longAccount": "0.52", "shortAccount": "0.48", "timestamp": 1717000000000}],
+            [{"symbol": "BTCUSDT", "longShortRatio": "1.2", "longAccount": "0.55", "shortAccount": "0.45", "timestamp": 1717000000000}],
+            [{"symbol": "BTCUSDT", "longShortRatio": "1.3", "longPosition": "0.57", "shortPosition": "0.43", "timestamp": 1717000000000}],
+        ],
+    )
+
+    detail = await service.get_contract_research_detail(symbol="btcusdt", period="1h", limit=10)
+
+    assert detail.symbol == "BTCUSDT"
+    assert detail.open_interest.items[0].sum_open_interest_value == 6800000
+    assert detail.basis.items[0].basis_rate == 0.0002
+    assert detail.taker_volume.items[0].buy_sell_ratio == 1.4
+    assert detail.force_orders.items[0].cum_quote == 34000
+    assert detail.long_short_ratio.items[0].long_short_ratio == 1.1
+    assert detail.top_trader_accounts.items[0].long_short_ratio == 1.2
+    assert detail.top_trader_positions.items[0].long_short_ratio == 1.3
+
+
+@pytest.mark.asyncio
 async def test_usdm_funding_history_uses_funding_rate_store_as_canonical_source(installed_database_runtime):
     service, _, funding_rate_store = make_service(
         installed_database_runtime,

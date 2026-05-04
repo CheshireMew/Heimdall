@@ -38,7 +38,7 @@
                     <p class="text-sm text-slate-500 dark:text-slate-400">{{ t('binanceMarket.tables.contractSortHint') }}</p>
                   </div>
                   <div class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                    {{ contractSort.field === 'price_change_pct' ? t('binanceMarket.tables.sortBy24h') : contractSort.field === 'funding_rate_pct' ? t('binanceMarket.tables.sortByFunding') : t('binanceMarket.tables.sortByVolume') }}
+                    {{ contractSort.field === 'price_change_pct' ? t('binanceMarket.tables.sortBy24h') : contractSort.field === 'funding_rate_pct' ? t('binanceMarket.tables.sortByFunding') : contractSort.field === 'oi_change_24h_pct' ? t('binanceMarket.tables.sortByOi') : t('binanceMarket.tables.sortByVolume') }}
                   </div>
                 </div>
 
@@ -59,6 +59,17 @@
                           </button>
                         </th>
                         <th class="px-5 py-3 font-semibold">{{ t('binanceMarket.columns.price') }}</th>
+                        <th class="px-5 py-3 font-semibold">
+                          <button
+                            type="button"
+                            @click="toggleContractSort('oi_change_24h_pct')"
+                            class="inline-flex items-center gap-2 transition"
+                            :class="contractSort.field === 'oi_change_24h_pct' ? 'text-slate-900 dark:text-white' : 'hover:text-slate-700 dark:hover:text-slate-200'"
+                          >
+                            <span>{{ t('binanceMarket.columns.oi24h') }}</span>
+                            <span class="text-xs">{{ sortDirectionIcon(contractSort.field === 'oi_change_24h_pct', contractSort.direction) }}</span>
+                          </button>
+                        </th>
                         <th class="px-5 py-3 font-semibold">
                           <button
                             type="button"
@@ -101,11 +112,12 @@
                         </td>
                         <td class="px-5 py-4" :class="valueTone(item.price_change_pct)">{{ formatSigned(item.price_change_pct) }}</td>
                         <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ formatPrice(item.mark_price ?? item.last_price) }}</td>
+                        <td class="px-5 py-4" :class="valueTone(item.oi_change_24h_pct)">{{ formatSigned(item.oi_change_24h_pct) }}</td>
                         <td class="px-5 py-4" :class="valueTone(item.funding_rate_pct)">{{ formatSigned(item.funding_rate_pct, 4) }}</td>
                         <td class="px-5 py-4 text-slate-600 dark:text-slate-300">{{ formatCompact(item.quote_volume) }}</td>
                       </tr>
                       <tr v-if="!contractRows.length">
-                        <td colspan="5" class="px-5 py-8 text-center text-sm text-slate-400 dark:text-slate-500">{{ t('binanceMarket.tables.noContractRows') }}</td>
+                        <td colspan="6" class="px-5 py-8 text-center text-sm text-slate-400 dark:text-slate-500">{{ t('binanceMarket.tables.noContractRows') }}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -331,6 +343,9 @@
       :chart-data="chartData"
       :volume-data="volumeData"
       :loading-more="chartLoadingMore"
+      :contract-detail="contractDetail"
+      :contract-detail-loading="contractDetailLoading"
+      :contract-detail-error="contractDetailError"
       :monitor-item="detailItem"
       :format-score="formatScore"
       :format-signed="formatSigned"
@@ -381,6 +396,9 @@ const {
   chartData,
   volumeData,
   chartLoadingMore,
+  contractDetail,
+  contractDetailLoading,
+  contractDetailError,
   openChart,
   closeChart,
   openMonitorDetail,

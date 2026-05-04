@@ -334,7 +334,7 @@ def make_backtest_report() -> dict:
             "stake_currency": "USDT",
         },
         "research": {
-            "selected_config": {"ema_fast.period": 12},
+            "selected_config": make_strategy_config(),
             "in_sample_ratio": 70.0,
             "slippage_bps": 5.0,
             "funding_rate_daily": 0.0,
@@ -342,30 +342,30 @@ def make_backtest_report() -> dict:
                 "metric": "sharpe",
                 "trial_count": 2,
                 "best_score": 1.8,
-                "best_config": {"ema_fast.period": 12},
+                "best_config": make_strategy_config(),
                 "trials": [
                     {
                         "trial": 1,
                         "score": 1.6,
-                        "config": {"ema_fast.period": 9},
+                        "config": make_strategy_config(),
                         "report": {"profit_pct": 9.2, "profit_abs": 9200.0},
                     },
                     {
                         "trial": 2,
                         "score": 1.8,
-                        "config": {"ema_fast.period": 12},
+                        "config": make_strategy_config(),
                         "report": {"profit_pct": 12.5, "profit_abs": 12500.0},
                     },
                 ],
             },
             "in_sample": {
                 "range": {"start": "2025-01-01", "end": "2025-04-30"},
-                "config": {"ema_fast.period": 12},
+                "config": make_strategy_config(),
                 "report": {"profit_pct": 13.4, "profit_abs": 13400.0},
             },
             "out_of_sample": {
                 "range": {"start": "2025-05-01", "end": "2025-06-30"},
-                "config": {"ema_fast.period": 12},
+                "config": make_strategy_config(),
                 "report": {"profit_pct": 4.1, "profit_abs": 4100.0},
             },
             "rolling_windows": [
@@ -373,12 +373,12 @@ def make_backtest_report() -> dict:
                     "index": 1,
                     "train": {"start": "2025-01-01", "end": "2025-03-31"},
                     "test": {"start": "2025-04-01", "end": "2025-04-30"},
-                    "config": {"ema_fast.period": 12},
+                    "config": make_strategy_config(),
                     "optimization": {
                         "metric": "sharpe",
                         "trial_count": 1,
                         "best_score": 1.5,
-                        "best_config": {"ema_fast.period": 12},
+                        "best_config": make_strategy_config(),
                         "trials": [],
                     },
                     "report": {"profit_pct": 2.0, "profit_abs": 2000.0},
@@ -1055,8 +1055,28 @@ class StubFundingRateAppService:
 
 
 class StubBinanceMarketPageService:
-    async def get_breakout_monitor(self, **kwargs):
-        return make_binance_breakout_monitor_response()
+    async def get_page_payload(self, **kwargs):
+        monitor = make_binance_breakout_monitor_response()
+        return {
+            "exchange": "binance",
+            "quote_asset": monitor["quote_asset"],
+            "updated_at": monitor["updated_at"],
+            "monitor": monitor,
+            "spot_boards": {},
+            "contract_boards": {},
+            "load_errors": [],
+            "refresh_status": {
+                "snapshot_ready": True,
+                "boards_ready": True,
+                "monitor_ready": True,
+                "refreshing": False,
+                "oi_ready_count": 0,
+                "oi_requested_count": 0,
+                "last_refresh_started_at": monitor["updated_at"],
+                "last_refresh_completed_at": monitor["updated_at"],
+                "last_refresh_error": None,
+            },
+        }
 
 
 class StubBinanceMarketService:
@@ -1103,6 +1123,36 @@ class StubBacktestCommandService:
     async def create_strategy_version(self, command):
         self.received_commands["create_strategy_version"] = command
         return make_strategy_version()
+
+    async def evolve_strategy_from_backtest(self, command):
+        self.received_commands["evolve_strategy_from_backtest"] = command
+        return {
+            "source_backtest_id": command.backtest_id,
+            "strategy_key": "ema_rsi_macd",
+            "source_version": 2,
+            "created": not command.dry_run,
+            "message": "已完成缺陷诊断，并创建新的策略版本",
+            "defects": [
+                {
+                    "key": "negative_expectancy",
+                    "severity": "critical",
+                    "title": "策略期望为负",
+                    "evidence": ["profit_pct=-3.00%"],
+                    "recommendation": "优先使用样本内优化胜出的参数。",
+                }
+            ],
+            "changes": [
+                {
+                    "path": "risk.stoploss",
+                    "before": -0.12,
+                    "after": -0.09,
+                    "reason": "回撤或负收益触发风险收紧",
+                }
+            ],
+            "evolved_version": make_strategy_version(),
+            "base_config": make_strategy_config(),
+            "evolved_config": make_strategy_config(),
+        }
 
 
 class StubBacktestQueryService:

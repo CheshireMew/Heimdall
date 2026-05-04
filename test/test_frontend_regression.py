@@ -157,6 +157,15 @@ def test_market_store_cache_contract_is_stable():
     assert "Extreme Greed" in source
 
 
+def test_trading_view_chart_uses_adaptive_price_axis_precision():
+    source = read_frontend("components/TradingViewChart.vue")
+
+    assert "const resolvePricePrecision = () => {" in source
+    assert "Math.ceil(Math.abs(Math.log10(minPrice))) + 3" in source
+    assert "priceFormat: buildMainPriceFormat()" in source
+    assert "syncMainPriceFormat()" in source
+
+
 def test_symbol_search_supports_usd_equivalent_cash_assets():
     catalog_source = read_frontend("modules/market/symbolCatalog.ts")
     portfolio_source = read_frontend("views/tools/PortfolioBalance.vue")
@@ -214,12 +223,20 @@ def test_binance_market_frontend_uses_warm_start_snapshot_boundary():
     snapshot_source = read_frontend("modules/market/binanceMarketWarmSnapshot.ts")
     web3_snapshot_source = read_frontend("modules/market/web3MarketWarmSnapshot.ts")
     monitor_source = read_frontend("modules/market/useBinanceMarketMonitor.ts")
+    api_source = read_frontend("modules/market/api.ts")
     web3_source = read_frontend("modules/market/useWeb3HeatRankPanel.ts")
 
     assert "heimdall_binance_market_warm_snapshot" in snapshot_source
     assert "heimdall_web3_market_rank_warm_snapshot" in web3_snapshot_source
     assert "restoreBinanceMarketWarmSnapshot" in monitor_source
     assert "saveBinanceMarketWarmSnapshot" in monitor_source
+    assert "getBinanceMarketPage" in monitor_source
+    assert "getBinanceMarketBoards" not in monitor_source
+    assert "getBinanceBreakoutMonitor" not in monitor_source
+    assert "getBinanceMarketBoards(" not in api_source
+    assert "getBinanceBreakoutMonitor(" not in api_source
+    assert "get_binance_market_boards" not in read_frontend("api/routes.ts")
+    assert "get_binance_market_breakout_monitor" not in read_frontend("api/routes.ts")
     assert "restoreWeb3HeatRankWarmSnapshot" in web3_source
     assert "saveWeb3HeatRankWarmSnapshot" in web3_source
     assert "binanceMarketCache" not in snapshot_source

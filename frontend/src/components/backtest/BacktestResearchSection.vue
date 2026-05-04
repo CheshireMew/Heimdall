@@ -9,6 +9,30 @@
           <div class="config-row"><span>In Sample</span><strong>{{ formatPercent(panel.selectedRun.report?.research?.in_sample?.report?.profit_pct) }}</strong></div>
           <div class="config-row"><span>Out Sample</span><strong>{{ formatPercent(panel.selectedRun.report?.research?.out_of_sample?.report?.profit_pct) }}</strong></div>
         </div>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-gray-400"
+            :disabled="panel.evolutionLoading"
+            @click="panel.evolveStrategy"
+          >
+            {{ panel.evolutionLoading ? '进化中...' : '诊断并进化策略' }}
+          </button>
+          <span v-if="panel.evolutionResult" class="text-xs text-gray-500 dark:text-gray-400">
+            {{ panel.evolutionResult.message }}
+          </span>
+        </div>
+        <div v-if="panel.evolutionResult" class="mt-4 space-y-3">
+          <div v-if="(panel.evolutionResult.defects || []).length" class="space-y-2">
+            <div v-for="defect in (panel.evolutionResult.defects || [])" :key="defect.key" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs dark:border-gray-700 dark:bg-gray-900/40">
+              <div class="font-semibold text-gray-900 dark:text-white">{{ defect.title }}</div>
+              <div class="mt-1 text-gray-500 dark:text-gray-400">{{ defect.recommendation }}</div>
+            </div>
+          </div>
+          <div v-if="(panel.evolutionResult.changes || []).length" class="text-xs text-gray-600 dark:text-gray-300">
+            <span class="font-semibold text-gray-900 dark:text-white">变更</span>
+            <span class="ml-2">{{ (panel.evolutionResult.changes || []).map((item) => item.path).join(', ') }}</span>
+          </div>
+        </div>
       </div>
       <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
         <div class="text-sm font-bold text-gray-900 dark:text-white mb-3">{{ $t('backtest.pairBreakdown') }}</div>

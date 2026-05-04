@@ -202,3 +202,25 @@ def normalize_basis(market: str, payload: list[dict[str, Any]]) -> dict[str, Any
             for item in payload
         ],
     }
+
+
+def normalize_force_orders(market: str, payload: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "exchange": "binance",
+        "market": market,
+        "items": [
+            {
+                "symbol": item.get("symbol"),
+                "side": item.get("side"),
+                "price": to_float(item.get("price")),
+                "avg_price": to_float(item.get("avgPrice")),
+                "orig_qty": to_float(item.get("origQty")),
+                "executed_qty": to_float(item.get("executedQty")),
+                "cum_quote": to_float(item.get("cumQuote")),
+                "status": item.get("status"),
+                "time": to_int(item.get("time")),
+                "update_time": to_int(item.get("updateTime")),
+            }
+            for item in payload
+        ],
+    }

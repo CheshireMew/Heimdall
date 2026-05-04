@@ -1,9 +1,11 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useTheme } from '@/composables/useTheme'
+import { marketApi } from './api'
 import type {
   BinanceBreakoutMonitorItemResponse,
+  BinanceContractResearchDetailResponse,
 } from '../../types/market'
 import { toSlashMarketSymbol } from './symbolCatalog'
 import { displaySymbol, type ChartDialogState } from './binanceMarketShared'
@@ -19,6 +21,10 @@ export function useBinanceSymbolChart() {
   })
   const chartTimeframe = ref('15m')
   const chartTimeframes = ['5m', '15m', '1h', '4h', '1d']
+  const contractDetail = ref<BinanceContractResearchDetailResponse | null>(null)
+  const contractDetailLoading = ref(false)
+  const contractDetailError = ref('')
+  let contractDetailRequestId = 0
 
   const chartSymbol = computed(() => (
     toSlashMarketSymbol(chartDialog.value.rawSymbol, 'USDT')
@@ -30,6 +36,7 @@ export function useBinanceSymbolChart() {
     return t('binanceMarket.marketFallback')
   })
   const chartEnabled = computed(() => chartDialog.value.open && Boolean(chartSymbol.value))
+  const contractDetailEnabled = computed(() => chartDialog.value.open && chartDialog.value.market === 'usdm' && Boolean(chartDialog.value.rawSymbol))
   const chartColors = computed(() => {
     const isDark = theme.value === 'dark'
     return {
@@ -66,6 +73,34 @@ export function useBinanceSymbolChart() {
     }
   }
 
+  watch([contractDetailEnabled, () => chartDialog.value.rawSymbol], async ([enabled]) => {
+    const requestId = ++contractDetailRequestId
+    contractDetail.value = null
+    contractDetailError.value = ''
+    if (!enabled) {
+      contractDetailLoading.value = false
+      return
+    }
+    contractDetailLoading.value = true
+    try {
+      const response = await marketApi.getBinanceMarketContractDetail({
+        symbol: chartDialog.value.rawSymbol,
+        period: '1h',
+        limit: 72,
+      })
+      if (requestId !== contractDetailRequestId) return
+      contractDetail.value = response.data
+    } catch (error) {
+      if (requestId !== contractDetailRequestId) return
+      contractDetailError.value = t('binanceMarket.contractDetail.loadFailed')
+      console.error('Failed to load Binance contract detail', error)
+    } finally {
+      if (requestId === contractDetailRequestId) {
+        contractDetailLoading.value = false
+      }
+    }
+  }, { immediate: true })
+
   return {
     chartDialog,
     chartSymbol,
@@ -77,6 +112,9 @@ export function useBinanceSymbolChart() {
     chartData,
     volumeData,
     chartLoadingMore,
+    contractDetail,
+    contractDetailLoading,
+    contractDetailError,
     openChart,
     closeChart,
     loadMoreChartHistory,

@@ -157,3 +157,12 @@ class CreateStrategyVersionCommand:
     parameter_space: dict[str, list[Any]] = field(default_factory=dict)
     notes: str | None = None
     make_default: bool = True
+
+
+@dataclass(slots=True)
+class EvolveStrategyFromBacktestCommand:
+    backtest_id: int
+    version_name: str | None = None
+    notes: str | None = None
+    make_default: bool = True
+    dry_run: bool = False

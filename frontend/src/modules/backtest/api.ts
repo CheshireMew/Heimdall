@@ -12,6 +12,8 @@ import type {
   PaperStartResponse,
   PaperStopResponse,
   StrategyEditorContractResponse,
+  StrategyEvolutionRequest,
+  StrategyEvolutionResponse,
   StrategyDefinitionResponse,
   StrategyIndicatorEngineResponse,
   StrategyIndicatorRegistryResponse,
@@ -80,6 +82,10 @@ export const backtestApi = {
 
   createStrategyVersion(body: StrategyVersionCreateRequest): Promise<AxiosResponse<StrategyVersionResponse>> {
     return apiPost('create_strategy_version', body)
+  },
+
+  evolveStrategyFromBacktest(backtestId: number, body: StrategyEvolutionRequest): Promise<AxiosResponse<StrategyEvolutionResponse>> {
+    return longTaskRequest.post(apiRoute('evolve_strategy_from_backtest', { backtest_id: backtestId }), body)
   },
 
   getRun(backtestId: number, page: number = 1, pageSize: number = 100): Promise<AxiosResponse<BacktestDetailResponse>> {

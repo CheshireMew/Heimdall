@@ -175,24 +175,21 @@ export interface BinanceMarketPageResponse {
   spot_boards?: { [key: string]: BinanceTickerStatsResponse }
   contract_boards?: { [key: string]: BinanceContractBoardResponse }
   load_errors?: Array<string>
+  refresh_status?: BinanceMarketPageRefreshStatusResponse
 }
 
-export interface BinanceMarketBoardsResponse {
+export interface BinanceContractResearchDetailResponse {
   exchange: string
-  quote_asset: string
-  updated_at: number
-  spot_boards?: { [key: string]: BinanceTickerStatsResponse }
-  contract_boards?: { [key: string]: BinanceContractBoardResponse }
-  load_errors?: Array<string>
-}
-
-export interface BinanceBreakoutMonitorResponse {
-  exchange: string
-  min_rise_pct: number
-  quote_asset: string
-  updated_at: number
-  summary?: BinanceBreakoutMonitorSummaryResponse
-  items?: Array<BinanceBreakoutMonitorItemResponse>
+  market: string
+  symbol: string
+  period: string
+  open_interest: BinanceOpenInterestStatsResponse
+  basis: BinanceBasisResponse
+  taker_volume: BinanceTakerVolumeResponse
+  force_orders: BinanceForceOrderResponse
+  long_short_ratio: BinanceRatioSeriesResponse
+  top_trader_accounts: BinanceRatioSeriesResponse
+  top_trader_positions: BinanceRatioSeriesResponse
 }
 
 export interface BinanceExchangeInfoResponse {
@@ -514,6 +511,15 @@ export interface BinanceBreakoutMonitorItemResponse {
   reasons?: Array<string>
 }
 
+export interface BinanceBreakoutMonitorResponse {
+  exchange: string
+  min_rise_pct: number
+  quote_asset: string
+  updated_at: number
+  summary?: BinanceBreakoutMonitorSummaryResponse
+  items?: Array<BinanceBreakoutMonitorItemResponse>
+}
+
 export interface BinanceBreakoutMonitorSummaryResponse {
   monitored_count?: number
   natural_count?: number
@@ -534,12 +540,36 @@ export interface BinanceContractBoardItemResponse {
   mark_price?: number | null
   index_price?: number | null
   funding_rate_pct?: number | null
+  open_interest?: number | null
+  open_interest_value?: number | null
+  oi_change_1h_pct?: number | null
+  oi_change_4h_pct?: number | null
+  oi_change_24h_pct?: number | null
 }
 
 export interface BinanceContractBoardResponse {
   exchange: string
   market: string
   items?: Array<BinanceContractBoardItemResponse>
+}
+
+export interface BinanceForceOrderItemResponse {
+  symbol?: string | null
+  side?: string | null
+  price?: number | null
+  avg_price?: number | null
+  orig_qty?: number | null
+  executed_qty?: number | null
+  cum_quote?: number | null
+  status?: string | null
+  time?: number | null
+  update_time?: number | null
+}
+
+export interface BinanceForceOrderResponse {
+  exchange: string
+  market: string
+  items?: Array<BinanceForceOrderItemResponse>
 }
 
 export interface BinanceFundingHistoryItemResponse {
@@ -579,6 +609,18 @@ export interface BinanceMarkPriceItemResponse {
   next_funding_time?: number | null
   interest_rate?: number | null
   time?: number | null
+}
+
+export interface BinanceMarketPageRefreshStatusResponse {
+  snapshot_ready?: boolean
+  boards_ready?: boolean
+  monitor_ready?: boolean
+  refreshing?: boolean
+  oi_ready_count?: number
+  oi_requested_count?: number
+  last_refresh_started_at?: number | null
+  last_refresh_completed_at?: number | null
+  last_refresh_error?: string | null
 }
 
 export interface BinanceOpenInterestStatItemResponse {
@@ -891,14 +933,10 @@ export interface TradeSetupResponseItem {
   source: string
 }
 
-export interface GetBinanceMarketBoardsQueryParams {
-  quote_asset?: string
-}
-
-export interface GetBinanceMarketBreakoutMonitorQueryParams {
-  min_rise_pct?: number
+export interface GetBinanceMarketContractDetailQueryParams {
+  symbol: string
+  period?: string
   limit?: number
-  quote_asset?: string
 }
 
 export interface GetBinanceMarketPageQueryParams {

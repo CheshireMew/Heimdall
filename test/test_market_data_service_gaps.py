@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from app.services.market.market_data_service import MarketDataService
+import app.services.market.market_data_service as market_data_module
 from config import settings
 
 
@@ -63,4 +64,29 @@ def test_load_ohlcv_range_repairs_middle_gap():
     assert result.complete
     assert [row[0] for row in data] == [first_row[0], missing_row[0], third_row[0]]
     assert exchange_gateway.calls == [("BTC/USDT", "1h", missing_row[0], settings.EXCHANGE_FETCH_LIMIT)]
+    assert kline_store.saved_rows == [missing_row]
+
+
+def test_recent_candles_repairs_database_window_before_returning(monkeypatch):
+    base = datetime(2024, 1, 1, 0, 0, 0)
+    one_hour_ms = 60 * 60 * 1000
+    base_ts = int(base.timestamp() * 1000)
+
+    first_row = [base_ts, 1.0, 1.0, 1.0, 1.0, 10.0]
+    missing_row = [base_ts + one_hour_ms, 2.0, 2.0, 2.0, 2.0, 20.0]
+    third_row = [base_ts + (2 * one_hour_ms), 3.0, 3.0, 3.0, 3.0, 30.0]
+    now_ts = base_ts + (3 * one_hour_ms)
+    monkeypatch.setattr(market_data_module.time, "time", lambda: now_ts / 1000)
+
+    exchange_gateway = FakeExchangeGateway({missing_row[0]: missing_row})
+    kline_store = FakeKlineStore([first_row, third_row])
+    service = MarketDataService(
+        exchange_gateway=exchange_gateway,
+        kline_store=kline_store,
+    )
+
+    rows = service.get_recent_candles("BTC/USDT", "1h", 3, allow_cached_response=True)
+
+    assert [row[0] for row in rows] == [first_row[0], missing_row[0], third_row[0]]
+    assert exchange_gateway.calls[0] == ("BTC/USDT", "1h", missing_row[0], settings.EXCHANGE_FETCH_LIMIT)
     assert kline_store.saved_rows == [missing_row]

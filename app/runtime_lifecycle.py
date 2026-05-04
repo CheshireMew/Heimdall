@@ -17,6 +17,10 @@ async def start_binance_snapshot(service, runtime_services: AppRuntimeServices) 
     )
 
 
+async def start_binance_market_page_refresher(service, _runtime_services: AppRuntimeServices) -> None:
+    service.start()
+
+
 async def restore_paper_runs(service, _runtime_services: AppRuntimeServices) -> None:
     await service.restore_active_runs()
 

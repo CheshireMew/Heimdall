@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.contracts.backtest import BacktestPortfolioConfig, BacktestResearchConfig
 from app.schemas.json_types import JsonObject
+from app.schemas.strategy_contract import StrategyTemplateConfigResponse
 
 class BacktestReportSnapshotResponse(BaseModel):
     profit_pct: float | None = None
@@ -46,7 +47,7 @@ class BacktestPortfolioSummaryResponse(BacktestPortfolioConfig):
 class BacktestOptimizationTrialResponse(BaseModel):
     trial: int
     score: float | None = None
-    config: JsonObject = Field(default_factory=dict)
+    config: StrategyTemplateConfigResponse
     report: BacktestReportSnapshotResponse | None = None
 
 
@@ -54,13 +55,13 @@ class BacktestOptimizationSummaryResponse(BaseModel):
     metric: str
     trial_count: int
     best_score: float | None = None
-    best_config: JsonObject = Field(default_factory=dict)
+    best_config: StrategyTemplateConfigResponse | None = None
     trials: list[BacktestOptimizationTrialResponse] = Field(default_factory=list)
 
 
 class BacktestIterationSummaryResponse(BaseModel):
     range: BacktestDateRangeResponse | None = None
-    config: JsonObject = Field(default_factory=dict)
+    config: StrategyTemplateConfigResponse
     report: BacktestReportSnapshotResponse | None = None
 
 
@@ -68,13 +69,13 @@ class BacktestRollingWindowResponse(BaseModel):
     index: int
     train: BacktestDateRangeResponse | None = None
     test: BacktestDateRangeResponse
-    config: JsonObject = Field(default_factory=dict)
+    config: StrategyTemplateConfigResponse
     optimization: BacktestOptimizationSummaryResponse | None = None
     report: BacktestReportSnapshotResponse | None = None
 
 
 class BacktestResearchReportResponse(BaseModel):
-    selected_config: JsonObject = Field(default_factory=dict)
+    selected_config: StrategyTemplateConfigResponse | None = None
     in_sample_ratio: float
     slippage_bps: float
     funding_rate_daily: float

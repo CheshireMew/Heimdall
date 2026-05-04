@@ -9,7 +9,7 @@ import { toBaseSymbol } from './symbolCatalog'
 export type MonitorMode = 'all' | 'natural' | 'momentum' | 'focus'
 export type MarketFilter = 'all' | 'spot' | 'usdm'
 export type SpotSortField = 'price_change_pct' | 'quote_volume'
-export type ContractSortField = 'price_change_pct' | 'funding_rate_pct' | 'quote_volume'
+export type ContractSortField = 'price_change_pct' | 'funding_rate_pct' | 'quote_volume' | 'oi_change_24h_pct'
 export type SortDirection = 'desc' | 'asc'
 
 export type ContractBoardRow = BinanceContractBoardItemResponse
@@ -82,7 +82,7 @@ export const normalizeMarketFilter = (value: unknown): MarketFilter => (
 )
 
 export const normalizeContractSortField = (value: unknown): ContractSortField => (
-  value === 'price_change_pct' || value === 'funding_rate_pct' || value === 'quote_volume'
+  value === 'price_change_pct' || value === 'funding_rate_pct' || value === 'quote_volume' || value === 'oi_change_24h_pct'
     ? value
     : 'price_change_pct'
 )

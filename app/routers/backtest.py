@@ -18,6 +18,8 @@ from app.schemas.backtest import (
     BacktestStartRequest,
     BacktestStartResponse,
     IndicatorDefinitionCreateRequest,
+    StrategyEvolutionRequest,
+    StrategyEvolutionResponse,
     StrategyEditorContractResponse,
     StrategyIndicatorEngineResponse,
     StrategyIndicatorRegistryResponse,
@@ -133,6 +135,17 @@ async def create_strategy_version(
     service: BacktestCommandService = Depends(backtest_command_dependency),
 ):
     return await service.create_strategy_version(body.to_command())
+
+
+@router.post("/backtest/{backtest_id}/evolve", response_model=StrategyEvolutionResponse)
+@limiter.limit(settings.RATE_LIMIT_HEAVY)
+async def evolve_strategy_from_backtest(
+    request: Request,
+    backtest_id: int,
+    body: StrategyEvolutionRequest,
+    service: BacktestCommandService = Depends(backtest_command_dependency),
+):
+    return await service.evolve_strategy_from_backtest(body.to_command(backtest_id))
 
 
 @router.get("/backtest/list", response_model=list[BacktestRunResponse])

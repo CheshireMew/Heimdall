@@ -49,3 +49,9 @@ class BinanceMarketIntelService:
             usdm=self.usdm,
             snapshot_service=self.snapshot_service,
         )
+
+    def start(self) -> None:
+        self.page.start()
+
+    async def shutdown(self) -> None:
+        await self.page.shutdown()

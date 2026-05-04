@@ -2,6 +2,12 @@ from __future__ import annotations
 
 
 def timeframe_to_ms(timeframe: str) -> int:
+    if timeframe.endswith("min"):
+        try:
+            return int(timeframe[:-3]) * 60_000
+        except (TypeError, ValueError):
+            return 0
+
     unit = timeframe[-1]
     try:
         value = int(timeframe[:-1])

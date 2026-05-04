@@ -245,6 +245,39 @@ class BinanceBasisResponse(BaseModel):
     items: list[BinanceBasisItemResponse] = Field(default_factory=list)
 
 
+class BinanceForceOrderItemResponse(BaseModel):
+    symbol: str | None = None
+    side: str | None = None
+    price: float | None = None
+    avg_price: float | None = None
+    orig_qty: float | None = None
+    executed_qty: float | None = None
+    cum_quote: float | None = None
+    status: str | None = None
+    time: int | None = None
+    update_time: int | None = None
+
+
+class BinanceForceOrderResponse(BaseModel):
+    exchange: str
+    market: str
+    items: list[BinanceForceOrderItemResponse] = Field(default_factory=list)
+
+
+class BinanceContractResearchDetailResponse(BaseModel):
+    exchange: str
+    market: str
+    symbol: str
+    period: str
+    open_interest: BinanceOpenInterestStatsResponse
+    basis: BinanceBasisResponse
+    taker_volume: BinanceTakerVolumeResponse
+    force_orders: BinanceForceOrderResponse
+    long_short_ratio: BinanceRatioSeriesResponse
+    top_trader_accounts: BinanceRatioSeriesResponse
+    top_trader_positions: BinanceRatioSeriesResponse
+
+
 class BinanceBreakoutMonitorSummaryResponse(BaseModel):
     monitored_count: int = 0
     natural_count: int = 0
@@ -303,6 +336,11 @@ class BinanceContractBoardItemResponse(BaseModel):
     mark_price: float | None = None
     index_price: float | None = None
     funding_rate_pct: float | None = None
+    open_interest: float | None = None
+    open_interest_value: float | None = None
+    oi_change_1h_pct: float | None = None
+    oi_change_4h_pct: float | None = None
+    oi_change_24h_pct: float | None = None
 
 
 class BinanceContractBoardResponse(BaseModel):
@@ -311,13 +349,16 @@ class BinanceContractBoardResponse(BaseModel):
     items: list[BinanceContractBoardItemResponse] = Field(default_factory=list)
 
 
-class BinanceMarketBoardsResponse(BaseModel):
-    exchange: str
-    quote_asset: str
-    updated_at: int
-    spot_boards: dict[str, BinanceTickerStatsResponse] = Field(default_factory=dict)
-    contract_boards: dict[str, BinanceContractBoardResponse] = Field(default_factory=dict)
-    load_errors: list[str] = Field(default_factory=list)
+class BinanceMarketPageRefreshStatusResponse(BaseModel):
+    snapshot_ready: bool = False
+    boards_ready: bool = False
+    monitor_ready: bool = False
+    refreshing: bool = False
+    oi_ready_count: int = 0
+    oi_requested_count: int = 0
+    last_refresh_started_at: int | None = None
+    last_refresh_completed_at: int | None = None
+    last_refresh_error: str | None = None
 
 
 class BinanceMarketPageResponse(BaseModel):
@@ -328,6 +369,7 @@ class BinanceMarketPageResponse(BaseModel):
     spot_boards: dict[str, BinanceTickerStatsResponse] = Field(default_factory=dict)
     contract_boards: dict[str, BinanceContractBoardResponse] = Field(default_factory=dict)
     load_errors: list[str] = Field(default_factory=list)
+    refresh_status: BinanceMarketPageRefreshStatusResponse = Field(default_factory=BinanceMarketPageRefreshStatusResponse)
 
 
 class BinanceMarketSourceSnapshotResponse(BaseModel):

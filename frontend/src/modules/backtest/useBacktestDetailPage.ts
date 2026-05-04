@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useTheme } from '@/composables/useTheme'
-import type { BacktestRunResponse, StrategyDefinitionResponse, StrategyVersionResponse } from '../../types/backtest'
+import type { BacktestRunResponse, StrategyDefinitionResponse, StrategyEvolutionResponse, StrategyVersionResponse } from '../../types/backtest'
 
 import { backtestApi } from './api'
 import { profitColorClass } from './selection'
@@ -19,6 +19,8 @@ export const useBacktestDetailPage = () => {
   let paperRefreshTimer: number | null = null
 
   const strategies = ref<StrategyDefinitionResponse[]>([])
+  const evolutionLoading = ref(false)
+  const evolutionResult = ref<StrategyEvolutionResponse | null>(null)
   const config = reactive({
     strategy_key: '',
     strategy_version: 1,
@@ -76,6 +78,7 @@ export const useBacktestDetailPage = () => {
     }
     const result = await runs.loadRunTarget(target)
     if (!result) return
+    evolutionResult.value = null
     syncConfigFromSelectedRun()
   }
 
@@ -98,6 +101,24 @@ export const useBacktestDetailPage = () => {
     await runs.deleteRun(runId, mode)
     if (deletingCurrentRun && runs.selectedRun.value === null) {
       goBackToCenter()
+    }
+  }
+
+  const evolveStrategy = async () => {
+    const run = runs.selectedRun.value
+    if (!run?.id || runs.isPaperRun.value || evolutionLoading.value) return
+    evolutionLoading.value = true
+    try {
+      const res = await backtestApi.evolveStrategyFromBacktest(run.id, {
+        make_default: true,
+        dry_run: false,
+      })
+      evolutionResult.value = res.data
+      await fetchStrategies()
+    } catch (error) {
+      console.error(error)
+    } finally {
+      evolutionLoading.value = false
     }
   }
 
@@ -154,6 +175,8 @@ export const useBacktestDetailPage = () => {
     pairBreakdown: runs.pairBreakdown,
     optimizationTrials: runs.optimizationTrials,
     rollingWindows: runs.rollingWindows,
+    evolutionLoading,
+    evolutionResult,
     selectedCompareRuns: runs.selectedCompareRuns,
     recentRunCompare: runs.recentRunCompare,
     versionCompareOptions: runs.versionCompareOptions,
@@ -167,6 +190,7 @@ export const useBacktestDetailPage = () => {
     configLabel: runs.configLabel,
     compareRunLabel: runs.compareRunLabel,
     toggleVersionCompare: runs.toggleVersionCompare,
+    evolveStrategy,
   })
 
   return {

@@ -12,7 +12,7 @@ from app.domain.market.symbol_catalog import get_market_symbol_source
 from utils.logger import logger
 
 from .exchange_gateway import ExchangeGateway
-from .history_ranges import collect_missing_ranges, is_recent_cache_usable
+from .history_ranges import collect_missing_ranges, is_recent_cache_usable, timeframe_to_ms
 from .kline_store import KlineStore
 
 
@@ -156,9 +156,16 @@ class MarketDataService:
         allow_cached_response: bool = False,
         live_max_retries: int | None = None,
     ) -> list[list[float]]:
-        end_ts = int(time.time() * 1000) + 1
+        end_ts = int(time.time() * 1000)
+        timeframe_ms = timeframe_to_ms(timeframe)
+        storage_symbol = self._storage_symbol(symbol)
         try:
-            cached = self.get_history_data(symbol, timeframe, end_ts, limit)
+            if timeframe_ms > 0:
+                start_ts = end_ts - (timeframe_ms * max(limit, 1))
+                cached = self.kline_store.get_range(storage_symbol, timeframe, start_ts, end_ts)
+            else:
+                start_ts = 0
+                cached = self.get_history_data(symbol, timeframe, end_ts, limit)
         except Exception as exc:
             logger.warning(f"最近 K 线缓存读取失败，改用交易所实时数据: {exc}")
             cached = []
@@ -170,11 +177,27 @@ class MarketDataService:
         ):
             return cached[-limit:]
 
-        live = self.get_live_kline_data(symbol, timeframe, limit=limit, max_retries=live_max_retries)
-        if live:
-            merged = self._merge_klines(cached, live)
+        new_rows: list[list[float]] = []
+        missing_ranges = (
+            collect_missing_ranges(
+                cached_klines=cached,
+                timeframe=timeframe,
+                start_ts=start_ts,
+                end_ts_exclusive=end_ts,
+            )
+            if timeframe_ms > 0
+            else []
+        )
+        for gap_start, gap_end in missing_ranges:
+            new_rows.extend(self._fetch_gap(symbol, timeframe, gap_start, gap_end))
+
+        if not new_rows and not allow_cached_response:
+            new_rows = self.get_live_kline_data(symbol, timeframe, limit=limit, max_retries=live_max_retries)
+
+        if new_rows:
+            merged = self._merge_klines(cached, new_rows)
             try:
-                self.kline_store.save(self._storage_symbol(symbol), timeframe, live)
+                self.kline_store.save(storage_symbol, timeframe, new_rows)
             except Exception as exc:
                 logger.warning(f"最近 K 线回写缓存失败: {exc}")
             return merged[-limit:]

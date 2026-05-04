@@ -136,6 +136,7 @@ class AppSettings(BaseSettings):
     BINANCE_FUTURES_USDM_TICKER_WS_URL: str = "wss://fstream.binance.com/ws/!ticker@arr"
     BINANCE_FUTURES_USDM_MARK_WS_URL: str = "wss://fstream.binance.com/ws/!markPrice@arr"
     BINANCE_MARKET_SNAPSHOT_RECONNECT_DELAY: float = 3.0
+    BINANCE_MARKET_PAGE_REFRESH_INTERVAL: float = 20.0
 
     CURRENCY_RATES_URL: str = "https://open.er-api.com/v6/latest/USD"
     CURRENCY_RATES_TIMEOUT: float = 5.0

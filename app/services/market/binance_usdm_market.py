@@ -5,7 +5,9 @@ from typing import Any, Callable
 
 from app.schemas.binance_market import (
     BinanceBasisResponse,
+    BinanceContractResearchDetailResponse,
     BinanceExchangeInfoResponse,
+    BinanceForceOrderResponse,
     BinanceFundingHistoryListResponse,
     BinanceFundingInfoResponse,
     BinanceKlineResponse,
@@ -22,6 +24,7 @@ from .binance_market_normalizers import (
     normalize_basis,
     normalize_derivatives_exchange_info,
     normalize_derivatives_ticker_list,
+    normalize_force_orders,
     normalize_kline_response,
     normalize_mark_price_list,
     normalize_open_interest_snapshot,
@@ -192,6 +195,25 @@ class BinanceUsdmMarketService:
             limit=limit,
         )
 
+    def get_cached_open_interest_stats(
+        self,
+        *,
+        symbol: str,
+        period: str,
+        limit: int = 30,
+    ) -> BinanceOpenInterestStatsResponse:
+        return BinanceOpenInterestStatsResponse.model_validate({
+            "exchange": "binance",
+            "market": "usdm",
+            "items": self.research_store.list_items(
+                market="usdm",
+                series="open_interest_stats",
+                symbol=symbol,
+                period=period,
+                limit=limit,
+            ),
+        })
+
     async def get_long_short_ratio(self, *, symbol: str, period: str, limit: int = 30) -> BinanceRatioSeriesResponse:
         return await self._load_research_series(
             endpoint="/futures/data/globalLongShortAccountRatio",
@@ -259,6 +281,67 @@ class BinanceUsdmMarketService:
             contract_type=contract_type,
             limit=limit,
         )
+
+    async def get_force_orders(
+        self,
+        *,
+        symbol: str,
+        limit: int = 50,
+        start_time: int | None = None,
+        end_time: int | None = None,
+    ) -> BinanceForceOrderResponse:
+        payload = await self.client.get_json(
+            "/fapi/v1/allForceOrders",
+            params=compact_query({
+                "symbol": symbol.upper(),
+                "limit": limit,
+                "startTime": start_time,
+                "endTime": end_time,
+            }),
+            ttl=30,
+        )
+        return BinanceForceOrderResponse.model_validate(normalize_force_orders("usdm", payload))
+
+    async def get_contract_research_detail(
+        self,
+        *,
+        symbol: str,
+        period: str = "1h",
+        limit: int = 72,
+    ) -> BinanceContractResearchDetailResponse:
+        symbol_key = symbol.upper()
+        return BinanceContractResearchDetailResponse.model_validate({
+            "exchange": "binance",
+            "market": "usdm",
+            "symbol": symbol_key,
+            "period": period,
+            "open_interest": (await self._safe_series(self.get_open_interest_stats, symbol=symbol_key, period=period, limit=limit)).model_dump(),
+            "basis": (await self._safe_series(self.get_basis, pair=symbol_key, contract_type="PERPETUAL", period=period, limit=limit)).model_dump(),
+            "taker_volume": (await self._safe_series(self.get_taker_volume, symbol=symbol_key, period=period, limit=limit)).model_dump(),
+            "force_orders": (await self._safe_series(self.get_force_orders, symbol=symbol_key, limit=min(limit, 100))).model_dump(),
+            "long_short_ratio": (await self._safe_series(self.get_long_short_ratio, symbol=symbol_key, period=period, limit=limit)).model_dump(),
+            "top_trader_accounts": (await self._safe_series(self.get_top_trader_accounts, symbol=symbol_key, period=period, limit=limit)).model_dump(),
+            "top_trader_positions": (await self._safe_series(self.get_top_trader_positions, symbol=symbol_key, period=period, limit=limit)).model_dump(),
+        })
+
+    async def _safe_series(self, loader: Callable[..., Any], **kwargs):
+        try:
+            return await loader(**kwargs)
+        except Exception:
+            name = getattr(loader, "__name__", "")
+            empty_by_loader = {
+                "get_open_interest_stats": BinanceOpenInterestStatsResponse,
+                "get_basis": BinanceBasisResponse,
+                "get_taker_volume": BinanceTakerVolumeResponse,
+                "get_force_orders": BinanceForceOrderResponse,
+                "get_long_short_ratio": BinanceRatioSeriesResponse,
+                "get_top_trader_accounts": BinanceRatioSeriesResponse,
+                "get_top_trader_positions": BinanceRatioSeriesResponse,
+            }
+            response_model = empty_by_loader.get(name)
+            if response_model is None:
+                raise
+            return response_model.model_validate({"exchange": "binance", "market": "usdm", "items": []})
 
     async def _load_research_series(
         self,
