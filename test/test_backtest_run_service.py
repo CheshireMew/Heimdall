@@ -9,8 +9,8 @@ from app.contracts.backtest import (
     BacktestResearchConfig,
     StrategyVersionRecord,
 )
-from app.schemas.backtest_result import BacktestReportResponse, BacktestRunMetadataResponse
-from app.services.backtest.run_service import BacktestRunService
+from app.contracts.dto.backtest_result import BacktestReportResponse, BacktestRunMetadataResponse
+from app.infra.persistence.backtest.run_service import BacktestRunService
 from app.services.backtest.strategy_support import normalize_strategy_version_config_model
 
 

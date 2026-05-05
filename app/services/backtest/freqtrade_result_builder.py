@@ -13,7 +13,7 @@ from freqtrade.data.btanalysis.bt_fileutils import (
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
 from app.services.backtest.freqtrade_trade_mapper import FreqtradeTradeMapper
 from app.contracts.backtest import BacktestExecutionResult, BacktestResearchConfig
-from app.schemas.backtest_result import BacktestReportResponse, BacktestReportSnapshotResponse, BacktestRunMetadataResponse
+from app.contracts.dto.backtest_result import BacktestReportResponse, BacktestReportSnapshotResponse, BacktestRunMetadataResponse
 from app.services.backtest.run_contract import BACKTEST_EXECUTION_MODE
 from config import settings
 

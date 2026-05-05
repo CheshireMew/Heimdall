@@ -2,7 +2,7 @@ import type {
   BinanceBreakoutMonitorItemResponse,
   BinanceBreakoutMonitorResponse,
   BinanceContractBoardItemResponse,
-} from '../../types/market'
+} from './contracts'
 import { isRecord, readBoolean, readNumber } from '@/composables/pageSnapshot'
 import { toBaseSymbol } from './symbolCatalog'
 

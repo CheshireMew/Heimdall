@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
-from app.schemas.config import FredApiConfigResponse
+from app.contracts.dto.config import FredApiConfigResponse
+from app.services.config_file import mask_secret, read_json_object, write_json_object
 from config import settings
 
 
@@ -17,7 +17,7 @@ class FredApiConfigService:
         return FredApiConfigResponse.model_validate({
             "apiKey": "",
             "apiKeySet": bool(api_key),
-            "apiKeyPreview": self._mask_api_key(api_key),
+            "apiKeyPreview": mask_secret(api_key),
             "source": source,
         })
 
@@ -30,36 +30,18 @@ class FredApiConfigService:
         if "apiKey" in payload and payload.get("apiKey") is not None:
             api_key = str(payload.get("apiKey") or "").strip()
 
-        self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        self.config_path.write_text(json.dumps({"apiKey": api_key}, ensure_ascii=False, indent=2), encoding="utf-8")
+        write_json_object(self.config_path, {"apiKey": api_key})
         settings.FRED_API_KEY = api_key
         return self.read_config()
 
     def _resolve_api_key(self) -> tuple[str, str]:
-        raw = self._read_raw_config()
+        raw = read_json_object(self.config_path)
         if "apiKey" in raw:
             api_key = str(raw.get("apiKey") or "").strip()
             return api_key, "saved" if api_key else "unset"
 
         api_key = str(settings.FRED_API_KEY or "").strip()
         return api_key, "env" if api_key else "unset"
-
-    def _read_raw_config(self) -> dict[str, Any]:
-        if not self.config_path.exists():
-            return {}
-        try:
-            data = json.loads(self.config_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return {}
-        return data if isinstance(data, dict) else {}
-
-    def _mask_api_key(self, api_key: str) -> str:
-        key = str(api_key or "").strip()
-        if not key:
-            return ""
-        if len(key) <= 8:
-            return key[:2] + "*" * max(len(key) - 4, 1) + key[-2:]
-        return f"{key[:4]}{'*' * 8}{key[-4:]}"
 
 
 _default_service: FredApiConfigService | None = None

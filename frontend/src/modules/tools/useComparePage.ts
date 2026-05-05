@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, type Wat
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { ensureSymbolCatalogLoaded, isIndexSymbol } from '@/modules/market'
 import type { CandlestickData } from '@/modules/market/contracts'
-import type { MarketSymbolSearchResponse } from '../../types/market'
+import type { MarketSymbolSearchResponse } from '@/modules/market/contracts'
 import { useTheme } from '@/composables/useTheme'
 import { toolsApi } from './api'
 import { buildCompareSnapshot, createDefaultCompareSnapshot, createEmptyCompareSnapshot, normalizeCompareSnapshot } from './pageSnapshots'

@@ -14,14 +14,23 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 import app.main as main_module
-from app.runtime import (
-    AppRuntimeServices,
-    BacktestRuntime,
-    FactorRuntime,
-    InfraRuntime,
-    MarketRuntime,
-    SystemRuntime,
-    ToolsRuntime,
+from app.runtime import AppRuntimeServices
+from app.runtime_refs import (
+    BACKTEST_COMMAND_SERVICE,
+    BACKTEST_QUERY_SERVICE,
+    FACTORS_EXECUTION_SERVICE,
+    FACTORS_PAPER_RUN_MANAGER,
+    FACTORS_RESEARCH_SERVICE,
+    INFRA_DATABASE_RUNTIME,
+    MARKET_BINANCE_MARKET_INTEL,
+    MARKET_BINANCE_WEB3_SERVICE,
+    MARKET_FUNDING_RATE_APP_SERVICE,
+    MARKET_INSIGHT_APP_SERVICE,
+    MARKET_QUERY_APP_SERVICE,
+    SYSTEM_CURRENCY_RATE_SERVICE,
+    SYSTEM_FRED_API_CONFIG_SERVICE,
+    SYSTEM_LLM_CONFIG_SERVICE,
+    TOOLS_TOOLS_APP_SERVICE,
 )
 from app.infra.db import build_database_runtime
 from app.infra.db.schema import Base
@@ -154,31 +163,23 @@ def api_harness(installed_database_runtime):
         "fred_api_config": StubFredApiConfigService(),
     }
     app = main_module.app
-    app.state.runtime_services = AppRuntimeServices(
-        infra=InfraRuntime(database_runtime=installed_database_runtime),
-        market=MarketRuntime(
-            market_query_app_service=services["market_query_app"],
-            market_insight_app_service=services["market_insight_app"],
-            funding_rate_app_service=services["funding_rate_app"],
-            binance_market_intel=services["binance_market_service"],
-            binance_web3_service=services["binance_web3_service"],
-        ),
-        tools=ToolsRuntime(tools_app_service=services["tools_app"]),
-        backtest=BacktestRuntime(
-            backtest_command_service=services["backtest_command"],
-            backtest_query_service=services["backtest_query"],
-        ),
-        factors=FactorRuntime(
-            factor_research_service=services["factor_research"],
-            factor_execution_service=services["factor_execution"],
-            factor_paper_run_manager=services["factor_paper"],
-        ),
-        system=SystemRuntime(
-            currency_rate_service=services["currency_rate"],
-            llm_config_service=services["llm_config"],
-            fred_api_config_service=services["fred_api_config"],
-        ),
-    )
+    app.state.runtime_services = AppRuntimeServices.from_entries({
+        INFRA_DATABASE_RUNTIME: installed_database_runtime,
+        MARKET_QUERY_APP_SERVICE: services["market_query_app"],
+        MARKET_INSIGHT_APP_SERVICE: services["market_insight_app"],
+        MARKET_FUNDING_RATE_APP_SERVICE: services["funding_rate_app"],
+        MARKET_BINANCE_MARKET_INTEL: services["binance_market_service"],
+        MARKET_BINANCE_WEB3_SERVICE: services["binance_web3_service"],
+        TOOLS_TOOLS_APP_SERVICE: services["tools_app"],
+        BACKTEST_COMMAND_SERVICE: services["backtest_command"],
+        BACKTEST_QUERY_SERVICE: services["backtest_query"],
+        FACTORS_RESEARCH_SERVICE: services["factor_research"],
+        FACTORS_EXECUTION_SERVICE: services["factor_execution"],
+        FACTORS_PAPER_RUN_MANAGER: services["factor_paper"],
+        SYSTEM_CURRENCY_RATE_SERVICE: services["currency_rate"],
+        SYSTEM_LLM_CONFIG_SERVICE: services["llm_config"],
+        SYSTEM_FRED_API_CONFIG_SERVICE: services["fred_api_config"],
+    })
     app.state.database_error = None
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = noop_lifespan

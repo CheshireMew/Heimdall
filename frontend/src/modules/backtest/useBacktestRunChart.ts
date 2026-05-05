@@ -2,8 +2,8 @@ import { reactive } from 'vue'
 
 import { marketApi } from '@/modules/market'
 import type { CandlestickData, VolumeData } from './contracts'
-import type { BacktestDetailResponse } from '../../types/backtest'
-import type { OhlcvPointResponse } from '../../types/market'
+import type { BacktestDetailResponse } from './contracts'
+import type { OhlcvPointResponse } from '@/modules/market/contracts'
 
 import type { BacktestChartData } from './viewTypes'
 

@@ -15,14 +15,14 @@ from app.contracts.backtest import (
     BacktestTradeRecord,
     PaperStartCommand,
 )
-from app.schemas.backtest import (
+from app.contracts.dto.backtest import (
     BacktestDeleteResponse,
     PaperStartResponse,
     PaperStopResponse,
 )
-from app.schemas.backtest_result import BacktestPortfolioSummaryResponse, BacktestStrategySummaryResponse
+from app.contracts.dto.backtest_result import BacktestPortfolioSummaryResponse, BacktestStrategySummaryResponse
 from app.services.executor import run_sync
-from app.services.backtest.result_store import replace_run_rows, result_signal_counts
+from app.infra.persistence.backtest.result_store import replace_run_rows, result_signal_counts
 from app.services.backtest.run_contract import (
     PAPER_LIVE_ENGINE,
     PAPER_LIVE_EXECUTION_MODE,
@@ -30,16 +30,16 @@ from app.services.backtest.run_contract import (
     parse_run_metadata,
     update_paper_metadata,
 )
-from app.services.backtest.run_lifecycle import RUN_STATUS_RUNNING, RUN_STATUS_STOPPED
-from app.services.paper_run_lifecycle import PaperRunController, PaperRunHost, PaperRunHostedService
+from app.infra.persistence.backtest.run_lifecycle import RUN_STATUS_RUNNING, RUN_STATUS_STOPPED
+from app.infra.persistence.paper_run_lifecycle import PaperRunController, PaperRunHost, PaperRunHostedService
 from config import settings
 from utils.time_utils import to_utc_naive_datetime, utc_now_naive
 
 if TYPE_CHECKING:
     from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
     from app.services.backtest.freqtrade_service import FreqtradeBacktestService
-    from app.services.backtest.run_repository import BacktestRunRepository
-    from app.services.backtest.strategy_query_service import StrategyQueryService
+    from app.infra.persistence.backtest.run_repository import BacktestRunRepository
+    from app.infra.persistence.backtest.strategy_query_service import StrategyQueryService
 
 
 @dataclass(slots=True)

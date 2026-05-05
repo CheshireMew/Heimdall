@@ -5,7 +5,7 @@ import type {
   LlmProviderConfigResponse,
   LlmProviderPresetResponse,
   SystemConfigResponse,
-} from '../../types/config'
+} from './contracts'
 import { systemApi } from './api'
 
 interface LlmConfigForm {

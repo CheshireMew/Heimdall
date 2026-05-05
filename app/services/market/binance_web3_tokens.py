@@ -5,13 +5,13 @@ import time
 import uuid
 
 from app.domain.market.constants import KLINE_SYMBOL_MAX_LENGTH
-from app.schemas.binance_market import (
+from app.contracts.dto.binance_market import (
     BinanceWeb3TokenAuditResponse,
     BinanceWeb3TokenDynamicResponse,
     BinanceWeb3TokenKlineResponse,
 )
 from app.services.market.history_ranges import collect_missing_ranges, is_recent_cache_usable, timeframe_to_ms
-from app.services.market.kline_store import KlineStore
+from app.infra.persistence.market.kline_store import KlineStore
 
 from .binance_api_support import BinanceApiSupport, compact_query
 from .binance_numbers import to_float, to_int

@@ -4,8 +4,8 @@ import pytest
 
 from app.services.market.binance_usdm_market import BinanceUsdmMarketService
 from app.services.market.binance_spot_market import BinanceSpotMarketService
-from app.services.market.binance_market_research_store import BinanceMarketResearchStore
-from app.services.market.funding_rate_store import FundingRateStore
+from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
+from app.infra.persistence.market.funding_rate_store import FundingRateStore
 
 
 class FakeBinanceClient:

@@ -1,4 +1,4 @@
-import { apiGet, longTaskRequest } from '@/api/request'
+import { apiGet } from '@/api/request'
 import type { AxiosResponse } from 'axios'
 import type {
   BinanceContractResearchDetailResponse,
@@ -69,7 +69,7 @@ import type {
   GetMarketIndicatorsQueryParams,
   GetRealtimeAnalysisQueryParams,
   GetTradeSetupQueryParams,
-} from '../../types/market'
+} from './contracts'
 
 export const marketApi = {
   getSymbols(): Promise<AxiosResponse<MarketSymbolSearchResponse[]>> {
@@ -83,7 +83,7 @@ export const marketApi = {
   getTradeSetup(params: GetTradeSetupQueryParams & {
     signal?: AbortSignal
   }): Promise<AxiosResponse<TradeSetupResponse>> {
-    const client = params.mode === 'ai' ? longTaskRequest : undefined
+    const client = params.mode === 'ai' ? 'longTask' : undefined
     const { signal, ...query } = params
     return apiGet('get_trade_setup', {
       client,

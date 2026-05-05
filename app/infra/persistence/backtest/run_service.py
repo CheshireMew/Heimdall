@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from app.schemas.backtest_result import BacktestRunMetadataResponse
+from app.contracts.dto.backtest_result import BacktestRunMetadataResponse
 from app.services.backtest.freqtrade_service import FreqtradeBacktestService
 from app.contracts.backtest import BacktestPortfolioConfig, BacktestResearchConfig, StrategyVersionRecord
-from app.services.backtest.result_store import replace_run_rows, result_signal_counts
+from app.infra.persistence.backtest.result_store import replace_run_rows, result_signal_counts
 from app.services.backtest.run_contract import (
     BACKTEST_EXECUTION_MODE,
     FREQTRADE_ENGINE,
@@ -14,7 +14,7 @@ from app.services.backtest.run_contract import (
     build_failed_run_metadata,
     parse_run_metadata,
 )
-from app.services.backtest.run_lifecycle import RUN_STATUS_COMPLETED, RUN_STATUS_FAILED, RUN_STATUS_RUNNING
+from app.infra.persistence.backtest.run_lifecycle import RUN_STATUS_COMPLETED, RUN_STATUS_FAILED, RUN_STATUS_RUNNING
 from config import settings
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestRun

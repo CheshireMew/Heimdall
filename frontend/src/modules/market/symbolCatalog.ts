@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 
 import { marketApi } from './api'
-import type { MarketSymbolSearchResponse } from '../../types/market'
+import type { MarketSymbolSearchResponse } from './contracts'
 
 const symbols = ref<MarketSymbolSearchResponse[]>([])
 const loading = ref(false)

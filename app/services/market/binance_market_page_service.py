@@ -2,20 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import time
-from functools import cmp_to_key
 from typing import TYPE_CHECKING, Any
 
-from app.schemas.binance_market import (
+from app.contracts.dto.binance_market import (
     BinanceBreakoutMonitorResponse,
-    BinanceContractBoardResponse,
-    BinanceMarketPageResponse,
     BinanceMarketPageRefreshStatusResponse,
-    BinanceTickerStatsResponse,
+    BinanceMarketPageResponse,
 )
 from config import settings
 from utils.logger import logger
 
 from .binance_breakout_monitor import BinanceBreakoutMonitor
+from .binance_contract_oi_enricher import BinanceContractOpenInterestEnricher
+from .binance_market_board_builder import BinanceMarketBoardBuilder
 from .binance_spot_market import BinanceSpotMarketService
 from .binance_usdm_market import BinanceUsdmMarketService
 
@@ -23,14 +22,6 @@ if TYPE_CHECKING:
     from .binance_market_snapshot_service import BinanceMarketSnapshotService
 
 
-CONTRACT_OI_CACHE_TTL_SECONDS = 300.0
-CONTRACT_OI_ENRICHMENT_TIMEOUT_SECONDS = 8.0
-CONTRACT_OI_REQUEST_TIMEOUT_SECONDS = 2.5
-MARKET_BOARD_LIMIT = 15
-CONTRACT_OI_CANDIDATE_LIMIT = 80
-SPOT_BOARD_FIELDS = ("price_change_pct", "quote_volume")
-CONTRACT_BOARD_FIELDS = ("price_change_pct", "funding_rate_pct", "quote_volume", "oi_change_24h_pct")
-BOARD_DIRECTIONS = ("desc", "asc")
 DEFAULT_PAGE_CONFIGS = ((5.0, 24, "USDT"),)
 PageKey = tuple[float, int, str]
 
@@ -47,12 +38,13 @@ class BinanceMarketPageService:
         self.usdm = usdm
         self.snapshot_service = snapshot_service
         self.breakout_monitor = BinanceBreakoutMonitor(self._get_market_klines)
+        self.board_builder = BinanceMarketBoardBuilder()
+        self.oi_enricher = BinanceContractOpenInterestEnricher(usdm)
         self._page_payloads: dict[PageKey, BinanceMarketPageResponse] = {}
         self._requested_page_configs: set[PageKey] = {
             self._page_key(min_rise_pct=min_rise_pct, limit=limit, quote_asset=quote_asset)
             for min_rise_pct, limit, quote_asset in DEFAULT_PAGE_CONFIGS
         }
-        self._contract_oi_cache: dict[str, tuple[float, dict[str, float | None]]] = {}
         self._lock = asyncio.Lock()
         self._refresh_event: asyncio.Event | None = None
         self._refresh_task: asyncio.Task[None] | None = None
@@ -117,8 +109,8 @@ class BinanceMarketPageService:
         try:
             market_snapshot = await self._load_market_page_snapshot_for_refresh()
             ticker_rows = [item for item in market_snapshot["usdm_ticker"].get("items", [])]
-            oi_changes = await self._load_contract_oi_changes(ticker_rows)
-            board_fields = self._build_boards_response_fields(
+            oi_changes = await self.oi_enricher.load_changes(ticker_rows)
+            board_fields = self.board_builder.build_response_fields(
                 market_snapshot,
                 quote_asset=quote_asset,
                 oi_changes=oi_changes,
@@ -140,7 +132,7 @@ class BinanceMarketPageService:
                     boards_ready=True,
                     monitor_ready=True,
                     oi_ready_count=sum(1 for summary in oi_changes.values() if summary),
-                    oi_requested_count=len(self._contract_oi_candidate_symbols(ticker_rows)),
+                    oi_requested_count=len(self.oi_enricher.candidate_symbols(ticker_rows)),
                 ),
             })
             async with self._lock:
@@ -167,7 +159,7 @@ class BinanceMarketPageService:
                 spot_ticker_loader=self.spot.get_ticker_24hr,
                 usdm_ticker_loader=self.usdm.get_ticker_24hr,
                 usdm_mark_loader=self.usdm.get_mark_price,
-        )
+            )
         return (await self.snapshot_service.get_market_page_snapshot()).model_dump()
 
     async def _get_market_klines(self, market: str, symbol: str, interval: str, limit: int) -> dict[str, Any]:
@@ -175,175 +167,10 @@ class BinanceMarketPageService:
             return (await self.spot.get_klines(symbol=symbol, interval=interval, limit=limit)).model_dump()
         return (await self.usdm.get_klines(symbol=symbol, interval=interval, limit=limit)).model_dump()
 
-    def _build_boards_response_fields(
-        self,
-        market_snapshot: dict[str, Any],
-        *,
-        quote_asset: str,
-        oi_changes: dict[str, dict[str, float | None]],
-    ) -> dict[str, Any]:
-        return {
-            "spot_boards": self._build_spot_boards(market_snapshot, quote_asset=quote_asset),
-            "contract_boards": self._build_contract_boards(market_snapshot, oi_changes=oi_changes),
-            "load_errors": market_snapshot["load_errors"],
-        }
-
-    def _build_spot_boards(self, market_snapshot: dict[str, Any], *, quote_asset: str) -> dict[str, BinanceTickerStatsResponse]:
-        rows = [
-            item
-            for item in market_snapshot["spot_ticker"].get("items", [])
-            if str(item.get("symbol") or "").upper().endswith(quote_asset)
-        ]
-        return {
-            self._board_key(field, direction): BinanceTickerStatsResponse.model_validate({
-                "exchange": "binance",
-                "market": "spot",
-                "items": self._sort_rows(rows, field, direction)[:MARKET_BOARD_LIMIT],
-            })
-            for field in SPOT_BOARD_FIELDS
-            for direction in BOARD_DIRECTIONS
-        }
-
-    def _build_contract_boards(
-        self,
-        market_snapshot: dict[str, Any],
-        *,
-        oi_changes: dict[str, dict[str, float | None]],
-    ) -> dict[str, BinanceContractBoardResponse]:
-        mark_map = {
-            str(item.get("symbol") or "").upper(): item
-            for item in market_snapshot["usdm_mark"].get("items", [])
-        }
-        ticker_rows = [item for item in market_snapshot["usdm_ticker"].get("items", [])]
-        rows = []
-        for item in ticker_rows:
-            symbol = str(item.get("symbol") or "").upper()
-            mark = mark_map.get(symbol, {})
-            oi = oi_changes.get(symbol, {})
-            rows.append({
-                **item,
-                "market": "usdm",
-                "market_label": "U 鏈綅",
-                "mark_price": mark.get("mark_price"),
-                "index_price": mark.get("index_price"),
-                "funding_rate_pct": self._funding_rate_pct(mark.get("last_funding_rate")),
-                "open_interest": oi.get("open_interest"),
-                "open_interest_value": oi.get("open_interest_value"),
-                "oi_change_1h_pct": oi.get("oi_change_1h_pct"),
-                "oi_change_4h_pct": oi.get("oi_change_4h_pct"),
-                "oi_change_24h_pct": oi.get("oi_change_24h_pct"),
-            })
-        return {
-            self._board_key(field, direction): BinanceContractBoardResponse.model_validate({
-                "exchange": "binance",
-                "market": "usdm",
-                "items": self._sort_rows(rows, field, direction)[:MARKET_BOARD_LIMIT],
-            })
-            for field in CONTRACT_BOARD_FIELDS
-            for direction in BOARD_DIRECTIONS
-        }
-
-    async def _load_contract_oi_changes(self, rows: list[dict[str, Any]]) -> dict[str, dict[str, float | None]]:
-        symbols = self._contract_oi_candidate_symbols(rows)
-        if not symbols:
-            return {}
-
-        async def load(symbol: str) -> tuple[str, dict[str, float | None]]:
-            cached = self._read_contract_oi_cache(symbol)
-            if cached is not None:
-                return symbol, cached
-
-            stored_response = self.usdm.get_cached_open_interest_stats(symbol=symbol, period="1h", limit=25)
-            summary = self._summarize_open_interest_change(stored_response.model_dump().get("items", []))
-            if summary:
-                self._write_contract_oi_cache(symbol, summary)
-                return symbol, summary
-
-            try:
-                response = await asyncio.wait_for(
-                    self.usdm.get_open_interest_stats(symbol=symbol, period="1h", limit=25),
-                    timeout=CONTRACT_OI_REQUEST_TIMEOUT_SECONDS,
-                )
-                summary = self._summarize_open_interest_change(response.model_dump().get("items", []))
-            except Exception:
-                summary = {}
-            self._write_contract_oi_cache(symbol, summary)
-            return symbol, summary
-
-        semaphore = asyncio.Semaphore(8)
-
-        async def guarded(symbol: str) -> tuple[str, dict[str, float | None]]:
-            async with semaphore:
-                return await load(symbol)
-
-        tasks = [asyncio.create_task(guarded(symbol)) for symbol in symbols]
-        done, pending = await asyncio.wait(tasks, timeout=CONTRACT_OI_ENRICHMENT_TIMEOUT_SECONDS)
-        for task in pending:
-            task.cancel()
-        if pending:
-            await asyncio.gather(*pending, return_exceptions=True)
-
-        pairs: list[tuple[str, dict[str, float | None]]] = []
-        for task in done:
-            if task.cancelled():
-                continue
-            try:
-                pairs.append(task.result())
-            except Exception:
-                continue
-        return {symbol: summary for symbol, summary in pairs}
-
-    def _contract_oi_candidate_symbols(self, rows: list[dict[str, Any]]) -> list[str]:
-        sorted_rows = sorted(
-            rows,
-            key=lambda item: self._to_float(item.get("quote_volume")) or 0.0,
-            reverse=True,
-        )
-        return [
-            str(item.get("symbol") or "").upper()
-            for item in sorted_rows[:CONTRACT_OI_CANDIDATE_LIMIT]
-            if str(item.get("symbol") or "").upper().endswith("USDT")
-        ]
-
-    def _summarize_open_interest_change(self, items: list[dict[str, Any]]) -> dict[str, float | None]:
-        ordered = [item for item in items if self._to_float(item.get("sum_open_interest")) is not None]
-        if not ordered:
-            return {}
-        latest = ordered[-1]
-        return {
-            "open_interest": self._to_float(latest.get("sum_open_interest")),
-            "open_interest_value": self._to_float(latest.get("sum_open_interest_value")),
-            "oi_change_1h_pct": self._change_pct(ordered, 1),
-            "oi_change_4h_pct": self._change_pct(ordered, 4),
-            "oi_change_24h_pct": self._change_pct(ordered, 24),
-        }
-
-    def _change_pct(self, items: list[dict[str, Any]], lookback: int) -> float | None:
-        if len(items) <= lookback:
-            return None
-        current = self._to_float(items[-1].get("sum_open_interest"))
-        previous = self._to_float(items[-1 - lookback].get("sum_open_interest"))
-        if current is None or previous in (None, 0):
-            return None
-        return (current - previous) / previous * 100
-
-    def _read_contract_oi_cache(self, symbol: str) -> dict[str, float | None] | None:
-        cached = self._contract_oi_cache.get(symbol)
-        if cached is None:
-            return None
-        expires_at, summary = cached
-        if expires_at <= time.monotonic():
-            self._contract_oi_cache.pop(symbol, None)
-            return None
-        return dict(summary)
-
-    def _write_contract_oi_cache(self, symbol: str, summary: dict[str, float | None]) -> None:
-        self._contract_oi_cache[symbol] = (time.monotonic() + CONTRACT_OI_CACHE_TTL_SECONDS, dict(summary))
-
     async def _build_pending_page_payload(self, key: PageKey) -> BinanceMarketPageResponse:
         min_rise_pct, limit, quote_asset = key
         market_snapshot = (await self.snapshot_service.get_market_page_snapshot()).model_dump()
-        board_fields = self._build_boards_response_fields(
+        board_fields = self.board_builder.build_response_fields(
             market_snapshot,
             quote_asset=quote_asset,
             oi_changes={},
@@ -364,7 +191,7 @@ class BinanceMarketPageService:
                 boards_ready=True,
                 monitor_ready=False,
                 oi_ready_count=0,
-                oi_requested_count=len(self._contract_oi_candidate_symbols(market_snapshot["usdm_ticker"].get("items", []))),
+                oi_requested_count=len(self.oi_enricher.candidate_symbols(market_snapshot["usdm_ticker"].get("items", []))),
             ),
         })
 
@@ -424,50 +251,3 @@ class BinanceMarketPageService:
             "last_refresh_error": self._last_refresh_error,
         })
         return response.model_copy(update={"refresh_status": status}, deep=True)
-
-    def _sort_rows(self, rows: list[dict[str, Any]], field: str, direction: str) -> list[dict[str, Any]]:
-        return sorted(
-            rows,
-            key=cmp_to_key(lambda left, right: self._compare_rows(left, right, field, direction)),
-        )
-
-    def _compare_rows(self, left: dict[str, Any], right: dict[str, Any], field: str, direction: str) -> int:
-        primary = self._compare_nullable_number(left.get(field), right.get(field), direction)
-        if primary != 0:
-            return primary
-        by_volume = self._compare_nullable_number(left.get("quote_volume"), right.get("quote_volume"), "desc")
-        if by_volume != 0:
-            return by_volume
-        left_symbol = str(left.get("symbol") or "")
-        right_symbol = str(right.get("symbol") or "")
-        return (left_symbol > right_symbol) - (left_symbol < right_symbol)
-
-    def _compare_nullable_number(self, left: Any, right: Any, direction: str) -> int:
-        left_value = self._to_float(left)
-        right_value = self._to_float(right)
-        if left_value is None and right_value is None:
-            return 0
-        if left_value is None:
-            return 1
-        if right_value is None:
-            return -1
-        if left_value == right_value:
-            return 0
-        if direction == "desc":
-            return -1 if left_value > right_value else 1
-        return -1 if left_value < right_value else 1
-
-    def _funding_rate_pct(self, value: Any) -> float | None:
-        numeric = self._to_float(value)
-        return None if numeric is None else numeric * 100
-
-    def _to_float(self, value: Any) -> float | None:
-        try:
-            if value in (None, ""):
-                return None
-            return float(value)
-        except (TypeError, ValueError):
-            return None
-
-    def _board_key(self, field: str, direction: str) -> str:
-        return f"{field}_{direction}"

@@ -6,7 +6,7 @@ from typing import Any
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestRun
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
-from app.services.backtest.result_store import store_run_rows
+from app.infra.persistence.backtest.result_store import store_run_rows
 from app.contracts.backtest import (
     BacktestPortfolioConfig,
     BacktestResearchConfig,
@@ -16,7 +16,7 @@ from app.contracts.backtest import (
     StrategyVersionRecord,
 )
 from app.services.backtest.run_contract import BACKTEST_EXECUTION_MODE, FACTOR_BLEND_ENGINE, build_backtest_metadata, parse_run_metadata
-from app.services.backtest.run_lifecycle import RUN_STATUS_COMPLETED
+from app.infra.persistence.backtest.run_lifecycle import RUN_STATUS_COMPLETED
 from app.services.backtest.strategy_support import blank_strategy_version_config_model
 from app.services.executor import run_sync
 from app.contracts.factor import FactorExecutionConfig

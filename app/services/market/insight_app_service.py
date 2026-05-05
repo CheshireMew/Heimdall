@@ -4,7 +4,7 @@ from typing import Any, Callable
 
 from app.domain.market.prompt_engine import PromptEngine
 from app.domain.market.trade_setup import TradeSetupEngine, TradeSetupRequest
-from app.schemas.market import CryptoIndexResponse, MarketIndicatorResponse, TradeSetupResponse
+from app.contracts.dto.market import CryptoIndexResponse, MarketIndicatorResponse, TradeSetupResponse
 from app.services.market.crypto_index_service import CryptoIndexService
 from app.services.market.indicator_service import IndicatorService
 from app.services.market.query_app_service import MarketQueryAppService

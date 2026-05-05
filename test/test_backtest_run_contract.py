@@ -6,12 +6,12 @@ import pytest
 
 from app.contracts.backtest import BacktestEquityPointRecord, BacktestPortfolioConfig
 from app.infra.db.schema import BacktestRun
-from app.schemas.backtest_result import BacktestRunMetadataResponse
+from app.contracts.dto.backtest_result import BacktestRunMetadataResponse
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
-from app.services.backtest.run_repository import BacktestRunRepository
+from app.infra.persistence.backtest.run_repository import BacktestRunRepository
 from app.services.backtest.run_contract import update_paper_metadata
-from app.services.backtest.serializers import serialize_backtest_run
-from app.services.factors.paper_persistence_service import FactorPaperPersistenceService
+from app.infra.persistence.backtest.serializers import serialize_backtest_run
+from app.infra.persistence.factors.paper_persistence_service import FactorPaperPersistenceService
 
 
 class _NoopFactorExecutionCore:

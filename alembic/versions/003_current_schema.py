@@ -1,4 +1,4 @@
-"""align alembic schema with current models
+﻿"""align alembic schema with current models
 
 Revision ID: 003_current_schema
 Revises: 002_widen_kline_symbol
@@ -9,6 +9,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
+from alembic_support import create_index_if_missing, has_column, has_table, inspector
 
 revision: str = "003_current_schema"
 down_revision: Union[str, None] = "002_widen_kline_symbol"
@@ -16,35 +17,8 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def _inspector() -> sa.Inspector:
-    return sa.inspect(op.get_bind())
-
-
-def _has_table(table: str) -> bool:
-    return table in set(_inspector().get_table_names())
-
-
-def _has_column(table: str, column: str) -> bool:
-    if not _has_table(table):
-        return False
-    return column in {item["name"] for item in _inspector().get_columns(table)}
-
-
-def _has_index(table: str, index: str) -> bool:
-    if not _has_table(table):
-        return False
-    return index in {item["name"] for item in _inspector().get_indexes(table)}
-
-
-def _create_index_if_missing(
-    name: str, table: str, columns: list[str], *, unique: bool = False
-) -> None:
-    if not _has_index(table, name):
-        op.create_index(name, table, columns, unique=unique)
-
-
 def upgrade() -> None:
-    if not _has_table("backtest_runs"):
+    if not has_table("backtest_runs"):
         op.create_table(
             "backtest_runs",
             sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -66,7 +40,7 @@ def upgrade() -> None:
         )
     else:
         with op.batch_alter_table("backtest_runs") as batch_op:
-            if not _has_column("backtest_runs", "execution_mode"):
+            if not has_column("backtest_runs", "execution_mode"):
                 batch_op.add_column(
                     sa.Column(
                         "execution_mode",
@@ -75,7 +49,7 @@ def upgrade() -> None:
                         server_default="backtest",
                     )
                 )
-            if not _has_column("backtest_runs", "engine"):
+            if not has_column("backtest_runs", "engine"):
                 batch_op.add_column(
                     sa.Column(
                         "engine",
@@ -84,18 +58,18 @@ def upgrade() -> None:
                         server_default="Freqtrade",
                     )
                 )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_backtest_runs_mode_created_at",
         "backtest_runs",
         ["execution_mode", "created_at"],
     )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_backtest_runs_mode_engine_status_created_at",
         "backtest_runs",
         ["execution_mode", "engine", "status", "created_at"],
     )
 
-    if not _has_table("backtest_signals"):
+    if not has_table("backtest_signals"):
         op.create_table(
             "backtest_signals",
             sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -109,9 +83,9 @@ def upgrade() -> None:
             sa.ForeignKeyConstraint(["backtest_id"], ["backtest_runs.id"]),
             sa.PrimaryKeyConstraint("id"),
         )
-    _create_index_if_missing("ix_signal_backtest_id", "backtest_signals", ["backtest_id"])
+    create_index_if_missing("ix_signal_backtest_id", "backtest_signals", ["backtest_id"])
 
-    if not _has_table("klines"):
+    if not has_table("klines"):
         op.create_table(
             "klines",
             sa.Column("symbol", sa.String(80), nullable=False),
@@ -126,11 +100,11 @@ def upgrade() -> None:
         )
     else:
         symbol_column = next(
-            (column for column in _inspector().get_columns("klines") if column["name"] == "symbol"),
+            (column for column in inspector().get_columns("klines") if column["name"] == "symbol"),
             None,
         )
         timestamp_column = next(
-            (column for column in _inspector().get_columns("klines") if column["name"] == "timestamp"),
+            (column for column in inspector().get_columns("klines") if column["name"] == "timestamp"),
             None,
         )
         symbol_length = getattr(symbol_column["type"], "length", None) if symbol_column else None
@@ -150,9 +124,9 @@ def upgrade() -> None:
                     type_=sa.BigInteger(),
                     existing_nullable=False,
                 )
-    _create_index_if_missing("ix_kline_sym_tf_ts", "klines", ["symbol", "timeframe", "timestamp"])
+    create_index_if_missing("ix_kline_sym_tf_ts", "klines", ["symbol", "timeframe", "timestamp"])
 
-    if not _has_table("sentiment"):
+    if not has_table("sentiment"):
         op.create_table(
             "sentiment",
             sa.Column("date", sa.DateTime(), nullable=False),
@@ -162,7 +136,7 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint("date"),
         )
 
-    if not _has_table("market_indicator_meta"):
+    if not has_table("market_indicator_meta"):
         op.create_table(
             "market_indicator_meta",
             sa.Column("id", sa.String(50), nullable=False),
@@ -175,7 +149,7 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint("id"),
         )
 
-    if not _has_table("market_indicator_data"):
+    if not has_table("market_indicator_data"):
         op.create_table(
             "market_indicator_data",
             sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -185,13 +159,13 @@ def upgrade() -> None:
             sa.ForeignKeyConstraint(["indicator_id"], ["market_indicator_meta.id"]),
             sa.PrimaryKeyConstraint("id"),
         )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_indicator_data_id_ts",
         "market_indicator_data",
         ["indicator_id", "timestamp"],
     )
 
-    if not _has_table("backtest_trades"):
+    if not has_table("backtest_trades"):
         op.create_table(
             "backtest_trades",
             sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -213,12 +187,12 @@ def upgrade() -> None:
             sa.ForeignKeyConstraint(["backtest_id"], ["backtest_runs.id"]),
             sa.PrimaryKeyConstraint("id"),
         )
-    _create_index_if_missing("ix_trade_backtest_id", "backtest_trades", ["backtest_id"])
-    _create_index_if_missing(
+    create_index_if_missing("ix_trade_backtest_id", "backtest_trades", ["backtest_id"])
+    create_index_if_missing(
         "ix_trade_backtest_opened_at", "backtest_trades", ["backtest_id", "opened_at"]
     )
 
-    if not _has_table("backtest_equity_points"):
+    if not has_table("backtest_equity_points"):
         op.create_table(
             "backtest_equity_points",
             sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -230,16 +204,16 @@ def upgrade() -> None:
             sa.ForeignKeyConstraint(["backtest_id"], ["backtest_runs.id"]),
             sa.PrimaryKeyConstraint("id"),
         )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_equity_backtest_id", "backtest_equity_points", ["backtest_id"]
     )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_equity_backtest_timestamp",
         "backtest_equity_points",
         ["backtest_id", "timestamp"],
     )
 
-    if not _has_table("strategy_definitions"):
+    if not has_table("strategy_definitions"):
         op.create_table(
             "strategy_definitions",
             sa.Column("key", sa.String(50), nullable=False),
@@ -253,7 +227,7 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint("key"),
         )
 
-    if not _has_table("strategy_versions"):
+    if not has_table("strategy_versions"):
         op.create_table(
             "strategy_versions",
             sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -268,19 +242,19 @@ def upgrade() -> None:
             sa.ForeignKeyConstraint(["strategy_key"], ["strategy_definitions.key"]),
             sa.PrimaryKeyConstraint("id"),
         )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_strategy_version_key_version",
         "strategy_versions",
         ["strategy_key", "version"],
         unique=True,
     )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_strategy_version_default",
         "strategy_versions",
         ["strategy_key", "is_default"],
     )
 
-    if not _has_table("indicator_definitions"):
+    if not has_table("indicator_definitions"):
         op.create_table(
             "indicator_definitions",
             sa.Column("key", sa.String(50), nullable=False),
@@ -295,7 +269,7 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint("key"),
         )
 
-    if not _has_table("strategy_template_definitions"):
+    if not has_table("strategy_template_definitions"):
         op.create_table(
             "strategy_template_definitions",
             sa.Column("key", sa.String(50), nullable=False),
@@ -311,7 +285,7 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint("key"),
         )
 
-    if not _has_table("funding_rates"):
+    if not has_table("funding_rates"):
         op.create_table(
             "funding_rates",
             sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -324,17 +298,17 @@ def upgrade() -> None:
             sa.Column("created_at", sa.DateTime(), nullable=False),
             sa.PrimaryKeyConstraint("id"),
         )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_funding_rate_symbol_time",
         "funding_rates",
         ["exchange", "market_type", "symbol", "funding_time"],
         unique=True,
     )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_funding_rate_symbol_lookup", "funding_rates", ["symbol", "funding_time"]
     )
 
-    if not _has_table("factor_datasets"):
+    if not has_table("factor_datasets"):
         op.create_table(
             "factor_datasets",
             sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -354,14 +328,14 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint("id"),
             sa.UniqueConstraint("signature"),
         )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_factor_dataset_signature", "factor_datasets", ["signature"], unique=True
     )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_factor_dataset_symbol_tf", "factor_datasets", ["symbol", "timeframe"]
     )
 
-    if not _has_table("factor_dataset_rows"):
+    if not has_table("factor_dataset_rows"):
         op.create_table(
             "factor_dataset_rows",
             sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -375,14 +349,14 @@ def upgrade() -> None:
             sa.ForeignKeyConstraint(["dataset_id"], ["factor_datasets.id"]),
             sa.PrimaryKeyConstraint("id"),
         )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_factor_dataset_row_dataset_ts",
         "factor_dataset_rows",
         ["dataset_id", "timestamp"],
         unique=True,
     )
 
-    if not _has_table("factor_research_runs"):
+    if not has_table("factor_research_runs"):
         op.create_table(
             "factor_research_runs",
             sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -398,10 +372,10 @@ def upgrade() -> None:
             sa.ForeignKeyConstraint(["dataset_id"], ["factor_datasets.id"]),
             sa.PrimaryKeyConstraint("id"),
         )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_factor_research_run_dataset_id", "factor_research_runs", ["dataset_id"]
     )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_factor_research_run_created_at", "factor_research_runs", ["created_at"]
     )
 
@@ -419,11 +393,11 @@ def downgrade() -> None:
         "backtest_equity_points",
         "backtest_trades",
     ]:
-        if _has_table(table):
+        if has_table(table):
             op.drop_table(table)
-    if _has_column("backtest_runs", "engine"):
+    if has_column("backtest_runs", "engine"):
         with op.batch_alter_table("backtest_runs") as batch_op:
             batch_op.drop_column("engine")
-    if _has_column("backtest_runs", "execution_mode"):
+    if has_column("backtest_runs", "execution_mode"):
         with op.batch_alter_table("backtest_runs") as batch_op:
             batch_op.drop_column("execution_mode")

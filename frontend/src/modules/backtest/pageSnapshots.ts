@@ -1,5 +1,5 @@
 import { isRecord, readBoolean, readEnum, readNumber, readString } from '@/composables/pageSnapshot'
-import type { BacktestRunDefaultsResponse } from '../../types/backtest'
+import type { BacktestRunDefaultsResponse } from './contracts'
 import type { BacktestPageConfig, BacktestRunSelectionConfig } from './viewTypes'
 
 export interface BacktestPageSnapshot {

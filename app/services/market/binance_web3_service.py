@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.infra.cache import RedisService
-from app.services.market.kline_store import KlineStore
+from app.infra.persistence.market.kline_store import KlineStore
 from config import settings
 
 from .binance_api_support import BinanceApiSupport

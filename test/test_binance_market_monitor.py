@@ -4,11 +4,11 @@ import asyncio
 
 import pytest
 
-from app.schemas.binance_market import BinanceKlineResponse, BinanceMarkPriceResponse, BinanceOpenInterestStatsResponse, BinanceTickerStatsResponse
-from app.services.market import binance_market_page_service as page_service_module
+from app.contracts.dto.binance_market import BinanceKlineResponse, BinanceMarkPriceResponse, BinanceOpenInterestStatsResponse, BinanceTickerStatsResponse
+from app.services.market import binance_contract_oi_enricher as oi_enricher_module
 from app.services.market.binance_market_intel_service import BinanceMarketIntelService
-from app.services.market.binance_market_research_store import BinanceMarketResearchStore
-from app.services.market.funding_rate_store import FundingRateStore
+from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
+from app.infra.persistence.market.funding_rate_store import FundingRateStore
 
 
 def make_market_intel_service(installed_database_runtime) -> BinanceMarketIntelService:
@@ -364,8 +364,8 @@ async def test_market_page_payload_does_not_wait_unbounded_for_oi_enrichment(mon
         await asyncio.sleep(1)
         return BinanceOpenInterestStatsResponse.model_validate({"exchange": "binance", "market": "usdm", "items": []})
 
-    monkeypatch.setattr(page_service_module, "CONTRACT_OI_REQUEST_TIMEOUT_SECONDS", 0.01)
-    monkeypatch.setattr(page_service_module, "CONTRACT_OI_ENRICHMENT_TIMEOUT_SECONDS", 0.05)
+    monkeypatch.setattr(oi_enricher_module, "CONTRACT_OI_REQUEST_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(oi_enricher_module, "CONTRACT_OI_ENRICHMENT_TIMEOUT_SECONDS", 0.05)
     monkeypatch.setattr(service.spot, "get_ticker_24hr", fake_spot_ticker_24hr)
     monkeypatch.setattr(service.usdm, "get_ticker_24hr", fake_usdm_ticker_24hr)
     monkeypatch.setattr(service.usdm, "get_mark_price", fake_usdm_mark_price)

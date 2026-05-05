@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
-from app.schemas.market import MarketIndexHistoryResponse, build_ohlcv_points
+from app.contracts.dto.market import MarketIndexHistoryResponse, build_ohlcv_points
 
 from app.services.market.market_data_service import OhlcvRangeResult
 from app.services.tools.dca_service import DCAService as DCACalculator

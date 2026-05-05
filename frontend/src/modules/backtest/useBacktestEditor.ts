@@ -16,7 +16,7 @@ import type {
   StrategyTemplateResponse,
   StrategyTemplateConfigResponse,
   StrategyVersionResponse,
-} from '../../types/backtest'
+} from './contracts'
 
 import {
   buildId,

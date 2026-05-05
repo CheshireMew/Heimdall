@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.schemas.binance_market import (
+from app.contracts.dto.binance_market import (
     BinanceRwaDynamicResponse,
     BinanceRwaKlineResponse,
     BinanceRwaMarketStatusResponse,

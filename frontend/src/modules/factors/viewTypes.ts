@@ -8,7 +8,7 @@ import type {
   FactorResearchRunListItemResponse,
   FactorResearchSummaryResponse,
   FactorScorecardResponse,
-} from '../../types/factor'
+} from './contracts'
 
 export interface FactorResearchHeroView {
   catalog: { forward_horizons: number[] }

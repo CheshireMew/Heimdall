@@ -1,13 +1,15 @@
 import { defineStore } from 'pinia'
 import { marketApi } from './api'
 import { resolveSentimentBucket } from './sentiment'
-import type { MarketIndicatorResponse, OhlcvPointResponse } from '../../types/market'
+import type { MarketIndicatorResponse, OhlcvPointResponse } from './contracts'
 import type { KlineCacheEntry, SentimentCache, SentimentData } from './contracts'
 
 interface MarketState {
   klineCache: Record<string, KlineCacheEntry>
   sentimentCache: SentimentCache
 }
+
+const klineFetchPromises = new Map<string, Promise<OhlcvPointResponse[] | null>>()
 
 export const useMarketStore = defineStore('market', {
   state: (): MarketState => ({
@@ -76,17 +78,26 @@ export const useMarketStore = defineStore('market', {
       }
 
       const fetchPromise = (async (): Promise<OhlcvPointResponse[] | null> => {
-        try {
-          const res = await marketApi.getLatestKlines({ symbol, timeframe, limit })
-          const items = res.data.items || []
-          if (items.length) {
-            this._setKlineCache(key, items)
-            return this._readKlineSlice(items, limit)
+        const fetchKey = `${key}:${limit}`
+        const pending = klineFetchPromises.get(fetchKey)
+        if (pending) return pending
+        const request = (async (): Promise<OhlcvPointResponse[] | null> => {
+          try {
+            const res = await marketApi.getLatestKlines({ symbol, timeframe, limit })
+            const items = res.data.items || []
+            if (items.length) {
+              this._setKlineCache(key, items)
+              return this._readKlineSlice(items, limit)
+            }
+          } catch (e) {
+            console.error('Kline fetch failed', e)
+          } finally {
+            klineFetchPromises.delete(fetchKey)
           }
-        } catch (e) {
-          console.error('Background fetch failed', e)
-        }
-        return null
+          return null
+        })()
+        klineFetchPromises.set(fetchKey, request)
+        return request
       })()
 
       if (cachedData && !forceRefresh) {

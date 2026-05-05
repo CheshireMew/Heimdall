@@ -7,7 +7,7 @@ from sqlalchemy import delete, select
 
 from app.infra.db import DatabaseRuntime
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade, Kline
-from app.services.backtest.run_lifecycle import retention_eligible_run_filters
+from app.infra.persistence.backtest.run_lifecycle import retention_eligible_run_filters
 from config import settings
 from utils.logger import logger
 

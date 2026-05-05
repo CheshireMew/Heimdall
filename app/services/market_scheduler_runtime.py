@@ -6,8 +6,8 @@ import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.infra.db import DatabaseRuntime
-from app.services.data_retention import cleanup_old_data
-from app.services.market_cron import MarketIndicatorCronJob
+from app.infra.persistence.data_retention import cleanup_old_data
+from app.infra.persistence.market_cron import MarketIndicatorCronJob
 from config import settings
 
 logger = logging.getLogger(__name__)

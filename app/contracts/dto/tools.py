@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.schemas.json_types import JsonObject
+from app.contracts.dto.json_types import JsonObject
 
 
 DcaStrategyKey = Literal[

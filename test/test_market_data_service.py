@@ -1,5 +1,5 @@
 from app.services.market.exchange_gateway import ExchangeGateway
-from app.services.market.kline_store import KlineStore
+from app.infra.persistence.market.kline_store import KlineStore
 from app.services.market.market_data_service import MarketDataService
 from config import settings
 

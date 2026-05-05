@@ -9,7 +9,7 @@ from app.contracts.backtest import (
     PaperStartCommand,
 )
 from app.exceptions import BadRequestError, NotFoundError
-from app.schemas.backtest import (
+from app.contracts.dto.backtest import (
     BacktestDeleteResponse,
     BacktestStartResponse,
     PaperStartResponse,
@@ -19,17 +19,17 @@ from app.schemas.backtest import (
     StrategyTemplateResponse,
     StrategyVersionResponse,
 )
-from app.services.backtest.paper_manager import PaperRunManager
-from app.services.backtest.run_repository import BacktestRunRepository
-from app.services.backtest.run_service import BacktestRunService
+from app.infra.persistence.backtest.paper_manager import PaperRunManager
+from app.infra.persistence.backtest.run_repository import BacktestRunRepository
+from app.infra.persistence.backtest.run_service import BacktestRunService
 from app.services.backtest.scripted_template_runtime import template_supports_paper
-from app.services.backtest.strategy_catalog import get_template_runtime_contract
+from app.infra.persistence.backtest.strategy_catalog import get_template_runtime_contract
 from app.services.backtest.strategy_evolution_service import StrategyEvolutionService
-from app.services.backtest.strategy_query_service import StrategyQueryService
+from app.infra.persistence.backtest.strategy_query_service import StrategyQueryService
 from app.services.backtest.strategy_support import (
     build_strategy_version_response_payload,
 )
-from app.services.backtest.strategy_write_service import StrategyWriteService
+from app.infra.persistence.backtest.strategy_write_service import StrategyWriteService
 from app.services.executor import run_sync
 from utils.logger import logger
 

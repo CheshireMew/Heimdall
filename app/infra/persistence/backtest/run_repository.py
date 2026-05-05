@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade
-from app.schemas.backtest import BacktestDetailResponse, BacktestRunResponse
-from app.services.backtest.run_lifecycle import active_run_filters
-from app.services.backtest.serializers import (
+from app.contracts.dto.backtest import BacktestDetailResponse, BacktestRunResponse
+from app.infra.persistence.backtest.run_lifecycle import active_run_filters
+from app.infra.persistence.backtest.serializers import (
     serialize_backtest_equity_point,
     serialize_backtest_run,
     serialize_backtest_signal,

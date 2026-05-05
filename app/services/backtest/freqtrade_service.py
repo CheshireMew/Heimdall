@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from app.schemas.backtest_result import (
+from app.contracts.dto.backtest_result import (
     BacktestReportResponse,
     BacktestPortfolioSummaryResponse,
     BacktestResearchReportResponse,
@@ -10,7 +10,7 @@ from app.schemas.backtest_result import (
     BacktestSampleRangesResponse,
     BacktestStrategySummaryResponse,
 )
-from app.schemas.strategy_contract import StrategyTemplateConfigResponse
+from app.contracts.dto.strategy_contract import StrategyTemplateConfigResponse
 from app.services.backtest.freqtrade_execution import FreqtradeExecutionContext, IterationResult
 from app.services.backtest.freqtrade_execution import FreqtradeIterationExecutor
 from app.services.backtest.freqtrade_research import FreqtradeResearchService

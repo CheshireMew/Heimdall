@@ -5,7 +5,7 @@ from typing import Any
 
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestTrade
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
-from app.services.backtest.result_store import (
+from app.infra.persistence.backtest.result_store import (
     build_signal_rows,
     build_trade_rows,
     equity_point_record_from_row,
@@ -13,9 +13,9 @@ from app.services.backtest.result_store import (
 )
 from app.contracts.backtest import BacktestEquityPointRecord, BacktestSignalRecord, BacktestTradeRecord
 from app.services.backtest.run_contract import update_paper_metadata
-from app.schemas.backtest_result import BacktestRunMetadataResponse
+from app.contracts.dto.backtest_result import BacktestRunMetadataResponse
 
-from .signal_execution_core import FactorSignalExecutionCore, FactorSignalPosition
+from app.services.factors.signal_execution_core import FactorSignalExecutionCore, FactorSignalPosition
 
 
 class FactorPaperPersistenceService:

@@ -5,8 +5,8 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field
 
 from app.contracts.backtest import BacktestPortfolioConfig, BacktestResearchConfig
-from app.schemas.json_types import JsonObject
-from app.schemas.strategy_contract import StrategyTemplateConfigResponse
+from app.contracts.dto.json_types import JsonObject
+from app.contracts.dto.strategy_contract import StrategyTemplateConfigResponse
 
 class BacktestReportSnapshotResponse(BaseModel):
     profit_pct: float | None = None

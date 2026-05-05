@@ -52,7 +52,7 @@ def _build_realtime_service(_ctx: RuntimeBuildContext):
 
 
 def _build_market_indicator_repository(ctx: RuntimeBuildContext):
-    from app.services.market.indicator_repository import MarketIndicatorRepository
+    from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
 
     return MarketIndicatorRepository(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
 
@@ -64,7 +64,7 @@ def _build_indicator_service(ctx: RuntimeBuildContext):
 
 
 def _build_funding_rate_store(ctx: RuntimeBuildContext):
-    from app.services.market.funding_rate_store import FundingRateStore
+    from app.infra.persistence.market.funding_rate_store import FundingRateStore
 
     return FundingRateStore(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
 
@@ -121,14 +121,12 @@ def _build_index_data_service(ctx: RuntimeBuildContext):
     return IndexDataService(kline_store=ctx.require(INFRA_KLINE_STORE))
 
 
-def _build_binance_market_snapshot(_ctx: RuntimeBuildContext):
-    from app.services.market.binance_market_snapshot_service import BinanceMarketSnapshotService
-
-    return BinanceMarketSnapshotService()
+def _build_binance_market_snapshot(ctx: RuntimeBuildContext):
+    return ctx.require(MARKET_BINANCE_MARKET_INTEL).snapshot_service
 
 
 def _build_binance_market_research_store(ctx: RuntimeBuildContext):
-    from app.services.market.binance_market_research_store import BinanceMarketResearchStore
+    from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
 
     return BinanceMarketResearchStore(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
 
@@ -139,7 +137,6 @@ def _build_binance_market_intel(ctx: RuntimeBuildContext):
     return BinanceMarketIntelService(
         research_store=ctx.require(MARKET_BINANCE_MARKET_RESEARCH_STORE),
         funding_rate_store=ctx.require(MARKET_FUNDING_RATE_STORE),
-        snapshot_service=ctx.require(MARKET_BINANCE_MARKET_SNAPSHOT),
         cache_service=ctx.require(INFRA_CACHE_SERVICE),
     )
 
@@ -198,13 +195,10 @@ MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         deps=(INFRA_CACHE_SERVICE,),
     ),
     RuntimeServiceDefinition(
-        MARKET_BINANCE_MARKET_SNAPSHOT,
+        MARKET_BINANCE_MARKET_RESEARCH_STORE,
         frozenset({"api", "background"}),
-        _build_binance_market_snapshot,
-        background_start=start_binance_snapshot,
-        background_stop=shutdown_service,
-        background_start_order=20,
-        background_stop_order=10,
+        _build_binance_market_research_store,
+        deps=(INFRA_DATABASE_RUNTIME,),
     ),
     RuntimeServiceDefinition(
         MARKET_QUERY_APP_SERVICE,
@@ -226,18 +220,11 @@ MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         deps=(INFRA_KLINE_STORE,),
     ),
     RuntimeServiceDefinition(
-        MARKET_BINANCE_MARKET_RESEARCH_STORE,
-        frozenset({"api", "background"}),
-        _build_binance_market_research_store,
-        deps=(INFRA_DATABASE_RUNTIME,),
-    ),
-    RuntimeServiceDefinition(
         MARKET_BINANCE_MARKET_INTEL,
         frozenset({"api", "background"}),
         _build_binance_market_intel,
         deps=(
             INFRA_CACHE_SERVICE,
-            MARKET_BINANCE_MARKET_SNAPSHOT,
             MARKET_BINANCE_MARKET_RESEARCH_STORE,
             MARKET_FUNDING_RATE_STORE,
         ),
@@ -245,6 +232,16 @@ MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         background_stop=shutdown_service,
         background_start_order=25,
         background_stop_order=5,
+    ),
+    RuntimeServiceDefinition(
+        MARKET_BINANCE_MARKET_SNAPSHOT,
+        frozenset({"api", "background"}),
+        _build_binance_market_snapshot,
+        deps=(MARKET_BINANCE_MARKET_INTEL,),
+        background_start=start_binance_snapshot,
+        background_stop=shutdown_service,
+        background_start_order=20,
+        background_stop_order=10,
     ),
     RuntimeServiceDefinition(
         MARKET_BINANCE_WEB3_SERVICE,

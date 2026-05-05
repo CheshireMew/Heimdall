@@ -1,4 +1,4 @@
-import type { StrategyIndicatorConfigResponse } from '../../types/backtest'
+import type { StrategyIndicatorConfigResponse } from './contracts'
 
 import { buildParameterSpaceJson, clone } from './editorContract'
 import { backtestApi } from './api'

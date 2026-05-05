@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.schemas.binance_market import (
+from app.contracts.dto.binance_market import (
     BinanceBookTickerResponse,
     BinanceExchangeInfoResponse,
     BinanceKlineResponse,
@@ -11,7 +11,7 @@ from app.schemas.binance_market import (
 )
 
 from .binance_api_support import BinanceApiSupport, compact_query, encode_symbol_list
-from .binance_market_research_store import BinanceMarketResearchStore
+from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
 from .binance_market_normalizers import normalize_kline_response, normalize_levels, normalize_ticker_item, normalize_trade
 from .binance_numbers import to_float
 

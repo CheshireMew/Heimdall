@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 from app.domain.market.timeframes import timeframe_to_timedelta
-from app.services.market.indicator_repository import MarketIndicatorRepository
+from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
 from app.services.market.market_data_service import MarketDataService
 
 from .contracts import DERIVED_FACTORS, FactorDefinition

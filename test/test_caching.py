@@ -8,7 +8,7 @@ from unittest.mock import patch
 from app.infra.db import build_database_runtime
 from app.infra.db.schema import Base
 from app.services.market.exchange_gateway import ExchangeGateway
-from app.services.market.kline_store import KlineStore
+from app.infra.persistence.market.kline_store import KlineStore
 from app.services.market.market_data_service import MarketDataService
 from app.infra.db.schema import Kline
 from config.settings import AppSettings

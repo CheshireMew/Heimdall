@@ -6,7 +6,7 @@ import { formatAdaptivePrice, formatCompactNumber, formatSignedPercent } from '@
 import { marketApi } from './api'
 import type {
   BinanceWeb3AddressPnlItemResponse,
-} from '../../types/market'
+} from './contracts'
 import { formatScore, sortDirectionIcon } from './binanceMarketShared'
 import { useWeb3HeatRankPanel } from './useWeb3HeatRankPanel'
 import {

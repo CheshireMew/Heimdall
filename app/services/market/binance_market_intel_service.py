@@ -12,8 +12,8 @@ from .binance_usdm_market import BinanceUsdmMarketService
 
 if TYPE_CHECKING:
     from app.infra.cache import RedisService
-    from .binance_market_research_store import BinanceMarketResearchStore
-    from .funding_rate_store import FundingRateStore
+    from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
+    from app.infra.persistence.market.funding_rate_store import FundingRateStore
 
 
 class BinanceMarketIntelService:
@@ -43,7 +43,11 @@ class BinanceMarketIntelService:
             research_store=research_store,
             funding_rate_store=funding_rate_store,
         )
-        self.snapshot_service = snapshot_service or BinanceMarketSnapshotService()
+        self.snapshot_service = snapshot_service or BinanceMarketSnapshotService(
+            spot_ticker_loader=self.spot.get_ticker_24hr,
+            usdm_ticker_loader=self.usdm.get_ticker_24hr,
+            usdm_mark_loader=self.usdm.get_mark_price,
+        )
         self.page = BinanceMarketPageService(
             spot=self.spot,
             usdm=self.usdm,

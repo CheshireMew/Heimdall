@@ -1,6 +1,6 @@
 import { isRecord, readNumber, readString } from '@/composables/pageSnapshot'
 
-import type { DCARequestSchema, ToolsPageContractResponse } from '../../types/tools'
+import type { DCARequestSchema, ToolsPageContractResponse } from './contracts'
 
 export interface DcaPageSnapshot {
   config: DcaPageConfig

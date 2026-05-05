@@ -6,7 +6,7 @@ import { marketApi } from './api'
 import type {
   BinanceBreakoutMonitorItemResponse,
   BinanceContractResearchDetailResponse,
-} from '../../types/market'
+} from './contracts'
 import { toSlashMarketSymbol } from './symbolCatalog'
 import { displaySymbol, type ChartDialogState } from './binanceMarketShared'
 import { useKlineSeries } from './useKlineSeries'

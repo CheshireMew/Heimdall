@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-from app.schemas.strategy_contract import StrategyStateBranchResponse, StrategyTemplateConfigResponse
+from app.contracts.dto.strategy_contract import StrategyStateBranchResponse, StrategyTemplateConfigResponse
 
 
 def build_condition(

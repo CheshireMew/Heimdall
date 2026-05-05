@@ -31,7 +31,7 @@ def normalize_frontend_path(path: str) -> str:
 
 
 def extract_request_calls(source: str) -> list[tuple[str, str]]:
-    pattern = re.compile(r"(request|longTaskRequest)\.(get|post|delete)\(\s*([`'])(.+?)\3", re.DOTALL)
+    pattern = re.compile(r"(request)\.(get|post|delete)\(\s*([`'])(.+?)\3", re.DOTALL)
     return [(client, path) for client, _, _, path in pattern.findall(source)]
 
 
@@ -81,7 +81,10 @@ def test_frontend_api_paths_match_fastapi_routes():
 )
 def test_frontend_long_tasks_use_dedicated_client(file_path: str, route_name: str):
     source = read_frontend(file_path)
-    assert f"longTaskRequest.post(apiRoute('{route_name}'" in source
+    assert f"apiPost('{route_name}'" in source
+    assert "client: 'longTask'" in source
+    assert "longTaskRequest" not in source
+    assert ".post(apiRoute(" not in source
 
 
 def test_page_snapshot_registry_and_helpers_are_stable():
@@ -121,7 +124,7 @@ def test_frontend_business_code_uses_module_contract_boundaries():
         if path.name == "contracts.ts" or path.parent == FRONTEND_DIR / "types":
             continue
         source = path.read_text(encoding="utf-8")
-        if "@/types" in source:
+        if "@/types" in source or re.search(r"from\s+['\"](?:\.\./)+types/", source):
             offenders.append(path.relative_to(FRONTEND_DIR).as_posix())
 
     assert offenders == []

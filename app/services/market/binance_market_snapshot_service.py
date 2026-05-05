@@ -8,7 +8,7 @@ from typing import Any
 
 import websockets
 
-from app.schemas.binance_market import (
+from app.contracts.dto.binance_market import (
     BinanceMarkPriceResponse,
     BinanceMarketSourceSnapshotResponse,
     BinanceTickerStatsResponse,
@@ -22,7 +22,13 @@ MarkPriceLoader = Callable[[], Awaitable[Any]]
 
 
 class BinanceMarketSnapshotService:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        spot_ticker_loader: TickerLoader | None = None,
+        usdm_ticker_loader: TickerLoader | None = None,
+        usdm_mark_loader: MarkPriceLoader | None = None,
+    ) -> None:
         self._spot_ticker: dict[str, dict[str, Any]] = {}
         self._usdm_ticker: dict[str, dict[str, Any]] = {}
         self._usdm_mark: dict[str, dict[str, Any]] = {}
@@ -32,6 +38,9 @@ class BinanceMarketSnapshotService:
         self._tasks: list[asyncio.Task] = []
         self._running = False
         self._reconnect_delay = settings.BINANCE_MARKET_SNAPSHOT_RECONNECT_DELAY
+        self._spot_ticker_loader = spot_ticker_loader
+        self._usdm_ticker_loader = usdm_ticker_loader
+        self._usdm_mark_loader = usdm_mark_loader
 
     async def start(
         self,
@@ -44,9 +53,9 @@ class BinanceMarketSnapshotService:
             return
         self._running = True
         await self.seed(
-            spot_ticker_loader=spot_ticker_loader,
-            usdm_ticker_loader=usdm_ticker_loader,
-            usdm_mark_loader=usdm_mark_loader,
+            spot_ticker_loader=spot_ticker_loader or self._spot_ticker_loader,
+            usdm_ticker_loader=usdm_ticker_loader or self._usdm_ticker_loader,
+            usdm_mark_loader=usdm_mark_loader or self._usdm_mark_loader,
         )
         self._tasks = [
             asyncio.create_task(self._run_spot_ticker_loop(), name="binance-spot-ticker-snapshot"),

@@ -1,4 +1,4 @@
-import type { StrategyTemplateRuntimeResponse } from '../../types/backtest'
+import type { StrategyTemplateRuntimeResponse } from './contracts'
 
 import type { EditorTemplateRuntimeCarrier } from './editorTypes'
 

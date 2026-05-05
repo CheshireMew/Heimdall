@@ -8,7 +8,7 @@ import type {
   StrategyEditorContractResponse,
   StrategyIndicatorEngineResponse,
   StrategyTemplateConfigResponse,
-} from '../../types/backtest'
+} from './contracts'
 import { isStrategyConditionNode, isStrategyGroupNode } from './contracts'
 
 export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))

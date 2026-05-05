@@ -1,5 +1,4 @@
-import { apiDelete, apiGet, apiPost, longTaskRequest } from '@/api/request'
-import { apiRoute } from '@/api/routes'
+import { apiDelete, apiGet, apiPost } from '@/api/request'
 import type { AxiosResponse } from 'axios'
 import type {
   BacktestDetailResponse,
@@ -21,7 +20,7 @@ import type {
   StrategyTemplateCreateRequest,
   StrategyVersionResponse,
   StrategyVersionCreateRequest,
-} from '../../types/backtest'
+} from './contracts'
 
 export const backtestApi = {
   listRuns(): Promise<AxiosResponse<BacktestRunResponse[]>> {
@@ -29,7 +28,7 @@ export const backtestApi = {
   },
 
   startRun(body: BacktestStartRequest): Promise<AxiosResponse<BacktestStartResponse>> {
-    return longTaskRequest.post(apiRoute('start_backtest'), body)
+    return apiPost('start_backtest', body, { client: 'longTask' })
   },
 
   listPaperRuns(): Promise<AxiosResponse<BacktestRunResponse[]>> {
@@ -37,7 +36,7 @@ export const backtestApi = {
   },
 
   startPaperRun(body: PaperStartRequest): Promise<AxiosResponse<PaperStartResponse>> {
-    return longTaskRequest.post(apiRoute('start_paper_run'), body)
+    return apiPost('start_paper_run', body, { client: 'longTask' })
   },
 
   stopPaperRun(runId: number): Promise<AxiosResponse<PaperStopResponse>> {
@@ -85,7 +84,10 @@ export const backtestApi = {
   },
 
   evolveStrategyFromBacktest(backtestId: number, body: StrategyEvolutionRequest): Promise<AxiosResponse<StrategyEvolutionResponse>> {
-    return longTaskRequest.post(apiRoute('evolve_strategy_from_backtest', { backtest_id: backtestId }), body)
+    return apiPost('evolve_strategy_from_backtest', body, {
+      client: 'longTask',
+      path: { backtest_id: backtestId },
+    })
   },
 
   getRun(backtestId: number, page: number = 1, pageSize: number = 100): Promise<AxiosResponse<BacktestDetailResponse>> {

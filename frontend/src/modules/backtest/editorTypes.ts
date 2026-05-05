@@ -16,7 +16,7 @@ import type {
   StrategyTemplateResponse,
   StrategyTemplateRuntimeResponse,
   StrategyVersionResponse,
-} from '../../types/backtest'
+} from './contracts'
 
 import type { createBlankIndicatorDraft, createBlankTemplateDraft, createBlankVersionDraft } from './editorContract'
 import type { BacktestEditorSnapshot } from './pageSnapshots'

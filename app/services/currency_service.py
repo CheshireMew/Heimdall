@@ -6,7 +6,7 @@ from typing import Any
 import httpx
 
 from app.domain.market.symbol_catalog import get_usd_equivalent_symbols
-from app.schemas.market import CurrencyRatesResponse
+from app.contracts.dto.market import CurrencyRatesResponse
 from config import settings
 from utils.logger import logger
 

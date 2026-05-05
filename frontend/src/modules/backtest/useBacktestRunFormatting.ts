@@ -7,7 +7,7 @@ import type {
   BacktestPairBreakdownResponse,
   BacktestRollingWindowResponse,
   StrategyVersionResponse,
-} from '../../types/backtest'
+} from './contracts'
 
 import { asNumber } from '@/modules/format'
 import type {

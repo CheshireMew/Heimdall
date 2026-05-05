@@ -6,7 +6,7 @@ from typing import Any
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import StrategyDefinition, StrategyVersion
 from app.contracts.backtest import StrategyVersionRecord
-from app.schemas.backtest import (
+from app.contracts.dto.backtest import (
     StrategyDefinitionResponse,
     StrategyEditorContractResponse,
     StrategyIndicatorEngineResponse,
@@ -14,7 +14,7 @@ from app.schemas.backtest import (
     StrategyTemplateResponse,
     StrategyVersionResponse,
 )
-from app.services.backtest.strategy_catalog import (
+from app.infra.persistence.backtest.strategy_catalog import (
     get_builtin_strategy_definitions,
     get_indicator_catalog,
     get_indicator_engine_catalog,
@@ -24,7 +24,7 @@ from app.services.backtest.strategy_catalog import (
 from app.contracts.backtest_defaults import backtest_run_defaults
 from app.services.backtest.strategy_editor_contract import editor_contract
 
-from .strategy_support import (
+from app.services.backtest.strategy_support import (
     build_strategy_version_response_payload,
     normalize_strategy_version_config_model,
     normalize_strategy_version_payload,

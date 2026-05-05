@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.exceptions import NotFoundError
-from app.schemas.backtest import (
+from app.contracts.dto.backtest import (
     BacktestDetailResponse,
     BacktestRunResponse,
     StrategyDefinitionResponse,
@@ -10,13 +10,13 @@ from app.schemas.backtest import (
     StrategyIndicatorRegistryResponse,
     StrategyTemplateResponse,
 )
-from app.services.backtest.run_repository import BacktestRunRepository
-from app.services.backtest.strategy_query_service import StrategyQueryService
+from app.infra.persistence.backtest.run_repository import BacktestRunRepository
+from app.infra.persistence.backtest.strategy_query_service import StrategyQueryService
 from app.services.executor import run_sync
 
 
 class BacktestQueryService:
-    """API adapter: async boundary that assembles app.schemas responses from repositories."""
+    """API adapter: async boundary that assembles app.contracts.dto responses from repositories."""
 
     def __init__(
         self,

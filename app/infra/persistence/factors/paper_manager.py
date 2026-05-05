@@ -7,7 +7,7 @@ from app.domain.market.timeframes import timeframe_to_timedelta
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun
 from app.contracts.backtest import BacktestEquityPointRecord, BacktestPortfolioConfig, StrategyVersionRecord
-from app.schemas.factor import FactorExecutionResponse
+from app.contracts.dto.factor import FactorExecutionResponse
 from app.services.backtest.run_contract import (
     FACTOR_BLEND_PAPER_ENGINE,
     PAPER_LIVE_EXECUTION_MODE,
@@ -15,10 +15,10 @@ from app.services.backtest.run_contract import (
     ensure_paper_runtime_state,
     parse_run_metadata,
 )
-from app.services.backtest.run_lifecycle import RUN_STATUS_RUNNING
-from app.services.backtest.run_repository import BacktestRunRepository
+from app.infra.persistence.backtest.run_lifecycle import RUN_STATUS_RUNNING
+from app.infra.persistence.backtest.run_repository import BacktestRunRepository
 from app.services.backtest.strategy_support import blank_strategy_version_config_model
-from app.services.paper_run_lifecycle import PaperRunController, PaperRunHost, PaperRunHostedService
+from app.infra.persistence.paper_run_lifecycle import PaperRunController, PaperRunHost, PaperRunHostedService
 from app.services.executor import run_sync
 from app.contracts.factor import FactorExecutionConfig
 from app.services.factors.signal_execution_core import FactorSignalContext, FactorSignalExecutionCore
@@ -27,7 +27,7 @@ from utils.time_utils import utc_now_naive
 
 if TYPE_CHECKING:
     from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
-    from app.services.factors.paper_persistence_service import FactorPaperPersistenceService
+    from app.infra.persistence.factors.paper_persistence_service import FactorPaperPersistenceService
     from app.services.factors.service import FactorResearchService
 
 class FactorPaperRunManager(PaperRunHostedService):

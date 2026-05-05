@@ -10,7 +10,7 @@ from app.runtime_refs import (
     FACTORS_PAPER_RUN_MANAGER,
     FACTORS_RESEARCH_SERVICE,
 )
-from app.schemas.factor import (
+from app.contracts.dto.factor import (
     FactorCatalogResponse,
     FactorResearchContractResponse,
     FactorExecutionRequest,
@@ -22,8 +22,8 @@ from app.schemas.factor import (
 )
 
 if TYPE_CHECKING:
-    from app.services.factors.execution import FactorExecutionService
-    from app.services.factors.paper_manager import FactorPaperRunManager
+    from app.infra.persistence.factors.execution import FactorExecutionService
+    from app.infra.persistence.factors.paper_manager import FactorPaperRunManager
     from app.services.factors.service import FactorResearchService
 
 

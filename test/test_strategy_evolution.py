@@ -4,11 +4,11 @@ from datetime import datetime
 
 from app.contracts.backtest import EvolveStrategyFromBacktestCommand
 from app.infra.db.schema import BacktestRun, StrategyVersion
-from app.services.backtest.run_repository import BacktestRunRepository
+from app.infra.persistence.backtest.run_repository import BacktestRunRepository
 from app.services.backtest.strategy_evolution_service import StrategyEvolutionService
-from app.services.backtest.strategy_query_service import StrategyQueryService
+from app.infra.persistence.backtest.strategy_query_service import StrategyQueryService
 from app.services.backtest.strategy_support import normalize_strategy_version_config_model
-from app.services.backtest.strategy_write_service import StrategyWriteService
+from app.infra.persistence.backtest.strategy_write_service import StrategyWriteService
 
 
 def _base_config() -> dict:

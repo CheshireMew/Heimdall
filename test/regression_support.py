@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.contracts.backtest_defaults import backtest_run_defaults
-from app.schemas.market import (
+from app.contracts.dto.market import (
     build_market_history_response,
     build_ohlcv_points,
 )

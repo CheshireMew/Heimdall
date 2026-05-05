@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.schemas.market import FundingRateHistoryResponse, FundingRateSnapshotResponse, FundingRateSyncResponse
+from app.contracts.dto.market import FundingRateHistoryResponse, FundingRateSnapshotResponse, FundingRateSyncResponse
 from app.services.executor import run_sync
 from app.services.market.funding_rate_service import FundingRateService
 

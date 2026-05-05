@@ -4,9 +4,9 @@ import asyncio
 from datetime import datetime
 
 from app.infra.db.schema import BacktestRun
-from app.schemas.backtest import BacktestDeleteResponse
-from app.services.backtest.paper_manager import PaperRunManager
-from app.services.backtest.run_repository import BacktestRunRepository
+from app.contracts.dto.backtest import BacktestDeleteResponse
+from app.infra.persistence.backtest.paper_manager import PaperRunManager
+from app.infra.persistence.backtest.run_repository import BacktestRunRepository
 
 
 def test_delete_paper_run_updates_stop_state_and_removes_row(installed_database_runtime):

@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { formatAdaptivePrice, formatCompactCurrency } from '@/modules/format'
-import type { BinanceBreakoutMonitorItemResponse } from '../../types/market'
+import type { BinanceBreakoutMonitorItemResponse } from './contracts'
 import {
   normalizeSnapshot,
   toItemKey,

@@ -55,7 +55,7 @@ echo ======================================================================
 echo.
 echo Next Steps:
 echo   1. Update market_cron.py to use MacroProviderV2
-echo   2. Run: python -m app.services.market_cron
+echo   2. Run: python -m app.infra.persistence.market_cron
 echo   3. Check: python -m scripts.check_indicators
 echo.
 echo See detailed guide: docs\FRED_API_SETUP_GUIDE.md

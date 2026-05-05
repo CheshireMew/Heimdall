@@ -7,7 +7,7 @@ from typing import Any
 from config import settings
 from app.domain.market.prompt_engine import PromptEngine
 from app.domain.market.technical_analysis import TechnicalAnalysis
-from app.schemas.market import IndicatorSummaryResponse, MACDResponse, RealtimeResponse
+from app.contracts.dto.market import IndicatorSummaryResponse, MACDResponse, RealtimeResponse
 from app.services.market.market_data_service import MarketDataService
 
 

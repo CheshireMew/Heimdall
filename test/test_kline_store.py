@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.market.kline_store import KlineStore
+from app.infra.persistence.market.kline_store import KlineStore
 
 
 class FailingSession:

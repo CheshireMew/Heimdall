@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from app.domain.market.symbol_catalog import get_supported_crypto_symbols
-from app.schemas.factor import FactorCatalogResponse
-from app.services.market.indicator_repository import MarketIndicatorRepository
+from app.contracts.dto.factor import FactorCatalogResponse
+from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
 
 from .contracts import (
     DEFAULT_CLEANING,

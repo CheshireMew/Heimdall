@@ -7,6 +7,7 @@ import type {
   MarketSymbolSearchResponse,
   OhlcvPointResponse,
 } from '../../types/market'
+export type * from '../../types/market'
 
 export interface CandlestickData {
   time: number

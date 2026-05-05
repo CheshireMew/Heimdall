@@ -24,14 +24,25 @@ class FakeExchangeGateway:
     exchange_id = "binance"
     max_task_seconds = 60
 
-    def __init__(self, missing_rows: dict[int, list[float]]) -> None:
-        self.missing_rows = missing_rows
-        self.calls: list[tuple[str, str, int | None, int | None]] = []
+    def __init__(self, rows_by_since: dict[int, list[list[float]] | list[float]]) -> None:
+        self.rows_by_since = rows_by_since
+        self.calls: list[tuple[str, str, int | None, int | None, int | None]] = []
 
-    def fetch_ohlcv(self, symbol: str, timeframe: str, since: int | None = None, limit: int | None = None):
-        self.calls.append((symbol, timeframe, since, limit))
-        row = self.missing_rows.get(int(since or 0))
-        return ([row] if row else [], 1)
+    def fetch_ohlcv(
+        self,
+        symbol: str,
+        timeframe: str,
+        since: int | None = None,
+        limit: int | None = None,
+        max_retries: int | None = None,
+    ):
+        self.calls.append((symbol, timeframe, since, limit, max_retries))
+        rows = self.rows_by_since.get(int(since or 0))
+        if not rows:
+            return [], 1
+        if rows and isinstance(rows[0], list):
+            return rows, 1
+        return [rows], 1
 
     def sleep_for_rate_limit(self) -> None:
         return
@@ -63,11 +74,11 @@ def test_load_ohlcv_range_repairs_middle_gap():
     data = result.rows
     assert result.complete
     assert [row[0] for row in data] == [first_row[0], missing_row[0], third_row[0]]
-    assert exchange_gateway.calls == [("BTC/USDT", "1h", missing_row[0], settings.EXCHANGE_FETCH_LIMIT)]
+    assert exchange_gateway.calls == [("BTC/USDT", "1h", missing_row[0], settings.EXCHANGE_FETCH_LIMIT, None)]
     assert kline_store.saved_rows == [missing_row]
 
 
-def test_recent_candles_repairs_database_window_before_returning(monkeypatch):
+def test_recent_candles_uses_bounded_live_refresh_instead_of_gap_hydration(monkeypatch):
     base = datetime(2024, 1, 1, 0, 0, 0)
     one_hour_ms = 60 * 60 * 1000
     base_ts = int(base.timestamp() * 1000)
@@ -78,7 +89,7 @@ def test_recent_candles_repairs_database_window_before_returning(monkeypatch):
     now_ts = base_ts + (3 * one_hour_ms)
     monkeypatch.setattr(market_data_module.time, "time", lambda: now_ts / 1000)
 
-    exchange_gateway = FakeExchangeGateway({missing_row[0]: missing_row})
+    exchange_gateway = FakeExchangeGateway({0: [missing_row]})
     kline_store = FakeKlineStore([first_row, third_row])
     service = MarketDataService(
         exchange_gateway=exchange_gateway,
@@ -88,5 +99,5 @@ def test_recent_candles_repairs_database_window_before_returning(monkeypatch):
     rows = service.get_recent_candles("BTC/USDT", "1h", 3, allow_cached_response=True)
 
     assert [row[0] for row in rows] == [first_row[0], missing_row[0], third_row[0]]
-    assert exchange_gateway.calls[0] == ("BTC/USDT", "1h", missing_row[0], settings.EXCHANGE_FETCH_LIMIT)
+    assert exchange_gateway.calls == [("BTC/USDT", "1h", None, 3, settings.EXCHANGE_TAIL_MAX_RETRIES)]
     assert kline_store.saved_rows == [missing_row]

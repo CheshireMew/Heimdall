@@ -5,7 +5,7 @@ from copy import deepcopy
 from itertools import islice, product
 from typing import Any
 
-from app.schemas.strategy_contract import (
+from app.contracts.dto.strategy_contract import (
     StrategyConditionNodeResponse,
     StrategyGroupNodeResponse,
     StrategyIndicatorConfigResponse,
@@ -29,7 +29,7 @@ from app.services.backtest.freqtrade_strategy_runtime import (
 from app.services.backtest.indicator_engines import (
     indicator_engine_definition,
 )
-from app.services.backtest.strategy_catalog import get_indicator_registry_map
+from app.infra.persistence.backtest.strategy_catalog import get_indicator_registry_map
 from app.services.backtest.strategy_config_normalizer import normalize_strategy_identifier
 from app.services.backtest.strategy_rule_tree import set_by_path, strategy_branch
 from app.services.backtest.strategy_runtime import StrategyRuntime

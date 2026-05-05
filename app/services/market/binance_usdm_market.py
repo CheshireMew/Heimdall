@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Callable
 
-from app.schemas.binance_market import (
+from app.contracts.dto.binance_market import (
     BinanceBasisResponse,
     BinanceContractResearchDetailResponse,
     BinanceExchangeInfoResponse,
@@ -33,8 +33,8 @@ from .binance_market_normalizers import (
     normalize_taker_volume,
 )
 from .binance_numbers import to_float, to_int
-from .binance_market_research_store import BinanceMarketResearchStore
-from .funding_rate_store import FundingRateStore
+from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
+from app.infra.persistence.market.funding_rate_store import FundingRateStore
 
 
 class BinanceUsdmMarketService:

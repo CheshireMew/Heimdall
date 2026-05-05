@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.contracts.backtest import BacktestPortfolioConfig, BacktestResearchConfig, StrategyVersionRecord
-from app.schemas.backtest_result import (
+from app.contracts.dto.backtest_result import (
     BacktestPaperLiveResponse,
     BacktestRunMetadataResponse,
     BacktestRuntimeStateResponse,

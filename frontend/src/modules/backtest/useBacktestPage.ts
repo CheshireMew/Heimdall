@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
 import { addDaysToLocalIsoDate, todayLocalIsoDate } from '@/utils/localDate'
-import type { BacktestRunResponse, StrategyDefinitionResponse, StrategyEditorContractResponse, StrategyVersionResponse } from '../../types/backtest'
+import type { BacktestRunResponse, StrategyDefinitionResponse, StrategyEditorContractResponse, StrategyVersionResponse } from './contracts'
 import { backtestApi } from './api'
 import {
   applyBacktestPageSnapshot,

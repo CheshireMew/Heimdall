@@ -23,7 +23,7 @@ def _build_sentiment_api_client(_ctx: RuntimeBuildContext):
 
 
 def _build_sentiment_repository(ctx: RuntimeBuildContext):
-    from app.services.sentiment_repository import SentimentRepository
+    from app.infra.persistence.sentiment_repository import SentimentRepository
 
     return SentimentRepository(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
 

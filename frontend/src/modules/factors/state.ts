@@ -11,7 +11,7 @@ import type {
   FactorResearchRunListItemResponse,
   FactorResearchSummaryResponse,
   FactorScorecardResponse,
-} from '../../types/factor'
+} from './contracts'
 
 export type FactorResearchForm = Required<FactorResearchRequest>
 export type FactorExecutionForm = Required<FactorExecutionRequest>

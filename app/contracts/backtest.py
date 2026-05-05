@@ -66,8 +66,7 @@ class BacktestSignalRecord:
     reasoning: str | None = None
 
 
-@dataclass(slots=True)
-class BacktestTradeRecord:
+class BacktestTradeRecord(BaseModel):
     opened_at: datetime
     closed_at: datetime | None
     entry_price: float
@@ -85,8 +84,7 @@ class BacktestTradeRecord:
     side: str = "long"
 
 
-@dataclass(slots=True)
-class BacktestEquityPointRecord:
+class BacktestEquityPointRecord(BaseModel):
     timestamp: datetime
     equity: float
     pnl_abs: float

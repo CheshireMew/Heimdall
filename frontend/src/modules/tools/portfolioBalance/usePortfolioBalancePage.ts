@@ -4,7 +4,7 @@ import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/
 import { backtestApi } from '@/modules/backtest'
 import { toBaseSymbol } from '@/modules/market'
 import { todayLocalIsoDate } from '@/utils/localDate'
-import type { BacktestRunResponse } from '../../../types/backtest'
+import type { BacktestRunResponse } from '@/modules/backtest/contracts'
 import type { PortfolioBacktestSummary, PortfolioBalancePortfolio } from './model'
 
 import { buildPortfolioBacktestSummary } from './backtest'

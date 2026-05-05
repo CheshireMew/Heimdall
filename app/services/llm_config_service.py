@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-from app.schemas.config import LlmProviderConfigResponse, LlmProviderPresetResponse
+from app.contracts.dto.config import LlmProviderConfigResponse, LlmProviderPresetResponse
+from app.services.config_file import mask_secret, read_json_object, write_json_object
 from config import settings
 
 
@@ -80,7 +80,7 @@ class LlmConfigService:
         ]
 
     def read_config(self) -> LlmProviderConfigResponse:
-        raw = self._read_raw_config()
+        raw = read_json_object(self.config_path)
         provider = self._resolve_provider(raw.get("provider"))
         preset = LLM_PROVIDER_PRESETS[provider]
         reasoning_enabled = bool(raw.get("reasoningEnabled", settings.AI_MODEL == "deepseek-reasoner"))
@@ -96,7 +96,7 @@ class LlmConfigService:
             "provider": provider,
             "apiKey": "",
             "apiKeySet": bool(api_key),
-            "apiKeyPreview": self._mask_api_key(api_key),
+            "apiKeyPreview": mask_secret(api_key),
             "baseUrl": base_url,
             "modelId": model_id,
             "reasoningEnabled": reasoning_enabled if provider == "deepseek" else False,
@@ -104,7 +104,7 @@ class LlmConfigService:
         })
 
     def read_effective_config(self) -> dict[str, Any]:
-        raw = self._read_raw_config()
+        raw = read_json_object(self.config_path)
         provider = self._resolve_provider(raw.get("provider"))
         preset = LLM_PROVIDER_PRESETS[provider]
         reasoning_enabled = bool(raw.get("reasoningEnabled", settings.AI_MODEL == "deepseek-reasoner"))
@@ -126,7 +126,7 @@ class LlmConfigService:
         }
 
     def save_config(self, payload: dict[str, Any]) -> LlmProviderConfigResponse:
-        existing = self._read_raw_config()
+        existing = read_json_object(self.config_path)
         provider = self._resolve_provider(payload.get("provider"))
         preset = LLM_PROVIDER_PRESETS[provider]
         reasoning_enabled = bool(payload.get("reasoningEnabled")) if provider == "deepseek" else False
@@ -149,8 +149,7 @@ class LlmConfigService:
             "modelId": model_id,
             "reasoningEnabled": reasoning_enabled,
         }
-        self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        self.config_path.write_text(json.dumps(saved, ensure_ascii=False, indent=2), encoding="utf-8")
+        write_json_object(self.config_path, saved)
         return self.read_config()
 
     def _resolve_provider(self, value: Any) -> str:
@@ -160,20 +159,3 @@ class LlmConfigService:
         if provider == "deepseek" and reasoning_enabled:
             return "deepseek-reasoner"
         return str(LLM_PROVIDER_PRESETS[provider]["defaultModel"])
-
-    def _read_raw_config(self) -> dict[str, Any]:
-        if not self.config_path.exists():
-            return {}
-        try:
-            data = json.loads(self.config_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return {}
-        return data if isinstance(data, dict) else {}
-
-    def _mask_api_key(self, api_key: str) -> str:
-        key = str(api_key or "").strip()
-        if not key:
-            return ""
-        if len(key) <= 8:
-            return key[:2] + "*" * max(len(key) - 4, 1) + key[-2:]
-        return f"{key[:4]}{'*' * 8}{key[-4:]}"

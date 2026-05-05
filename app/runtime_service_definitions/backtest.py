@@ -18,7 +18,7 @@ from app.runtime_refs import (
 
 
 def _build_backtest_run_repository(ctx: RuntimeBuildContext):
-    from app.services.backtest.run_repository import BacktestRunRepository
+    from app.infra.persistence.backtest.run_repository import BacktestRunRepository
 
     return BacktestRunRepository(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
 
@@ -30,7 +30,7 @@ def _build_freqtrade_backtest_service(ctx: RuntimeBuildContext):
 
 
 def _build_backtest_run_service(ctx: RuntimeBuildContext):
-    from app.services.backtest.run_service import BacktestRunService
+    from app.infra.persistence.backtest.run_service import BacktestRunService
 
     return BacktestRunService(
         execution_engine=ctx.require(BACKTEST_FREQTRADE_SERVICE),
@@ -39,13 +39,13 @@ def _build_backtest_run_service(ctx: RuntimeBuildContext):
 
 
 def _build_strategy_query_service(ctx: RuntimeBuildContext):
-    from app.services.backtest.strategy_query_service import StrategyQueryService
+    from app.infra.persistence.backtest.strategy_query_service import StrategyQueryService
 
     return StrategyQueryService(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
 
 
 def _build_strategy_write_service(ctx: RuntimeBuildContext):
-    from app.services.backtest.strategy_write_service import StrategyWriteService
+    from app.infra.persistence.backtest.strategy_write_service import StrategyWriteService
 
     return StrategyWriteService(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
 
@@ -57,7 +57,7 @@ def _build_freqtrade_report_builder(_ctx: RuntimeBuildContext):
 
 
 def _build_paper_run_manager(ctx: RuntimeBuildContext):
-    from app.services.backtest.paper_manager import PaperRunManager
+    from app.infra.persistence.backtest.paper_manager import PaperRunManager
 
     return PaperRunManager(
         strategy_query_service=ctx.require(BACKTEST_STRATEGY_QUERY_SERVICE),

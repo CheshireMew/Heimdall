@@ -45,12 +45,14 @@ const createClient = (timeout: number): AxiosInstance => attachInterceptors(
     })
 )
 
-const service: AxiosInstance = createClient(15000)
-export const longTaskRequest: AxiosInstance = createClient(0)
+const apiClients = {
+    default: createClient(15000),
+    longTask: createClient(0),
+} as const
 
-type ApiClient = AxiosInstance
+type ApiClientName = keyof typeof apiClients
 type ApiOptions = Omit<AxiosRequestConfig, 'params' | 'url' | 'method'> & {
-    client?: ApiClient
+    client?: ApiClientName
     path?: RouteParams
     query?: ApiQueryShape
 }
@@ -68,7 +70,7 @@ const buildRequestConfig = (name: ApiRouteName, options: ApiOptions = {}): Axios
     } as AxiosRequestConfig
 }
 
-const resolveClient = (options: ApiOptions = {}) => options.client || service
+const resolveClient = (options: ApiOptions = {}) => apiClients[options.client || 'default']
 
 export const apiGet = <TResponse = unknown>(
     name: ApiRouteName,
@@ -103,5 +105,3 @@ export const apiDelete = <TResponse = unknown>(
     const endpoint = apiEndpoint(name, options.path)
     return resolveClient(options).delete<TResponse>(endpoint.url, buildRequestConfig(name, options))
 }
-
-export default service

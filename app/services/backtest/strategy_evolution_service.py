@@ -4,26 +4,26 @@ from copy import deepcopy
 from typing import Any
 
 from app.contracts.backtest import EvolveStrategyFromBacktestCommand
-from app.schemas.backtest import (
+from app.contracts.dto.backtest import (
     StrategyEvolutionChangeResponse,
     StrategyEvolutionDefectResponse,
     StrategyEvolutionResponse,
     StrategyVersionResponse,
 )
-from app.schemas.backtest_result import (
+from app.contracts.dto.backtest_result import (
     BacktestReportResponse,
     BacktestReportSnapshotResponse,
     BacktestResearchReportResponse,
 )
-from app.services.backtest.run_repository import BacktestRunRepository
+from app.infra.persistence.backtest.run_repository import BacktestRunRepository
 from app.services.backtest.scripted_template_runtime import template_supports_version_editing
-from app.services.backtest.strategy_catalog import get_template_runtime_contract
-from app.services.backtest.strategy_query_service import StrategyQueryService
+from app.infra.persistence.backtest.strategy_catalog import get_template_runtime_contract
+from app.infra.persistence.backtest.strategy_query_service import StrategyQueryService
 from app.services.backtest.strategy_support import (
     build_strategy_version_response_payload,
     normalize_strategy_version_config_model,
 )
-from app.services.backtest.strategy_write_service import StrategyWriteService
+from app.infra.persistence.backtest.strategy_write_service import StrategyWriteService
 
 
 class StrategyEvolutionService:

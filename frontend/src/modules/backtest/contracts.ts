@@ -9,6 +9,7 @@ import type {
   StrategyRoiTargetResponse,
   StrategyTemplateConfigResponse,
 } from '../../types/backtest'
+export type * from '../../types/backtest'
 
 type StrategyConditionNode = StrategyConditionNodeResponse
 type StrategyGroupNodeContract = StrategyGroupNodeResponse

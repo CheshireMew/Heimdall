@@ -10,7 +10,7 @@ import type {
   StrategyIndicatorRegistryResponse,
   StrategyTemplateResponse,
   StrategyVersionResponse,
-} from '../../types/backtest'
+} from './contracts'
 
 import type { BacktestEditorSeedPanel, BacktestVersionEditorPanel, StrategySelectionConfig } from './editorTypes'
 import {

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from app.dependencies import runtime_dependency
 from app.runtime_refs import MARKET_FUNDING_RATE_APP_SERVICE
 from app.rate_limit import limiter
-from app.schemas.market import FundingRateHistoryResponse, FundingRateSnapshotResponse, FundingRateSyncResponse
+from app.contracts.dto.market import FundingRateHistoryResponse, FundingRateSnapshotResponse, FundingRateSyncResponse
 from config import settings
 
 if TYPE_CHECKING:

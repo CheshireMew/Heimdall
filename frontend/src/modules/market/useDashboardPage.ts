@@ -2,7 +2,7 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
 import { useMoney } from '@/composables/useMoney'
 import { useTheme } from '@/composables/useTheme'
-import type { MarketSymbolSearchResponse, TradeSetupResponse } from '../../types/market'
+import type { MarketSymbolSearchResponse, TradeSetupResponse } from './contracts'
 
 import { ensureSymbolCatalogLoaded, findSymbolCatalogItem, isIndexSymbol } from './symbolCatalog'
 import { marketApi } from './api'

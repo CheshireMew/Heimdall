@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from app.infra.cache import RedisService
 from app.domain.market.symbol_catalog import get_supported_crypto_symbols, resolve_market_asset
-from app.schemas.tools import DCAResponse, PairCompareToolResponse
+from app.contracts.dto.tools import DCAResponse, PairCompareToolResponse
 from app.services.executor import run_sync
 from app.services.tools.contracts import ComparePairsCommand, SimulateDcaCommand
 from app.services.tools.dca_service import DCAService

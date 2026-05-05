@@ -12,14 +12,29 @@ import app.main as main_module
 import app.web as web_module
 import app.background_runtime as background_runtime_module
 from app.exceptions import unhandled_exception_handler
-from app.runtime import (
-    AppRuntimeServices,
-    BacktestRuntime,
-    FactorRuntime,
-    InfraRuntime,
-    MarketRuntime,
-    SystemRuntime,
-    ToolsRuntime,
+from app.runtime import AppRuntimeServices
+from app.runtime_refs import (
+    BACKTEST_FREQTRADE_SERVICE,
+    BACKTEST_PAPER_RUN_MANAGER,
+    BACKTEST_REPORT_BUILDER,
+    BACKTEST_RUN_REPOSITORY,
+    BACKTEST_STRATEGY_QUERY_SERVICE,
+    FACTORS_PAPER_PERSISTENCE_SERVICE,
+    FACTORS_PAPER_RUN_MANAGER,
+    FACTORS_RESEARCH_REPOSITORY,
+    FACTORS_RESEARCH_SERVICE,
+    FACTORS_SIGNAL_EXECUTION_CORE,
+    INFRA_CACHE_SERVICE,
+    INFRA_DATABASE_RUNTIME,
+    INFRA_EXCHANGE_GATEWAY,
+    INFRA_KLINE_STORE,
+    MARKET_BINANCE_MARKET_INTEL,
+    MARKET_BINANCE_MARKET_RESEARCH_STORE,
+    MARKET_BINANCE_MARKET_SNAPSHOT,
+    MARKET_FUNDING_RATE_STORE,
+    MARKET_INDICATOR_REPOSITORY,
+    MARKET_MARKET_DATA_SERVICE,
+    SYSTEM_MARKET_SCHEDULER_RUNTIME,
 )
 
 
@@ -82,38 +97,29 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
     monkeypatch.setattr(
         lifecycle_module,
         "build_app_runtime_services",
-        lambda: AppRuntimeServices(
-            infra=InfraRuntime(
-                exchange_gateway=object(),
-                database_runtime=FakeDatabaseRuntime(),
-                kline_store=object(),
-                cache_service=object(),
-            ),
-            market=MarketRuntime(
-                market_data_service=object(),
-                market_indicator_repository=object(),
-                funding_rate_store=object(),
-                binance_market_snapshot=snapshot,
-                binance_market_intel=binance_market,
-                binance_market_research_store=object(),
-            ),
-            tools=ToolsRuntime(),
-            backtest=BacktestRuntime(
-                backtest_run_repository=object(),
-                freqtrade_backtest_service=object(),
-                strategy_query_service=object(),
-                freqtrade_report_builder=object(),
-                paper_run_manager=paper_manager,
-            ),
-            factors=FactorRuntime(
-                factor_research_repository=object(),
-                factor_research_service=object(),
-                factor_signal_execution_core=object(),
-                factor_paper_persistence_service=object(),
-                factor_paper_run_manager=factor_manager,
-            ),
-            system=SystemRuntime(market_scheduler_runtime=FakeSchedulerRuntime()),
-        ),
+        lambda: AppRuntimeServices.from_entries({
+            INFRA_EXCHANGE_GATEWAY: object(),
+            INFRA_DATABASE_RUNTIME: FakeDatabaseRuntime(),
+            INFRA_KLINE_STORE: object(),
+            INFRA_CACHE_SERVICE: object(),
+            MARKET_MARKET_DATA_SERVICE: object(),
+            MARKET_INDICATOR_REPOSITORY: object(),
+            MARKET_FUNDING_RATE_STORE: object(),
+            MARKET_BINANCE_MARKET_SNAPSHOT: snapshot,
+            MARKET_BINANCE_MARKET_INTEL: binance_market,
+            MARKET_BINANCE_MARKET_RESEARCH_STORE: object(),
+            BACKTEST_RUN_REPOSITORY: object(),
+            BACKTEST_FREQTRADE_SERVICE: object(),
+            BACKTEST_STRATEGY_QUERY_SERVICE: object(),
+            BACKTEST_REPORT_BUILDER: object(),
+            BACKTEST_PAPER_RUN_MANAGER: paper_manager,
+            FACTORS_RESEARCH_REPOSITORY: object(),
+            FACTORS_RESEARCH_SERVICE: object(),
+            FACTORS_SIGNAL_EXECUTION_CORE: object(),
+            FACTORS_PAPER_PERSISTENCE_SERVICE: object(),
+            FACTORS_PAPER_RUN_MANAGER: factor_manager,
+            SYSTEM_MARKET_SCHEDULER_RUNTIME: FakeSchedulerRuntime(),
+        }),
     )
     monkeypatch.setattr(
         background_runtime_module._ProcessFileLock, "acquire", lambda self: True

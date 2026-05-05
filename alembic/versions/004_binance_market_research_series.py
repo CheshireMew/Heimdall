@@ -9,6 +9,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
+from alembic_support import create_index_if_missing, has_table
 
 revision: str = "004_market_research_series"
 down_revision: Union[str, None] = "003_current_schema"
@@ -16,29 +17,8 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def _inspector() -> sa.Inspector:
-    return sa.inspect(op.get_bind())
-
-
-def _has_table(table: str) -> bool:
-    return table in set(_inspector().get_table_names())
-
-
-def _has_index(table: str, index: str) -> bool:
-    if not _has_table(table):
-        return False
-    return index in {item["name"] for item in _inspector().get_indexes(table)}
-
-
-def _create_index_if_missing(
-    name: str, table: str, columns: list[str], *, unique: bool = False
-) -> None:
-    if not _has_index(table, name):
-        op.create_index(name, table, columns, unique=unique)
-
-
 def upgrade() -> None:
-    if not _has_table("binance_market_research_series"):
+    if not has_table("binance_market_research_series"):
         op.create_table(
             "binance_market_research_series",
             sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -53,13 +33,13 @@ def upgrade() -> None:
             sa.Column("created_at", sa.DateTime(), nullable=False),
             sa.PrimaryKeyConstraint("id"),
         )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_binance_market_research_unique",
         "binance_market_research_series",
         ["market", "series", "symbol", "period", "contract_type", "item_key"],
         unique=True,
     )
-    _create_index_if_missing(
+    create_index_if_missing(
         "ix_binance_market_research_lookup",
         "binance_market_research_series",
         ["market", "series", "symbol", "period", "contract_type", "timestamp"],
@@ -67,7 +47,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    if _has_table("binance_market_research_series"):
+    if has_table("binance_market_research_series"):
         op.drop_index("ix_binance_market_research_lookup", table_name="binance_market_research_series")
         op.drop_index("ix_binance_market_research_unique", table_name="binance_market_research_series")
         op.drop_table("binance_market_research_series")

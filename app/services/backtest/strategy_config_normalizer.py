@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.domain.market.timeframes import timeframe_to_minutes
-from app.schemas.strategy_contract import StrategyTemplateConfigResponse
+from app.contracts.dto.strategy_contract import StrategyTemplateConfigResponse
 from app.services.backtest.strategy_contract_options import (
     PRICE_SOURCE_FIELDS,
     RUN_TIMEFRAME_KEYS,

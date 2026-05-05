@@ -8,7 +8,7 @@ import type {
   BinanceWeb3TokenAuditResponse,
   BinanceWeb3TokenDynamicResponse,
   BinanceWeb3TokenKlineItemResponse,
-} from '../../types/market'
+} from './contracts'
 import { marketApi } from './api'
 import type { CandlestickData, VolumeData } from './contracts'
 import { restoreWeb3HeatRankWarmSnapshot, saveWeb3HeatRankWarmSnapshot } from './web3MarketWarmSnapshot'

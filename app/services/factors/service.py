@@ -5,13 +5,13 @@ from typing import Any
 
 from app.domain.market.symbol_catalog import get_supported_crypto_symbols
 from app.exceptions import NotFoundError
-from app.schemas.factor import (
+from app.contracts.dto.factor import (
     FactorCatalogResponse,
     FactorResearchResponse,
     FactorResearchRunDetailResponse,
     FactorResearchRunListItemResponse,
 )
-from app.services.market.indicator_repository import MarketIndicatorRepository
+from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
 from app.services.market.market_data_service import MarketDataService
 from app.services.executor import run_sync
 
@@ -21,7 +21,7 @@ from .contracts import DEFAULT_CLEANING, DEFAULT_FORWARD_HORIZONS, SUPPORTED_TIM
 from .dataset_service import FactorDatasetService
 from .frame_builder import FactorFrameBuilder
 from .math_utils import FactorMath
-from .repository import FactorResearchRepository
+from app.infra.persistence.factors.repository import FactorResearchRepository
 
 
 class FactorResearchService:

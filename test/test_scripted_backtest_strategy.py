@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.schemas.backtest import PaperStartResponse
+from app.contracts.dto.backtest import PaperStartResponse
 from app.services.backtest.command_service import BacktestCommandService
 from app.contracts.backtest import PaperStartCommand
 from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBuilder

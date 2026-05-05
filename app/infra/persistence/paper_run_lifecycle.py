@@ -5,7 +5,7 @@ from typing import Any
 
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestRun
-from app.services.backtest.run_lifecycle import RUN_STATUS_FAILED
+from app.infra.persistence.backtest.run_lifecycle import RUN_STATUS_FAILED
 from app.services.executor import run_sync
 from app.services.run_task_manager import RunTaskManager
 from app.services.backtest.run_contract import PAPER_LIVE_EXECUTION_MODE, parse_run_metadata, update_paper_metadata

@@ -5,7 +5,7 @@ from datetime import datetime
 from fastapi import APIRouter
 
 from app.domain.market.symbol_catalog import list_market_search_items
-from app.schemas.market import ApiStatusResponse, MarketSymbolSearchResponse
+from app.contracts.dto.market import ApiStatusResponse, MarketSymbolSearchResponse
 
 router = APIRouter(tags=["Market Data"])
 

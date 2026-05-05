@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useTheme } from '@/composables/useTheme'
-import type { BacktestRunResponse, StrategyDefinitionResponse, StrategyEvolutionResponse, StrategyVersionResponse } from '../../types/backtest'
+import type { BacktestRunResponse, StrategyDefinitionResponse, StrategyEvolutionResponse, StrategyVersionResponse } from './contracts'
 
 import { backtestApi } from './api'
 import { profitColorClass } from './selection'

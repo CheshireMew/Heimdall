@@ -1,4 +1,4 @@
-import type { BinanceWeb3HeatRankItemResponse } from '../../types/market'
+import type { BinanceWeb3HeatRankItemResponse } from './contracts'
 import type { SortDirection } from './binanceMarketShared'
 
 export type Web3HeatRankSortField = 'heat_score' | 'percent_change_24h' | 'market_cap' | 'liquidity'

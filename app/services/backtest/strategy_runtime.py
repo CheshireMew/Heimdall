@@ -6,7 +6,7 @@ from typing import Any
 
 import pandas as pd
 
-from app.schemas.strategy_contract import (
+from app.contracts.dto.strategy_contract import (
     StrategyConditionNodeResponse,
     StrategyGroupNodeResponse,
     StrategyIndicatorConfigResponse,
@@ -18,7 +18,7 @@ from app.services.backtest.scripted_template_runtime import get_template_runtime
 from app.services.backtest.indicator_engines import (
     indicator_engine_definition,
 )
-from app.services.backtest.strategy_catalog import get_indicator_registry_map, get_template_spec
+from app.infra.persistence.backtest.strategy_catalog import get_indicator_registry_map, get_template_spec
 from app.services.backtest.strategy_config_normalizer import (
     allowed_run_timeframes,
     explicit_indicator_timeframes,

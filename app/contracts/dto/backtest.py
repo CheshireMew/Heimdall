@@ -5,25 +5,27 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.schemas.strategy_contract import (
+from app.contracts.dto.strategy_contract import (
     StrategyConditionNodeResponse,
     StrategyGroupNodeResponse,
     StrategyIndicatorOutputResponse,
     StrategyIndicatorParamResponse,
     StrategyTemplateConfigResponse,
 )
-from app.schemas.json_types import JsonObject, JsonValue
+from app.contracts.dto.json_types import JsonObject, JsonValue
 from app.contracts.backtest import (
     BacktestPortfolioConfig,
     BacktestResearchConfig,
+    BacktestEquityPointRecord,
     BacktestStartCommand,
+    BacktestTradeRecord,
     CreateIndicatorDefinitionCommand,
     CreateStrategyTemplateCommand,
     CreateStrategyVersionCommand,
     EvolveStrategyFromBacktestCommand,
     PaperStartCommand,
 )
-from app.schemas.backtest_result import (
+from app.contracts.dto.backtest_result import (
     BacktestReportResponse,
     BacktestRunMetadataContractResponse,
 )
@@ -141,30 +143,16 @@ class BacktestSignalResponse(BaseModel):
     reasoning: str | None = None
 
 
-class BacktestTradeResponse(BaseModel):
+class BacktestTradeResponse(BacktestTradeRecord):
     id: int
     pair: str
     opened_at: str | None
     closed_at: str | None
-    entry_price: float
-    exit_price: float | None
-    stake_amount: float
-    amount: float
-    profit_abs: float
-    profit_pct: float
-    max_drawdown_pct: float | None = None
-    duration_minutes: int | None = None
-    entry_tag: str | None = None
-    exit_reason: str | None = None
-    leverage: float
 
 
-class BacktestEquityPointResponse(BaseModel):
+class BacktestEquityPointResponse(BacktestEquityPointRecord):
     id: int
     timestamp: str | None
-    equity: float
-    pnl_abs: float
-    drawdown_pct: float
 
 
 class BacktestRunResponse(BaseModel):

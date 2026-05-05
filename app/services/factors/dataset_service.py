@@ -12,7 +12,7 @@ from app.domain.market.timeframes import timeframe_to_timedelta
 from .contracts import DATASET_SCHEMA_VERSION, DEFAULT_FORWARD_HORIZONS, FactorDefinition
 from .frame_builder import FactorFrameBuilder
 from .math_utils import FactorMath
-from .repository import FactorResearchRepository
+from app.infra.persistence.factors.repository import FactorResearchRepository
 
 
 class FactorDatasetService:

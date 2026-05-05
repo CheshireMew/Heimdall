@@ -24,6 +24,3 @@ const props = defineProps<{ panel: BacktestVersionEditorPanel }>()
 const panel = props.panel
 </script>
 
-<style scoped>
-.btn-primary { @apply bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-bold transition disabled:opacity-50; }
-</style>

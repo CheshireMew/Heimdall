@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from app.schemas.market import IndicatorHistoryPoint, MarketIndicatorResponse
-from app.services.market.indicator_repository import MarketIndicatorRepository
+from app.contracts.dto.market import IndicatorHistoryPoint, MarketIndicatorResponse
+from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
 
 
 class IndicatorService:

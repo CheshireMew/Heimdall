@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from app.services.market.funding_rate_store import FundingRateStore
+from app.infra.persistence.market.funding_rate_store import FundingRateStore
 from utils.logger import logger
 
 

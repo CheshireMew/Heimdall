@@ -5,19 +5,19 @@ from typing import Any
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import StrategyDefinition, StrategyVersion
 from app.contracts.backtest import StrategyVersionRecord
-from app.schemas.backtest import (
+from app.contracts.dto.backtest import (
     StrategyIndicatorRegistryResponse,
     StrategyTemplateResponse,
 )
 from app.services.backtest.scripted_template_runtime import template_supports_version_editing
-from app.services.backtest.strategy_catalog import (
+from app.infra.persistence.backtest.strategy_catalog import (
     create_indicator_definition,
     create_template_definition,
     get_builtin_strategy_definitions,
     get_template_runtime_contract,
 )
 
-from .strategy_support import normalize_strategy_version_config_model, normalize_strategy_version_payload
+from app.services.backtest.strategy_support import normalize_strategy_version_config_model, normalize_strategy_version_payload
 
 
 class StrategyWriteService:

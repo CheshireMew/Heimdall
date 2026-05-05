@@ -7,7 +7,7 @@ import type {
   LlmProviderConfigResponse,
   LlmProviderConfigUpdateRequest,
   SystemConfigResponse,
-} from '../../types/config'
+} from './contracts'
 
 export const systemApi = {
   getConfig(): Promise<AxiosResponse<SystemConfigResponse>> {

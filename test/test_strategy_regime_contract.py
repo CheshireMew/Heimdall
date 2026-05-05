@@ -5,16 +5,16 @@ import pytest
 
 from app.infra.db.database import build_database_runtime
 from app.infra.db.schema import Base, StrategyDefinition, StrategyVersion
-from app.schemas.backtest import StrategyDefinitionResponse, StrategyVersionResponse
-from app.schemas.strategy_contract import StrategyTemplateConfigResponse
-from app.services.backtest.strategy_catalog import get_template_spec
+from app.contracts.dto.backtest import StrategyDefinitionResponse, StrategyVersionResponse
+from app.contracts.dto.strategy_contract import StrategyTemplateConfigResponse
+from app.infra.persistence.backtest.strategy_catalog import get_template_spec
 from app.services.backtest.strategy_config_normalizer import (
     blank_strategy_config,
     normalize_strategy_config,
     normalize_strategy_config_model,
 )
 from app.services.backtest.strategy_rule_tree import build_condition, build_group
-from app.services.backtest.strategy_query_service import StrategyQueryService
+from app.infra.persistence.backtest.strategy_query_service import StrategyQueryService
 from app.services.backtest.strategy_support import (
     build_strategy_version_response_payload,
 )

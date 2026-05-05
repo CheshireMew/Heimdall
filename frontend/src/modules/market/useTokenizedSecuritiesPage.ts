@@ -8,7 +8,7 @@ import type {
   BinanceRwaMarketStatusResponse,
   BinanceRwaMetaResponse,
   BinanceRwaSymbolItemResponse,
-} from '../../types/market'
+} from './contracts'
 
 export function useTokenizedSecuritiesPage() {
   const loading = ref(false)

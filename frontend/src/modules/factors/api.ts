@@ -1,5 +1,4 @@
-import { apiGet, longTaskRequest } from '@/api/request'
-import { apiRoute } from '@/api/routes'
+import { apiGet, apiPost } from '@/api/request'
 import type { AxiosResponse } from 'axios'
 import type {
   FactorCatalogResponse,
@@ -10,7 +9,7 @@ import type {
   FactorResearchResponse,
   FactorResearchRunDetailResponse,
   FactorResearchRunListItemResponse,
-} from '../../types/factor'
+} from './contracts'
 
 export const factorApi = {
   getContract(): Promise<AxiosResponse<FactorResearchContractResponse>> {
@@ -22,7 +21,7 @@ export const factorApi = {
   },
 
   analyze(body: FactorResearchRequest): Promise<AxiosResponse<FactorResearchResponse>> {
-    return longTaskRequest.post(apiRoute('analyze_factors'), body)
+    return apiPost('analyze_factors', body, { client: 'longTask' })
   },
 
   listRuns(limit: number = 20): Promise<AxiosResponse<FactorResearchRunListItemResponse[]>> {
@@ -34,10 +33,16 @@ export const factorApi = {
   },
 
   startBacktest(runId: number, body: FactorExecutionRequest): Promise<AxiosResponse<FactorExecutionResponse>> {
-    return longTaskRequest.post(apiRoute('start_factor_backtest', { run_id: runId }), body)
+    return apiPost('start_factor_backtest', body, {
+      client: 'longTask',
+      path: { run_id: runId },
+    })
   },
 
   startPaper(runId: number, body: FactorExecutionRequest): Promise<AxiosResponse<FactorExecutionResponse>> {
-    return longTaskRequest.post(apiRoute('start_factor_paper_run', { run_id: runId }), body)
+    return apiPost('start_factor_paper_run', body, {
+      client: 'longTask',
+      path: { run_id: runId },
+    })
   },
 }

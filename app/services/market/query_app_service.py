@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any, Callable, Literal
 
 from app.exceptions import ServiceUnavailableError
-from app.schemas.market import (
+from app.contracts.dto.market import (
     CurrentPriceBatchItemResponse,
     CurrentPriceBatchResponse,
     CurrentPriceResponse,

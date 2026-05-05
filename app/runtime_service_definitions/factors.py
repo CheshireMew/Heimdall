@@ -18,7 +18,7 @@ from app.runtime_refs import (
 
 
 def _build_factor_research_repository(ctx: RuntimeBuildContext):
-    from app.services.factors.repository import FactorResearchRepository
+    from app.infra.persistence.factors.repository import FactorResearchRepository
 
     return FactorResearchRepository(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
 
@@ -34,7 +34,7 @@ def _build_factor_research_service(ctx: RuntimeBuildContext):
 
 
 def _build_factor_execution_service(ctx: RuntimeBuildContext):
-    from app.services.factors.execution import FactorExecutionService
+    from app.infra.persistence.factors.execution import FactorExecutionService
 
     return FactorExecutionService(
         factor_service=ctx.require(FACTORS_RESEARCH_SERVICE),
@@ -51,7 +51,7 @@ def _build_factor_signal_execution_core(_ctx: RuntimeBuildContext):
 
 
 def _build_factor_paper_persistence_service(ctx: RuntimeBuildContext):
-    from app.services.factors.paper_persistence_service import FactorPaperPersistenceService
+    from app.infra.persistence.factors.paper_persistence_service import FactorPaperPersistenceService
 
     return FactorPaperPersistenceService(
         report_builder=ctx.require(BACKTEST_REPORT_BUILDER),
@@ -60,7 +60,7 @@ def _build_factor_paper_persistence_service(ctx: RuntimeBuildContext):
 
 
 def _build_factor_paper_run_manager(ctx: RuntimeBuildContext):
-    from app.services.factors.paper_manager import FactorPaperRunManager
+    from app.infra.persistence.factors.paper_manager import FactorPaperRunManager
 
     return FactorPaperRunManager(
         factor_service=ctx.require(FACTORS_RESEARCH_SERVICE),

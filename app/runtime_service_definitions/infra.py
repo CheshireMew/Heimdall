@@ -24,7 +24,7 @@ def _build_exchange_gateway(_ctx: RuntimeBuildContext):
 
 
 def _build_kline_store(ctx: RuntimeBuildContext):
-    from app.services.market.kline_store import KlineStore
+    from app.infra.persistence.market.kline_store import KlineStore
 
     return KlineStore(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
 

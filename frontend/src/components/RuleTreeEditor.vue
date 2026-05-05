@@ -247,12 +247,3 @@ const removeChild = (childId) => {
 }
 </script>
 
-<style scoped>
-.label { @apply block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1; }
-.input { @apply w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white outline-none focus:border-blue-500 transition-colors; }
-.btn-secondary { @apply bg-gray-100 hover:bg-gray-200 dark:bg-gray-900 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 py-2 rounded-lg font-bold transition border border-gray-200 dark:border-gray-700; }
-.btn-danger { @apply bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 text-red-600 dark:text-red-300 px-3 py-2 rounded-lg font-bold transition border border-red-200 dark:border-red-800; }
-.section-title { @apply text-sm font-bold text-gray-900 dark:text-white; }
-.editor-section { @apply rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/50 p-3 space-y-3; }
-.editor-card { @apply rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-3; }
-</style>

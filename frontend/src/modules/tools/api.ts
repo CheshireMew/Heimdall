@@ -6,7 +6,7 @@ import type {
   PairCompareRequestSchema,
   PairCompareToolResponse,
   ToolsPageContractResponse,
-} from '../../types/tools'
+} from './contracts'
 
 export const toolsApi = {
   getContract(): Promise<AxiosResponse<ToolsPageContractResponse>> {

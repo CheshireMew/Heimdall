@@ -1,5 +1,5 @@
 import { isPaperLiveMetadata } from '@/modules/backtest'
-import type { BacktestPaperPositionResponse, BacktestRunResponse } from '../../../types/backtest'
+import type { BacktestPaperPositionResponse, BacktestRunResponse } from '@/modules/backtest/contracts'
 import type { PortfolioBalancePortfolio, PortfolioHoldingsSource } from './model'
 
 import {

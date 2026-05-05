@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from app.contracts.backtest import StrategyVersionRecord
-from app.schemas.strategy_contract import StrategyTemplateConfigResponse
-from app.services.backtest.strategy_catalog import get_template_spec
+from app.contracts.dto.strategy_contract import StrategyTemplateConfigResponse
+from app.infra.persistence.backtest.strategy_catalog import get_template_spec
 from app.services.backtest.strategy_config_normalizer import (
     normalize_strategy_config_model,
     normalize_strategy_payload,

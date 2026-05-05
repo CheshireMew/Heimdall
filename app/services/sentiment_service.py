@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.services.sentiment_client import SentimentApiClient
-from app.services.sentiment_repository import SentimentRepository
+from app.infra.persistence.sentiment_repository import SentimentRepository
 from utils.logger import logger
 from utils.time_manager import TimeManager
 

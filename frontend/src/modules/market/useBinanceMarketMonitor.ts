@@ -8,7 +8,7 @@ import type {
   BinanceMarketPageResponse,
   BinanceTickerStatsItemResponse,
   BinanceTickerStatsResponse,
-} from '../../types/market'
+} from './contracts'
 import { marketApi } from './api'
 import { restoreBinanceMarketWarmSnapshot, saveBinanceMarketWarmSnapshot } from './binanceMarketWarmSnapshot'
 import type {

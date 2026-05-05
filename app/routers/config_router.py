@@ -14,14 +14,14 @@ from app.runtime_refs import (
     SYSTEM_LLM_CONFIG_SERVICE,
 )
 from app.domain.market.symbol_catalog import get_supported_market_symbols
-from app.schemas.config import (
+from app.contracts.dto.config import (
     FredApiConfigResponse,
     FredApiConfigUpdateRequest,
     LlmProviderConfigResponse,
     LlmProviderConfigUpdateRequest,
     SystemConfigResponse,
 )
-from app.schemas.market import CurrencyRatesResponse
+from app.contracts.dto.market import CurrencyRatesResponse
 from app.services.fred_api_config_service import FredApiConfigService
 from app.services.llm_config_service import LlmConfigService
 from app.services.currency_service import CurrencyRateService

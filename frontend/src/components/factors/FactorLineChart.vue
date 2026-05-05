@@ -9,6 +9,7 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useEcharts } from '@/composables/useEcharts'
+import { categoryAxis, chartGrid, chartTextColor, valueAxis } from '@/components/chartOptions'
 
 echarts.use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -26,19 +27,12 @@ const { chartContainer, renderChart } = useEcharts(() => ({
       top: 0,
       textStyle: { color: props.dark ? '#d1d5db' : '#374151' },
     },
-    grid: { left: 16, right: 16, top: 40, bottom: 16, containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: props.categories,
-      axisLabel: { color: props.dark ? '#9ca3af' : '#6b7280', hideOverlap: true },
-      axisLine: { lineStyle: { color: props.dark ? '#374151' : '#d1d5db' } },
-    },
+    grid: chartGrid({ top: 40 }),
+    xAxis: categoryAxis(props.dark, props.categories, { hideOverlap: true }),
     yAxis: {
-      type: 'value',
+      ...valueAxis(props.dark),
       name: props.yAxisLabel,
-      nameTextStyle: { color: props.dark ? '#9ca3af' : '#6b7280', padding: [0, 0, 0, 8] },
-      axisLabel: { color: props.dark ? '#9ca3af' : '#6b7280' },
-      splitLine: { lineStyle: { color: props.dark ? '#374151' : '#e5e7eb' } },
+      nameTextStyle: { color: chartTextColor(props.dark), padding: [0, 0, 0, 8] },
     },
     series: props.series.map((item) => ({
       type: 'line',

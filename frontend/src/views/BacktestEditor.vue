@@ -71,8 +71,6 @@ const page = useBacktestEditorPage()
 </script>
 
 <style scoped>
-.label { @apply block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1; }
-.input { @apply w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white outline-none focus:border-blue-500 transition-colors; }
 .btn-primary { @apply bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl font-bold transition disabled:opacity-50; }
 .btn-secondary { @apply bg-gray-100 hover:bg-gray-200 dark:bg-gray-900 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 py-2.5 rounded-xl font-bold transition border border-gray-200 dark:border-gray-700; }
 </style>

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Literal
+from dataclasses import dataclass, field
+from typing import Any, Literal, Mapping
+
+from app.runtime_refs import RuntimeServiceRef
 
 
 RuntimeRole = Literal["all", "api", "background"]
@@ -24,113 +26,27 @@ def runtime_role_has_target(role: RuntimeRole, target: RuntimeTarget) -> bool:
 
 
 @dataclass(slots=True)
-class InfraRuntime:
-    exchange_gateway: Any | None = None
-    database_runtime: Any | None = None
-    kline_store: Any | None = None
-    cache_service: Any | None = None
-
-
-@dataclass(slots=True)
-class MarketRuntime:
-    market_data_service: Any | None = None
-    realtime_service: Any | None = None
-    market_indicator_repository: Any | None = None
-    indicator_service: Any | None = None
-    funding_rate_store: Any | None = None
-    funding_rate_service: Any | None = None
-    funding_rate_app_service: Any | None = None
-    crypto_index_service: Any | None = None
-    market_query_app_service: Any | None = None
-    market_insight_app_service: Any | None = None
-    market_websocket_service: Any | None = None
-    index_data_service: Any | None = None
-    binance_market_snapshot: Any | None = None
-    binance_market_research_store: Any | None = None
-    binance_market_intel: Any | None = None
-    binance_web3_service: Any | None = None
-
-
-@dataclass(slots=True)
-class ToolsRuntime:
-    sentiment_api_client: Any | None = None
-    sentiment_repository: Any | None = None
-    sentiment_service: Any | None = None
-    dca_service: Any | None = None
-    pair_compare_service: Any | None = None
-    tools_app_service: Any | None = None
-
-
-@dataclass(slots=True)
-class BacktestRuntime:
-    backtest_run_repository: Any | None = None
-    freqtrade_backtest_service: Any | None = None
-    backtest_run_service: Any | None = None
-    strategy_query_service: Any | None = None
-    strategy_write_service: Any | None = None
-    freqtrade_report_builder: Any | None = None
-    paper_run_manager: Any | None = None
-    backtest_command_service: Any | None = None
-    backtest_query_service: Any | None = None
-
-
-@dataclass(slots=True)
-class FactorRuntime:
-    factor_research_repository: Any | None = None
-    factor_research_service: Any | None = None
-    factor_execution_service: Any | None = None
-    factor_signal_execution_core: Any | None = None
-    factor_paper_persistence_service: Any | None = None
-    factor_paper_run_manager: Any | None = None
-
-
-@dataclass(slots=True)
-class SystemRuntime:
-    currency_rate_service: Any | None = None
-    llm_config_service: Any | None = None
-    fred_api_config_service: Any | None = None
-    market_scheduler_runtime: Any | None = None
-
-
-@dataclass(slots=True)
 class AppRuntimeServices:
-    infra: InfraRuntime
-    market: MarketRuntime
-    tools: ToolsRuntime
-    backtest: BacktestRuntime
-    factors: FactorRuntime
-    system: SystemRuntime
+    _services: dict[RuntimeServiceRef, Any] = field(default_factory=dict)
 
     @classmethod
     def empty(cls) -> AppRuntimeServices:
-        return cls(
-            infra=InfraRuntime(),
-            market=MarketRuntime(),
-            tools=ToolsRuntime(),
-            backtest=BacktestRuntime(),
-            factors=FactorRuntime(),
-            system=SystemRuntime(),
-        )
+        return cls()
 
-    def _section(self, section_name: str):
-        try:
-            return getattr(self, section_name)
-        except AttributeError as exc:
-            raise RuntimeError(f"Unknown runtime section: {section_name}") from exc
+    @classmethod
+    def from_entries(cls, entries: Mapping[RuntimeServiceRef, Any]) -> AppRuntimeServices:
+        services = cls.empty()
+        for ref, service in entries.items():
+            services.set_service(ref, service)
+        return services
 
-    def get_service(self, ref) -> Any | None:
-        section = self._section(ref.section)
-        if not hasattr(section, ref.name):
-            raise RuntimeError(f"Unknown runtime service: {ref.key}")
-        return getattr(section, ref.name)
+    def get_service(self, ref: RuntimeServiceRef) -> Any | None:
+        return self._services.get(ref)
 
-    def set_service(self, ref, service: Any) -> None:
-        section = self._section(ref.section)
-        if not hasattr(section, ref.name):
-            raise RuntimeError(f"Unknown runtime service: {ref.key}")
-        setattr(section, ref.name, service)
+    def set_service(self, ref: RuntimeServiceRef, service: Any) -> None:
+        self._services[ref] = service
 
-    def require_service(self, ref) -> Any:
+    def require_service(self, ref: RuntimeServiceRef) -> Any:
         service = self.get_service(ref)
         if service is None:
             raise RuntimeError(f"Runtime service is not initialized: {ref.key}")

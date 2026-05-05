@@ -9,7 +9,7 @@ import {
   formatSignedPercent,
 } from '@/modules/format'
 import { marketApi } from './api'
-import type { CryptoIndexConstituentResponse, CryptoIndexHistoryPointResponse, CryptoIndexResponse } from '../../types/market'
+import type { CryptoIndexConstituentResponse, CryptoIndexHistoryPointResponse, CryptoIndexResponse } from './contracts'
 import { buildCryptoIndexSnapshot, createDefaultCryptoIndexSnapshot, normalizeCryptoIndexSnapshot } from './pageSnapshots'
 
 

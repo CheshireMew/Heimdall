@@ -9,6 +9,7 @@ import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useEcharts } from '@/composables/useEcharts'
+import { categoryAxis, chartGrid, valueAxis } from '@/components/chartOptions'
 
 echarts.use([BarChart, GridComponent, TooltipComponent, CanvasRenderer])
 
@@ -23,18 +24,9 @@ const props = defineProps({
 const { chartContainer, renderChart } = useEcharts(() => ({
     backgroundColor: 'transparent',
     tooltip: { trigger: 'axis' },
-    grid: { left: 16, right: 16, top: 16, bottom: 16, containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: props.categories,
-      axisLabel: { color: props.dark ? '#9ca3af' : '#6b7280' },
-      axisLine: { lineStyle: { color: props.dark ? '#374151' : '#d1d5db' } },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { color: props.dark ? '#9ca3af' : '#6b7280' },
-      splitLine: { lineStyle: { color: props.dark ? '#374151' : '#e5e7eb' } },
-    },
+    grid: chartGrid(),
+    xAxis: categoryAxis(props.dark, props.categories),
+    yAxis: valueAxis(props.dark),
     series: [
       {
         type: 'bar',
