@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, unref, type Ref } from 'vue'
 import { marketApi } from './api'
 import type { DliComponentResponse, DliLiquidityResponse, MarketIndicatorResponse } from './contracts'
 
@@ -28,6 +28,7 @@ export interface MacroDriver extends MacroMetricCard {
   score: number
   pressure: number
   contribution: number | null
+  rawWeight: number
   effectiveWeight: number
   zScore: number | null
   percentile: number | null
@@ -155,7 +156,7 @@ const definitionFromComponent = (component: DliComponentResponse): MacroIndicato
   }
 }
 
-export function useMacroLiquidityPage(days = 365) {
+export function useMacroLiquidityPage(days: number | Ref<number> = 365) {
   const dli = ref<DliLiquidityResponse | null>(null)
   const indicators = ref<MarketIndicatorResponse[]>([])
   const loading = ref(true)
@@ -165,7 +166,7 @@ export function useMacroLiquidityPage(days = 365) {
     loading.value = true
     error.value = ''
     try {
-      const res = await marketApi.getDliLiquidity({ days })
+      const res = await marketApi.getDliLiquidity({ days: unref(days) })
       dli.value = res?.data || null
       indicators.value = res?.data?.indicators || []
     } catch (e) {
@@ -195,8 +196,10 @@ export function useMacroLiquidityPage(days = 365) {
   }))
 
   const score = computed(() => dli.value?.score ?? null)
+  const scorePercentile = computed(() => dli.value?.score_percentile ?? null)
   const scoreLabel = computed(() => dli.value?.state || '等待数据')
   const scoreTone = computed(() => dli.value?.tone || 'neutral')
+  const thresholds = computed(() => dli.value?.thresholds || null)
 
   const groups = computed(() => (Object.keys(GROUP_TITLES) as MacroGroupId[]).map((group) => ({
     id: group,
@@ -220,6 +223,7 @@ export function useMacroLiquidityPage(days = 365) {
       score: driverScore,
       pressure: Math.round(100 - driverScore),
       contribution: component.contribution,
+      rawWeight: component.weight,
       effectiveWeight: component.effective_weight,
       zScore: component.z_score,
       percentile: component.percentile,
@@ -247,8 +251,10 @@ export function useMacroLiquidityPage(days = 365) {
     error,
     cards,
     score,
+    scorePercentile,
     scoreLabel,
     scoreTone,
+    thresholds,
     groups,
     drivers,
     alerts,

@@ -610,12 +610,13 @@ def make_dli_liquidity_response() -> dict:
     return {
         "score": 72,
         "raw_score": 71.6,
+        "score_percentile": 75.0,
         "state": "流动性宽松",
         "tone": "support",
         "updated_at": "2025-06-01T12:00:00",
         "coverage": 100.0,
         "methodology": "rolling_median_mad_weighted_v1",
-        "thresholds": {"p20": 43.0, "p80": 68.0, "source": "fallback", "sample_size": 1},
+        "thresholds": {"p20": 43.0, "p50": 50.0, "p80": 68.0, "source": "fallback", "sample_size": 1},
         "components": [
             {
                 "indicator_id": "FED_BALANCE",
@@ -638,7 +639,7 @@ def make_dli_liquidity_response() -> dict:
         ],
         "history": [{"date": "2025-05-31T12:00:00", "score": 71.6, "state": "流动性宽松"}],
         "indicators": [indicator],
-        "alerts": ["Fed Balance 当前对风险资产形成支撑，DLI 贡献 +6.60，30 日变化 +1.40%。"],
+        "alerts": ["美联储资产负债表当前对风险资产形成支撑，DLI 贡献 +6.60，30 日变化 +1.40%。"],
     }
 
 

@@ -137,6 +137,7 @@ export interface MarketIndicatorResponse {
 export interface DliLiquidityResponse {
   score: number | null
   raw_score: number | null
+  score_percentile: number | null
   state: string
   tone: string
   updated_at: string | null
@@ -908,6 +909,7 @@ export interface DliHistoryPointResponse {
 
 export interface DliThresholdsResponse {
   p20: number
+  p50: number
   p80: number
   source: string
   sample_size: number

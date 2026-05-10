@@ -147,6 +147,7 @@ class MarketIndicatorResponse(BaseModel):
 
 class DliThresholdsResponse(BaseModel):
     p20: float
+    p50: float
     p80: float
     source: str
     sample_size: int
@@ -180,6 +181,7 @@ class DliHistoryPointResponse(BaseModel):
 class DliLiquidityResponse(BaseModel):
     score: int | None
     raw_score: float | None
+    score_percentile: float | None
     state: str
     tone: str
     updated_at: str | None

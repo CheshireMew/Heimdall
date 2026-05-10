@@ -73,12 +73,16 @@ class DliLiquidityService:
         )
         thresholds = self._thresholds(threshold_series)
         score = current["score"]
-        state, tone = self._state(score, thresholds["p20"], thresholds["p80"])
+        state, tone = self._state(score, thresholds["p20"], thresholds["p50"], thresholds["p80"])
+        score_percentile = self._score_percentile(
+            score,
+            [item["score"] for item in threshold_series if item.get("score") is not None],
+        )
         display_history = [
             {
                 "date": item["date"].isoformat(),
                 "score": round(item["score"], 2),
-                "state": self._state(item["score"], thresholds["p20"], thresholds["p80"])[0],
+                "state": self._state(item["score"], thresholds["p20"], thresholds["p50"], thresholds["p80"])[0],
             }
             for item in threshold_series
             if item["date"] >= display_cutoff
@@ -88,6 +92,7 @@ class DliLiquidityService:
         return {
             "score": None if score is None else round(score),
             "raw_score": None if score is None else round(score, 2),
+            "score_percentile": None if score_percentile is None else round(score_percentile, 2),
             "state": state,
             "tone": tone,
             "updated_at": updated_at.isoformat() if updated_at else None,
@@ -324,9 +329,10 @@ class DliLiquidityService:
     def _thresholds(series: list[dict[str, Any]]) -> dict[str, Any]:
         values = sorted(item["score"] for item in series if item.get("score") is not None)
         if len(values) < 20:
-            return {"p20": 43.0, "p80": 68.0, "source": "fallback", "sample_size": len(values)}
+            return {"p20": 43.0, "p50": 50.0, "p80": 68.0, "source": "fallback", "sample_size": len(values)}
         return {
             "p20": round(DliLiquidityService._quantile(values, 0.2), 2),
+            "p50": round(DliLiquidityService._quantile(values, 0.5), 2),
             "p80": round(DliLiquidityService._quantile(values, 0.8), 2),
             "source": "rolling_5y",
             "sample_size": len(values),
@@ -345,14 +351,25 @@ class DliLiquidityService:
         return values[lower] * (1.0 - weight) + values[upper] * weight
 
     @staticmethod
-    def _state(score: float | None, p20: float, p80: float) -> tuple[str, str]:
+    def _score_percentile(score: float | None, values: list[float]) -> float | None:
+        if score is None or not values:
+            return None
+        below = sum(1 for value in values if value < score)
+        equal = sum(1 for value in values if value == score)
+        percentile = ((below + 0.5 * equal) / len(values)) * 100.0
+        return max(0.0, min(100.0, percentile))
+
+    @staticmethod
+    def _state(score: float | None, p20: float, p50: float, p80: float) -> tuple[str, str]:
         if score is None:
             return "等待数据", "neutral"
         if score >= p80:
             return "流动性宽松", "support"
         if score <= p20:
             return "流动性收紧", "pressure"
-        return "中性", "neutral"
+        if score < p50:
+            return "中性偏紧", "pressure"
+        return "中性偏松", "support"
 
     @staticmethod
     def _latest_update(history_map: dict[str, list[dict[str, Any]]]) -> datetime | None:
@@ -374,7 +391,8 @@ class DliLiquidityService:
             direction = "支撑" if item["score"] >= 50 else "压制"
             change = "--" if item["change_pct"] is None else f"{item['change_pct']:+.2f}%"
             contribution = item.get("contribution") or 0.0
+            display_name = item.get("name") or item.get("short_label") or item["indicator_id"]
             alerts.append(
-                f"{item['short_label']} 当前对风险资产形成{direction}，DLI 贡献 {contribution:+.2f}，30 日变化 {change}。"
+                f"{display_name}当前对风险资产形成{direction}，DLI 贡献 {contribution:+.2f}，30 日变化 {change}。"
             )
         return alerts

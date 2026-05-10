@@ -18,6 +18,18 @@ export const APP_ROUTE_DEFINITIONS = [
     nav: { section: 'indicators', labelKey: 'nav.macro', icon: 'BuildingLibraryIcon' },
   },
   {
+    path: '/indicators/macro/history',
+    name: 'IndicatorsMacroHistory',
+    component: () => import('@/views/indicators/MacroLiquidityHistory.vue'),
+    meta: { title: 'DLI 历史走势', category: 'Macro' },
+  },
+  {
+    path: '/indicators/macro/methodology',
+    name: 'IndicatorsMacroMethodology',
+    component: () => import('@/views/indicators/MacroLiquidityMethodology.vue'),
+    meta: { title: 'DLI 计算原理', category: 'Macro' },
+  },
+  {
     path: '/indicators/onchain',
     name: 'IndicatorsOnchain',
     component: () => import('@/views/indicators/CategoryView.vue'),

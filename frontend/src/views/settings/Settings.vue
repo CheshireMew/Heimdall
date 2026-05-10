@@ -1,6 +1,6 @@
 <template>
   <div class="app-page">
-    <div class="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+    <div class="app-page-inner-wide flex flex-col gap-6">
       <div>
         <h2 class="app-title">{{ $t('settings.title') }}</h2>
       </div>

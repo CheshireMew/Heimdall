@@ -24,12 +24,16 @@ def test_dli_liquidity_service_builds_weighted_robust_score(installed_database_r
 
     assert payload["score"] is not None
     assert payload["score"] > 80
-    assert payload["state"] in {"中性", "流动性宽松"}
+    assert payload["score_percentile"] is not None
+    assert 0 <= payload["score_percentile"] <= 100
+    assert payload["state"] in {"中性偏松", "流动性宽松"}
     assert payload["coverage"] == 100.0
+    assert {"p20", "p50", "p80"} <= set(payload["thresholds"])
     assert payload["thresholds"]["sample_size"] > 0
     assert round(sum(item["effective_weight"] for item in payload["components"]), 6) == 100
     assert {item["indicator_id"] for item in payload["components"]} == {item.id for item in DLI_INDICATORS}
     assert payload["alerts"]
+    assert any(alert.startswith("美联储资产负债表当前") for alert in payload["alerts"])
 
 
 def test_dli_liquidity_service_reports_missing_coverage(installed_database_runtime):
@@ -49,6 +53,17 @@ def test_dli_liquidity_service_reports_missing_coverage(installed_database_runti
     missing = [item for item in payload["components"] if item["score"] is None]
     assert missing
     assert all(item["missing_reason"] for item in missing)
+
+
+def test_dli_liquidity_state_uses_four_regimes():
+    assert DliLiquidityService._state(19.0, 20.0, 50.0, 80.0) == ("流动性收紧", "pressure")
+    assert DliLiquidityService._state(32.0, 20.0, 50.0, 80.0) == ("中性偏紧", "pressure")
+    assert DliLiquidityService._state(51.0, 20.0, 50.0, 80.0) == ("中性偏松", "support")
+    assert DliLiquidityService._state(81.0, 20.0, 50.0, 80.0) == ("流动性宽松", "support")
+
+
+def test_dli_liquidity_score_percentile_uses_history_distribution():
+    assert DliLiquidityService._score_percentile(32.0, [10.0, 30.0, 40.0, 90.0]) == 50.0
 
 
 class CountingIndicatorRepository:

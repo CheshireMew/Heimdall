@@ -1,54 +1,16 @@
 <template>
   <div :class="['macro-page min-h-full overflow-y-auto text-slate-900 transition-colors dark:text-slate-100', theme === 'dark' ? 'macro-page--dark' : 'macro-page--light']">
-    <section class="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-      <div class="macro-hero grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
-        <div class="space-y-6">
-          <div class="macro-kicker inline-flex items-center gap-2 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
-            Dollar Liquidity Monitor
-          </div>
-          <div class="space-y-4 border-b border-stone-200 pb-6 dark:border-slate-800">
-            <h1 class="macro-title max-w-3xl text-4xl font-semibold leading-tight dark:text-white sm:text-5xl">
-              美元流动性看板
-            </h1>
-            <p class="max-w-3xl text-sm leading-6 text-stone-600 dark:text-slate-400 sm:text-base">
-              把 Fed 资产负债表、TGA、ON RRP、政策利率、美元指数、波动率和 M2 放在同一页，先看美元流动性主线，再下钻到每个宏观指标。
-            </p>
-          </div>
-
-          <div class="grid gap-3 sm:grid-cols-3">
-            <div class="macro-stat">
-              <span>流动性状态</span>
-              <strong :class="scoreToneClass">{{ scoreLabel }}</strong>
-            </div>
-            <div class="macro-stat">
-              <span>综合评分</span>
-              <strong>{{ score === null ? '--' : score }}</strong>
-            </div>
-            <div class="macro-stat">
-              <span>最近更新</span>
-              <strong>{{ lastUpdated }}</strong>
-            </div>
-          </div>
+    <section class="flex w-full flex-col gap-8 px-3 py-5 sm:px-4 lg:px-5 xl:px-6">
+      <div class="macro-hero max-w-4xl space-y-4 border-b border-stone-200 pb-6 dark:border-slate-800">
+        <div class="macro-kicker inline-flex items-center gap-2 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+          Dollar Liquidity Monitor
         </div>
-
-        <div class="macro-hero-action p-5">
-          <div class="panel-kicker">当前读数</div>
-          <div class="mt-4 flex items-end justify-between gap-4">
-            <div>
-              <div :class="['text-4xl font-semibold', scoreToneClass]">{{ score === null ? '--' : score }}</div>
-              <div class="mt-2 text-sm text-stone-500 dark:text-slate-400">{{ scoreLabel }}</div>
-            </div>
-            <span class="border border-stone-200 px-2 py-1 text-xs text-stone-500 dark:border-slate-700 dark:text-slate-400">0-100</span>
-          </div>
-          <div class="mt-6 flex flex-wrap items-center gap-3">
-            <button class="macro-primary-button" :disabled="loading" @click="load">
-              {{ loading ? '刷新中...' : '刷新宏观数据' }}
-            </button>
-            <a class="macro-secondary-button" href="#macro-drivers">
-              查看核心驱动
-            </a>
-          </div>
-        </div>
+        <h1 class="macro-title max-w-3xl text-4xl font-semibold leading-tight dark:text-white sm:text-5xl">
+          美元流动性看板
+        </h1>
+        <p class="max-w-3xl text-sm leading-6 text-stone-600 dark:text-slate-400 sm:text-base">
+          把 Fed 资产负债表、TGA、ON RRP、政策利率、美元指数、波动率和 M2 放在同一页，先看美元流动性主线，再下钻到每个宏观指标。
+        </p>
       </div>
 
       <div v-if="error" class="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-950/40 dark:text-red-200">
@@ -60,31 +22,73 @@
       </div>
 
       <template v-else>
-        <section class="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <section>
           <div class="macro-panel p-5">
-            <div class="mb-5 flex items-start justify-between">
+            <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div class="panel-kicker">DLI 流动性评分</div>
                 <h2 class="mt-2 text-lg font-semibold text-slate-950 dark:text-white">综合压力仪表盘</h2>
               </div>
-              <span class="border border-stone-200 px-2 py-1 text-xs text-stone-500 dark:border-slate-700 dark:text-slate-400">0-100</span>
+              <div class="flex flex-wrap items-center gap-3">
+                <button class="macro-primary-button self-start" :disabled="loading" @click="load">
+                  {{ loading ? '刷新中...' : '刷新宏观数据' }}
+                </button>
+                <RouterLink class="macro-secondary-button self-start" :to="{ name: 'IndicatorsMacroHistory' }">
+                  历史走势
+                </RouterLink>
+                <a class="macro-secondary-button self-start" href="#macro-drivers">
+                  查看核心驱动
+                </a>
+                <RouterLink class="macro-secondary-button self-start" :to="{ name: 'IndicatorsMacroMethodology' }">
+                  计算原理
+                </RouterLink>
+              </div>
             </div>
 
-            <div class="flex items-end justify-between gap-4">
-              <div>
-                <div :class="['text-4xl font-semibold', scoreToneClass]">{{ score === null ? '--' : score }}</div>
-                <div class="mt-2 text-sm text-stone-500 dark:text-slate-400">{{ scoreLabel }}</div>
-              </div>
-              <div class="w-full max-w-sm">
-                <div class="mb-2 flex justify-between text-[11px] text-slate-500 dark:text-slate-500">
-                  <span>收紧</span>
-                  <span>中性</span>
-                  <span>宽松</span>
+            <div class="grid gap-5">
+              <div class="score-summary-grid">
+                <div class="score-summary-card score-summary-card--primary">
+                  <span>综合评分</span>
+                  <strong :class="scoreToneClass">{{ score === null ? '--' : score }}</strong>
+                  <em>0-100</em>
                 </div>
-                <div class="relative h-3 bg-stone-200 dark:bg-slate-800">
-                  <div class="absolute inset-y-0 left-0 bg-[#0f6b4f]" :style="{ width: `${scoreWidth}%` }"></div>
-                  <div class="absolute inset-y-0 left-[43%] w-px bg-white dark:bg-slate-950"></div>
-                  <div class="absolute inset-y-0 left-[68%] w-px bg-white dark:bg-slate-950"></div>
+                <div class="score-summary-card">
+                  <span>流动性状态</span>
+                  <strong :class="scoreToneClass">{{ scoreLabel }}</strong>
+                </div>
+                <div class="score-summary-card">
+                  <span>最近更新</span>
+                  <strong>{{ lastUpdated }}</strong>
+                </div>
+              </div>
+              <div class="w-full">
+                <div class="score-scale-track">
+                  <div class="score-scale-zone score-scale-zone--tight"></div>
+                  <div class="score-scale-zone score-scale-zone--neutral-tight"></div>
+                  <div class="score-scale-zone score-scale-zone--neutral-loose"></div>
+                  <div class="score-scale-zone score-scale-zone--loose"></div>
+                  <div class="score-scale-split" style="left: 20%"></div>
+                  <div class="score-scale-split" style="left: 50%"></div>
+                  <div class="score-scale-split" style="left: 80%"></div>
+                  <div class="score-scale-marker" :style="{ left: `${scorePercentilePosition}%` }"></div>
+                </div>
+                <div class="score-scale-labels">
+                  <div>
+                    <strong>收紧</strong>
+                    <span>≤ P20</span>
+                  </div>
+                  <div>
+                    <strong>中性偏紧</strong>
+                    <span>P20-P50</span>
+                  </div>
+                  <div>
+                    <strong>中性偏松</strong>
+                    <span>P50-P80</span>
+                  </div>
+                  <div>
+                    <strong>宽松</strong>
+                    <span>≥ P80</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -93,31 +97,6 @@
               <div v-for="item in alerts" :key="item" class="flex gap-2 text-sm text-stone-700 dark:text-slate-300">
                 <span class="mt-2 h-1.5 w-1.5 flex-shrink-0 bg-[#0f6b4f] dark:bg-emerald-400"></span>
                 <span>{{ item }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="macro-panel p-5">
-            <div class="panel-kicker">今日重点</div>
-            <h2 class="mt-2 text-lg font-semibold text-slate-950 dark:text-white">评分分解与归因</h2>
-            <div class="mt-5 space-y-3">
-              <div v-for="driver in drivers.slice(0, 7)" :key="driver.definition.id" class="driver-row">
-                <div class="grid grid-cols-[120px_minmax(0,1fr)_44px] items-center gap-3">
-                  <div class="min-w-0">
-                    <div class="truncate text-sm font-medium text-slate-800 dark:text-slate-200">{{ driver.definition.shortLabel }}</div>
-                    <div class="text-[11px] text-slate-500 dark:text-slate-500">{{ driver.valueLabel }}</div>
-                  </div>
-                  <div class="h-3 bg-stone-200 dark:bg-slate-800">
-                    <div
-                      :class="driver.score >= 50 ? 'bg-[#0f6b4f] dark:bg-emerald-400' : 'bg-[#c84c28] dark:bg-orange-500'"
-                      class="h-full"
-                      :style="{ width: `${driver.score}%` }"
-                    ></div>
-                  </div>
-                  <div :class="['text-right text-xs font-semibold', driver.score >= 50 ? 'text-[#0f6b4f] dark:text-emerald-300' : 'text-[#c84c28] dark:text-orange-300']">
-                    {{ driver.score }}
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -164,9 +143,9 @@
           <div class="panel-kicker">关键驱动</div>
           <h2 class="mt-2 text-lg font-semibold text-slate-950 dark:text-white">流动性贡献条</h2>
           <div class="mt-5 space-y-3">
-            <div v-for="driver in drivers" :key="driver.definition.id" class="grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_56px] sm:items-center">
-              <div>
-                <div class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ driver.definition.label }}</div>
+            <div v-for="driver in drivers" :key="driver.definition.id" class="driver-row grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_56px] sm:items-center">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-medium text-slate-800 dark:text-slate-200">{{ driver.definition.label }}</div>
                 <div class="text-[11px] text-slate-500 dark:text-slate-500">30 日 {{ driver.changeLabel }}</div>
               </div>
               <div class="relative h-5 bg-stone-200 dark:bg-slate-800">
@@ -205,6 +184,7 @@ const {
   loading,
   error,
   score,
+  scorePercentile,
   scoreLabel,
   scoreTone,
   groups,
@@ -214,7 +194,8 @@ const {
   load,
 } = useMacroLiquidityPage(lookbackDays)
 
-const scoreWidth = computed(() => Math.max(0, Math.min(100, score.value ?? 0)))
+const clampPercent = (value: number) => Math.max(0, Math.min(100, value))
+const scorePercentilePosition = computed(() => clampPercent(scorePercentile.value ?? score.value ?? 0))
 const scoreToneClass = computed(() => {
   if (scoreTone.value === 'support') return 'text-[#0f6b4f] dark:text-emerald-300'
   if (scoreTone.value === 'pressure') return 'text-[#c84c28] dark:text-orange-300'
@@ -249,16 +230,12 @@ onMounted(() => {
     linear-gradient(180deg, #020713 0%, #030816 52%, #020617 100%);
 }
 
-.macro-stat,
-.macro-hero-action,
 .metric-card,
 .macro-panel {
   border: 1px solid #e4ded3;
   background: rgba(255, 255, 255, 0.88);
 }
 
-.macro-page--dark .macro-stat,
-.macro-page--dark .macro-hero-action,
 .macro-page--dark .metric-card,
 .macro-page--dark .macro-panel {
   border-color: rgba(30, 41, 59, 0.95);
@@ -287,24 +264,168 @@ onMounted(() => {
   color: #ffffff;
 }
 
-.macro-stat {
-  padding: 0.8rem 0.95rem;
+.score-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
 }
 
-.macro-stat span {
+.score-summary-card {
+  border: 1px solid #eee7dc;
+  background: #fbfaf7;
+  padding: 0.7rem 0.8rem;
+  min-width: 0;
+}
+
+.macro-page--dark .score-summary-card {
+  border-color: rgba(30, 41, 59, 0.75);
+  background: rgba(15, 23, 42, 0.32);
+}
+
+.score-summary-card span {
   display: block;
   font-size: 0.68rem;
   color: #78716c;
 }
 
-.macro-page--dark .macro-stat span {
+.macro-page--dark .score-summary-card span {
   color: #94a3b8;
 }
 
-.macro-stat strong {
+.score-summary-card strong {
   margin-top: 0.35rem;
   display: block;
   font-size: 0.95rem;
+}
+
+.score-summary-card--primary strong {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.score-summary-card em {
+  display: block;
+  margin-top: 0.35rem;
+  color: #78716c;
+  font-size: 0.78rem;
+  font-style: normal;
+}
+
+.macro-page--dark .score-summary-card em {
+  color: #94a3b8;
+}
+
+@media (max-width: 640px) {
+  .score-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.score-scale-track {
+  position: relative;
+  height: 0.9rem;
+  overflow: visible;
+  background: #e7e3dd;
+}
+
+.macro-page--dark .score-scale-track {
+  background: #1e293b;
+}
+
+.score-scale-zone,
+.score-scale-split,
+.score-scale-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.score-scale-zone--tight {
+  left: 0;
+  width: 20%;
+  background: #c84c28;
+}
+
+.score-scale-zone--neutral-tight {
+  left: 20%;
+  width: 30%;
+  background: #c9873a;
+}
+
+.score-scale-zone--neutral-loose {
+  left: 50%;
+  width: 30%;
+  background: #8a8f56;
+}
+
+.score-scale-zone--loose {
+  left: 80%;
+  width: 20%;
+  background: #0f6b4f;
+}
+
+.score-scale-split {
+  width: 1px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.score-scale-marker {
+  width: 2px;
+  transform: translateX(-1px);
+  background: #111827;
+}
+
+.score-scale-marker::after {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 2px solid #ffffff;
+  background: #111827;
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+.macro-page--dark .score-scale-marker,
+.macro-page--dark .score-scale-marker::after {
+  background: #f8fafc;
+}
+
+.score-scale-labels {
+  display: grid;
+  grid-template-columns: 20fr 30fr 30fr 20fr;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  color: #64748b;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.score-scale-labels strong,
+.score-scale-labels span {
+  display: block;
+  min-width: 0;
+}
+
+.score-scale-labels strong {
+  color: #334155;
+  font-weight: 700;
+}
+
+.score-scale-labels span {
+  margin-top: 0.15rem;
+  color: #94a3b8;
+}
+
+.macro-page--dark .score-scale-labels strong {
+  color: #cbd5e1;
+}
+
+@media (max-width: 640px) {
+  .score-scale-labels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .macro-primary-button,

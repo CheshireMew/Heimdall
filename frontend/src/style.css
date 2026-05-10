@@ -14,8 +14,8 @@
   .editor-card { @apply border p-3 dark:border-gray-700 dark:bg-gray-900/40; border-color: #e4ded3; background: #fbfaf7; }
 
   .app-page { @apply h-full overflow-y-auto text-stone-900 transition-colors dark:text-slate-100; background: #f7f4ed; }
-  .app-page-inner { @apply mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8 lg:py-10; }
-  .app-page-inner-wide { @apply mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8 lg:py-10; }
+  .app-page-inner { @apply w-full space-y-6 px-3 py-5 sm:px-4 lg:px-5 xl:px-6; }
+  .app-page-inner-wide { @apply w-full space-y-6 px-3 py-5 sm:px-4 lg:px-5 xl:px-6; }
   .app-hero-panel { @apply border p-6 dark:border-slate-700 dark:bg-slate-800/90; border-color: #e4ded3; background: rgba(255, 255, 255, 0.88); }
   .app-panel { @apply border bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800; border-color: #e4ded3; }
   .app-panel-header { @apply border-b px-5 py-4 dark:border-slate-700; border-color: #e4ded3; }
