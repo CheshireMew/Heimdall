@@ -75,6 +75,7 @@ const routeTemplates = {
   get_current_funding_rate: "/funding-rate/current",
   get_current_price: "/price/current",
   get_current_price_batch: "/price/current/batch",
+  get_dli_liquidity: "/indicators/dli",
   get_factor_catalog: "/factor-research/catalog",
   get_factor_contract: "/factor-research/contract",
   get_factor_run: "/factor-research/runs/{run_id}",
@@ -206,6 +207,7 @@ const endpointQueryContracts = {
   get_current_funding_rate: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_current_price: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_current_price_batch: {"repeatedKeys": ["symbols"], "aliases": {}} as EndpointQueryContract,
+  get_dli_liquidity: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_factor_catalog: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_factor_contract: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_factor_run: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
@@ -305,6 +307,7 @@ export type ApiRouteResponseMap = {
   get_current_funding_rate: MarketTypes.FundingRateSnapshotResponse
   get_current_price: MarketTypes.CurrentPriceResponse
   get_current_price_batch: MarketTypes.CurrentPriceBatchResponse
+  get_dli_liquidity: MarketTypes.DliLiquidityResponse
   get_factor_catalog: FactorTypes.FactorCatalogResponse
   get_factor_contract: FactorTypes.FactorResearchContractResponse
   get_factor_run: FactorTypes.FactorResearchRunDetailResponse
@@ -404,6 +407,7 @@ export type ApiRouteBodyMap = {
   get_current_funding_rate: never
   get_current_price: never
   get_current_price_batch: never
+  get_dli_liquidity: never
   get_factor_catalog: never
   get_factor_contract: never
   get_factor_run: never
@@ -503,6 +507,7 @@ export type ApiRouteQueryMap = {
   get_current_funding_rate: MarketTypes.GetCurrentFundingRateQueryParams
   get_current_price: MarketTypes.GetCurrentPriceQueryParams
   get_current_price_batch: MarketTypes.GetCurrentPriceBatchQueryParams
+  get_dli_liquidity: MarketTypes.GetDliLiquidityQueryParams
   get_factor_catalog: never
   get_factor_contract: never
   get_factor_run: never

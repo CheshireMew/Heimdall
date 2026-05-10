@@ -4,11 +4,13 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
+from app.services.market.dli_service import DliLiquidityService
 
 
 class IndicatorService:
     def __init__(self, repository: MarketIndicatorRepository) -> None:
         self.repository = repository
+        self.dli_service = DliLiquidityService(repository)
 
     def get_indicators(
         self,
@@ -37,3 +39,6 @@ class IndicatorService:
                 }
             )
         return result
+
+    def get_dli_liquidity(self, days: int) -> dict[str, Any]:
+        return self.dli_service.build(days=days)

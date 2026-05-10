@@ -1,0 +1,189 @@
+from __future__ import annotations
+
+import asyncio
+from datetime import datetime
+from typing import Any, Callable, Literal
+
+from app.contracts.dto.market import (
+    KlineTailResponse,
+    build_market_history_batch_response,
+    build_market_history_response,
+    build_ohlcv_points,
+)
+from app.infra.executor import run_sync
+from app.services.market.app_service_support import validate_market_request
+from app.services.market.market_data_service import MarketDataService
+from config import settings
+
+
+class MarketHistoryQueryService:
+    def __init__(self, *, market_data_service: MarketDataService) -> None:
+        self.market_data_service = market_data_service
+
+    async def get_history(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+        end_ts: int,
+        limit: int,
+    ) -> dict[str, Any]:
+        validate_market_request(symbol, timeframe)
+        rows = await run_sync(
+            lambda: self.market_data_service.get_history_data(symbol, timeframe, end_ts, limit)
+        )
+        return build_market_history_response(symbol=symbol, timeframe=timeframe, rows=rows).model_dump()
+
+    async def get_recent_klines(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+        limit: int,
+    ) -> dict[str, Any]:
+        validate_market_request(symbol, timeframe)
+        rows = await run_sync(
+            lambda: self.market_data_service.get_recent_candles(
+                symbol,
+                timeframe,
+                limit,
+                allow_cached_response=True,
+            )
+        )
+        return build_market_history_response(symbol=symbol, timeframe=timeframe, rows=rows).model_dump()
+
+    async def get_live_kline_tail(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+        limit: int,
+    ) -> dict[str, Any]:
+        validate_market_request(symbol, timeframe)
+        kline_data = await run_sync(
+            lambda: self.market_data_service.get_recent_candles(
+                symbol,
+                timeframe,
+                limit,
+                allow_cached_response=False,
+                live_max_retries=settings.EXCHANGE_TAIL_MAX_RETRIES,
+            )
+        )
+        current_price = kline_data[-1][4] if kline_data else None
+        return KlineTailResponse(
+            symbol=symbol,
+            timeframe=timeframe,
+            timestamp=datetime.now().isoformat(),
+            current_price=current_price,
+            kline_data=build_ohlcv_points(kline_data),
+        ).model_dump()
+
+    async def get_full_history(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+        start_date: str,
+        fetch_policy: Literal["cache_only", "hydrate"] = "hydrate",
+        persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
+    ) -> dict[str, Any]:
+        validate_market_request(symbol, timeframe)
+        rows, missing_ranges = await self._load_full_history_rows(
+            symbol=symbol,
+            timeframe=timeframe,
+            start_date=start_date,
+            fetch_policy=fetch_policy,
+            persist_klines=persist_klines,
+        )
+        return build_market_history_response(
+            symbol=symbol,
+            timeframe=timeframe,
+            rows=rows,
+            missing_ranges=missing_ranges,
+        ).model_dump()
+
+    async def get_full_history_batch(
+        self,
+        *,
+        symbols: list[str],
+        timeframe: str,
+        start_date: str,
+        fetch_policy: Literal["cache_only", "hydrate"] = "hydrate",
+        persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
+    ) -> dict[str, Any]:
+        normalized_symbols: list[str] = []
+        seen_symbols: set[str] = set()
+        for symbol in symbols:
+            validate_market_request(symbol, timeframe)
+            if symbol in seen_symbols:
+                continue
+            seen_symbols.add(symbol)
+            normalized_symbols.append(symbol)
+
+        series = await asyncio.gather(
+            *[
+                self._load_full_history_rows(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    start_date=start_date,
+                    fetch_policy=fetch_policy,
+                    persist_klines=persist_klines,
+                )
+                for symbol in normalized_symbols
+            ],
+        )
+        return build_market_history_batch_response(
+            timeframe=timeframe,
+            series_by_symbol=dict(zip(normalized_symbols, series, strict=False)),
+        ).model_dump()
+
+    async def _load_full_history_rows(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+        start_date: str,
+        fetch_policy: Literal["cache_only", "hydrate"],
+        persist_klines: Callable[[str, str, list[list[float]]], None] | None,
+    ) -> tuple[list[list[float]], list[tuple[int, int]]]:
+        return await run_sync(
+            lambda: self._load_full_history_rows_sync(
+                symbol=symbol,
+                timeframe=timeframe,
+                start_date=start_date,
+                fetch_policy=fetch_policy,
+                persist_klines=persist_klines,
+            )
+        )
+
+    def _load_full_history_rows_sync(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+        start_date: str,
+        fetch_policy: Literal["cache_only", "hydrate"],
+        persist_klines: Callable[[str, str, list[list[float]]], None] | None,
+    ) -> tuple[list[list[float]], list[tuple[int, int]]]:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        except ValueError as exc:
+            raise ValueError("start_date 必须是 YYYY-MM-DD") from exc
+
+        end_dt = datetime.now()
+        if fetch_policy == "cache_only":
+            result = self.market_data_service.load_cached_ohlcv_range(
+                symbol,
+                timeframe,
+                start_dt,
+                end_dt,
+            )
+        else:
+            result = self.market_data_service.load_ohlcv_range(
+                symbol,
+                timeframe,
+                start_dt,
+                end_dt,
+                persist_klines=persist_klines,
+            )
+        return result.rows, result.missing_ranges

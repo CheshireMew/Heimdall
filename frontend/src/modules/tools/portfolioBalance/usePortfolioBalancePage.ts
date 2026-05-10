@@ -5,7 +5,7 @@ import { backtestApi } from '@/modules/backtest'
 import { toBaseSymbol } from '@/modules/market'
 import { todayLocalIsoDate } from '@/utils/localDate'
 import type { BacktestRunResponse } from '@/modules/backtest/contracts'
-import type { PortfolioBacktestSummary, PortfolioBalancePortfolio } from './model'
+import type { PortfolioBacktestSummary, PortfolioBalancePortfolio } from './types'
 
 import { buildPortfolioBacktestSummary } from './backtest'
 import { fetchPortfolioPriceMap, loadPortfolioBacktestHistory } from './data'
@@ -19,29 +19,22 @@ import {
   selectLatestPaperRunForPortfolio,
 } from './holdings'
 import {
-  copyPortfolioBalancePortfolio,
-  createDefaultPortfolioCollection,
-  createDefaultPortfolioBalanceSnapshot,
   createPortfolioBalanceAsset,
-  createPortfolioBalancePortfolio,
+  readPortfolioSyntheticPrice,
+} from './assets'
+import { toPortfolioUserError } from './errors'
+import { copyPortfolioInCollection, createPortfolioInCollection, deletePortfolioFromCollection } from './portfolioCrud'
+import {
   buildPortfolioBalanceSnapshot,
+  createDefaultPortfolioBalanceSnapshot,
+  createPortfolioBalancePortfolio,
   hasActiveAssets,
   hasMarketGap,
   normalizePortfolioBalancePortfolio,
   normalizePortfolioBalanceSnapshot,
-  readPortfolioSyntheticPrice,
   touchPortfolio,
-} from './model'
+} from './snapshot'
 import { computePortfolioBalancePlan } from './plan'
-
-type RequestError = {
-  message?: string
-  response?: {
-    data?: {
-      detail?: string
-    }
-  }
-}
 
 export function usePortfolioBalancePage() {
   const pageSnapshot = createPersistentPageSnapshot(
@@ -83,19 +76,6 @@ export function usePortfolioBalancePage() {
     sourceError.value = ''
   }
 
-  const toUserError = (error: unknown, fallback: string) => {
-    const requestError = error as RequestError
-    const message = String(requestError.response?.data?.detail || requestError.message || '').trim()
-    if (!message) return fallback
-    if (message.includes('Background on this error at:') || message.includes('sqlalche.me/e/')) {
-      return '历史数据处理失败，请稍后重试。'
-    }
-    if (message.length > 240) {
-      return `${message.slice(0, 240)}...`
-    }
-    return message
-  }
-
   const updateActivePortfolio = (updater: (portfolio: PortfolioBalancePortfolio) => void) => {
     const portfolio = activePortfolio.value
     if (!portfolio) return
@@ -132,7 +112,7 @@ export function usePortfolioBalancePage() {
       }
       touchPortfolio(portfolio)
     } catch (error: unknown) {
-      sourceError.value = toUserError(error, '刷新市场价格失败')
+      sourceError.value = toPortfolioUserError(error, '刷新市场价格失败')
     } finally {
       marketLoading.value = false
     }
@@ -155,54 +135,21 @@ export function usePortfolioBalancePage() {
   }
 
   const createPortfolio = () => {
-    const nextPortfolio = createPortfolioBalancePortfolio({
-      name: `组合 ${portfolios.length + 1}`,
-    })
-    portfolios.unshift(nextPortfolio)
-    activePortfolioId.value = nextPortfolio.id
+    activePortfolioId.value = createPortfolioInCollection(portfolios)
     sourceMessage.value = '已创建新组合'
     sourceError.value = ''
   }
 
-  const buildCopiedPortfolioName = (sourceName: string) => {
-    const baseName = sourceName.trim() || '组合'
-    const copyName = `${baseName} 副本`
-    const existingNames = new Set(portfolios.map((portfolio) => portfolio.name))
-    if (!existingNames.has(copyName)) return copyName
-
-    let sequence = 2
-    while (existingNames.has(`${copyName} ${sequence}`)) {
-      sequence += 1
-    }
-    return `${copyName} ${sequence}`
-  }
-
   const copyPortfolio = (portfolioId: string) => {
-    const index = portfolios.findIndex((portfolio) => portfolio.id === portfolioId)
-    if (index < 0) return
-
-    const sourcePortfolio = portfolios[index]
-    const nextPortfolio = copyPortfolioBalancePortfolio(sourcePortfolio, {
-      name: buildCopiedPortfolioName(sourcePortfolio.name),
-    })
-    portfolios.splice(index + 1, 0, nextPortfolio)
-    activePortfolioId.value = nextPortfolio.id
+    const nextPortfolioId = copyPortfolioInCollection(portfolios, portfolioId)
+    if (!nextPortfolioId) return
+    activePortfolioId.value = nextPortfolioId
     sourceMessage.value = '组合已复制'
     sourceError.value = ''
   }
 
   const deletePortfolio = (portfolioId: string) => {
-    const index = portfolios.findIndex((portfolio) => portfolio.id === portfolioId)
-    if (index < 0) return
-
-    portfolios.splice(index, 1)
-    if (!portfolios.length) {
-      const fallback = createDefaultPortfolioCollection()[0]
-      portfolios.push(fallback)
-      activePortfolioId.value = fallback.id
-    } else if (activePortfolioId.value === portfolioId) {
-      activePortfolioId.value = portfolios[0].id
-    }
+    activePortfolioId.value = deletePortfolioFromCollection(portfolios, portfolioId, activePortfolioId.value)
 
     sourceMessage.value = '组合已删除'
     sourceError.value = ''
@@ -297,7 +244,7 @@ export function usePortfolioBalancePage() {
       lastImportedRun.value = targetRun
       sourceMessage.value = `已导入模拟盘 #${targetRun.id}`
     } catch (error: unknown) {
-      sourceError.value = toUserError(error, '导入模拟盘持仓失败')
+      sourceError.value = toPortfolioUserError(error, '导入模拟盘持仓失败')
     } finally {
       importLoading.value = false
     }
@@ -331,7 +278,7 @@ export function usePortfolioBalancePage() {
       })
       sourceMessage.value = `已生成 ${nextResult.startDate} 到 ${nextResult.endDate} 的回测结果`
     } catch (error: unknown) {
-      sourceError.value = toUserError(error, '组合回测失败')
+      sourceError.value = toPortfolioUserError(error, '组合回测失败')
     } finally {
       backtestLoading.value = false
     }

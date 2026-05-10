@@ -1,9 +1,9 @@
 import { ensureSymbolCatalogLoaded, isIndexSymbol, marketApi, toBaseSymbol } from '@/modules/market'
 import type { MarketHistoryBatchItemResponse, OhlcvPointResponse } from '@/modules/market/contracts'
-import type { PortfolioBalancePortfolio } from './model'
+import type { PortfolioBalancePortfolio } from './types'
 
 import { buildPortfolioSyntheticHistory } from './backtest'
-import { collectPortfolioMarketTargets, readPortfolioSyntheticPrice } from './model'
+import { collectPortfolioMarketTargets, readPortfolioSyntheticPrice } from './assets'
 import { localIsoDateDaysAgo, toLocalIsoDate } from '@/utils/localDate'
 
 type PortfolioHistoryPoint = { date: string; close: number }

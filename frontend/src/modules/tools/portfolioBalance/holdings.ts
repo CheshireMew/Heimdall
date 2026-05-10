@@ -1,16 +1,16 @@
 import { isPaperLiveMetadata } from '@/modules/backtest'
 import type { BacktestPaperPositionResponse, BacktestRunResponse } from '@/modules/backtest/contracts'
-import type { PortfolioBalancePortfolio, PortfolioHoldingsSource } from './model'
+import type { PortfolioBalancePortfolio, PortfolioHoldingsSource } from './types'
 
 import {
   buildNormalizedPortfolioWeights,
   createPortfolioBalanceAsset,
   readPortfolioSyntheticPrice,
-} from './model'
+} from './assets'
 import {
   round,
   sanitizeNumber,
-} from './model'
+} from './number'
 import { toBaseSymbol } from '@/modules/market'
 
 export const clearPortfolioHoldings = (

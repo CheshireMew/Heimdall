@@ -597,6 +597,51 @@ def make_market_indicator() -> dict:
     }
 
 
+def make_dli_liquidity_response() -> dict:
+    indicator = {
+        "indicator_id": "FED_BALANCE",
+        "name": "Fed Balance Sheet",
+        "category": "Macro",
+        "unit": "M USD",
+        "current_value": 7_200_000.0,
+        "last_updated": "2025-06-01T12:00:00",
+        "history": [{"date": "2025-05-31T12:00:00", "value": 7_100_000.0}],
+    }
+    return {
+        "score": 72,
+        "raw_score": 71.6,
+        "state": "流动性宽松",
+        "tone": "support",
+        "updated_at": "2025-06-01T12:00:00",
+        "coverage": 100.0,
+        "methodology": "rolling_median_mad_weighted_v1",
+        "thresholds": {"p20": 43.0, "p80": 68.0, "source": "fallback", "sample_size": 1},
+        "components": [
+            {
+                "indicator_id": "FED_BALANCE",
+                "name": "美联储资产负债表",
+                "short_label": "Fed Balance",
+                "group": "policy",
+                "group_label": "政策与准备金池",
+                "weight": 30.0,
+                "effective_weight": 30.0,
+                "polarity": "higher_supports",
+                "current_value": 7_200_000.0,
+                "score": 72.0,
+                "z_score": 0.8,
+                "percentile": 75.0,
+                "contribution": 6.6,
+                "change_pct": 1.4,
+                "last_updated": "2025-06-01T12:00:00",
+                "missing_reason": None,
+            }
+        ],
+        "history": [{"date": "2025-05-31T12:00:00", "score": 71.6, "state": "流动性宽松"}],
+        "indicators": [indicator],
+        "alerts": ["Fed Balance 当前对风险资产形成支撑，DLI 贡献 +6.60，30 日变化 +1.40%。"],
+    }
+
+
 def make_funding_rate_snapshot() -> dict:
     return {
         "exchange": "binance",
@@ -1035,6 +1080,9 @@ class StubMarketQueryAppService:
 class StubMarketInsightAppService:
     async def get_indicators_async(self, **kwargs):
         return [make_market_indicator()]
+
+    async def get_dli_liquidity_async(self, **kwargs):
+        return make_dli_liquidity_response()
 
     async def get_trade_setup(self, **kwargs):
         return make_trade_setup_response()

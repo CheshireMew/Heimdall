@@ -7,7 +7,13 @@ from fastapi import APIRouter, Depends, Query, Request
 from app.dependencies import runtime_dependency
 from app.runtime_refs import MARKET_INSIGHT_APP_SERVICE, MARKET_QUERY_APP_SERVICE
 from app.rate_limit import limiter
-from app.contracts.dto.market import CryptoIndexResponse, MarketIndicatorResponse, TechnicalMetricsResponse, TradeSetupResponse
+from app.contracts.dto.market import (
+    CryptoIndexResponse,
+    DliLiquidityResponse,
+    MarketIndicatorResponse,
+    TechnicalMetricsResponse,
+    TradeSetupResponse,
+)
 from config import settings
 
 if TYPE_CHECKING:
@@ -27,6 +33,14 @@ async def get_market_indicators(
     service: MarketInsightAppService = Depends(market_insight_dependency),
 ):
     return await service.get_indicators_async(category=category, days=days)
+
+
+@router.get("/indicators/dli", response_model=DliLiquidityResponse)
+async def get_dli_liquidity(
+    days: int = Query(settings.INDICATORS_DEFAULT_DAYS, ge=30, le=3650, description="展示历史数据天数"),
+    service: MarketInsightAppService = Depends(market_insight_dependency),
+):
+    return await service.get_dli_liquidity_async(days=days)
 
 
 @router.get("/technical-metrics", response_model=TechnicalMetricsResponse)

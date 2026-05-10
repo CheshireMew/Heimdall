@@ -5,7 +5,8 @@ import time
 
 import pytest
 
-from app.contracts.dto.binance_market import BinanceKlineResponse, BinanceMarkPriceResponse, BinanceOpenInterestStatsResponse, BinanceTickerStatsResponse
+from app.contracts.dto.binance.common import BinanceKlineResponse, BinanceTickerStatsResponse
+from app.contracts.dto.binance.usdm import BinanceMarkPriceResponse, BinanceOpenInterestStatsResponse
 from app.services.market import binance_contract_oi_enricher as oi_enricher_module
 from app.services.market.binance_market_intel_service import BinanceMarketIntelService
 from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore

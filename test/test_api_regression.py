@@ -101,6 +101,7 @@ def make_factor_execution_payload() -> dict[str, Any]:
         ("get", "/api/v1/history", {"params": {"symbol": "BTC/USDT", "timeframe": "1h", "end_ts": 1710007200000}}, lambda data: data["symbol"] == "BTC/USDT" and len(data["items"]) == 3),
         ("get", "/api/v1/full_history", {"params": {"symbol": "BTC/USDT", "timeframe": "1d", "start_date": "2025-01-01"}}, lambda data: data["timeframe"] == "1d" and len(data["items"]) == 3),
         ("get", "/api/v1/indicators", {}, lambda data: data[0]["indicator_id"] == "FEAR_GREED"),
+        ("get", "/api/v1/indicators/dli", {}, lambda data: data["score"] == 72 and data["components"][0]["indicator_id"] == "FED_BALANCE"),
         ("get", "/api/v1/funding-rate/current", {"params": {"symbol": "BTCUSDT"}}, lambda data: data["symbol"] == "BTCUSDT"),
         ("get", "/api/v1/binance/market/page", {}, lambda data: data["monitor"]["summary"]["focus_count"] == 1 and data["monitor"]["items"][0]["verdict"] == "优先关注"),
         ("post", "/api/v1/funding-rate/sync", {"params": {"symbol": "BTCUSDT", "start_date": "2025-01-01"}}, lambda data: data["inserted"] == 50),

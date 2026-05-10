@@ -30,6 +30,7 @@ import type {
   TradeSetupResponse,
   MarketHistoryResponse,
   MarketHistoryBatchResponse,
+  DliLiquidityResponse,
   MarketIndicatorResponse,
   CryptoIndexResponse,
   MarketIndexHistoryResponse,
@@ -66,6 +67,7 @@ import type {
   GetMarketFullHistoryBatchQueryParams,
   GetMarketFullHistoryQueryParams,
   GetMarketHistoryQueryParams,
+  GetDliLiquidityQueryParams,
   GetMarketIndicatorsQueryParams,
   GetRealtimeAnalysisQueryParams,
   GetTradeSetupQueryParams,
@@ -95,6 +97,10 @@ export const marketApi = {
 
   getIndicators(params: GetMarketIndicatorsQueryParams): Promise<AxiosResponse<MarketIndicatorResponse[]>> {
     return apiGet('get_market_indicators', { query: params })
+  },
+
+  getDliLiquidity(params: GetDliLiquidityQueryParams): Promise<AxiosResponse<DliLiquidityResponse>> {
+    return apiGet('get_dli_liquidity', { query: params })
   },
 
   getPriceSeriesWindow(params: GetMarketHistoryQueryParams): Promise<AxiosResponse<MarketHistoryResponse>> {

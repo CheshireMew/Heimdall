@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.dependencies import runtime_dependency
 from app.runtime_refs import MARKET_BINANCE_WEB3_SERVICE
-from app.contracts.dto.binance_market import (
+from app.contracts.dto.binance.rwa import (
     BinanceRwaDynamicResponse,
     BinanceRwaKlineResponse,
     BinanceRwaMarketStatusResponse,

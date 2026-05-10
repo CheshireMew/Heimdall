@@ -7,9 +7,9 @@ from fastapi import APIRouter, Depends, Query, Request
 from app.dependencies import runtime_dependency
 from app.runtime_refs import MARKET_BINANCE_MARKET_INTEL
 from app.rate_limit import limiter
-from app.contracts.dto.binance_market import (
+from app.contracts.dto.binance.common import BinanceExchangeInfoResponse, BinanceTickerStatsResponse
+from app.contracts.dto.binance.usdm import (
     BinanceBasisResponse,
-    BinanceExchangeInfoResponse,
     BinanceFundingHistoryListResponse,
     BinanceFundingInfoResponse,
     BinanceMarkPriceResponse,
@@ -17,7 +17,6 @@ from app.contracts.dto.binance_market import (
     BinanceOpenInterestStatsResponse,
     BinanceRatioSeriesResponse,
     BinanceTakerVolumeResponse,
-    BinanceTickerStatsResponse,
 )
 from config import settings
 

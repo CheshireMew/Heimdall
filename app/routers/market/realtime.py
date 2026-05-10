@@ -58,7 +58,7 @@ async def websocket_realtime(
                 await websocket.send_json({"type": "error", "message": "no data"})
                 await asyncio.sleep(settings.WS_UPDATE_INTERVAL)
                 continue
-            await websocket.send_json(payload.model_dump())
+            await websocket.send_json(payload)
             await asyncio.sleep(settings.WS_UPDATE_INTERVAL)
     except WebSocketDisconnect:
         logger.info("客户端断开实时推送")

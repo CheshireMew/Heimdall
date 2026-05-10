@@ -145,6 +145,53 @@ class MarketIndicatorResponse(BaseModel):
     history: list[IndicatorHistoryPoint]
 
 
+class DliThresholdsResponse(BaseModel):
+    p20: float
+    p80: float
+    source: str
+    sample_size: int
+
+
+class DliComponentResponse(BaseModel):
+    indicator_id: str
+    name: str
+    short_label: str
+    group: str
+    group_label: str
+    weight: float
+    effective_weight: float
+    polarity: str
+    current_value: float | None
+    score: float | None
+    z_score: float | None
+    percentile: float | None
+    contribution: float | None
+    change_pct: float | None
+    last_updated: str | None
+    missing_reason: str | None = None
+
+
+class DliHistoryPointResponse(BaseModel):
+    date: str
+    score: float
+    state: str
+
+
+class DliLiquidityResponse(BaseModel):
+    score: int | None
+    raw_score: float | None
+    state: str
+    tone: str
+    updated_at: str | None
+    coverage: float
+    methodology: str
+    thresholds: DliThresholdsResponse
+    components: list[DliComponentResponse]
+    history: list[DliHistoryPointResponse] = Field(default_factory=list)
+    indicators: list[MarketIndicatorResponse] = Field(default_factory=list)
+    alerts: list[str] = Field(default_factory=list)
+
+
 class ApiStatusResponse(BaseModel):
     status: str
     version: str

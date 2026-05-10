@@ -180,7 +180,7 @@ def test_trading_view_chart_uses_adaptive_price_axis_precision():
 def test_symbol_search_supports_usd_equivalent_cash_assets():
     catalog_source = read_frontend("modules/market/symbolCatalog.ts")
     portfolio_source = read_frontend("views/tools/PortfolioBalance.vue")
-    model_source = read_frontend("modules/tools/portfolioBalance/model.ts")
+    asset_source = read_frontend("modules/tools/portfolioBalance/assets.ts")
     generator_source = (ROOT_DIR / "scripts" / "generate_frontend_contracts.py").read_text(encoding="utf-8")
 
     assert "marketApi.getSymbols" in catalog_source
@@ -190,7 +190,7 @@ def test_symbol_search_supports_usd_equivalent_cash_assets():
     assert not (FRONTEND_DIR / "modules" / "market" / "baseSymbolCatalog.ts").exists()
 
     assert "list_market_search_items" not in generator_source
-    assert "readCashSymbolPrices" in model_source
+    assert "readCashSymbolPrices" in asset_source
     assert "['crypto', 'index', 'cash']" in portfolio_source
 
 

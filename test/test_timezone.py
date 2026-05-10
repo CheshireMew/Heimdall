@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytz
 from utils.time_manager import TimeManager
-from app.services.market.market_data_service import OhlcvRangeResult
+from app.services.market.kline_range_loader import OhlcvRangeResult
 from app.services.tools.dca_service import DCAService as DCACalculator
 
 class TestTimezoneLogic(unittest.TestCase):

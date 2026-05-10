@@ -134,6 +134,21 @@ export interface MarketIndicatorResponse {
   history: Array<IndicatorHistoryPoint>
 }
 
+export interface DliLiquidityResponse {
+  score: number | null
+  raw_score: number | null
+  state: string
+  tone: string
+  updated_at: string | null
+  coverage: number
+  methodology: string
+  thresholds: DliThresholdsResponse
+  components: Array<DliComponentResponse>
+  history?: Array<DliHistoryPointResponse>
+  indicators?: Array<MarketIndicatorResponse>
+  alerts?: Array<string>
+}
+
 export interface TechnicalMetricsResponse {
   symbol: string
   timeframe: string
@@ -866,6 +881,38 @@ export interface CurrentPriceBatchItemResponse {
   source: string
 }
 
+export interface DliComponentResponse {
+  indicator_id: string
+  name: string
+  short_label: string
+  group: string
+  group_label: string
+  weight: number
+  effective_weight: number
+  polarity: string
+  current_value: number | null
+  score: number | null
+  z_score: number | null
+  percentile: number | null
+  contribution: number | null
+  change_pct: number | null
+  last_updated: string | null
+  missing_reason?: string | null
+}
+
+export interface DliHistoryPointResponse {
+  date: string
+  score: number
+  state: string
+}
+
+export interface DliThresholdsResponse {
+  p20: number
+  p80: number
+  source: string
+  sample_size: number
+}
+
 export interface FundingRateHistoryPointResponse {
   funding_time: string
   funding_rate: number
@@ -1168,6 +1215,10 @@ export interface GetCurrentPriceBatchQueryParams {
 export interface GetCurrentPriceQueryParams {
   symbol: string
   timeframe?: string
+}
+
+export interface GetDliLiquidityQueryParams {
+  days?: number
 }
 
 export interface GetFundingRateHistoryQueryParams {

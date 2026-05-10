@@ -3,12 +3,15 @@ export { applyLatestMarketPrices, buildPortfolioAssetsFromPaperRun, clearPortfol
 export {
   collectPortfolioMarketTargets,
   computePortfolioAssetHoldingValue,
+  createPortfolioBalanceAsset,
+  readPortfolioSyntheticPrice,
+} from './assets'
+export {
   copyPortfolioBalancePortfolio,
   createDefaultPortfolioCollection,
-  createPortfolioBalanceAsset,
   createPortfolioBalancePortfolio,
   normalizePortfolioBalancePortfolio,
-  readPortfolioSyntheticPrice,
-} from './model'
+} from './snapshot'
 export { computePortfolioBalancePlan } from './plan'
+export type * from './types'
 export { usePortfolioBalancePage } from './usePortfolioBalancePage'

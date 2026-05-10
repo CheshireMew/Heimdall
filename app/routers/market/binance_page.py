@@ -6,10 +6,8 @@ from fastapi import APIRouter, Depends, Query
 
 from app.dependencies import runtime_dependency
 from app.runtime_refs import MARKET_BINANCE_MARKET_INTEL
-from app.contracts.dto.binance_market import (
-    BinanceContractResearchDetailResponse,
-    BinanceMarketPageResponse,
-)
+from app.contracts.dto.binance.page import BinanceMarketPageResponse
+from app.contracts.dto.binance.usdm import BinanceContractResearchDetailResponse
 
 if TYPE_CHECKING:
     from app.services.market.binance_market_intel_service import BinanceMarketIntelService

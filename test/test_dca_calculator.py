@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 from app.contracts.dto.market import MarketIndexHistoryResponse, build_ohlcv_points
 
-from app.services.market.market_data_service import OhlcvRangeResult
+from app.services.market.kline_range_loader import OhlcvRangeResult
 from app.services.tools.dca_service import DCAService as DCACalculator
 
 
