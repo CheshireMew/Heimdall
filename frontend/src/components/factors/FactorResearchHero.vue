@@ -2,11 +2,11 @@
   <section class="panel p-6">
     <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div class="max-w-4xl">
-        <div class="text-xs font-semibold uppercase tracking-[0.26em] text-cyan-600 dark:text-cyan-300">{{ $t('factorResearch.eyebrow') }}</div>
-        <h1 class="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{{ $t('factorResearch.title') }}</h1>
-        <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{{ $t('factorResearch.subtitle') }}</p>
+        <div class="app-eyebrow">{{ $t('factorResearch.eyebrow') }}</div>
+        <h1 class="app-title mt-3">{{ $t('factorResearch.title') }}</h1>
+        <p class="app-subtitle mt-3">{{ $t('factorResearch.subtitle') }}</p>
       </div>
-      <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+      <div class="border border-stone-200 bg-[#fbfaf7] px-4 py-3 text-sm text-stone-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
         {{ $t('factorResearch.hint') }}
         <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">
           {{ $t('factorResearch.forwardHorizons') }}: {{ panel.catalog.forward_horizons.length ? panel.catalog.forward_horizons.join(' / ') : '--' }}
@@ -24,5 +24,14 @@ const panel = props.panel
 </script>
 
 <style scoped>
-.panel { @apply rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800; }
+.panel {
+  border: 1px solid #e4ded3;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+:global(.dark) .panel {
+  border-color: #334155;
+  background: #1e293b;
+}
 </style>

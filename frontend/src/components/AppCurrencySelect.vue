@@ -1,7 +1,7 @@
 <template>
   <select
     :value="displayCurrency"
-    class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-gray-900 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+    class="app-control w-full px-3 py-2"
     @change="handleChange"
   >
     <option v-for="option in currencyOptions" :key="option.value" :value="option.value">

@@ -47,7 +47,7 @@
             <div class="section-title">{{ $t('factorResearch.factorPool') }}</div>
             <div class="section-subtitle">{{ $t('factorResearch.factorPoolHint') }}</div>
           </div>
-          <button class="text-sm font-medium text-cyan-600 dark:text-cyan-300" @click="panel.resetFactorSelection">{{ $t('factorResearch.useAll') }}</button>
+          <button class="text-sm font-medium text-[#0f6b4f] dark:text-emerald-300" @click="panel.resetFactorSelection">{{ $t('factorResearch.useAll') }}</button>
         </div>
         <div class="mt-4 flex max-h-40 flex-wrap gap-2 overflow-y-auto pr-1">
           <button v-for="factor in panel.factorPool" :key="factor.factor_id" class="chip" :class="panel.factorChipClass(factor.factor_id)" @click="panel.toggleFactor(factor.factor_id)">
@@ -67,12 +67,22 @@ const panel = props.panel
 </script>
 
 <style scoped>
-.panel { @apply rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800; }
-.label { @apply mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400; }
-.input { @apply w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-cyan-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100; }
-.primary-btn { @apply rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-cyan-600 dark:hover:bg-cyan-500; }
-.card-shell { @apply rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/50; }
-.section-title { @apply text-sm font-semibold text-slate-900 dark:text-white; }
-.section-subtitle { @apply mt-1 text-xs text-slate-500 dark:text-slate-400; }
-.chip { @apply rounded-full border px-3 py-1.5 text-sm font-medium transition; }
+.panel {
+  border: 1px solid #e4ded3;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.label { @apply mb-1 block text-xs font-bold uppercase tracking-wide text-stone-500 dark:text-slate-400; }
+.input { @apply w-full border bg-white px-3 py-2 text-sm text-stone-700 outline-none transition focus:border-emerald-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100; border-color: #e4ded3; }
+.primary-btn { @apply px-5 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400; background: #0f6b4f; }
+.primary-btn:hover { background: #0b5a41; }
+.card-shell { @apply border p-4 dark:border-slate-700 dark:bg-slate-900/50; border-color: #e4ded3; background: #fbfaf7; }
+.section-title { @apply text-sm font-semibold text-stone-950 dark:text-white; }
+.section-subtitle { @apply mt-1 text-xs text-stone-500 dark:text-slate-400; }
+.chip { @apply border px-3 py-1.5 text-sm font-medium transition; }
+
+:global(.dark) .panel {
+  border-color: #334155;
+  background: #1e293b;
+}
 </style>

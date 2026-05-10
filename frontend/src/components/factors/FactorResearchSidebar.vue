@@ -9,7 +9,7 @@
         <div class="text-xs text-slate-400">{{ panel.runsLoading ? $t('factorResearch.loadingRuns') : panel.runs.length }}</div>
       </div>
       <div class="mt-4 space-y-3">
-        <button v-for="run in panel.runs" :key="run.id" class="block w-full rounded-2xl border px-4 py-3 text-left transition" :class="run.id === panel.selectedRunId ? 'border-cyan-500 bg-cyan-50 dark:border-cyan-400 dark:bg-cyan-500/10' : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800/70 dark:hover:border-slate-600'" @click="panel.loadRun(run.id)">
+        <button v-for="run in panel.runs" :key="run.id" class="block w-full border px-4 py-3 text-left transition" :class="run.id === panel.selectedRunId ? 'border-[#b8d2c4] bg-[#edf3ee] dark:border-emerald-400 dark:bg-emerald-500/10' : 'border-stone-200 bg-white hover:border-stone-300 dark:border-slate-700 dark:bg-slate-800/70 dark:hover:border-slate-600'" @click="panel.loadRun(run.id)">
           <div class="flex items-start justify-between gap-3">
             <div>
               <div class="text-sm font-semibold text-slate-900 dark:text-white">{{ run.summary.symbol }} · {{ run.summary.timeframe }}</div>
@@ -32,7 +32,7 @@
             </div>
           </div>
         </button>
-        <div v-if="!panel.runsLoading && !panel.runs.length" class="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+        <div v-if="!panel.runsLoading && !panel.runs.length" class="border border-dashed border-[#d8d1c5] px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
           {{ $t('factorResearch.noRuns') }}
         </div>
       </div>
@@ -55,7 +55,7 @@
           </div>
         </div>
         <div class="space-y-2">
-          <div v-for="item in panel.blend.selected_factors" :key="item.factor_id" class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-700 dark:bg-slate-900/60">
+          <div v-for="item in panel.blend.selected_factors" :key="item.factor_id" class="border border-stone-200 bg-[#fbfaf7] px-3 py-3 dark:border-slate-700 dark:bg-slate-900/60">
             <div class="flex items-start justify-between gap-3">
               <div>
                 <div class="text-sm font-semibold text-slate-900 dark:text-white">{{ item.name }}</div>
@@ -80,7 +80,7 @@
           </div>
         </div>
       </div>
-      <div v-else class="mt-4 rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+      <div v-else class="mt-4 border border-dashed border-[#d8d1c5] px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
         {{ $t('factorResearch.noBlend') }}
       </div>
     </section>
@@ -152,12 +152,23 @@ const panel = props.panel
 </script>
 
 <style scoped>
-.panel { @apply rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800; }
-.label { @apply mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400; }
-.input { @apply w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-cyan-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100; }
-.primary-btn { @apply rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-cyan-600 dark:hover:bg-cyan-500; }
-.secondary-btn { @apply rounded-2xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:bg-slate-800; }
-.mini-stat { @apply rounded-xl bg-slate-100 px-3 py-2 dark:bg-slate-900; }
+.panel {
+  border: 1px solid #e4ded3;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.label { @apply mb-1 block text-xs font-bold uppercase tracking-wide text-stone-500 dark:text-slate-400; }
+.input { @apply w-full border bg-white px-3 py-2 text-sm text-stone-700 outline-none transition focus:border-emerald-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100; border-color: #e4ded3; }
+.primary-btn { @apply px-5 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400; background: #0f6b4f; }
+.primary-btn:hover { background: #0b5a41; }
+.secondary-btn { @apply border px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:text-slate-100 dark:hover:border-slate-500 dark:hover:bg-slate-800; border-color: #e4ded3; color: #0f6b4f; }
+.secondary-btn:hover { background: #f4f1ea; }
+.mini-stat { @apply px-3 py-2 dark:bg-slate-900; background: #fbfaf7; }
 .mini-stat-label { @apply text-[11px] uppercase tracking-wide text-slate-400; }
-.mini-stat-value { @apply mt-1 font-semibold text-slate-900 dark:text-white; }
+.mini-stat-value { @apply mt-1 font-semibold text-stone-950 dark:text-white; }
+
+:global(.dark) .panel {
+  border-color: #334155;
+  background: #1e293b;
+}
 </style>

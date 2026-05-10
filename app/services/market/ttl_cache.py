@@ -27,3 +27,6 @@ class TtlMemoryCache(Generic[TKey, TValue]):
     def set(self, key: TKey, value: TValue) -> None:
         cached_value = self.copy_value(value) if self.copy_value is not None else value
         self._items[key] = (time.monotonic() + self.ttl_seconds, cached_value)
+
+    def clear(self) -> None:
+        self._items.clear()

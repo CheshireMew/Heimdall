@@ -4,21 +4,61 @@
 
 @layer components {
   .label { @apply block text-gray-500 dark:text-gray-400 text-xs font-bold mb-1; }
-  .input { @apply w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white outline-none focus:border-blue-500 transition-colors; }
-  .btn-primary { @apply bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-bold transition disabled:opacity-50; }
-  .btn-secondary { @apply bg-gray-100 hover:bg-gray-200 dark:bg-gray-900 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 py-2 rounded-lg font-bold transition border border-gray-200 dark:border-gray-700; }
-  .btn-danger { @apply bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 text-red-600 dark:text-red-300 px-3 py-2 rounded-lg font-bold transition border border-red-200 dark:border-red-800; }
+  .input { @apply w-full border bg-white px-3 py-2 text-stone-900 outline-none transition focus:border-emerald-700 dark:border-gray-600 dark:bg-gray-900 dark:text-white; border-color: #e4ded3; }
+  .btn-primary { @apply text-white py-2 font-bold transition disabled:opacity-50; background: #0f6b4f; }
+  .btn-primary:hover { background: #0b5a41; }
+  .btn-secondary { @apply bg-white hover:bg-stone-100 dark:bg-gray-900 dark:hover:bg-gray-800 text-stone-700 dark:text-gray-200 py-2 font-bold transition border dark:border-gray-700; border-color: #e4ded3; }
+  .btn-danger { @apply bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 text-red-600 dark:text-red-300 px-3 py-2 font-bold transition border border-red-200 dark:border-red-800; }
   .section-title { @apply text-sm font-bold text-gray-900 dark:text-white; }
-  .editor-section { @apply rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/50 p-3 space-y-3; }
-  .editor-card { @apply rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-3; }
+  .editor-section { @apply border bg-white p-3 space-y-3 dark:border-gray-700 dark:bg-gray-900/50; border-color: #e4ded3; }
+  .editor-card { @apply border p-3 dark:border-gray-700 dark:bg-gray-900/40; border-color: #e4ded3; background: #fbfaf7; }
+
+  .app-page { @apply h-full overflow-y-auto text-stone-900 transition-colors dark:text-slate-100; background: #f7f4ed; }
+  .app-page-inner { @apply mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8 lg:py-10; }
+  .app-page-inner-wide { @apply mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8 lg:py-10; }
+  .app-hero-panel { @apply border p-6 dark:border-slate-700 dark:bg-slate-800/90; border-color: #e4ded3; background: rgba(255, 255, 255, 0.88); }
+  .app-panel { @apply border bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800; border-color: #e4ded3; }
+  .app-panel-header { @apply border-b px-5 py-4 dark:border-slate-700; border-color: #e4ded3; }
+  .app-card { @apply border bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800; border-color: #e4ded3; }
+  .app-chart-frame { @apply border p-2 dark:border-slate-700 dark:bg-slate-900; border-color: #e4ded3; background: #fbfaf7; }
+  .app-eyebrow { @apply text-xs font-semibold uppercase tracking-[0.24em] dark:text-emerald-300; color: #0f6b4f; }
+  .app-title { @apply text-3xl font-semibold tracking-normal text-stone-950 dark:text-white; font-family: Georgia, "Times New Roman", serif; }
+  .app-section-title { @apply text-lg font-semibold text-stone-950 dark:text-white; }
+  .app-subtitle { @apply text-sm leading-6 text-stone-600 dark:text-slate-300; }
+  .app-muted { @apply text-stone-500 dark:text-slate-400; }
+  .app-button-primary { @apply px-5 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400; background: #0f6b4f; }
+  .app-button-primary:hover { background: #0b5a41; }
+  .app-button-secondary { @apply border bg-white px-4 py-2 text-sm font-semibold transition dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800; border-color: #e4ded3; color: #0f6b4f; }
+  .app-button-secondary:hover { background: #f4f1ea; }
+  .app-control { @apply border bg-white px-3 py-2 text-sm text-stone-700 outline-none transition focus:border-emerald-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100; border-color: #e4ded3; }
+  .app-table-head { @apply text-stone-500 dark:bg-slate-900/60 dark:text-slate-400; background: #fbfaf7; }
+  .app-table-row { @apply border-t text-stone-700 transition hover:bg-stone-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700/50; border-color: #eee7dc; }
+  .app-chip { @apply px-3 py-1 text-xs font-semibold dark:bg-slate-900 dark:text-slate-300; background: #edf3ee; color: #0f4f3c; }
 }
 
 :root {
+  color-scheme: light;
+}
+
+html.dark {
   color-scheme: dark;
 }
 
+html.light {
+  color-scheme: light;
+}
+
 body {
-  @apply bg-gray-900 text-gray-100;
+  @apply text-gray-900 dark:bg-gray-900 dark:text-gray-100;
+  background: #f7f4ed;
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+html.dark body {
+  background: #111827;
+}
+
+html.dark .app-page {
+  background: #0f172a;
 }

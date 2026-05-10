@@ -6,13 +6,13 @@ export const useFactorResearchFormatting = (state: FactorResearchState) => {
   const factorChipClass = (factorId: string) => {
     const active = state.useAllFactors.value || state.selectedFactorLookup.value.has(factorId)
     return active
-      ? 'bg-cyan-600 text-white border-cyan-500'
+      ? 'bg-[#0f6b4f] text-white border-[#0f6b4f]'
       : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700'
   }
 
   const categoryChipClass = (category: string) => (
     state.form.categories.includes(category)
-      ? 'bg-slate-900 text-white border-slate-700 dark:bg-cyan-600 dark:border-cyan-500'
+      ? 'bg-[#0f6b4f] text-white border-[#0f6b4f] dark:bg-emerald-600 dark:border-emerald-500'
       : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700'
   )
 

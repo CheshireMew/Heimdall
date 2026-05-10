@@ -1,6 +1,6 @@
 <template>
-  <div class="h-full overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(8,145,178,0.08),transparent_38%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] transition-colors dark:bg-none dark:bg-slate-950">
-    <div class="space-y-6 p-6 lg:p-8">
+  <div class="app-page">
+    <div class="app-page-inner-wide">
       <section class="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] 2xl:grid-cols-[1.6fr_1fr] 2xl:gap-8">
         <div class="space-y-6">
           <section class="space-y-4">
@@ -14,16 +14,16 @@
                 <button
                   type="button"
                   @click="autoRefresh = !autoRefresh"
-                  class="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 ring-1 ring-slate-200 transition hover:bg-slate-100 dark:bg-slate-900 dark:ring-slate-700 dark:hover:bg-slate-800"
+                  class="app-button-secondary flex items-center gap-2 px-3 py-1.5"
                 >
                   <span class="text-slate-500 dark:text-slate-400">{{ t('binanceMarket.autoRefresh') }}</span>
-                  <span :class="autoRefresh ? 'font-semibold text-cyan-600 dark:text-cyan-400' : 'text-slate-400 dark:text-slate-500'">{{ autoRefresh ? t('binanceMarket.autoRefreshOn') : t('binanceMarket.autoRefreshOff') }}</span>
+                  <span :class="autoRefresh ? 'font-semibold text-[#0f6b4f] dark:text-emerald-300' : 'text-slate-400 dark:text-slate-500'">{{ autoRefresh ? t('binanceMarket.autoRefreshOn') : t('binanceMarket.autoRefreshOff') }}</span>
                 </button>
 
                 <button
                   @click="fetchData"
                   :disabled="loading"
-                  class="rounded-xl bg-slate-900 px-4 py-1.5 font-medium text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-cyan-600 dark:hover:bg-cyan-500"
+                  class="app-button-primary px-4 py-1.5"
                 >
                   {{ loading ? t('binanceMarket.refreshing') : t('binanceMarket.refresh') }}
                 </button>
@@ -31,20 +31,20 @@
             </div>
 
             <div class="grid gap-6 xl:grid-cols-2">
-              <article class="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-700 dark:bg-slate-800/90 xl:col-span-2">
-                <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+              <article class="app-panel overflow-hidden xl:col-span-2">
+                <div class="app-panel-header flex items-center justify-between">
                   <div>
                     <h4 class="text-lg font-semibold text-slate-900 dark:text-white">{{ t('binanceMarket.tables.rankContract') }}</h4>
                     <p class="text-sm text-slate-500 dark:text-slate-400">{{ t('binanceMarket.tables.contractSortHint') }}</p>
                   </div>
-                  <div class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                  <div class="app-chip">
                     {{ contractSort.field === 'price_change_pct' ? t('binanceMarket.tables.sortBy24h') : contractSort.field === 'funding_rate_pct' ? t('binanceMarket.tables.sortByFunding') : contractSort.field === 'oi_change_24h_pct' ? t('binanceMarket.tables.sortByOi') : t('binanceMarket.tables.sortByVolume') }}
                   </div>
                 </div>
 
                 <div class="overflow-x-auto">
                   <table class="min-w-full text-left text-sm">
-                    <thead class="bg-slate-50 text-slate-500 dark:bg-slate-900/70 dark:text-slate-400">
+                    <thead class="app-table-head">
                       <tr>
                         <th class="px-5 py-3 font-semibold">{{ t('binanceMarket.columns.asset') }}</th>
                         <th class="px-5 py-3 font-semibold">
@@ -98,13 +98,13 @@
                       <tr
                         v-for="item in contractRows"
                         :key="`${item.market}-${item.symbol}`"
-                        class="cursor-pointer border-t border-slate-100 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/50"
+                        class="app-table-row cursor-pointer"
                         @click="openChart(item)"
                       >
                         <td class="px-5 py-4 font-medium text-slate-900 dark:text-white">
                           <button
                             type="button"
-                            class="rounded-full px-2 py-1 transition hover:bg-cyan-50 hover:text-cyan-700 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-300"
+                            class="px-2 py-1 transition hover:bg-[#edf3ee] hover:text-[#0f6b4f] dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
                             @click.stop="openChart(item)"
                           >
                             {{ displaySymbol(item.symbol) }}
@@ -124,19 +124,19 @@
                 </div>
               </article>
 
-              <article class="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-700 dark:bg-slate-800/90 xl:col-span-2">
-                <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+              <article class="app-panel overflow-hidden xl:col-span-2">
+                <div class="app-panel-header flex items-center justify-between">
                   <div>
                     <h4 class="text-lg font-semibold text-slate-900 dark:text-white">{{ t('binanceMarket.tables.rankSpot') }}</h4>
                     <p class="text-sm text-slate-500 dark:text-slate-400">{{ t('binanceMarket.tables.spotSortHint') }}</p>
                   </div>
-                  <div class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                  <div class="app-chip">
                     {{ spotSort.field === 'price_change_pct' ? (spotSort.direction === 'desc' ? t('binanceMarket.tables.sortByGainers') : t('binanceMarket.tables.sortByLosers')) : t('binanceMarket.tables.sortByVolume') }}
                   </div>
                 </div>
                 <div class="overflow-x-auto">
                   <table class="min-w-full text-left text-sm">
-                    <thead class="bg-slate-50 text-slate-500 dark:bg-slate-900/70 dark:text-slate-400">
+                    <thead class="app-table-head">
                       <tr>
                         <th class="px-5 py-3 font-semibold">{{ t('binanceMarket.columns.asset') }}</th>
                         <th class="px-5 py-3 font-semibold">
@@ -165,11 +165,11 @@
                       </tr>
                     </thead>
                     <tbody>
-                      <tr v-for="item in spotRows" :key="item.symbol" class="border-t border-slate-100 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/50">
+                      <tr v-for="item in spotRows" :key="item.symbol" class="app-table-row">
                         <td class="px-5 py-4 font-medium text-slate-900 dark:text-white">
                           <button
                             type="button"
-                            class="rounded-full px-2 py-1 transition hover:bg-cyan-50 hover:text-cyan-700 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-300"
+                            class="px-2 py-1 transition hover:bg-[#edf3ee] hover:text-[#0f6b4f] dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
                             @click="openChart({ ...item, market: 'spot' })"
                           >
                             {{ displaySymbol(item.symbol) }}
@@ -197,7 +197,7 @@
               <article
                 v-for="card in summaryCards"
                 :key="card.label"
-                class="rounded-[20px] border border-slate-200/70 bg-white/85 p-3 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-800/85"
+                class="app-card p-3"
               >
                 <div class="flex items-center justify-between">
                   <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{{ card.label }}</p>
@@ -207,25 +207,25 @@
               </article>
             </section>
 
-            <section v-if="error" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+            <section v-if="error" class="border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
               {{ error }}
             </section>
 
-            <div class="flex flex-col gap-3 rounded-[30px] border border-slate-200/70 bg-white/90 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/90">
+            <div class="app-panel flex flex-col gap-3 p-4">
               <div class="flex flex-col gap-4 px-2 xl:flex-row xl:items-center xl:justify-between">
                 <div class="flex flex-wrap items-baseline gap-3">
                   <h2 class="text-xl font-bold text-slate-900 dark:text-white">{{ t('binanceMarket.tables.monitor') }}</h2>
-                  <span class="rounded bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white dark:bg-cyan-500 dark:text-slate-950">{{ monitor.quote_asset }}</span>
+                  <span class="bg-[#0f6b4f] px-2 py-0.5 text-xs font-semibold text-white dark:bg-emerald-500 dark:text-slate-950">{{ monitor.quote_asset }}</span>
                   <span class="text-xs text-slate-500 dark:text-slate-400">{{ t('binanceMarket.updatedAt', { time: formatTime(monitor.updated_at) }) }}</span>
                 </div>
 
-                <label class="flex w-fit items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 text-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
+                <label class="app-control flex w-fit items-center gap-2 px-3 py-1.5 text-sm">
                   <span class="text-slate-500 dark:text-slate-400">{{ t('binanceMarket.minRisePct') }}</span>
                   <input v-model.number="minRisePct" type="number" min="1" max="30" step="0.5" class="w-14 bg-transparent text-center font-semibold text-slate-900 outline-none dark:text-white" />
                 </label>
               </div>
               <div class="flex flex-wrap items-center gap-3">
-                <div class="flex flex-wrap gap-2 rounded-full border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
+                <div class="flex flex-wrap gap-2 border border-stone-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
                   <button
                     v-for="item in [
                       { key: 'focus', label: t('binanceMarket.filters.focus') },
@@ -235,14 +235,14 @@
                     ]"
                     :key="item.key"
                     @click="mode = item.key"
-                    class="rounded-full px-4 py-2 text-sm transition"
-                    :class="mode === item.key ? 'bg-slate-900 text-white dark:bg-cyan-600' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'"
+                    class="px-4 py-2 text-sm transition"
+                    :class="mode === item.key ? 'bg-[#0f6b4f] text-white dark:bg-emerald-500 dark:text-slate-950' : 'text-stone-600 hover:bg-stone-100 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'"
                   >
                     {{ item.label }}
                   </button>
                 </div>
 
-                <div class="flex flex-wrap gap-2 rounded-full border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900">
+                <div class="flex flex-wrap gap-2 border border-stone-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
                   <button
                     v-for="item in [
                       { key: 'all', label: t('binanceMarket.market.all') },
@@ -251,8 +251,8 @@
                     ]"
                     :key="item.key"
                     @click="marketFilter = item.key"
-                    class="rounded-full px-4 py-2 text-sm transition"
-                    :class="marketFilter === item.key ? 'bg-cyan-500 text-slate-950' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'"
+                    class="px-4 py-2 text-sm transition"
+                    :class="marketFilter === item.key ? 'bg-[#0f6b4f] text-white dark:bg-emerald-500 dark:text-slate-950' : 'text-stone-600 hover:bg-stone-100 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'"
                   >
                     {{ item.label }}
                   </button>
@@ -261,8 +261,8 @@
             </div>
 
             <div>
-              <article class="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/90 shadow-sm dark:border-slate-700 dark:bg-slate-800/90">
-                <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+              <article class="app-panel overflow-hidden">
+                <div class="app-panel-header flex items-center justify-between">
                   <div>
                     <h4 class="text-lg font-semibold text-slate-900 dark:text-white">{{ t('binanceMarket.tables.monitorList') }}</h4>
                     <p class="text-sm text-slate-500 dark:text-slate-400">{{ t('binanceMarket.resultCount', { count: filteredItems.length }) }}</p>
@@ -271,7 +271,7 @@
 
                 <div class="overflow-x-auto">
                   <table class="min-w-full text-left text-sm">
-                    <thead class="bg-slate-50 text-slate-500 dark:bg-slate-900/70 dark:text-slate-400">
+                    <thead class="app-table-head">
                       <tr>
                         <th class="px-5 py-3 font-semibold">{{ t('binanceMarket.columns.asset') }}</th>
                         <th class="px-4 py-3 font-semibold">{{ t('binanceMarket.columns.today') }}</th>
@@ -286,8 +286,8 @@
                       <tr
                         v-for="item in filteredItems"
                         :key="`${item.market}-${item.symbol}`"
-                        class="cursor-pointer border-t border-slate-100 transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/50"
-                        :class="chartDialog.open && detailKey === toItemKey(item) ? 'bg-cyan-50/80 dark:bg-cyan-500/10' : ''"
+                        class="app-table-row cursor-pointer"
+                        :class="chartDialog.open && detailKey === toItemKey(item) ? 'bg-[#edf3ee] dark:bg-emerald-500/10' : ''"
                         @click="openMonitorDetail(item)"
                       >
                         <td class="px-5 py-4">
@@ -296,7 +296,7 @@
                             <div>
                               <button
                                 type="button"
-                                class="font-semibold text-slate-900 transition hover:text-cyan-700 dark:text-white dark:hover:text-cyan-300"
+                                class="font-semibold text-slate-900 transition hover:text-[#0f6b4f] dark:text-white dark:hover:text-emerald-300"
                                 @click.stop="openMonitorDetail(item)"
                               >
                                 {{ displaySymbol(item.symbol) }}

@@ -77,6 +77,18 @@ class RedisService:
             logger.warning(f"Redis Delete Error: {exc}")
             return False
 
+    def delete_prefix(self, prefix: str) -> int:
+        if not self._ensure_client():
+            return 0
+        try:
+            keys = list(self.client.scan_iter(f"{prefix}*"))
+            if not keys:
+                return 0
+            return int(self.client.delete(*keys))
+        except Exception as exc:
+            logger.warning(f"Redis Delete Prefix Error: {exc}")
+            return 0
+
 
 def build_cache_service(app_settings=settings) -> RedisService:
     return RedisService(app_settings)

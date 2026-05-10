@@ -1,7 +1,7 @@
 <template>
   <section class="space-y-6">
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      <div class="app-card">
         <div class="text-sm font-bold text-gray-900 dark:text-white mb-3">{{ $t('backtest.researchSummary') }}</div>
         <div class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
           <div class="config-row"><span>{{ $t('backtest.optimizeMetric') }}</span><strong>{{ panel.selectedRun.report?.research?.optimization?.metric || '-' }}</strong></div>
@@ -11,7 +11,7 @@
         </div>
         <div class="mt-4 flex flex-wrap items-center gap-3">
           <button
-            class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-gray-400"
+            class="bg-[#0f6b4f] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#0b5a41] disabled:cursor-not-allowed disabled:bg-gray-400"
             :disabled="panel.evolutionLoading"
             @click="panel.evolveStrategy"
           >
@@ -23,7 +23,7 @@
         </div>
         <div v-if="panel.evolutionResult" class="mt-4 space-y-3">
           <div v-if="(panel.evolutionResult.defects || []).length" class="space-y-2">
-            <div v-for="defect in (panel.evolutionResult.defects || [])" :key="defect.key" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs dark:border-gray-700 dark:bg-gray-900/40">
+            <div v-for="defect in (panel.evolutionResult.defects || [])" :key="defect.key" class="border border-[#e4ded3] bg-[#fbfaf7] px-3 py-2 text-xs dark:border-gray-700 dark:bg-gray-900/40">
               <div class="font-semibold text-gray-900 dark:text-white">{{ defect.title }}</div>
               <div class="mt-1 text-gray-500 dark:text-gray-400">{{ defect.recommendation }}</div>
             </div>
@@ -34,7 +34,7 @@
           </div>
         </div>
       </div>
-      <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      <div class="app-card">
         <div class="text-sm font-bold text-gray-900 dark:text-white mb-3">{{ $t('backtest.pairBreakdown') }}</div>
         <div v-if="panel.pairBreakdown.length" class="space-y-2">
           <div v-for="item in panel.pairBreakdown" :key="item.pair" class="pair-card">
@@ -48,7 +48,7 @@
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      <div class="app-card">
         <div class="text-sm font-bold text-gray-900 dark:text-white mb-3">{{ $t('backtest.optimizationTrials') }}</div>
         <div v-if="panel.optimizationTrials.length" class="overflow-x-auto">
           <table class="min-w-full text-sm">
@@ -75,7 +75,7 @@
         <div v-else class="text-sm text-gray-500 dark:text-gray-400">{{ $t('common.noData') }}</div>
       </div>
 
-      <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      <div class="app-card">
         <div class="text-sm font-bold text-gray-900 dark:text-white mb-3">{{ $t('backtest.rollingWindowReport') }}</div>
         <div v-if="panel.rollingWindows.length" class="overflow-x-auto">
           <table class="min-w-full text-sm">
@@ -115,5 +115,5 @@ const panel = props.panel
 
 <style scoped>
 .config-row { @apply flex items-center justify-between gap-3 text-sm text-gray-600 dark:text-gray-300; }
-.pair-card { @apply rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-3 py-3; }
+.pair-card { @apply border px-3 py-3 dark:border-gray-700 dark:bg-gray-900/40; border-color: #e4ded3; background: #fbfaf7; }
 </style>

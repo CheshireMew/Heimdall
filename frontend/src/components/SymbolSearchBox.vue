@@ -14,22 +14,22 @@
 
     <Teleport to="body">
       <div v-if="open" class="fixed inset-0 z-50 bg-black/30 p-3 backdrop-blur-sm sm:p-6" @click.self="closeSearch">
-        <section class="mx-auto flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-gray-900">
-          <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-700">
-            <h2 class="text-lg font-semibold text-gray-950 dark:text-white">{{ t('symbolSearch.title') }}</h2>
-            <button type="button" class="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" @click="closeSearch">
+        <section class="mx-auto flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden border border-[#d8d1c5] bg-[#fbfaf7] shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+          <div class="flex items-center justify-between border-b border-[#e4ded3] px-5 py-4 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-stone-950 dark:text-white">{{ t('symbolSearch.title') }}</h2>
+            <button type="button" class="p-2 text-stone-500 transition hover:bg-[#f1ece3] dark:text-gray-300 dark:hover:bg-gray-800" @click="closeSearch">
               <XMarkIcon class="h-5 w-5" />
             </button>
           </div>
 
-          <div class="border-b border-gray-200 p-4 dark:border-gray-700">
-            <div class="flex items-center rounded-lg border border-gray-300 bg-white px-3 dark:border-gray-600 dark:bg-gray-950">
-              <MagnifyingGlassIcon class="h-5 w-5 shrink-0 text-gray-400" />
+          <div class="border-b border-[#e4ded3] p-4 dark:border-gray-700">
+            <div class="flex items-center border border-[#d8d1c5] bg-white px-3 dark:border-gray-600 dark:bg-gray-950">
+              <MagnifyingGlassIcon class="h-5 w-5 shrink-0 text-stone-400" />
               <input
                 ref="searchInput"
                 v-model.trim="query"
                 type="text"
-                class="h-12 min-w-0 flex-1 bg-transparent px-3 text-base text-gray-950 outline-none dark:text-white"
+                class="h-12 min-w-0 flex-1 bg-transparent px-3 text-base text-stone-950 outline-none dark:text-white"
                 :placeholder="placeholderText"
                 @keydown.enter.prevent="selectFirst"
                 @keydown.esc.prevent="closeSearch"
@@ -37,7 +37,7 @@
               <button
                 v-if="query"
                 type="button"
-                class="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+                class="p-1 text-stone-400 transition hover:bg-[#f1ece3] hover:text-stone-700 dark:hover:bg-gray-800"
                 @click="query = ''"
               >
                 <XMarkIcon class="h-4 w-4" />
@@ -49,8 +49,8 @@
                 v-for="tab in visibleTabs"
                 :key="tab.value"
                 type="button"
-                class="rounded-lg px-3 py-1.5 text-sm font-medium transition"
-                :class="activeClass === tab.value ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-950' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'"
+                class="px-3 py-1.5 text-sm font-medium transition"
+                :class="activeClass === tab.value ? 'bg-[#0f6b4f] text-white dark:bg-emerald-500 dark:text-gray-950' : 'border border-[#e4ded3] bg-white text-stone-700 hover:bg-[#f1ece3] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'"
                 @click="activeClass = tab.value"
               >
                 {{ tab.label }}
@@ -63,17 +63,17 @@
               v-for="item in filteredSymbols"
               :key="item.symbol"
               type="button"
-              class="grid w-full grid-cols-[minmax(6rem,10rem)_minmax(0,1fr)_5rem_6rem] items-center gap-3 border-b border-gray-100 px-5 py-3 text-left transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/70"
+              class="grid w-full grid-cols-[minmax(6rem,10rem)_minmax(0,1fr)_5rem_6rem] items-center gap-3 border-b border-[#eee8dd] px-5 py-3 text-left transition hover:bg-[#f6f1e8] dark:border-gray-800 dark:hover:bg-gray-800/70"
               :class="[
-                isSelected(item) ? 'bg-blue-50 dark:bg-blue-950/30' : '',
+                isSelected(item) ? 'bg-[#edf3ee] dark:bg-emerald-950/30' : '',
                 isDisabled(item) ? 'cursor-not-allowed opacity-45 hover:bg-transparent dark:hover:bg-transparent' : '',
               ]"
               @click="choose(item)"
             >
-              <span class="font-semibold text-blue-600 dark:text-blue-300">{{ item.symbol }}</span>
+              <span class="font-semibold text-[#0f6b4f] dark:text-emerald-300">{{ item.symbol }}</span>
               <span class="min-w-0 truncate text-gray-900 dark:text-white">{{ item.name }}</span>
               <span class="text-sm text-gray-500 dark:text-gray-400">{{ marketLabel(item) }}</span>
-              <span class="justify-self-end rounded-lg bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+              <span class="justify-self-end border border-[#e4ded3] bg-white px-2 py-1 text-xs font-medium text-stone-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
                 {{ isDisabled(item) ? disabledText : classLabel(item.asset_class) }}
               </span>
             </button>
@@ -209,6 +209,13 @@ onMounted(() => {
 
 <style scoped>
 .symbol-trigger {
-  @apply flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-gray-50 px-3 text-left text-sm outline-none transition hover:border-blue-400 focus:border-blue-500 dark:border-gray-600 dark:bg-gray-900;
+  @apply flex h-10 w-full items-center justify-between gap-2 border px-3 text-left text-sm outline-none transition dark:border-gray-600 dark:bg-gray-900;
+  background: #fff;
+  border-color: #e4ded3;
+}
+
+.symbol-trigger:hover,
+.symbol-trigger:focus {
+  border-color: #0f6b4f;
 }
 </style>

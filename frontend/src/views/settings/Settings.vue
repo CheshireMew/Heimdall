@@ -1,22 +1,22 @@
 <template>
-  <div class="h-full overflow-y-auto p-6">
-    <div class="mx-auto flex max-w-5xl flex-col gap-6">
+  <div class="app-page">
+    <div class="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <div>
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ $t('settings.title') }}</h2>
+        <h2 class="app-title">{{ $t('settings.title') }}</h2>
       </div>
 
-      <section class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+      <section class="app-panel p-6">
         <div class="grid gap-4 md:grid-cols-3">
           <label class="block">
-            <span class="mb-1 block text-xs font-bold uppercase text-gray-500 dark:text-gray-400">{{ $t('settings.language') }}</span>
+            <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-stone-500 dark:text-gray-400">{{ $t('settings.language') }}</span>
             <AppLanguageSelect />
           </label>
           <label class="block">
-            <span class="mb-1 block text-xs font-bold uppercase text-gray-500 dark:text-gray-400">{{ $t('settings.timezone') }}</span>
+            <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-stone-500 dark:text-gray-400">{{ $t('settings.timezone') }}</span>
             <AppTimezoneSelect />
           </label>
           <label class="block">
-            <span class="mb-1 block text-xs font-bold uppercase text-gray-500 dark:text-gray-400">{{ $t('settings.currency') }}</span>
+            <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-stone-500 dark:text-gray-400">{{ $t('settings.currency') }}</span>
             <AppCurrencySelect />
           </label>
         </div>
@@ -25,14 +25,14 @@
         </div>
       </section>
 
-      <section class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+      <section class="app-panel p-6">
         <div class="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">大模型提供商</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">用于 AI 分析和 AI 多空判断。</p>
+            <h3 class="app-section-title">大模型提供商</h3>
+            <p class="app-muted mt-1 text-sm">用于 AI 分析和 AI 多空判断。</p>
           </div>
           <span
-            class="rounded-lg px-3 py-1 text-xs font-semibold"
+            class="px-3 py-1 text-xs font-semibold"
             :class="form.apiKeySet ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'"
           >
             {{ form.apiKeySet ? 'API Key 已设置' : 'API Key 未设置' }}
@@ -81,7 +81,7 @@
           </label>
         </div>
 
-        <label v-if="form.provider === 'deepseek'" class="mt-5 flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 dark:border-gray-700">
+        <label v-if="form.provider === 'deepseek'" class="mt-5 flex items-center justify-between border border-[#e4ded3] px-4 py-3 dark:border-gray-700">
           <span>
             <span class="block text-sm font-medium text-gray-900 dark:text-white">推理模式</span>
             <span class="block text-xs text-gray-500 dark:text-gray-400">
@@ -93,7 +93,7 @@
 
         <div class="mt-6 flex items-center gap-3">
           <button
-            class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            class="app-button-primary px-4 py-2"
             :disabled="saving || !canSave"
             @click="saveConfig"
           >
@@ -104,14 +104,14 @@
         </div>
       </section>
 
-      <section class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+      <section class="app-panel p-6">
         <div class="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">FRED 数据源</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">用于美债收益率、联邦基金利率和宏观指数数据。</p>
+            <h3 class="app-section-title">FRED 数据源</h3>
+            <p class="app-muted mt-1 text-sm">用于美债收益率、联邦基金利率和宏观指数数据。</p>
           </div>
           <span
-            class="rounded-lg px-3 py-1 text-xs font-semibold"
+            class="px-3 py-1 text-xs font-semibold"
             :class="fredForm.apiKeySet ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'"
           >
             {{ fredForm.apiKeySet ? 'API Key 已设置' : 'API Key 未设置' }}
@@ -131,7 +131,7 @@
           </label>
 
           <button
-            class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            class="app-button-primary px-4 py-2"
             :disabled="fredSaving || !canSaveFred"
             @click="saveFredConfig"
           >
@@ -146,8 +146,8 @@
         </div>
       </section>
 
-      <section class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-        <div class="grid gap-3 text-sm text-gray-600 dark:text-gray-400 md:grid-cols-2">
+      <section class="app-panel p-6">
+        <div class="grid gap-3 text-sm text-stone-600 dark:text-gray-400 md:grid-cols-2">
           <div>{{ $t('settings.env') }}: {{ $t('settings.production') }}</div>
           <div>{{ $t('settings.version') }}: 2.0.0 (Vue + FastAPI)</div>
           <div>{{ $t('settings.db') }}: {{ systemConfig?.runtime?.database_engine || '-' }}</div>
@@ -195,6 +195,7 @@ const {
 
 <style scoped>
 .input {
-  @apply w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900 outline-none transition focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:disabled:bg-gray-950 dark:disabled:text-gray-500;
+  @apply w-full border bg-white px-3 py-2 text-sm font-semibold text-stone-900 outline-none transition focus:border-emerald-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:disabled:bg-gray-950 dark:disabled:text-gray-500;
+  border-color: #e4ded3;
 }
 </style>

@@ -64,8 +64,6 @@ const GROUP_DESCRIPTIONS: Record<MacroGroupId, string> = {
   risk: '股指、波动率、美元和 M2 反映市场正在如何定价宏观环境。',
 }
 
-const HERO_IDS = ['FED_BALANCE', 'TGA', 'ONRRP', 'FED_RATE', 'US10Y', 'DXY', 'VIX', 'M2']
-
 const toDate = (value: string | null | undefined) => {
   if (!value) return null
   const time = new Date(value).getTime()
@@ -199,7 +197,6 @@ export function useMacroLiquidityPage(days = 365) {
   const score = computed(() => dli.value?.score ?? null)
   const scoreLabel = computed(() => dli.value?.state || '等待数据')
   const scoreTone = computed(() => dli.value?.tone || 'neutral')
-  const heroCards = computed(() => cards.value.filter((card) => HERO_IDS.includes(card.definition.id)))
 
   const groups = computed(() => (Object.keys(GROUP_TITLES) as MacroGroupId[]).map((group) => ({
     id: group,
@@ -252,7 +249,6 @@ export function useMacroLiquidityPage(days = 365) {
     score,
     scoreLabel,
     scoreTone,
-    heroCards,
     groups,
     drivers,
     alerts,

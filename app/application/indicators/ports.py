@@ -11,3 +11,8 @@ class IndicatorProvider(Protocol):
 class MarketIndicatorWriter(Protocol):
     def upsert_points(self, data_points: list[object], indicator_meta: dict[str, tuple[str, str, str]]) -> None:
         ...
+
+
+class DliCacheInvalidator(Protocol):
+    def invalidate_all(self) -> None:
+        ...

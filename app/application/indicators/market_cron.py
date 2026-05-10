@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from app.application.indicators.ports import IndicatorProvider, MarketIndicatorWriter
+from app.application.indicators.ports import DliCacheInvalidator, IndicatorProvider, MarketIndicatorWriter
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +42,16 @@ INDICATOR_META = {
 class MarketIndicatorCronJob:
     """市场核心指标定时汇聚作业类"""
 
-    def __init__(self, *, repository: MarketIndicatorWriter, providers: list[IndicatorProvider]):
+    def __init__(
+        self,
+        *,
+        repository: MarketIndicatorWriter,
+        providers: list[IndicatorProvider],
+        dli_cache: DliCacheInvalidator | None = None,
+    ):
         self.repository = repository
         self.providers = providers
+        self.dli_cache = dli_cache
 
     async def run(self):
         """执行聚合逻辑"""
@@ -59,7 +66,9 @@ class MarketIndicatorCronJob:
                 logger.error(f"Error fetching from provider {provider.__class__.__name__}: {e}")
 
         if all_data_points:
-             self._save_to_db(all_data_points)
+            self._save_to_db(all_data_points)
+            if self.dli_cache is not None:
+                self.dli_cache.invalidate_all()
 
         logger.info(f"MarketIndicator Cron Job Complete. Inserted {len(all_data_points)} records.")
 

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="panel.selectedRun" class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 flex-1 flex flex-col min-h-[500px] transition-colors space-y-6">
+  <div v-if="panel.selectedRun" class="app-panel flex min-h-[500px] flex-1 flex-col space-y-6 p-6 transition-colors">
     <BacktestResultOverview :panel="panel" />
     <BacktestResearchSection v-if="!panel.isPaperRun" :panel="panel" />
     <BacktestCompareSection v-if="!panel.isPaperRun" :panel="panel" />

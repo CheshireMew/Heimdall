@@ -14,6 +14,7 @@ from app.runtime_refs import (
     MARKET_BINANCE_MARKET_SNAPSHOT,
     MARKET_BINANCE_WEB3_SERVICE,
     MARKET_CRYPTO_INDEX_SERVICE,
+    MARKET_DLI_CACHE,
     MARKET_FUNDING_RATE_APP_SERVICE,
     MARKET_FUNDING_RATE_SERVICE,
     MARKET_FUNDING_RATE_STORE,
@@ -60,7 +61,16 @@ def _build_market_indicator_repository(ctx: RuntimeBuildContext):
 def _build_indicator_service(ctx: RuntimeBuildContext):
     from app.services.market.indicator_service import IndicatorService
 
-    return IndicatorService(repository=ctx.require(MARKET_INDICATOR_REPOSITORY))
+    return IndicatorService(
+        repository=ctx.require(MARKET_INDICATOR_REPOSITORY),
+        dli_cache=ctx.require(MARKET_DLI_CACHE),
+    )
+
+
+def _build_dli_cache(ctx: RuntimeBuildContext):
+    from app.services.market.dli_cache import DliLiquidityCache
+
+    return DliLiquidityCache(cache_service=ctx.require(INFRA_CACHE_SERVICE))
 
 
 def _build_funding_rate_store(ctx: RuntimeBuildContext):
@@ -165,10 +175,16 @@ MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         deps=(INFRA_DATABASE_RUNTIME,),
     ),
     RuntimeServiceDefinition(
+        MARKET_DLI_CACHE,
+        frozenset({"api", "background"}),
+        _build_dli_cache,
+        deps=(INFRA_CACHE_SERVICE,),
+    ),
+    RuntimeServiceDefinition(
         MARKET_INDICATOR_SERVICE,
         frozenset({"api"}),
         _build_indicator_service,
-        deps=(MARKET_INDICATOR_REPOSITORY,),
+        deps=(MARKET_INDICATOR_REPOSITORY, MARKET_DLI_CACHE),
     ),
     RuntimeServiceDefinition(
         MARKET_FUNDING_RATE_STORE,

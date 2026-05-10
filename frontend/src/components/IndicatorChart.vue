@@ -30,8 +30,8 @@ const { timezone, formatDate } = useDateTime()
 
 const getChartOption = (indicator, isDark) => {
   const textColor = isDark ? '#9ca3af' : '#4b5563'
-  const lineColor = isDark ? '#3b82f6' : '#2563eb' // Blue
-  const areaColor = isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(37, 99, 235, 0.2)'
+  const lineColor = isDark ? '#3b82f6' : '#1d6fba'
+  const areaColor = isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(29, 111, 186, 0.18)'
   const splitLineColor = isDark ? '#374151' : '#e5e7eb'
 
   const dataDates = indicator.history.map(item => formatDate(item.date))
@@ -87,7 +87,7 @@ const getChartOption = (indicator, isDark) => {
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: areaColor },
-            { offset: 1, color: isDark ? 'rgba(59, 130, 246, 0)' : 'rgba(37, 99, 235, 0)' }
+            { offset: 1, color: isDark ? 'rgba(59, 130, 246, 0)' : 'rgba(29, 111, 186, 0)' }
           ])
         },
         data: dataValues

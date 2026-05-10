@@ -51,7 +51,7 @@
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-[340px_minmax(0,1fr)] gap-6">
-      <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4 space-y-3">
+      <div class="space-y-3 border border-[#e4ded3] bg-[#fbfaf7] p-4 dark:border-gray-700 dark:bg-gray-900/40">
         <h4 class="text-sm font-bold text-gray-900 dark:text-white">{{ $t('backtest.config') }}</h4>
         <div class="config-row"><span>{{ $t('backtest.symbols') }}</span><strong>{{ panel.joinSymbols(panel.selectedRun.metadata?.symbols) }}</strong></div>
         <div class="config-row"><span>{{ $t('compare.timeframe') }}</span><strong>{{ panel.selectedRun.timeframe }}</strong></div>
@@ -73,7 +73,7 @@
         </div>
       </div>
 
-      <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      <div class="app-card">
         <div class="text-sm font-bold text-gray-900 dark:text-white mb-3">{{ $t('backtest.equityCurve') }}</div>
         <div class="h-[320px]">
           <BacktestEquityChart :points="panel.selectedRun.equity_curve || []" />
@@ -93,8 +93,8 @@ const panel = props.panel
 </script>
 
 <style scoped>
-.stat-badge { @apply px-3 py-2 rounded text-sm font-bold border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 text-gray-700 dark:text-gray-200; }
-.summary-card { @apply rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-3; }
+.stat-badge { @apply px-3 py-2 text-sm font-bold border dark:border-gray-700 dark:bg-gray-900/40 text-gray-700 dark:text-gray-200; border-color: #e4ded3; background: #fbfaf7; }
+.summary-card { @apply border px-4 py-3 dark:border-gray-700 dark:bg-gray-900/40; border-color: #e4ded3; background: #fbfaf7; }
 .summary-label { @apply text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400; }
 .summary-value { @apply mt-2 text-lg font-bold text-gray-900 dark:text-white; }
 .config-row { @apply flex items-center justify-between gap-3 text-sm text-gray-600 dark:text-gray-300; }

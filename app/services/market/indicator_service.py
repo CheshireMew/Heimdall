@@ -4,12 +4,19 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
+from app.services.market.dli_cache import DliLiquidityCache
 from app.services.market.dli_service import DliLiquidityService
 
 
 class IndicatorService:
-    def __init__(self, repository: MarketIndicatorRepository) -> None:
+    def __init__(
+        self,
+        repository: MarketIndicatorRepository,
+        *,
+        dli_cache: DliLiquidityCache | None = None,
+    ) -> None:
         self.repository = repository
+        self.dli_cache = dli_cache
         self.dli_service = DliLiquidityService(repository)
 
     def get_indicators(
@@ -41,4 +48,12 @@ class IndicatorService:
         return result
 
     def get_dli_liquidity(self, days: int) -> dict[str, Any]:
-        return self.dli_service.build(days=days)
+        if self.dli_cache is not None:
+            cached = self.dli_cache.get(days=days)
+            if cached is not None:
+                return cached
+
+        payload = self.dli_service.build(days=days)
+        if self.dli_cache is not None:
+            self.dli_cache.set(days=days, payload=payload)
+        return payload

@@ -73,7 +73,7 @@
         </div>
       </div>
 
-      <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/50">
+      <div class="border border-[#e4ded3] bg-white p-3 dark:border-gray-700 dark:bg-gray-900/50">
         <div class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ $t('backtest.templateRules') }}</div>
         <div class="mt-2 text-sm text-gray-700 dark:text-gray-200">
           <div class="font-semibold">{{ $t('backtest.availableIndicators') }}</div>

@@ -1,10 +1,10 @@
 <template>
-  <div class="h-full overflow-y-auto bg-slate-50 transition-colors dark:bg-slate-900">
-    <div class="mx-auto max-w-7xl space-y-6 p-6">
+  <div class="app-page">
+    <div class="app-page-inner-wide">
       <FactorResearchHero :panel="page.heroPanel" />
       <FactorResearchFilters :panel="page.filtersPanel" />
 
-      <section v-if="page.error" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+      <section v-if="page.error" class="border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
         {{ page.error }}
       </section>
 
@@ -55,8 +55,18 @@ const page = useFactorResearchPage()
 </script>
 
 <style scoped>
-.summary-card { @apply rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800; }
-.summary-label { @apply text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400; }
-.summary-value { @apply mt-3 text-2xl font-semibold text-slate-900 dark:text-white; }
-.summary-hint { @apply mt-2 text-xs text-slate-500 dark:text-slate-400; }
+.summary-card {
+  border: 1px solid #e4ded3;
+  background: #ffffff;
+  padding: 1.25rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+:global(.dark) .summary-card {
+  border-color: #334155;
+  background: #1e293b;
+}
+.summary-label { @apply text-xs font-bold uppercase tracking-wide text-stone-500 dark:text-slate-400; }
+.summary-value { @apply mt-3 text-2xl font-semibold text-stone-950 dark:text-white; }
+.summary-hint { @apply mt-2 text-xs text-stone-500 dark:text-slate-400; }
 </style>

@@ -104,7 +104,7 @@
       </div>
     </section>
 
-    <div class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+    <div class="border border-[#b8d2c4] bg-[#edf3ee] px-3 py-2 text-xs text-[#0f6b4f] dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
       {{ $t('backtest.backtestHint') }}
     </div>
     <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
@@ -146,5 +146,5 @@ const displayInitialCash = computed({
 </script>
 
 <style scoped>
-.btn-paper { @apply bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-lg font-bold transition disabled:opacity-50; }
+.btn-paper { @apply app-button-primary py-2; }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-    <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4">
+    <div class="app-card space-y-4">
       <div class="flex items-center justify-between gap-3">
         <div class="text-sm font-bold text-gray-900 dark:text-white">{{ $t('backtest.runCompare') }}</div>
         <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('backtest.selectForCompareHint') }}</div>
@@ -40,7 +40,7 @@
       <div v-else class="text-sm text-gray-500 dark:text-gray-400">{{ $t('backtest.noCompareSelection') }}</div>
     </div>
 
-    <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4">
+    <div class="app-card space-y-4">
       <div class="flex items-center justify-between gap-3">
         <div class="text-sm font-bold text-gray-900 dark:text-white">{{ $t('backtest.versionCompare') }}</div>
         <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('backtest.versionCompareHint') }}</div>
@@ -49,7 +49,7 @@
         <label
           v-for="item in panel.versionCompareOptions"
           :key="item.version"
-          class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-3 py-2"
+          class="flex items-center justify-between gap-3 border border-[#e4ded3] bg-[#fbfaf7] px-3 py-2 dark:border-gray-700 dark:bg-gray-900/40"
         >
           <div class="flex items-center gap-2">
             <input :checked="panel.versionCompareSelections.includes(item.version)" type="checkbox" @change="panel.toggleVersionCompare(item.version)" />

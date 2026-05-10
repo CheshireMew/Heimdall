@@ -151,7 +151,7 @@ export const valueTone = (value: number | null | undefined, positiveIsGood = tru
 export const verdictTone = (verdict: string | null | undefined) => {
   if (verdict === '优先关注') return 'bg-emerald-500/10 text-emerald-600 ring-emerald-500/20 dark:text-emerald-300'
   if (verdict === '继续跟踪') return 'bg-amber-500/10 text-amber-600 ring-amber-500/20 dark:text-amber-300'
-  return 'bg-slate-500/10 text-slate-600 ring-slate-500/20 dark:text-slate-300'
+  return 'bg-stone-100 text-stone-600 ring-stone-300/70 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-600/40'
 }
 
 export const compareNullableNumber = (

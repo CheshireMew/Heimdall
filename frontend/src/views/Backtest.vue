@@ -1,13 +1,14 @@
 <template>
-  <div class="h-full flex flex-col p-6 space-y-6">
-    <section class="rounded-[28px] border border-slate-700/60 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_42%),linear-gradient(135deg,_rgba(15,23,42,0.92),_rgba(30,41,59,0.9))] px-6 py-7 text-white shadow-[0_24px_80px_rgba(15,23,42,0.28)]">
-      <div class="text-xs font-semibold uppercase tracking-[0.22em] text-sky-200/80">{{ $t('backtest.centerEyebrow') }}</div>
+  <div class="app-page">
+    <div class="app-page-inner-wide flex flex-col space-y-6">
+    <section class="app-hero-panel px-6 py-7">
+      <div class="app-eyebrow">{{ $t('backtest.centerEyebrow') }}</div>
       <div class="mt-3 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <h1 class="text-3xl font-semibold tracking-tight">{{ $t('backtest.centerTitle') }}</h1>
-          <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-200/88">{{ $t('backtest.centerSubtitle') }}</p>
+          <h1 class="app-title">{{ $t('backtest.centerTitle') }}</h1>
+          <p class="app-subtitle mt-2 max-w-3xl">{{ $t('backtest.centerSubtitle') }}</p>
         </div>
-        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100/90 backdrop-blur">
+        <div class="border border-stone-200 bg-[#fbfaf7] px-4 py-3 text-sm text-stone-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
           {{ $t('backtest.centerHint') }}
         </div>
       </div>
@@ -16,6 +17,7 @@
     <div v-if="page.ready" class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-6 items-start">
       <BacktestControlPanel :panel="page.controlPanel" />
       <BacktestHistoryPanel :panel="page.historyPanel" />
+    </div>
     </div>
   </div>
 </template>

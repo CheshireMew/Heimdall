@@ -1,15 +1,15 @@
 <template>
-  <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 overflow-hidden flex flex-col min-h-[320px] max-w-[440px] transition-colors">
+  <div class="app-panel flex min-h-[320px] max-w-[440px] flex-col overflow-hidden p-5 transition-colors">
     <div class="flex items-center justify-between gap-3 mb-4">
       <div>
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+        <h2 class="text-xl font-semibold text-stone-950 dark:text-white">
           {{ panel.historyMode === 'paper' ? $t('backtest.paperRecent') : $t('backtest.recent') }}
         </h2>
-        <div class="text-xs text-gray-500 dark:text-gray-400">
+        <div class="text-xs text-stone-500 dark:text-gray-400">
           {{ panel.historyMode === 'paper' ? $t('backtest.paperRecentHint') : (panel.enableHistoryCompare ? $t('backtest.selectForCompareHint') : $t('backtest.historyBrowseHint')) }}
         </div>
       </div>
-      <div class="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 p-1 bg-gray-50 dark:bg-gray-900/40">
+      <div class="inline-flex border border-stone-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-900/40">
         <button
           class="tab-btn"
           :class="{ active: panel.historyMode === 'backtest' }"
@@ -30,7 +30,7 @@
       <div
         v-for="run in panel.visibleHistory"
         :key="run?.id ?? String(run)"
-        class="group flex justify-between items-start gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition border border-gray-200 dark:border-gray-800"
+        class="group flex cursor-pointer items-start justify-between gap-3 border border-stone-200 bg-[#fbfaf7] p-3 transition hover:bg-stone-100 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-gray-700"
         @click="panel.openRunDetail(run, panel.historyMode)"
       >
         <div class="flex min-w-0 gap-3">
@@ -38,7 +38,7 @@
             <input :checked="panel.compareRunIds.includes(run.id)" type="checkbox" @change="panel.toggleCompareRun(run.id)" />
           </label>
           <div class="min-w-0">
-            <div class="truncate font-bold text-blue-600 dark:text-blue-400">{{ panel.portfolioLabel(run) }}</div>
+            <div class="truncate font-bold text-[#0f6b4f] dark:text-emerald-300">{{ panel.portfolioLabel(run) }}</div>
             <div class="mt-1 truncate text-xs text-gray-500">
               {{ run?.metadata?.strategy_name || '-' }} · v{{ run?.metadata?.strategy_version || '-' }} · {{ run?.timeframe || '-' }}
             </div>
@@ -84,6 +84,6 @@ const panel = props.panel
 </script>
 
 <style scoped>
-.tab-btn { @apply px-3 py-1.5 text-xs font-semibold rounded-md text-gray-500 dark:text-gray-400 transition; }
-.tab-btn.active { @apply bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm; }
+.tab-btn { @apply px-3 py-1.5 text-xs font-semibold text-stone-500 transition dark:text-gray-400; }
+.tab-btn.active { @apply bg-[#edf3ee] text-[#0f6b4f] dark:bg-gray-800 dark:text-white; }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <section class="space-y-6">
-    <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+    <div class="app-card">
       <div class="text-sm font-bold text-gray-900 dark:text-white mb-3">{{ $t('backtest.tradeList') }}</div>
       <div v-if="panel.selectedRun.trades?.length" class="overflow-x-auto">
         <table class="min-w-full text-sm">
@@ -35,8 +35,8 @@
       <div v-else class="text-sm text-gray-500 dark:text-gray-400">{{ $t('backtest.noTrades') }}</div>
     </div>
 
-    <div class="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div class="px-4 py-3 text-sm font-bold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700">
+    <div class="overflow-hidden border border-[#e4ded3] bg-white dark:border-gray-700 dark:bg-gray-900">
+      <div class="border-b border-[#e4ded3] px-4 py-3 text-sm font-bold text-gray-900 dark:border-gray-700 dark:text-white">
         {{ $t('backtest.report') }} / K线复盘
       </div>
       <div class="h-[420px] relative">

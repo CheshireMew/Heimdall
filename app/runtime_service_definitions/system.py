@@ -4,6 +4,7 @@ from app.runtime_definition import RuntimeBuildContext, RuntimeServiceDefinition
 from app.runtime_lifecycle import shutdown_service, start_market_scheduler
 from app.runtime_refs import (
     INFRA_DATABASE_RUNTIME,
+    MARKET_DLI_CACHE,
     MARKET_INDICATOR_REPOSITORY,
     SYSTEM_CURRENCY_RATE_SERVICE,
     SYSTEM_FRED_API_CONFIG_SERVICE,
@@ -36,6 +37,7 @@ def _build_market_scheduler_runtime(ctx: RuntimeBuildContext):
     return MarketSchedulerRuntime(
         database_runtime=ctx.require(INFRA_DATABASE_RUNTIME),
         indicator_repository=ctx.require(MARKET_INDICATOR_REPOSITORY),
+        dli_cache=ctx.require(MARKET_DLI_CACHE),
     )
 
 
@@ -47,7 +49,7 @@ SYSTEM_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         SYSTEM_MARKET_SCHEDULER_RUNTIME,
         frozenset({"background"}),
         _build_market_scheduler_runtime,
-        deps=(INFRA_DATABASE_RUNTIME, MARKET_INDICATOR_REPOSITORY),
+        deps=(INFRA_DATABASE_RUNTIME, MARKET_INDICATOR_REPOSITORY, MARKET_DLI_CACHE),
         background_start=start_market_scheduler,
         background_stop=shutdown_service,
         background_start_order=10,

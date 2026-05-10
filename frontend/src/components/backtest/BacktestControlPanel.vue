@@ -1,6 +1,6 @@
 <template>
-  <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 transition-colors">
-    <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">{{ $t('backtest.new') }}</h2>
+  <div class="app-panel p-6 transition-colors">
+    <h2 class="mb-4 text-xl font-semibold text-stone-950 dark:text-white">{{ $t('backtest.new') }}</h2>
     <div class="space-y-5">
       <section class="space-y-3">
         <div>
@@ -19,9 +19,9 @@
         </div>
         <div
           v-if="panel.selectedStrategy"
-          class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-3 py-3 text-sm text-gray-600 dark:text-gray-300"
+          class="border border-stone-200 bg-[#fbfaf7] px-3 py-3 text-sm text-stone-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300"
         >
-          <div class="font-semibold text-gray-900 dark:text-white">{{ panel.selectedStrategy.name }}</div>
+          <div class="font-semibold text-stone-950 dark:text-white">{{ panel.selectedStrategy.name }}</div>
           <div class="mt-1">{{ panel.selectedStrategy.description || '-' }}</div>
           <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
             {{ $t('backtest.selectedVersion') }}: v{{ panel.config.strategy_version }} · {{ panel.selectedVersion?.name || '-' }}

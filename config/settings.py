@@ -84,6 +84,7 @@ class AppSettings(BaseSettings):
     API_MAX_LIMIT: int = 5000
     HISTORY_DEFAULT_LIMIT: int = 500
     INDICATORS_DEFAULT_DAYS: int = 30
+    DLI_CACHE_TTL: int = 300
 
     DCA_INDICATOR_BUFFER_DAYS: int = 200
     DCA_MA_PERIOD: int = 200

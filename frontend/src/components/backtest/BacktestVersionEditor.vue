@@ -1,5 +1,5 @@
 <template>
-  <div v-if="panel.showVersionEditor && panel.versionDraft.config" class="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+  <div v-if="panel.showVersionEditor && panel.versionDraft.config" class="space-y-4 border border-[#e4ded3] bg-[#fbfaf7] p-4 dark:border-gray-700 dark:bg-gray-900/40">
     <BacktestVersionMetaPanel :panel="panel.metaPanel" />
     <BacktestIndicatorCreatorPanel :panel="panel.indicatorCreatorPanel" />
     <BacktestTemplateCreatorPanel :panel="panel.templateCreatorPanel" />
