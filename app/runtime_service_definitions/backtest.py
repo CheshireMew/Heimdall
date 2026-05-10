@@ -5,11 +5,13 @@ from app.runtime_lifecycle import restore_paper_runs, shutdown_service
 from app.runtime_refs import (
     BACKTEST_COMMAND_SERVICE,
     BACKTEST_FREQTRADE_SERVICE,
+    BACKTEST_RUN_MUTATION_SERVICE,
     BACKTEST_PAPER_RUN_MANAGER,
     BACKTEST_QUERY_SERVICE,
     BACKTEST_REPORT_BUILDER,
     BACKTEST_RUN_REPOSITORY,
     BACKTEST_RUN_SERVICE,
+    BACKTEST_STRATEGY_DEFINITION_STORE,
     BACKTEST_STRATEGY_QUERY_SERVICE,
     BACKTEST_STRATEGY_WRITE_SERVICE,
     INFRA_DATABASE_RUNTIME,
@@ -23,6 +25,12 @@ def _build_backtest_run_repository(ctx: RuntimeBuildContext):
     return BacktestRunRepository(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
 
 
+def _build_backtest_run_mutation_service(ctx: RuntimeBuildContext):
+    from app.infra.persistence.backtest.run_mutation_service import BacktestRunMutationService
+
+    return BacktestRunMutationService(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
+
+
 def _build_freqtrade_backtest_service(ctx: RuntimeBuildContext):
     from app.services.backtest.freqtrade_service import FreqtradeBacktestService
 
@@ -30,24 +38,34 @@ def _build_freqtrade_backtest_service(ctx: RuntimeBuildContext):
 
 
 def _build_backtest_run_service(ctx: RuntimeBuildContext):
-    from app.infra.persistence.backtest.run_service import BacktestRunService
+    from app.application.backtest.run_service import BacktestRunService
 
     return BacktestRunService(
         execution_engine=ctx.require(BACKTEST_FREQTRADE_SERVICE),
-        database_runtime=ctx.require(INFRA_DATABASE_RUNTIME),
+        run_mutations=ctx.require(BACKTEST_RUN_MUTATION_SERVICE),
     )
 
 
-def _build_strategy_query_service(ctx: RuntimeBuildContext):
-    from app.infra.persistence.backtest.strategy_query_service import StrategyQueryService
+def _build_strategy_definition_store(ctx: RuntimeBuildContext):
+    from app.infra.persistence.backtest.strategy_definition_repository import StrategyDefinitionRepository
 
-    return StrategyQueryService(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
+    return StrategyDefinitionRepository(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
+
+
+def _build_strategy_query_service(ctx: RuntimeBuildContext):
+    from app.application.backtest.strategy_query_service import StrategyQueryService
+
+    return StrategyQueryService(
+        definition_store=ctx.require(BACKTEST_STRATEGY_DEFINITION_STORE)
+    )
 
 
 def _build_strategy_write_service(ctx: RuntimeBuildContext):
-    from app.infra.persistence.backtest.strategy_write_service import StrategyWriteService
+    from app.application.backtest.strategy_write_service import StrategyWriteService
 
-    return StrategyWriteService(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
+    return StrategyWriteService(
+        definition_store=ctx.require(BACKTEST_STRATEGY_DEFINITION_STORE)
+    )
 
 
 def _build_freqtrade_report_builder(_ctx: RuntimeBuildContext):
@@ -57,19 +75,19 @@ def _build_freqtrade_report_builder(_ctx: RuntimeBuildContext):
 
 
 def _build_paper_run_manager(ctx: RuntimeBuildContext):
-    from app.infra.persistence.backtest.paper_manager import PaperRunManager
+    from app.application.backtest.paper_manager import PaperRunManager
 
     return PaperRunManager(
         strategy_query_service=ctx.require(BACKTEST_STRATEGY_QUERY_SERVICE),
         freqtrade_service=ctx.require(BACKTEST_FREQTRADE_SERVICE),
         report_builder=ctx.require(BACKTEST_REPORT_BUILDER),
         run_repository=ctx.require(BACKTEST_RUN_REPOSITORY),
-        database_runtime=ctx.require(INFRA_DATABASE_RUNTIME),
+        run_mutations=ctx.require(BACKTEST_RUN_MUTATION_SERVICE),
     )
 
 
 def _build_backtest_command_service(ctx: RuntimeBuildContext):
-    from app.services.backtest.command_service import BacktestCommandService
+    from app.application.backtest.command_service import BacktestCommandService
 
     return BacktestCommandService(
         run_service=ctx.require(BACKTEST_RUN_SERVICE),
@@ -81,7 +99,7 @@ def _build_backtest_command_service(ctx: RuntimeBuildContext):
 
 
 def _build_backtest_query_service(ctx: RuntimeBuildContext):
-    from app.services.backtest.query_service import BacktestQueryService
+    from app.application.backtest.query_service import BacktestQueryService
 
     return BacktestQueryService(
         run_repository=ctx.require(BACKTEST_RUN_REPOSITORY),
@@ -97,6 +115,12 @@ BACKTEST_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         deps=(INFRA_DATABASE_RUNTIME,),
     ),
     RuntimeServiceDefinition(
+        BACKTEST_RUN_MUTATION_SERVICE,
+        frozenset({"api", "background"}),
+        _build_backtest_run_mutation_service,
+        deps=(INFRA_DATABASE_RUNTIME,),
+    ),
+    RuntimeServiceDefinition(
         BACKTEST_FREQTRADE_SERVICE,
         frozenset({"api", "background"}),
         _build_freqtrade_backtest_service,
@@ -106,19 +130,25 @@ BACKTEST_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         BACKTEST_RUN_SERVICE,
         frozenset({"api"}),
         _build_backtest_run_service,
-        deps=(BACKTEST_FREQTRADE_SERVICE, INFRA_DATABASE_RUNTIME),
+        deps=(BACKTEST_FREQTRADE_SERVICE, BACKTEST_RUN_MUTATION_SERVICE),
+    ),
+    RuntimeServiceDefinition(
+        BACKTEST_STRATEGY_DEFINITION_STORE,
+        frozenset({"api", "background"}),
+        _build_strategy_definition_store,
+        deps=(INFRA_DATABASE_RUNTIME,),
     ),
     RuntimeServiceDefinition(
         BACKTEST_STRATEGY_QUERY_SERVICE,
         frozenset({"api", "background"}),
         _build_strategy_query_service,
-        deps=(INFRA_DATABASE_RUNTIME,),
+        deps=(BACKTEST_STRATEGY_DEFINITION_STORE,),
     ),
     RuntimeServiceDefinition(
         BACKTEST_STRATEGY_WRITE_SERVICE,
         frozenset({"api"}),
         _build_strategy_write_service,
-        deps=(INFRA_DATABASE_RUNTIME,),
+        deps=(BACKTEST_STRATEGY_DEFINITION_STORE,),
     ),
     RuntimeServiceDefinition(BACKTEST_REPORT_BUILDER, frozenset({"api", "background"}), _build_freqtrade_report_builder),
     RuntimeServiceDefinition(
@@ -130,7 +160,7 @@ BACKTEST_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
             BACKTEST_FREQTRADE_SERVICE,
             BACKTEST_REPORT_BUILDER,
             BACKTEST_RUN_REPOSITORY,
-            INFRA_DATABASE_RUNTIME,
+            BACKTEST_RUN_MUTATION_SERVICE,
         ),
         background_start=restore_paper_runs,
         background_stop=shutdown_service,

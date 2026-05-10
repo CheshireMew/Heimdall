@@ -6,7 +6,7 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, get_args
+from typing import Any, get_args, get_origin
 
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, TypeAdapter
@@ -20,6 +20,13 @@ FRONTEND_TYPES_DIR = REPO_ROOT / "frontend" / "src" / "types"
 FRONTEND_API_DIR = REPO_ROOT / "frontend" / "src" / "api"
 TARGET_FILES = ("backtest.ts", "factor.ts", "market.ts", "tools.ts", "config.ts")
 API_PREFIX = "/api/v1"
+TYPE_NAMESPACE_BY_FILE = {
+    "backtest.ts": "BacktestTypes",
+    "factor.ts": "FactorTypes",
+    "market.ts": "MarketTypes",
+    "tools.ts": "ToolsTypes",
+    "config.ts": "ConfigTypes",
+}
 
 
 @dataclass(frozen=True)
@@ -168,6 +175,12 @@ def render_api_routes() -> str:
         "// This file is generated from backend FastAPI route contracts.",
         "// Do not edit manually.",
         "",
+        "import type * as BacktestTypes from '../modules/backtest/contracts'",
+        "import type * as FactorTypes from '../modules/factors/contracts'",
+        "import type * as MarketTypes from '../modules/market/contracts'",
+        "import type * as ToolsTypes from '../modules/tools/contracts'",
+        "import type * as ConfigTypes from '../modules/system/contracts'",
+        "",
         "export type RouteParams = Record<string, string | number>",
         "export type ApiQueryShape = object",
         "export type EndpointQueryContract = { aliases?: Record<string, string>; repeatedKeys?: readonly string[] }",
@@ -181,13 +194,30 @@ def render_api_routes() -> str:
         "const routeTemplates = {",
     ]
     query_meta: dict[str, dict[str, Any]] = {}
+    query_types: dict[str, str] = {}
     for contract in collect_route_query_param_contracts():
         query_meta[contract.route_name] = query_meta_payload(contract)
+        query_types[contract.route_name] = qualified_type_name(contract.target_file, contract.name)
     route_query_lines = ["const endpointQueryContracts = {"]
+    response_map_lines = ["export type ApiRouteResponseMap = {"]
+    body_map_lines = ["export type ApiRouteBodyMap = {"]
+    query_map_lines = ["export type ApiRouteQueryMap = {"]
     for route in sorted(api_v1_routes(), key=lambda item: item.name):
         route_lines.append(f"  {route.name}: {json.dumps(strip_api_prefix(route.path))},")
         route_query_lines.append(
             f"  {route.name}: {json.dumps(query_meta.get(route.name, empty_query_meta()), ensure_ascii=False)} as EndpointQueryContract,"
+        )
+        target_file = resolve_route_target_file(route)
+        response_map_lines.append(
+            f"  {route.name}: {render_route_annotation_type(route.response_model, target_file)}"
+        )
+        body_field = getattr(route, "body_field", None)
+        body_annotation = resolve_fastapi_field_annotation(body_field) if body_field is not None else None
+        body_map_lines.append(
+            f"  {route.name}: {render_route_annotation_type(body_annotation, target_file, fallback='never')}"
+        )
+        query_map_lines.append(
+            f"  {route.name}: {query_types.get(route.name, 'never')}"
         )
     route_lines.extend([
         "} as const",
@@ -226,7 +256,17 @@ def render_api_routes() -> str:
         "",
     ])
     route_query_lines.extend(["} as const", ""])
-    return "\n".join(route_lines + route_query_lines)
+    response_map_lines.extend(["}", ""])
+    body_map_lines.extend(["}", ""])
+    query_map_lines.extend([
+        "}",
+        "",
+        "export type ApiRouteResponse<N extends ApiRouteName> = ApiRouteResponseMap[N]",
+        "export type ApiRouteBody<N extends ApiRouteName> = ApiRouteBodyMap[N]",
+        "export type ApiRouteQuery<N extends ApiRouteName> = ApiRouteQueryMap[N]",
+        "",
+    ])
+    return "\n".join(route_lines + route_query_lines + response_map_lines + body_map_lines + query_map_lines)
 
 
 def api_v1_routes() -> tuple[APIRoute, ...]:
@@ -245,6 +285,46 @@ def strip_api_prefix(path: str) -> str:
 
 def empty_query_meta() -> dict[str, Any]:
     return {"repeatedKeys": [], "aliases": {}}
+
+
+def qualified_type_name(target_file: str, name: str) -> str:
+    namespace = TYPE_NAMESPACE_BY_FILE[target_file]
+    return f"{namespace}.{name}"
+
+
+def render_route_annotation_type(annotation: Any, target_file: str, *, fallback: str = "unknown") -> str:
+    if annotation is None:
+        return fallback
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return qualified_type_name(target_file, annotation.__name__)
+    origin = get_origin(annotation)
+    args = get_args(annotation)
+    if origin in {list, tuple} and args:
+        return f"Array<{render_route_annotation_type(args[0], target_file, fallback=fallback)}>"
+    if origin is dict and len(args) == 2:
+        key_type = render_plain_ts_type(args[0])
+        value_type = render_route_annotation_type(args[1], target_file, fallback="unknown")
+        return f"Record<{key_type}, {value_type}>"
+    if args:
+        rendered = [
+            render_route_annotation_type(arg, target_file, fallback=fallback)
+            for arg in args
+            if arg is not type(None)
+        ]
+        return " | ".join(dict.fromkeys(rendered)) or fallback
+    return render_plain_ts_type(annotation, fallback=fallback)
+
+
+def render_plain_ts_type(annotation: Any, *, fallback: str = "unknown") -> str:
+    if annotation is str:
+        return "string"
+    if annotation in {int, float}:
+        return "number"
+    if annotation is bool:
+        return "boolean"
+    if annotation is Any:
+        return "unknown"
+    return fallback
 
 
 def query_meta_payload(contract: QueryParamContract) -> dict[str, Any]:

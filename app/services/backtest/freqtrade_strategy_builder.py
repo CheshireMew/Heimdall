@@ -5,7 +5,7 @@ from copy import deepcopy
 from itertools import islice, product
 from typing import Any
 
-from app.contracts.dto.strategy_contract import (
+from app.contracts.strategy import (
     StrategyConditionNodeResponse,
     StrategyGroupNodeResponse,
     StrategyIndicatorConfigResponse,
@@ -14,24 +14,24 @@ from app.contracts.dto.strategy_contract import (
     StrategyTemplateConfigResponse,
     StrategyTradePlanConfigResponse,
 )
-from app.services.backtest.scripted_template_runtime import (
+from app.domain.backtest.scripted_template_runtime import (
     build_scripted_strategy_code,
     get_template_runtime,
     scripted_trade_settings,
     scripted_warmup_bars,
     template_builder_kind,
 )
-from app.services.backtest.freqtrade_exit_codegen import render_threshold_custom_exit
-from app.services.backtest.freqtrade_strategy_runtime import (
+from app.domain.backtest.freqtrade_exit_codegen import render_threshold_custom_exit
+from app.domain.backtest.freqtrade_strategy_runtime import (
     render_freqtrade_strategy_runtime,
     resolve_freqtrade_strategy_runtime,
 )
-from app.services.backtest.indicator_engines import (
+from app.domain.backtest.indicator_engines import (
     indicator_engine_definition,
 )
-from app.infra.persistence.backtest.strategy_catalog import get_indicator_registry_map
-from app.services.backtest.strategy_config_normalizer import normalize_strategy_identifier
-from app.services.backtest.strategy_rule_tree import set_by_path, strategy_branch
+from app.domain.backtest.strategy_catalog import get_indicator_registry_map
+from app.domain.backtest.strategy_config_normalizer import normalize_strategy_identifier
+from app.domain.backtest.strategy_rule_tree import set_by_path, strategy_branch
 from app.services.backtest.strategy_runtime import StrategyRuntime
 
 

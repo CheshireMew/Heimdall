@@ -105,7 +105,7 @@ echo "FRED_API_KEY=abcdef123456" >> .env
 
 ### Step 2: 更新 Cron Job
 ```bash
-# 编辑 app/services/market_cron.py
+# 编辑 app/application/indicators/market_cron.py
 # 将 MacroProvider 替换为 MacroProviderV2
 ```
 
@@ -117,7 +117,7 @@ python app/services/indicators/macro_provider_v2.py
 
 ### Step 4: 运行完整 Cron Job
 ```bash
-python app/services/market_cron.py
+python app/application/indicators/market_cron.py
 ```
 
 ---

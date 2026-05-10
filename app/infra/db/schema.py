@@ -88,6 +88,7 @@ class BacktestTrade(Base):
     entry_tag = Column(String(100), nullable=True)
     exit_reason = Column(String(100), nullable=True)
     leverage = Column(Float, default=1.0)
+    side = Column(String(10), nullable=False, default='long')
 
     backtest_run = relationship("BacktestRun", back_populates="trades")
 

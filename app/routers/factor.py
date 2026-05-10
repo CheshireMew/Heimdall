@@ -22,8 +22,8 @@ from app.contracts.dto.factor import (
 )
 
 if TYPE_CHECKING:
-    from app.infra.persistence.factors.execution import FactorExecutionService
-    from app.infra.persistence.factors.paper_manager import FactorPaperRunManager
+    from app.application.factors.execution import FactorExecutionService
+    from app.application.factors.paper_manager import FactorPaperRunManager
     from app.services.factors.service import FactorResearchService
 
 

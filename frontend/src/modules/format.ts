@@ -1,5 +1,6 @@
 import { useDateTime } from '@/composables/useDateTime'
 import { useMoney } from '@/composables/useMoney'
+import { asNumber } from '@/utils/number'
 
 const money = useMoney()
 const dateTime = useDateTime()
@@ -7,11 +8,6 @@ const dateTime = useDateTime()
 type PercentOptions = {
   empty?: string
   signed?: boolean
-}
-
-export const asNumber = (value: unknown) => {
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric : null
 }
 
 export const formatMetric = (value: unknown, digits = 2, empty = '-') => {

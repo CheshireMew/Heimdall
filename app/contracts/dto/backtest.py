@@ -5,14 +5,14 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.contracts.dto.strategy_contract import (
+from app.contracts.strategy import (
     StrategyConditionNodeResponse,
     StrategyGroupNodeResponse,
     StrategyIndicatorOutputResponse,
     StrategyIndicatorParamResponse,
     StrategyTemplateConfigResponse,
 )
-from app.contracts.dto.json_types import JsonObject, JsonValue
+from app.contracts.json_types import JsonObject, JsonValue
 from app.contracts.backtest import (
     BacktestPortfolioConfig,
     BacktestResearchConfig,
@@ -25,7 +25,7 @@ from app.contracts.backtest import (
     EvolveStrategyFromBacktestCommand,
     PaperStartCommand,
 )
-from app.contracts.dto.backtest_result import (
+from app.contracts.backtest_result import (
     BacktestReportResponse,
     BacktestRunMetadataContractResponse,
 )

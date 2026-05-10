@@ -7,8 +7,10 @@ import axios, {
 import {
     apiEndpoint,
     serializeEndpointQuery,
-    type ApiQueryShape,
+    type ApiRouteBody,
     type ApiRouteName,
+    type ApiRouteQuery,
+    type ApiRouteResponse,
     type RouteParams,
 } from './routes'
 
@@ -51,15 +53,15 @@ const apiClients = {
 } as const
 
 type ApiClientName = keyof typeof apiClients
-type ApiOptions = Omit<AxiosRequestConfig, 'params' | 'url' | 'method'> & {
+type ApiOptions<TRoute extends ApiRouteName> = Omit<AxiosRequestConfig, 'params' | 'url' | 'method'> & {
     client?: ApiClientName
     path?: RouteParams
-    query?: ApiQueryShape
+    query?: ApiRouteQuery<TRoute>
 }
 
 const querySerializerKey = ['params', 'Serializer'].join('')
 
-const buildRequestConfig = (name: ApiRouteName, options: ApiOptions = {}): AxiosRequestConfig => {
+const buildRequestConfig = <TRoute extends ApiRouteName>(name: TRoute, options: ApiOptions<TRoute> = {}): AxiosRequestConfig => {
     const { client: _client, path: _path, query, ...config } = options
     if (!query) return config
     return {
@@ -70,38 +72,38 @@ const buildRequestConfig = (name: ApiRouteName, options: ApiOptions = {}): Axios
     } as AxiosRequestConfig
 }
 
-const resolveClient = (options: ApiOptions = {}) => apiClients[options.client || 'default']
+const resolveClient = <TRoute extends ApiRouteName>(options: ApiOptions<TRoute> = {}) => apiClients[options.client || 'default']
 
-export const apiGet = <TResponse = unknown>(
-    name: ApiRouteName,
-    options: ApiOptions = {},
-): Promise<AxiosResponse<TResponse>> => {
+export const apiGet = <TRoute extends ApiRouteName>(
+    name: TRoute,
+    options: ApiOptions<TRoute> = {},
+): Promise<AxiosResponse<ApiRouteResponse<TRoute>>> => {
     const endpoint = apiEndpoint(name, options.path)
-    return resolveClient(options).get<TResponse>(endpoint.url, buildRequestConfig(name, options))
+    return resolveClient(options).get<ApiRouteResponse<TRoute>>(endpoint.url, buildRequestConfig(name, options))
 }
 
-export const apiPost = <TResponse = unknown, TBody = unknown>(
-    name: ApiRouteName,
-    body?: TBody,
-    options: ApiOptions = {},
-): Promise<AxiosResponse<TResponse>> => {
+export const apiPost = <TRoute extends ApiRouteName>(
+    name: TRoute,
+    body?: ApiRouteBody<TRoute>,
+    options: ApiOptions<TRoute> = {},
+): Promise<AxiosResponse<ApiRouteResponse<TRoute>>> => {
     const endpoint = apiEndpoint(name, options.path)
-    return resolveClient(options).post<TResponse>(endpoint.url, body, buildRequestConfig(name, options))
+    return resolveClient(options).post<ApiRouteResponse<TRoute>>(endpoint.url, body, buildRequestConfig(name, options))
 }
 
-export const apiPut = <TResponse = unknown, TBody = unknown>(
-    name: ApiRouteName,
-    body?: TBody,
-    options: ApiOptions = {},
-): Promise<AxiosResponse<TResponse>> => {
+export const apiPut = <TRoute extends ApiRouteName>(
+    name: TRoute,
+    body?: ApiRouteBody<TRoute>,
+    options: ApiOptions<TRoute> = {},
+): Promise<AxiosResponse<ApiRouteResponse<TRoute>>> => {
     const endpoint = apiEndpoint(name, options.path)
-    return resolveClient(options).put<TResponse>(endpoint.url, body, buildRequestConfig(name, options))
+    return resolveClient(options).put<ApiRouteResponse<TRoute>>(endpoint.url, body, buildRequestConfig(name, options))
 }
 
-export const apiDelete = <TResponse = unknown>(
-    name: ApiRouteName,
-    options: ApiOptions = {},
-): Promise<AxiosResponse<TResponse>> => {
+export const apiDelete = <TRoute extends ApiRouteName>(
+    name: TRoute,
+    options: ApiOptions<TRoute> = {},
+): Promise<AxiosResponse<ApiRouteResponse<TRoute>>> => {
     const endpoint = apiEndpoint(name, options.path)
-    return resolveClient(options).delete<TResponse>(endpoint.url, buildRequestConfig(name, options))
+    return resolveClient(options).delete<ApiRouteResponse<TRoute>>(endpoint.url, buildRequestConfig(name, options))
 }

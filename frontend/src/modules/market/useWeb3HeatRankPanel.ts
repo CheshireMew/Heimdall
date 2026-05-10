@@ -11,7 +11,7 @@ import type {
 } from './contracts'
 import { marketApi } from './api'
 import type { CandlestickData, VolumeData } from './contracts'
-import { restoreWeb3HeatRankWarmSnapshot, saveWeb3HeatRankWarmSnapshot } from './web3MarketWarmSnapshot'
+import { web3HeatRankWarmSnapshot } from './web3MarketWarmSnapshot'
 import {
   web3ApiChainId,
   type Web3HeatRankSortField,
@@ -36,7 +36,7 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
   const web3Audit = ref<BinanceWeb3TokenAuditResponse | null>(null)
   const web3Kline = ref<BinanceWeb3TokenKlineItemResponse[]>([])
   const web3KlineInterval = ref('15min')
-  let heatRankFetchPromise: Promise<void> | null = null
+  let heatRankFetchState: { key: string; task: Promise<void> } | null = null
 
   const web3ChartData = computed<CandlestickData[]>(() => (
     web3Kline.value
@@ -69,7 +69,7 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
   }
 
   const restoreHeatRankWarmSnapshot = () => {
-    const payload = restoreWeb3HeatRankWarmSnapshot(chainId.value, WEB3_HEAT_RANK_SIZE)
+    const payload = web3HeatRankWarmSnapshot.read(chainId.value, WEB3_HEAT_RANK_SIZE)
     if (payload) {
       applyHeatRankPayload(payload)
       web3ErrorKey.value = ''
@@ -78,33 +78,42 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
     return false
   }
 
+  const heatRankRequestKey = () => `${chainId.value}:${WEB3_HEAT_RANK_SIZE}`
+
   const fetchWeb3HeatRank = async () => {
-    if (heatRankFetchPromise) return heatRankFetchPromise
-    const task = (async () => {
+    const requestChainId = chainId.value
+    const requestKey = heatRankRequestKey()
+    if (heatRankFetchState?.key === requestKey) return heatRankFetchState.task
+    let task!: Promise<void>
+    task = (async () => {
       web3Loading.value = true
       web3ErrorKey.value = ''
       try {
         const response = await marketApi.getBinanceWeb3HeatRankBoards({
-          chain_id: web3ApiChainId(chainId.value),
+          chain_id: web3ApiChainId(requestChainId),
           size: WEB3_HEAT_RANK_SIZE,
         })
+        if (requestKey !== heatRankRequestKey()) return
         applyHeatRankPayload(response.data)
-        saveWeb3HeatRankWarmSnapshot(chainId.value, WEB3_HEAT_RANK_SIZE, response.data)
-    } catch (requestError) {
+        web3HeatRankWarmSnapshot.write(response.data, requestChainId, WEB3_HEAT_RANK_SIZE)
+      } catch (requestError) {
+        if (requestKey !== heatRankRequestKey()) return
         web3ErrorKey.value = web3HeatRank.value.length
           ? 'web3Rank.heatRankRefreshFailedWithCache'
           : 'web3Rank.heatRankLoadFailed'
         console.error('Failed to load Binance Web3 heat rank', requestError)
       } finally {
-        web3Loading.value = false
+        if (heatRankFetchState?.key === requestKey && heatRankFetchState.task === task) {
+          web3Loading.value = false
+        }
       }
     })()
-    heatRankFetchPromise = task
+    heatRankFetchState = { key: requestKey, task }
     try {
       await task
     } finally {
-      if (heatRankFetchPromise === task) {
-        heatRankFetchPromise = null
+      if (heatRankFetchState?.key === requestKey && heatRankFetchState.task === task) {
+        heatRankFetchState = null
       }
     }
   }

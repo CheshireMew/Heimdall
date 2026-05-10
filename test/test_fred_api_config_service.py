@@ -9,9 +9,9 @@ def test_fred_api_config_reads_env_fallback(tmp_path, monkeypatch):
 
     config = service.read_config()
 
-    assert config.apiKeySet is True
-    assert config.apiKeyPreview == "fred********-key"
-    assert config.source == "env"
+    assert config["apiKeySet"] is True
+    assert config["apiKeyPreview"] == "fred********-key"
+    assert config["source"] == "env"
 
 
 def test_fred_api_config_save_overrides_env_and_updates_runtime(tmp_path, monkeypatch):
@@ -20,9 +20,9 @@ def test_fred_api_config_save_overrides_env_and_updates_runtime(tmp_path, monkey
 
     config = service.save_config({"apiKey": "fred-saved-key"})
 
-    assert config.apiKeySet is True
-    assert config.apiKeyPreview == "fred********-key"
-    assert config.source == "saved"
+    assert config["apiKeySet"] is True
+    assert config["apiKeyPreview"] == "fred********-key"
+    assert config["source"] == "saved"
     assert service.read_effective_api_key() == "fred-saved-key"
     assert settings.FRED_API_KEY == "fred-saved-key"
 

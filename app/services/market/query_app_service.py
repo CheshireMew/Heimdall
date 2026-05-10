@@ -5,27 +5,19 @@ from datetime import datetime
 from typing import Any, Callable, Literal
 
 from app.exceptions import ServiceUnavailableError
-from app.contracts.dto.market import (
-    CurrentPriceBatchItemResponse,
-    CurrentPriceBatchResponse,
-    CurrentPriceResponse,
-    KlineTailResponse,
-    MarketHistoryBatchResponse,
-    MarketHistoryResponse,
-    RealtimeResponse,
-    TechnicalMetricsResponse,
-    build_market_history_batch_response,
-    build_market_history_response,
-    build_ohlcv_points,
-)
 from app.services.market.app_service_support import (
     VALID_MARKET_SYMBOLS,
     VALID_MARKET_TIMEFRAMES,
     validate_market_request,
 )
 from app.services.market.market_data_service import MarketDataService
+from app.services.market.response_payloads import (
+    build_market_history_batch_response,
+    build_market_history_response,
+    build_ohlcv_points,
+)
 from app.services.market.realtime_service import MarketSnapshot, RealtimeService
-from app.services.executor import run_sync
+from app.infra.executor import run_sync
 from config import settings
 from utils.logger import logger
 
@@ -76,7 +68,7 @@ class MarketQueryAppService:
         symbol: str,
         timeframe: str | None,
         limit: int | None,
-    ) -> RealtimeResponse:
+    ) -> dict[str, Any]:
         resolved_timeframe = timeframe or settings.TIMEFRAME
         resolved_limit = limit or settings.LIMIT
         try:
@@ -116,7 +108,7 @@ class MarketQueryAppService:
         timeframe: str,
         limit: int,
         use_ai: bool,
-    ) -> RealtimeResponse:
+    ) -> dict[str, Any]:
         snapshot = await self.load_snapshot(
             symbol=symbol,
             timeframe=timeframe,
@@ -149,7 +141,7 @@ class MarketQueryAppService:
         timeframe: str,
         end_ts: int,
         limit: int,
-    ) -> MarketHistoryResponse:
+    ) -> dict[str, Any]:
         validate_market_request(symbol, timeframe)
         rows = await run_sync(
             lambda: self.market_data_service.get_history_data(symbol, timeframe, end_ts, limit)
@@ -162,7 +154,7 @@ class MarketQueryAppService:
         symbol: str,
         timeframe: str,
         limit: int,
-    ) -> MarketHistoryResponse:
+    ) -> dict[str, Any]:
         validate_market_request(symbol, timeframe)
         rows = await run_sync(
             lambda: self.market_data_service.get_recent_candles(
@@ -180,7 +172,7 @@ class MarketQueryAppService:
         symbol: str,
         timeframe: str,
         limit: int,
-    ) -> KlineTailResponse:
+    ) -> dict[str, Any]:
         validate_market_request(symbol, timeframe)
         kline_data = await run_sync(
             lambda: self.market_data_service.get_recent_candles(
@@ -192,22 +184,20 @@ class MarketQueryAppService:
             )
         )
         current_price = kline_data[-1][4] if kline_data else None
-        return KlineTailResponse.model_validate(
-            {
-                "symbol": symbol,
-                "timeframe": timeframe,
-                "timestamp": datetime.now().isoformat(),
-                "current_price": current_price,
-                "kline_data": build_ohlcv_points(kline_data),
-            }
-        )
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "timestamp": datetime.now().isoformat(),
+            "current_price": current_price,
+            "kline_data": build_ohlcv_points(kline_data),
+        }
 
     async def get_current_price(
         self,
         *,
         symbol: str,
         timeframe: str,
-    ) -> CurrentPriceResponse:
+    ) -> dict[str, Any]:
         validate_market_request(symbol, timeframe)
         current_price = await self._get_current_price_from_snapshot(symbol)
         if current_price is None:
@@ -215,19 +205,19 @@ class MarketQueryAppService:
                 symbol=symbol,
                 timeframe=timeframe,
             )
-        return CurrentPriceResponse(
-            symbol=symbol,
-            timeframe=timeframe,
-            timestamp=datetime.now().isoformat(),
-            current_price=current_price,
-        )
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "timestamp": datetime.now().isoformat(),
+            "current_price": current_price,
+        }
 
     async def get_current_price_batch(
         self,
         *,
         symbols: list[str],
         timeframe: str,
-    ) -> CurrentPriceBatchResponse:
+    ) -> dict[str, Any]:
         normalized_symbols: list[str] = []
         seen_symbols: set[str] = set()
         for symbol in symbols:
@@ -237,25 +227,34 @@ class MarketQueryAppService:
             seen_symbols.add(symbol)
             normalized_symbols.append(symbol)
 
-        items: list[CurrentPriceBatchItemResponse] = []
-        for symbol in normalized_symbols:
-            current_price = await self._get_current_price_from_snapshot(symbol)
-            source = "websocket_snapshot" if current_price is not None else "kline_tail"
-            if current_price is None:
-                current_price = await self._get_current_price_from_kline_tail(
-                    symbol=symbol,
-                    timeframe=timeframe,
-                )
-            items.append(
-                CurrentPriceBatchItemResponse(
-                    symbol=symbol,
-                    timeframe=timeframe,
-                    timestamp=datetime.now().isoformat(),
-                    current_price=current_price,
-                    source=source if current_price is not None else "unavailable",
-                )
+        items = await asyncio.gather(
+            *[
+                self._build_current_price_batch_item(symbol=symbol, timeframe=timeframe)
+                for symbol in normalized_symbols
+            ],
+        )
+        return {"timeframe": timeframe, "items": items}
+
+    async def _build_current_price_batch_item(
+        self,
+        *,
+        symbol: str,
+        timeframe: str,
+    ) -> dict[str, Any]:
+        current_price = await self._get_current_price_from_snapshot(symbol)
+        source = "websocket_snapshot" if current_price is not None else "kline_tail"
+        if current_price is None:
+            current_price = await self._get_current_price_from_kline_tail(
+                symbol=symbol,
+                timeframe=timeframe,
             )
-        return CurrentPriceBatchResponse(timeframe=timeframe, items=items)
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "timestamp": datetime.now().isoformat(),
+            "current_price": current_price,
+            "source": source if current_price is not None else "unavailable",
+        }
 
     async def _get_current_price_from_snapshot(self, symbol: str) -> float | None:
         if self.binance_snapshot_service is None:
@@ -287,7 +286,7 @@ class MarketQueryAppService:
         start_date: str,
         fetch_policy: Literal["cache_only", "hydrate"] = "hydrate",
         persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
-    ) -> MarketHistoryResponse:
+    ) -> dict[str, Any]:
         validate_market_request(symbol, timeframe)
         rows, missing_ranges = await self._load_full_history_rows(
             symbol=symbol,
@@ -311,7 +310,7 @@ class MarketQueryAppService:
         start_date: str,
         fetch_policy: Literal["cache_only", "hydrate"] = "hydrate",
         persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
-    ) -> MarketHistoryBatchResponse:
+    ) -> dict[str, Any]:
         normalized_symbols: list[str] = []
         seen_symbols: set[str] = set()
         for symbol in symbols:
@@ -382,7 +381,7 @@ class MarketQueryAppService:
         limit: int,
         atr_period: int,
         volatility_period: int,
-    ) -> TechnicalMetricsResponse:
+    ) -> dict[str, Any]:
         snapshot = await self.load_snapshot(
             symbol=symbol,
             timeframe=timeframe,
@@ -393,13 +392,13 @@ class MarketQueryAppService:
         kline_data = snapshot.kline_data
         indicators = snapshot.indicators
         current_price = kline_data[-1][4]
-        return TechnicalMetricsResponse(
-            symbol=symbol,
-            timeframe=timeframe,
-            sample_size=len(kline_data),
-            current_price=current_price,
-            atr=indicators.atr,
-            atr_pct=indicators.atr_pct,
-            realized_volatility_pct=indicators.realized_volatility_pct,
-            annualized_volatility_pct=indicators.annualized_volatility_pct,
-        )
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "sample_size": len(kline_data),
+            "current_price": current_price,
+            "atr": indicators["atr"],
+            "atr_pct": indicators["atr_pct"],
+            "realized_volatility_pct": indicators["realized_volatility_pct"],
+            "annualized_volatility_pct": indicators["annualized_volatility_pct"],
+        }

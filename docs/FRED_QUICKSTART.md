@@ -120,7 +120,7 @@ Fetched 3 indicators
 
 ### 修改 Cron Job
 
-编辑 `app\services\market_cron.py`:
+编辑 `app\application\indicators\market_cron.py`:
 
 **找到第 15 行:**
 ```python
@@ -132,7 +132,7 @@ from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroPr
 cd E:\Work\Code\Heimdall
 
 # Windows PowerShell
-(Get-Content app\services\market_cron.py) -replace 'from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroProvider', 'from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroProvider' | Set-Content app\services\market_cron.py
+(Get-Content app\application\indicators\market_cron.py) -replace 'from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroProvider', 'from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroProvider' | Set-Content app\application\indicators\market_cron.py
 ```
 
 ---
@@ -141,7 +141,7 @@ cd E:\Work\Code\Heimdall
 
 ```bash
 # 1. 运行数据采集
-python -m app.services.market_cron
+python -m app.application.indicators.market_cron
 
 # 2. 检查数据库
 python -m scripts.check_indicators

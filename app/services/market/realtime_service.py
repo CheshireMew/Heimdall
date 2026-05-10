@@ -7,14 +7,14 @@ from typing import Any
 from config import settings
 from app.domain.market.prompt_engine import PromptEngine
 from app.domain.market.technical_analysis import TechnicalAnalysis
-from app.contracts.dto.market import IndicatorSummaryResponse, MACDResponse, RealtimeResponse
 from app.services.market.market_data_service import MarketDataService
+from app.services.market.response_payloads import build_ohlcv_points
 
 
 @dataclass(slots=True)
 class MarketSnapshot:
     kline_data: list[list[float]]
-    indicators: IndicatorSummaryResponse
+    indicators: dict[str, Any]
 
 
 class RealtimeService:
@@ -46,25 +46,25 @@ class RealtimeService:
         macd = TechnicalAnalysis.calculate_macd(
             closes, settings.MACD_FAST, settings.MACD_SLOW, settings.MACD_SIGNAL
         )
-        indicators = IndicatorSummaryResponse(
-            ema=TechnicalAnalysis.calculate_ema(closes, settings.EMA_PERIOD),
-            rsi=TechnicalAnalysis.calculate_rsi(closes, settings.RSI_PERIOD),
-            macd=MACDResponse(
-                dif=macd[0] if macd and macd[0] is not None else None,
-                dea=macd[1] if macd and macd[1] is not None else None,
-                histogram=macd[2] if macd and macd[2] is not None else None,
-            )
+        indicators = {
+            "ema": TechnicalAnalysis.calculate_ema(closes, settings.EMA_PERIOD),
+            "rsi": TechnicalAnalysis.calculate_rsi(closes, settings.RSI_PERIOD),
+            "macd": {
+                "dif": macd[0] if macd and macd[0] is not None else None,
+                "dea": macd[1] if macd and macd[1] is not None else None,
+                "histogram": macd[2] if macd and macd[2] is not None else None,
+            }
             if macd
             else None,
-            atr=atr,
-            atr_pct=atr_pct,
-            realized_volatility_pct=realized_volatility * 100.0
+            "atr": atr,
+            "atr_pct": atr_pct,
+            "realized_volatility_pct": realized_volatility * 100.0
             if realized_volatility is not None
             else None,
-            annualized_volatility_pct=annualized_volatility * 100.0
+            "annualized_volatility_pct": annualized_volatility * 100.0
             if annualized_volatility is not None
             else None,
-        )
+        }
         return MarketSnapshot(kline_data=kline_data, indicators=indicators)
 
     def build_response_payload(
@@ -72,36 +72,34 @@ class RealtimeService:
         symbol: str,
         timeframe: str | None,
         kline_data: list[list[float]],
-        indicators: IndicatorSummaryResponse,
+        indicators: dict[str, Any],
         ai_analysis: Any = None,
         include_type: bool = False,
-    ) -> RealtimeResponse:
+    ) -> dict[str, Any]:
         closes = [x[4] for x in kline_data]
-        return RealtimeResponse.model_validate(
-            {
-                "symbol": symbol,
-                "timestamp": datetime.now().isoformat(),
-                "current_price": closes[-1],
-                "indicators": indicators,
-                "ai_analysis": ai_analysis,
-                "kline_data": kline_data,
-                "timeframe": timeframe,
-                "type": "realtime" if include_type else None,
-            }
-        )
+        return {
+            "symbol": symbol,
+            "timestamp": datetime.now().isoformat(),
+            "current_price": closes[-1],
+            "indicators": indicators,
+            "ai_analysis": ai_analysis,
+            "kline_data": build_ohlcv_points(kline_data),
+            "timeframe": timeframe,
+            "type": "realtime" if include_type else None,
+        }
 
     async def maybe_run_ai(
         self,
         llm_client: Any,
         symbol: str,
         kline_data: list[list[float]],
-        indicators: IndicatorSummaryResponse,
+        indicators: dict[str, Any],
     ) -> Any:
         if not llm_client:
             return None
         prompt = PromptEngine.build_analysis_prompt(
             symbol,
             kline_data,
-            indicators.model_dump(),
+            indicators,
         )
         return await llm_client.analyze(prompt)

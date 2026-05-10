@@ -4,13 +4,38 @@
 """
 import requests as req_sync
 import yfinance as yf
-from datetime import datetime, timedelta
+from datetime import datetime
 import asyncio
+from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 from .base_provider import BaseIndicatorProvider, logger
 from config import settings
-from app.services.executor import run_sync
+from app.infra.executor import run_sync
 from app.services.fred_api_config_service import get_fred_api_key
+
+@dataclass(frozen=True)
+class MacroIndicatorSource:
+    fred_id: str | None
+    yf_ticker: str | None
+    indicator_id: str
+
+
+MACRO_INDICATOR_SOURCES = [
+    MacroIndicatorSource("DGS10", "^TNX", "US10Y"),
+    MacroIndicatorSource("DGS2", None, "US02Y"),
+    MacroIndicatorSource("NASDAQCOM", "^IXIC", "NASDAQ"),
+    MacroIndicatorSource("BAMLH0A0HYM2", None, "HY_SPREAD"),
+    MacroIndicatorSource("FEDFUNDS", None, "FED_RATE"),
+    MacroIndicatorSource("WALCL", None, "FED_BALANCE"),
+    MacroIndicatorSource("WTREGEN", None, "TGA"),
+    MacroIndicatorSource("RRPONTSYD", None, "ONRRP"),
+    MacroIndicatorSource("SOFR", None, "SOFR"),
+    MacroIndicatorSource("M2SL", None, "M2"),
+    MacroIndicatorSource("VIXCLS", "^VIX", "VIX"),
+    MacroIndicatorSource("DTWEXBGS", None, "DXY"),
+    MacroIndicatorSource("DCOILWTICO", "CL=F", "WTI"),
+]
+
 
 class MacroProviderV2(BaseIndicatorProvider):
     """
@@ -45,17 +70,16 @@ class MacroProviderV2(BaseIndicatorProvider):
                 'api_key': fred_api_key,
                 'file_type': 'json',
                 'sort_order': 'desc',
-                'limit': 1
+                'limit': 10
             }
             res = req_sync.get(url, params=params, timeout=settings.FRED_REQUEST_TIMEOUT)
             if res.status_code == 200:
                 data = res.json()
                 observations = data.get('observations', [])
-                if observations:
-                    latest = observations[0]
+                for latest in observations:
                     value_str = latest.get('value')
                     if value_str == '.' or not value_str:
-                        return None
+                        continue
                     return {
                         "indicator_id": indicator_id,
                         "timestamp": datetime.strptime(latest['date'], '%Y-%m-%d'),
@@ -96,7 +120,7 @@ class MacroProviderV2(BaseIndicatorProvider):
 
     async def _get_indicator_with_fallback(self,
                                           fred_id: Optional[str],
-                                          yf_ticker: str,
+                                          yf_ticker: str | None,
                                           indicator_id: str) -> Optional[Dict[str, Any]]:
         """
         多源降级获取
@@ -109,6 +133,9 @@ class MacroProviderV2(BaseIndicatorProvider):
                 logger.info(f"[OK] {indicator_id} from FRED")
                 return result
 
+        if not yf_ticker:
+            return None
+
         # 降级到 YFinance
         logger.info(f"[FALLBACK] {indicator_id} fallback to YFinance")
         await asyncio.sleep(settings.YFINANCE_REQUEST_DELAY)  # 限流延迟
@@ -120,24 +147,12 @@ class MacroProviderV2(BaseIndicatorProvider):
     async def fetch_data(self) -> List[Dict[str, Any]]:
         results = []
 
-        # 指标配置 (FRED Series ID, YFinance Ticker, 输出ID)
-        indicators = [
-            # FRED Series ID, YF Ticker, Indicator ID
-            ("DGS10", "^TNX", "US10Y"),           # 10年期美债收益率
-            ("NASDAQCOM", "^IXIC", "NASDAQ"),     # 纳斯达克 (FRED有日频数据)
-            ("BAMLH0A0HYM2", None, "HY_SPREAD"), # 高收益债利差（仅FRED）
-            ("FEDFUNDS", None, "FED_RATE"),       # 联邦基金利率
-            ("WALCL", None, "FED_BALANCE"),       # 美联储资产负债表总资产 (百万美元)
-            # GOLD moved to CryptoGoldProvider (Binance PAXG/USDT)
-        ]
-
-        for fred_id, yf_ticker, indicator_id in indicators:
-            if yf_ticker:  # 有YF备选
-                result = await self._get_indicator_with_fallback(fred_id, yf_ticker, indicator_id)
-            elif fred_id:  # 仅FRED
-                result = await self._fetch_fred_api(fred_id, indicator_id)
-            else:
-                continue
+        for source in MACRO_INDICATOR_SOURCES:
+            result = await self._get_indicator_with_fallback(
+                source.fred_id,
+                source.yf_ticker,
+                source.indicator_id,
+            )
 
             if result:
                 results.append(result)

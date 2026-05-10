@@ -105,8 +105,8 @@
     "minRisePct": "涨幅阈值",
     "resultCount": "{count} 个结果",
     "loadFailure": "{labels}加载失败",
-    "refreshFailedWithCache": "异动监控刷新失败，继续显示缓存数据",
-    "monitorLoadFailed": "异动监控加载失败",
+    "refreshFailedWithCache": "市场看板刷新失败，继续显示缓存数据",
+    "monitorLoadFailed": "市场看板加载失败",
     "marketFallback": "市场",
     "market": {
       "spot": "现货",

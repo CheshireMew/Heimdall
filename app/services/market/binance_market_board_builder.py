@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.contracts.dto.binance_market import BinanceContractBoardResponse, BinanceTickerStatsResponse
-
 from .binance_numbers import safe_float
-from .market_board_support import board_key, compare_nullable_number, compare_text, sort_rows_by_number
+from .market_board_support import board_key
 
 MARKET_BOARD_LIMIT = 15
 SPOT_BOARD_FIELDS = ("price_change_pct", "quote_volume")
@@ -27,18 +25,18 @@ class BinanceMarketBoardBuilder:
             "load_errors": market_snapshot["load_errors"],
         }
 
-    def _build_spot_boards(self, market_snapshot: dict[str, Any], *, quote_asset: str) -> dict[str, BinanceTickerStatsResponse]:
+    def _build_spot_boards(self, market_snapshot: dict[str, Any], *, quote_asset: str) -> dict[str, dict[str, Any]]:
         rows = [
             item
             for item in market_snapshot["spot_ticker"].get("items", [])
             if str(item.get("symbol") or "").upper().endswith(quote_asset)
         ]
         return {
-            board_key(field, direction): BinanceTickerStatsResponse.model_validate({
+            board_key(field, direction): {
                 "exchange": "binance",
                 "market": "spot",
                 "items": self._sort_market_rows(rows, field, direction)[:MARKET_BOARD_LIMIT],
-            })
+            }
             for field in SPOT_BOARD_FIELDS
             for direction in BOARD_DIRECTIONS
         }
@@ -48,7 +46,7 @@ class BinanceMarketBoardBuilder:
         market_snapshot: dict[str, Any],
         *,
         oi_changes: dict[str, dict[str, float | None]],
-    ) -> dict[str, BinanceContractBoardResponse]:
+    ) -> dict[str, dict[str, Any]]:
         mark_map = {
             str(item.get("symbol") or "").upper(): item
             for item in market_snapshot["usdm_mark"].get("items", [])
@@ -73,29 +71,33 @@ class BinanceMarketBoardBuilder:
                 "oi_change_24h_pct": oi.get("oi_change_24h_pct"),
             })
         return {
-            board_key(field, direction): BinanceContractBoardResponse.model_validate({
+            board_key(field, direction): {
                 "exchange": "binance",
                 "market": "usdm",
                 "items": self._sort_market_rows(rows, field, direction)[:MARKET_BOARD_LIMIT],
-            })
+            }
             for field in CONTRACT_BOARD_FIELDS
             for direction in BOARD_DIRECTIONS
         }
 
     def _sort_market_rows(self, rows: list[dict[str, Any]], field: str, direction: str) -> list[dict[str, Any]]:
-        return sort_rows_by_number(
-            rows,
-            field,
-            direction,
-            value_getter=lambda item, key: item.get(key),
-            tie_breaker=self._market_row_tie_breaker,
-        )
+        reverse_primary = direction == "desc"
 
-    def _market_row_tie_breaker(self, left: dict[str, Any], right: dict[str, Any]) -> int:
-        by_volume = compare_nullable_number(left.get("quote_volume"), right.get("quote_volume"), "desc")
-        if by_volume != 0:
-            return by_volume
-        return compare_text(left.get("symbol"), right.get("symbol"))
+        def sort_key(item: dict[str, Any]) -> tuple[bool, float, bool, float, str]:
+            primary = safe_float(item.get(field))
+            volume = safe_float(item.get("quote_volume"))
+            primary_value = primary if primary is not None else 0.0
+            if reverse_primary:
+                primary_value = -primary_value
+            return (
+                primary is None,
+                primary_value,
+                volume is None,
+                -(volume or 0.0),
+                str(item.get("symbol") or ""),
+            )
+
+        return sorted(rows, key=sort_key)
 
     def _funding_rate_pct(self, value: Any) -> float | None:
         numeric = safe_float(value)

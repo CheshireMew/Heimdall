@@ -10,7 +10,7 @@ import type {
   BinanceTickerStatsResponse,
 } from './contracts'
 import { marketApi } from './api'
-import { restoreBinanceMarketWarmSnapshot, saveBinanceMarketWarmSnapshot } from './binanceMarketWarmSnapshot'
+import { binanceMarketWarmSnapshot } from './binanceMarketWarmSnapshot'
 import type {
   BinanceMarketSnapshot,
   ContractBoardRow,
@@ -57,7 +57,7 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
   let refreshTimer: ReturnType<typeof setInterval> | null = null
   let pendingRefreshTimer: ReturnType<typeof setTimeout> | null = null
   let thresholdTimer: ReturnType<typeof setTimeout> | null = null
-  let fetchPromise: Promise<void> | null = null
+  let fetchState: { key: string; task: Promise<void> } | null = null
 
   const items = computed(() => monitor.value.items || [])
   const spotRows = computed<BinanceTickerStatsItemResponse[]>(() => (
@@ -144,25 +144,33 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
   }
 
   const restoreWarmSnapshot = () => {
-    const payload = restoreBinanceMarketWarmSnapshot(minRisePct.value, MARKET_PAGE_QUOTE_ASSET)
+    const payload = binanceMarketWarmSnapshot.read(minRisePct.value, MARKET_PAGE_QUOTE_ASSET)
     if (payload) applyPayload(payload, { warmStart: true })
   }
 
+  const marketPageRequestKey = () => `${minRisePct.value}:${MARKET_PAGE_LIMIT}:${MARKET_PAGE_QUOTE_ASSET}`
+
   const fetchData = async () => {
-    if (fetchPromise) return fetchPromise
-    const task = (async () => {
+    const requestMinRisePct = minRisePct.value
+    const requestQuoteAsset = MARKET_PAGE_QUOTE_ASSET
+    const requestKey = marketPageRequestKey()
+    if (fetchState?.key === requestKey) return fetchState.task
+    let task!: Promise<void>
+    task = (async () => {
       loading.value = true
       errorState.value = null
       try {
         const response = await marketApi.getBinanceMarketPage({
-          min_rise_pct: minRisePct.value,
+          min_rise_pct: requestMinRisePct,
           limit: MARKET_PAGE_LIMIT,
-          quote_asset: MARKET_PAGE_QUOTE_ASSET,
+          quote_asset: requestQuoteAsset,
         })
+        if (requestKey !== marketPageRequestKey()) return
         applyPayload(response.data)
         schedulePendingRefresh(response.data)
-        saveBinanceMarketWarmSnapshot(minRisePct.value, MARKET_PAGE_QUOTE_ASSET, response.data)
+        binanceMarketWarmSnapshot.write(response.data, requestMinRisePct, requestQuoteAsset)
       } catch (requestError) {
+        if (requestKey !== marketPageRequestKey()) return
         errorState.value = {
           key: hasDisplayedData()
             ? 'binanceMarket.refreshFailedWithCache'
@@ -170,15 +178,17 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
         }
         console.error('Failed to load Binance market page', requestError)
       } finally {
-        loading.value = false
+        if (fetchState?.key === requestKey && fetchState.task === task) {
+          loading.value = false
+        }
       }
     })()
-    fetchPromise = task
+    fetchState = { key: requestKey, task }
     try {
       await task
     } finally {
-      if (fetchPromise === task) {
-        fetchPromise = null
+      if (fetchState?.key === requestKey && fetchState.task === task) {
+        fetchState = null
       }
     }
   }

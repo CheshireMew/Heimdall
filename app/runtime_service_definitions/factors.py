@@ -4,6 +4,7 @@ from app.runtime_definition import RuntimeBuildContext, RuntimeServiceDefinition
 from app.runtime_lifecycle import restore_paper_runs, shutdown_service
 from app.runtime_refs import (
     BACKTEST_REPORT_BUILDER,
+    BACKTEST_RUN_MUTATION_SERVICE,
     BACKTEST_RUN_REPOSITORY,
     FACTORS_EXECUTION_SERVICE,
     FACTORS_PAPER_PERSISTENCE_SERVICE,
@@ -34,33 +35,34 @@ def _build_factor_research_service(ctx: RuntimeBuildContext):
 
 
 def _build_factor_execution_service(ctx: RuntimeBuildContext):
-    from app.infra.persistence.factors.execution import FactorExecutionService
+    from app.application.factors.execution import FactorExecutionService
 
     return FactorExecutionService(
         factor_service=ctx.require(FACTORS_RESEARCH_SERVICE),
         report_builder=ctx.require(BACKTEST_REPORT_BUILDER),
         execution_core=ctx.require(FACTORS_SIGNAL_EXECUTION_CORE),
-        database_runtime=ctx.require(INFRA_DATABASE_RUNTIME),
+        run_mutations=ctx.require(BACKTEST_RUN_MUTATION_SERVICE),
     )
 
 
 def _build_factor_signal_execution_core(_ctx: RuntimeBuildContext):
-    from app.services.factors.signal_execution_core import FactorSignalExecutionCore
+    from app.domain.factors.signal_execution_core import FactorSignalExecutionCore
 
     return FactorSignalExecutionCore()
 
 
 def _build_factor_paper_persistence_service(ctx: RuntimeBuildContext):
-    from app.infra.persistence.factors.paper_persistence_service import FactorPaperPersistenceService
+    from app.application.factors.paper_persistence_service import FactorPaperPersistenceService
 
     return FactorPaperPersistenceService(
+        run_mutations=ctx.require(BACKTEST_RUN_MUTATION_SERVICE),
         report_builder=ctx.require(BACKTEST_REPORT_BUILDER),
         execution_core=ctx.require(FACTORS_SIGNAL_EXECUTION_CORE),
     )
 
 
 def _build_factor_paper_run_manager(ctx: RuntimeBuildContext):
-    from app.infra.persistence.factors.paper_manager import FactorPaperRunManager
+    from app.application.factors.paper_manager import FactorPaperRunManager
 
     return FactorPaperRunManager(
         factor_service=ctx.require(FACTORS_RESEARCH_SERVICE),
@@ -68,7 +70,7 @@ def _build_factor_paper_run_manager(ctx: RuntimeBuildContext):
         report_builder=ctx.require(BACKTEST_REPORT_BUILDER),
         execution_core=ctx.require(FACTORS_SIGNAL_EXECUTION_CORE),
         persistence_service=ctx.require(FACTORS_PAPER_PERSISTENCE_SERVICE),
-        database_runtime=ctx.require(INFRA_DATABASE_RUNTIME),
+        run_mutations=ctx.require(BACKTEST_RUN_MUTATION_SERVICE),
     )
 
 
@@ -89,7 +91,7 @@ FACTOR_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         FACTORS_EXECUTION_SERVICE,
         frozenset({"api"}),
         _build_factor_execution_service,
-        deps=(FACTORS_RESEARCH_SERVICE, BACKTEST_REPORT_BUILDER, FACTORS_SIGNAL_EXECUTION_CORE, INFRA_DATABASE_RUNTIME),
+        deps=(FACTORS_RESEARCH_SERVICE, BACKTEST_REPORT_BUILDER, FACTORS_SIGNAL_EXECUTION_CORE, BACKTEST_RUN_MUTATION_SERVICE),
     ),
     RuntimeServiceDefinition(
         FACTORS_SIGNAL_EXECUTION_CORE,
@@ -100,7 +102,7 @@ FACTOR_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         FACTORS_PAPER_PERSISTENCE_SERVICE,
         frozenset({"api", "background"}),
         _build_factor_paper_persistence_service,
-        deps=(BACKTEST_REPORT_BUILDER, FACTORS_SIGNAL_EXECUTION_CORE),
+        deps=(BACKTEST_RUN_MUTATION_SERVICE, BACKTEST_REPORT_BUILDER, FACTORS_SIGNAL_EXECUTION_CORE),
     ),
     RuntimeServiceDefinition(
         FACTORS_PAPER_RUN_MANAGER,
@@ -109,10 +111,10 @@ FACTOR_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         deps=(
             FACTORS_RESEARCH_SERVICE,
             BACKTEST_RUN_REPOSITORY,
+            BACKTEST_RUN_MUTATION_SERVICE,
             BACKTEST_REPORT_BUILDER,
             FACTORS_SIGNAL_EXECUTION_CORE,
             FACTORS_PAPER_PERSISTENCE_SERVICE,
-            INFRA_DATABASE_RUNTIME,
         ),
         background_start=restore_paper_runs,
         background_stop=shutdown_service,

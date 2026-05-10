@@ -1,17 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import requests
 
-
-@dataclass(slots=True)
-class SentimentRecord:
-    date: datetime
-    value: int
-    classification: str
-    timestamp: int
+from app.contracts.sentiment import SentimentRecord
 
 
 class SentimentApiClient:

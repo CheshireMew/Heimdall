@@ -4,11 +4,7 @@ import asyncio
 import time
 from typing import TYPE_CHECKING, Any
 
-from app.contracts.dto.binance_market import (
-    BinanceBreakoutMonitorResponse,
-    BinanceMarketPageRefreshStatusResponse,
-    BinanceMarketPageResponse,
-)
+from app.infra.executor import run_sync
 from config import settings
 from utils.logger import logger
 
@@ -40,7 +36,7 @@ class BinanceMarketPageService:
         self.breakout_monitor = BinanceBreakoutMonitor(self._get_market_klines)
         self.board_builder = BinanceMarketBoardBuilder()
         self.oi_enricher = BinanceContractOpenInterestEnricher(usdm)
-        self._page_payloads: dict[PageKey, BinanceMarketPageResponse] = {}
+        self._page_payloads: dict[PageKey, dict[str, Any]] = {}
         self._requested_page_configs: set[PageKey] = {
             self._page_key(min_rise_pct=min_rise_pct, limit=limit, quote_asset=quote_asset)
             for min_rise_pct, limit, quote_asset in DEFAULT_PAGE_CONFIGS
@@ -77,7 +73,7 @@ class BinanceMarketPageService:
         min_rise_pct: float = 5.0,
         limit: int = 24,
         quote_asset: str = "USDT",
-    ) -> BinanceMarketPageResponse:
+    ) -> dict[str, Any]:
         key = self._page_key(min_rise_pct=min_rise_pct, limit=limit, quote_asset=quote_asset)
         should_notify_refresh = False
         async with self._lock:
@@ -103,17 +99,19 @@ class BinanceMarketPageService:
                     self._last_refresh_error = str(exc)
                 logger.warning("Binance market page refresh failed: %s", exc)
 
-    async def refresh_page_payload(self, key: PageKey) -> BinanceMarketPageResponse:
+    async def refresh_page_payload(self, key: PageKey) -> dict[str, Any]:
         min_rise_pct, limit, quote_asset = key
         await self._mark_refresh_started()
         try:
             market_snapshot = await self._load_market_page_snapshot_for_refresh()
             ticker_rows = [item for item in market_snapshot["usdm_ticker"].get("items", [])]
             oi_changes = await self.oi_enricher.load_changes(ticker_rows)
-            board_fields = self.board_builder.build_response_fields(
-                market_snapshot,
-                quote_asset=quote_asset,
-                oi_changes=oi_changes,
+            board_fields = await run_sync(
+                lambda: self.board_builder.build_response_fields(
+                    market_snapshot,
+                    quote_asset=quote_asset,
+                    oi_changes=oi_changes,
+                )
             )
             monitor = await self.breakout_monitor.build(
                 market_snapshot=market_snapshot,
@@ -121,7 +119,7 @@ class BinanceMarketPageService:
                 limit=limit,
                 quote_asset=quote_asset,
             )
-            response = BinanceMarketPageResponse.model_validate({
+            response = {
                 "exchange": "binance",
                 "quote_asset": quote_asset,
                 "updated_at": max(int(monitor.get("updated_at") or 0), int(market_snapshot["updated_at"] or 0)),
@@ -134,9 +132,9 @@ class BinanceMarketPageService:
                     oi_ready_count=sum(1 for summary in oi_changes.values() if summary),
                     oi_requested_count=len(self.oi_enricher.candidate_symbols(ticker_rows)),
                 ),
-            })
+            }
             async with self._lock:
-                self._page_payloads[key] = response.model_copy(deep=True)
+                self._page_payloads[key] = response
             return response
         finally:
             await self._mark_refresh_completed()
@@ -160,22 +158,26 @@ class BinanceMarketPageService:
                 usdm_ticker_loader=self.usdm.get_ticker_24hr,
                 usdm_mark_loader=self.usdm.get_mark_price,
             )
-        return (await self.snapshot_service.get_market_page_snapshot()).model_dump()
+        return await self.snapshot_service.get_market_page_snapshot_data()
 
     async def _get_market_klines(self, market: str, symbol: str, interval: str, limit: int) -> dict[str, Any]:
         if market == "spot":
-            return (await self.spot.get_klines(symbol=symbol, interval=interval, limit=limit)).model_dump()
-        return (await self.usdm.get_klines(symbol=symbol, interval=interval, limit=limit)).model_dump()
+            response = await self.spot.get_klines(symbol=symbol, interval=interval, limit=limit)
+        else:
+            response = await self.usdm.get_klines(symbol=symbol, interval=interval, limit=limit)
+        return response.model_dump() if hasattr(response, "model_dump") else response
 
-    async def _build_pending_page_payload(self, key: PageKey) -> BinanceMarketPageResponse:
+    async def _build_pending_page_payload(self, key: PageKey) -> dict[str, Any]:
         min_rise_pct, limit, quote_asset = key
-        market_snapshot = (await self.snapshot_service.get_market_page_snapshot()).model_dump()
-        board_fields = self.board_builder.build_response_fields(
-            market_snapshot,
-            quote_asset=quote_asset,
-            oi_changes={},
+        market_snapshot = await self.snapshot_service.get_market_page_snapshot_data()
+        board_fields = await run_sync(
+            lambda: self.board_builder.build_response_fields(
+                market_snapshot,
+                quote_asset=quote_asset,
+                oi_changes={},
+            )
         )
-        return BinanceMarketPageResponse.model_validate({
+        return {
             "exchange": "binance",
             "quote_asset": quote_asset,
             "updated_at": int(market_snapshot["updated_at"] or 0),
@@ -193,16 +195,16 @@ class BinanceMarketPageService:
                 oi_ready_count=0,
                 oi_requested_count=len(self.oi_enricher.candidate_symbols(market_snapshot["usdm_ticker"].get("items", []))),
             ),
-        })
+        }
 
-    def _empty_monitor(self, *, min_rise_pct: float, limit: int, quote_asset: str, updated_at: int) -> BinanceBreakoutMonitorResponse:
-        return BinanceBreakoutMonitorResponse.model_validate({
+    def _empty_monitor(self, *, min_rise_pct: float, limit: int, quote_asset: str, updated_at: int) -> dict[str, Any]:
+        return {
             "exchange": "binance",
             "min_rise_pct": min_rise_pct,
             "quote_asset": quote_asset,
             "updated_at": updated_at,
             "items": [],
-        })
+        }
 
     def _page_key(self, *, min_rise_pct: float, limit: int, quote_asset: str) -> PageKey:
         return (float(min_rise_pct), int(limit), self.breakout_monitor.normalize_quote_asset(quote_asset))
@@ -230,24 +232,25 @@ class BinanceMarketPageService:
         monitor_ready: bool,
         oi_ready_count: int,
         oi_requested_count: int,
-    ) -> BinanceMarketPageRefreshStatusResponse:
-        return BinanceMarketPageRefreshStatusResponse(
-            snapshot_ready=snapshot_ready,
-            boards_ready=boards_ready,
-            monitor_ready=monitor_ready,
-            refreshing=self._refreshing > 0,
-            oi_ready_count=oi_ready_count,
-            oi_requested_count=oi_requested_count,
-            last_refresh_started_at=self._last_refresh_started_at,
-            last_refresh_completed_at=self._last_refresh_completed_at,
-            last_refresh_error=self._last_refresh_error,
-        )
+    ) -> dict[str, Any]:
+        return {
+            "snapshot_ready": snapshot_ready,
+            "boards_ready": boards_ready,
+            "monitor_ready": monitor_ready,
+            "refreshing": self._refreshing > 0,
+            "oi_ready_count": oi_ready_count,
+            "oi_requested_count": oi_requested_count,
+            "last_refresh_started_at": self._last_refresh_started_at,
+            "last_refresh_completed_at": self._last_refresh_completed_at,
+            "last_refresh_error": self._last_refresh_error,
+        }
 
-    def _with_live_refresh_status(self, response: BinanceMarketPageResponse) -> BinanceMarketPageResponse:
-        status = response.refresh_status.model_copy(update={
+    def _with_live_refresh_status(self, response: dict[str, Any]) -> dict[str, Any]:
+        status = {
+            **response["refresh_status"],
             "refreshing": self._refreshing > 0,
             "last_refresh_started_at": self._last_refresh_started_at,
             "last_refresh_completed_at": self._last_refresh_completed_at,
             "last_refresh_error": self._last_refresh_error,
-        })
-        return response.model_copy(update={"refresh_status": status}, deep=True)
+        }
+        return {**response, "refresh_status": status}

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from app.services.market.query_app_service import MarketQueryAppService
@@ -14,11 +16,14 @@ class FakeSnapshot:
 
 
 class FakeMarketDataService:
-    def __init__(self) -> None:
+    def __init__(self, *, delay_seconds: float = 0.0) -> None:
         self.tail_calls: list[str] = []
+        self.delay_seconds = delay_seconds
 
     def get_recent_candles(self, symbol: str, timeframe: str, limit: int, **kwargs):
         self.tail_calls.append(symbol)
+        if self.delay_seconds:
+            time.sleep(self.delay_seconds)
         return [[1717000000000, 1.0, 2.0, 0.5, 456.0, 1000.0]]
 
 
@@ -47,7 +52,7 @@ async def test_current_price_prefers_websocket_snapshot():
         timeframe="1d",
     )
 
-    assert response.current_price == 123.0
+    assert response["current_price"] == 123.0
     assert market_data_service.tail_calls == []
 
 
@@ -61,7 +66,7 @@ async def test_current_price_falls_back_to_kline_tail():
         timeframe="1d",
     )
 
-    assert response.current_price == 456.0
+    assert response["current_price"] == 456.0
     assert market_data_service.tail_calls == ["BTC/USDT"]
 
 
@@ -75,9 +80,27 @@ async def test_current_price_batch_uses_shared_snapshot_first_logic():
         timeframe="1d",
     )
 
-    assert [item.symbol for item in response.items] == ["BTC/USDT", "ETH/USDT"]
-    assert response.items[0].current_price == 123.0
-    assert response.items[0].source == "websocket_snapshot"
-    assert response.items[1].current_price == 456.0
-    assert response.items[1].source == "kline_tail"
+    assert [item["symbol"] for item in response["items"]] == ["BTC/USDT", "ETH/USDT"]
+    assert response["items"][0]["current_price"] == 123.0
+    assert response["items"][0]["source"] == "websocket_snapshot"
+    assert response["items"][1]["current_price"] == 456.0
+    assert response["items"][1]["source"] == "kline_tail"
     assert market_data_service.tail_calls == ["ETH/USDT"]
+
+
+@pytest.mark.asyncio
+async def test_current_price_batch_runs_fallbacks_concurrently():
+    market_data_service = FakeMarketDataService(delay_seconds=0.1)
+    service = make_service(FakeSnapshot({"BTC/USDT": None, "ETH/USDT": None}), market_data_service)
+
+    started_at = time.perf_counter()
+    response = await service.get_current_price_batch(
+        symbols=["BTC/USDT", "ETH/USDT"],
+        timeframe="1d",
+    )
+    elapsed = time.perf_counter() - started_at
+
+    assert [item["symbol"] for item in response["items"]] == ["BTC/USDT", "ETH/USDT"]
+    assert [item["source"] for item in response["items"]] == ["kline_tail", "kline_tail"]
+    assert sorted(market_data_service.tail_calls) == ["BTC/USDT", "ETH/USDT"]
+    assert elapsed < 0.18

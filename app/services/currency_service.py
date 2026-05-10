@@ -6,7 +6,6 @@ from typing import Any
 import httpx
 
 from app.domain.market.symbol_catalog import get_usd_equivalent_symbols
-from app.contracts.dto.market import CurrencyRatesResponse
 from config import settings
 from utils.logger import logger
 
@@ -36,10 +35,10 @@ DISPLAY_CURRENCY_META: dict[str, dict[str, Any]] = {
 
 class CurrencyRateService:
     def __init__(self) -> None:
-        self._cache: CurrencyRatesResponse | None = None
+        self._cache: dict[str, Any] | None = None
         self._expires_at: datetime | None = None
 
-    async def get_rates(self) -> CurrencyRatesResponse:
+    async def get_rates(self) -> dict[str, Any]:
         now = datetime.now(timezone.utc)
         if self._cache and self._expires_at and self._expires_at > now:
             return self._cache
@@ -49,7 +48,7 @@ class CurrencyRateService:
         self._expires_at = now + timedelta(seconds=max(settings.CURRENCY_RATES_TTL, 60))
         return payload
 
-    async def _fetch_rates(self, now: datetime) -> CurrencyRatesResponse:
+    async def _fetch_rates(self, now: datetime) -> dict[str, Any]:
         supported_codes = self._supported_codes()
         fallback = self._build_payload(
             rates={code: FALLBACK_RATES_PER_USD[code] for code in supported_codes},
@@ -111,7 +110,7 @@ class CurrencyRateService:
         updated_at: datetime,
         source: str,
         is_fallback: bool,
-    ) -> CurrencyRatesResponse:
+    ) -> dict[str, Any]:
         supported = []
         for code in self._supported_codes():
             meta = DISPLAY_CURRENCY_META[code]
@@ -121,7 +120,7 @@ class CurrencyRateService:
         for symbol in get_usd_equivalent_symbols():
             aliases[str(symbol).upper()] = "USD"
 
-        return CurrencyRatesResponse.model_validate({
+        return {
             "base": "USD",
             "rates": {code: rates[code] for code in self._supported_codes()},
             "supported": supported,
@@ -129,7 +128,7 @@ class CurrencyRateService:
             "updated_at": updated_at.isoformat(),
             "source": source,
             "is_fallback": is_fallback,
-        })
+        }
 
     @staticmethod
     def _parse_updated_at(data: dict[str, Any], fallback: datetime) -> datetime:

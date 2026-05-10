@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from app.runtime import AppRuntimeServices, runtime_role_has_target
+from app.runtime import AppRuntimeServices, RuntimeRole, runtime_role_has_target
 from app.runtime_builder import background_start_definitions, background_stop_definitions, validate_runtime_services
 from config import settings
 
@@ -80,8 +80,9 @@ class BackgroundRuntimeState:
 
 
 class BackgroundRuntimeController:
-    def __init__(self, runtime_services: AppRuntimeServices) -> None:
+    def __init__(self, runtime_services: AppRuntimeServices, *, role: RuntimeRole | None = None) -> None:
         self.runtime_services = runtime_services
+        self.role = role or settings.APP_RUNTIME_ROLE
         self._lock = _ProcessFileLock(settings.BACKGROUND_RUNTIME_LOCK_PATH)
         self._state = BackgroundRuntimeState(status=BackgroundRuntimeStatus.DISABLED)
         self._startup_task: asyncio.Task[None] | None = None
@@ -91,7 +92,7 @@ class BackgroundRuntimeController:
         return self._state
 
     def should_run(self) -> bool:
-        return runtime_role_has_target(settings.APP_RUNTIME_ROLE, "background")
+        return runtime_role_has_target(self.role, "background")
 
     async def start(self) -> None:
         if not self.should_run():

@@ -7,18 +7,22 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.infra.db import DatabaseRuntime
 from app.infra.persistence.data_retention import cleanup_old_data
-from app.infra.persistence.market_cron import MarketIndicatorCronJob
+from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
+from app.application.indicators.market_cron import MarketIndicatorCronJob
 from config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class MarketSchedulerRuntime:
-    def __init__(self, *, database_runtime: DatabaseRuntime) -> None:
+    def __init__(self, *, database_runtime: DatabaseRuntime, indicator_repository: MarketIndicatorRepository) -> None:
         self.database_runtime = database_runtime
         self.scheduler = AsyncIOScheduler()
         self._deferred_tasks: set[asyncio.Task[None]] = set()
-        self._job = MarketIndicatorCronJob(database_runtime=database_runtime)
+        self._job = MarketIndicatorCronJob(
+            repository=indicator_repository,
+            providers=_build_indicator_providers(),
+        )
 
     def _schedule_deferred_start(self, callback, *, delay_seconds: float, task_name: str) -> asyncio.Task[None]:
         async def _runner() -> None:
@@ -84,3 +88,19 @@ class MarketSchedulerRuntime:
 
         if self.scheduler.running:
             self.scheduler.shutdown()
+
+
+def _build_indicator_providers():
+    from app.services.indicators.crypto_gold_provider import CryptoGoldProvider
+    from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroProvider
+    from app.services.indicators.onchain_provider import OnchainProvider
+    from app.services.indicators.sentiment_provider import SentimentProvider
+    from app.services.indicators.tech_calculator import TechCalculatorProvider
+
+    return [
+        MacroProvider(),
+        OnchainProvider(),
+        SentimentProvider(),
+        TechCalculatorProvider(),
+        CryptoGoldProvider(),
+    ]

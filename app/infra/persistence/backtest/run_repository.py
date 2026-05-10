@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
+
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade
-from app.contracts.dto.backtest import BacktestDetailResponse, BacktestRunResponse
 from app.infra.persistence.backtest.run_lifecycle import active_run_filters
 from app.infra.persistence.backtest.serializers import (
     serialize_backtest_equity_point,
@@ -16,7 +17,7 @@ class BacktestRunRepository:
     def __init__(self, *, database_runtime: DatabaseRuntime) -> None:
         self.database_runtime = database_runtime
 
-    def list_runs(self, execution_mode: str = "backtest") -> list[BacktestRunResponse]:
+    def list_runs(self, execution_mode: str = "backtest") -> list[dict[str, Any]]:
         with self.database_runtime.session_scope() as session:
             runs = (
                 session.query(BacktestRun)
@@ -24,12 +25,7 @@ class BacktestRunRepository:
                 .order_by(BacktestRun.created_at.desc())
                 .all()
             )
-            return [
-                BacktestRunResponse.model_validate(
-                    serialize_backtest_run(run, include_signals=False)
-                )
-                for run in runs
-            ]
+            return [serialize_backtest_run(run, include_signals=False) for run in runs]
 
     def get_run(
         self,
@@ -37,7 +33,7 @@ class BacktestRunRepository:
         page: int,
         page_size: int,
         execution_mode: str | None = None,
-    ) -> BacktestDetailResponse | None:
+    ) -> dict[str, Any] | None:
         with self.database_runtime.session_scope() as session:
             query = session.query(BacktestRun).filter(BacktestRun.id == backtest_id)
             if execution_mode:
@@ -78,7 +74,7 @@ class BacktestRunRepository:
                 "total": total,
                 "total_pages": (total + page_size - 1) // page_size,
             }
-            return BacktestDetailResponse.model_validate(payload)
+            return payload
 
     def delete_run(self, backtest_id: int, execution_mode: str | None = None) -> bool:
         with self.database_runtime.session_scope() as session:

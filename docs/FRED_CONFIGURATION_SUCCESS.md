@@ -58,7 +58,7 @@ FRED_API_KEY=8cfecb8295bb64016fd59e3a1996dfd1
 ```
 
 ### ✅ 2. 代码更新
-文件: `app/services/market_cron.py`
+文件: `app/application/indicators/market_cron.py`
 ```python
 # 使用 MacroProviderV2 (支持 FRED API)
 from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroProvider

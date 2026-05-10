@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.contracts.factor import FactorExecutionConfig
-from app.contracts.dto.json_types import JsonObject
+from app.contracts.json_types import JsonObject
 
 
 class FactorCatalogItemResponse(BaseModel):

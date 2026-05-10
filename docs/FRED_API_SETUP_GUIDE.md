@@ -288,7 +288,7 @@ Fetching all macro indicators...
 
 ### 5.1 修改 Cron Job
 
-编辑 `app/services/market_cron.py`：
+编辑 `app/application/indicators/market_cron.py`：
 
 ```python
 # 找到第15行左右
@@ -300,13 +300,13 @@ from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroPr
 cd E:\Work\Code\Heimdall
 
 # Windows (PowerShell)
-(Get-Content app\services\market_cron.py) -replace 'from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroProvider', 'from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroProvider' | Set-Content app\services\market_cron.py
+(Get-Content app\application\indicators\market_cron.py) -replace 'from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroProvider', 'from app.services.indicators.macro_provider_v2 import MacroProviderV2 as MacroProvider' | Set-Content app\application\indicators\market_cron.py
 ```
 
 ### 5.2 运行 Cron Job 测试
 
 ```bash
-python app/services/market_cron.py
+python app/application/indicators/market_cron.py
 ```
 
 **预期输出：**

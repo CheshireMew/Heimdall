@@ -1,0 +1,200 @@
+from __future__ import annotations
+
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, Field
+
+from app.contracts.backtest import BacktestPortfolioConfig, BacktestResearchConfig
+from app.contracts.json_types import JsonObject
+from app.contracts.strategy import StrategyTemplateConfigResponse
+
+class BacktestReportSnapshotResponse(BaseModel):
+    profit_pct: float | None = None
+    profit_abs: float | None = None
+    final_balance: float | None = None
+    max_drawdown_pct: float | None = None
+    sharpe: float | None = None
+    calmar: float | None = None
+    profit_factor: float | None = None
+    win_rate: float | None = None
+    total_trades: int | None = None
+
+
+class BacktestDateRangeResponse(BaseModel):
+    start: str
+    end: str
+
+
+class BacktestPairBreakdownResponse(BaseModel):
+    pair: str
+    trades: int
+    profit_abs: float
+    profit_pct: float
+    win_rate: float
+
+
+class BacktestStrategySummaryResponse(BaseModel):
+    key: str
+    name: str
+    version: int
+    template: str
+
+
+class BacktestPortfolioSummaryResponse(BacktestPortfolioConfig):
+    stake_currency: str | None = None
+
+
+class BacktestOptimizationTrialResponse(BaseModel):
+    trial: int
+    score: float | None = None
+    config: StrategyTemplateConfigResponse
+    report: BacktestReportSnapshotResponse | None = None
+
+
+class BacktestOptimizationSummaryResponse(BaseModel):
+    metric: str
+    trial_count: int
+    best_score: float | None = None
+    best_config: StrategyTemplateConfigResponse | None = None
+    trials: list[BacktestOptimizationTrialResponse] = Field(default_factory=list)
+
+
+class BacktestIterationSummaryResponse(BaseModel):
+    range: BacktestDateRangeResponse | None = None
+    config: StrategyTemplateConfigResponse
+    report: BacktestReportSnapshotResponse | None = None
+
+
+class BacktestRollingWindowResponse(BaseModel):
+    index: int
+    train: BacktestDateRangeResponse | None = None
+    test: BacktestDateRangeResponse
+    config: StrategyTemplateConfigResponse
+    optimization: BacktestOptimizationSummaryResponse | None = None
+    report: BacktestReportSnapshotResponse | None = None
+
+
+class BacktestResearchReportResponse(BaseModel):
+    selected_config: StrategyTemplateConfigResponse | None = None
+    in_sample_ratio: float
+    slippage_bps: float
+    funding_rate_daily: float
+    optimization: BacktestOptimizationSummaryResponse | None = None
+    in_sample: BacktestIterationSummaryResponse | None = None
+    out_of_sample: BacktestIterationSummaryResponse | None = None
+    rolling_windows: list[BacktestRollingWindowResponse] = Field(default_factory=list)
+
+
+class BacktestReportResponse(BaseModel):
+    initial_cash: float
+    final_balance: float
+    profit_abs: float
+    profit_pct: float
+    annualized_return_pct: float | None = None
+    max_drawdown_pct: float
+    sharpe: float | None = None
+    sortino: float | None = None
+    calmar: float | None = None
+    profit_factor: float | None = None
+    expectancy_ratio: float | None = None
+    win_rate: float
+    total_trades: int
+    wins: int
+    losses: int
+    draws: int
+    avg_trade_pct: float | None = None
+    avg_trade_duration_minutes: int | None = None
+    best_trade_pct: float | None = None
+    worst_trade_pct: float | None = None
+    pair_breakdown: list[BacktestPairBreakdownResponse] = Field(default_factory=list)
+    symbols: list[str] = Field(default_factory=list)
+    timeframe: str | None = None
+    strategy: BacktestStrategySummaryResponse | None = None
+    portfolio: BacktestPortfolioSummaryResponse | None = None
+    research: BacktestResearchReportResponse | None = None
+
+
+class BacktestSampleRangesResponse(BaseModel):
+    requested: BacktestDateRangeResponse | None = None
+    displayed: BacktestDateRangeResponse | None = None
+    in_sample: BacktestDateRangeResponse | None = None
+    out_of_sample: BacktestDateRangeResponse | None = None
+
+
+class BacktestPaperPositionResponse(BaseModel):
+    symbol: str
+    side: str = "long"
+    opened_at: str
+    entry_price: float
+    entry_score: float | None = None
+    remaining_amount: float
+    remaining_cost: float
+    highest_price: float
+    lowest_price: float
+    last_price: float
+    taken_partial_ids: list[str] = Field(default_factory=list)
+
+
+class BacktestRuntimeStateResponse(BaseModel):
+    cash_balance: float
+    last_processed: dict[str, int | None] = Field(default_factory=dict)
+    last_synced_end: int | None = None
+    positions: dict[str, BacktestPaperPositionResponse] = Field(default_factory=dict)
+    held_bars: int = 0
+
+
+class BacktestPaperLiveResponse(BaseModel):
+    cash_balance: float
+    open_positions: int
+    positions: list[BacktestPaperPositionResponse] = Field(default_factory=list)
+    last_updated: str
+    stop_reason: str | None = None
+
+
+class _BacktestRunMetadataCommonResponse(BaseModel):
+    schema_version: int | None = None
+    execution_model: str | None = None
+    engine: str | None = None
+    exchange: str | None = None
+    market_type: str | None = None
+    direction: str | None = None
+    strategy_key: str | None = None
+    strategy_name: str | None = None
+    strategy_version: int | None = None
+    strategy_template: str | None = None
+    strategy_notes: str | None = None
+    symbols: list[str] = Field(default_factory=list)
+    execution_symbols: list[str] = Field(default_factory=list)
+    price_source: str | None = None
+    portfolio_label: str | None = None
+    initial_cash: float | None = None
+    fee_rate: float | None = None
+    fee_ratio: float | None = None
+    timeframe: str | None = None
+    stake_currency: str | None = None
+    portfolio: BacktestPortfolioConfig | None = None
+    selected_config: JsonObject = Field(default_factory=dict)
+    raw_stats: BacktestReportSnapshotResponse | None = None
+    error: str | None = None
+
+
+class BacktestExecutionMetadataResponse(_BacktestRunMetadataCommonResponse):
+    execution_mode: Literal["backtest"] = "backtest"
+    research: BacktestResearchReportResponse | BacktestResearchConfig | None = None
+    sample_ranges: BacktestSampleRangesResponse | None = None
+    report: BacktestReportResponse | None = None
+    factor_research: JsonObject = Field(default_factory=dict)
+
+
+class PaperLiveExecutionMetadataResponse(_BacktestRunMetadataCommonResponse):
+    execution_mode: Literal["paper_live"] = "paper_live"
+    runtime_state: BacktestRuntimeStateResponse | None = None
+    paper_live: BacktestPaperLiveResponse | None = None
+    report: BacktestReportResponse | None = None
+    factor_research: JsonObject = Field(default_factory=dict)
+
+
+BacktestRunMetadataContractResponse = Annotated[
+    BacktestExecutionMetadataResponse | PaperLiveExecutionMetadataResponse,
+    Field(discriminator="execution_mode"),
+]

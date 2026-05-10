@@ -7,7 +7,7 @@ import asyncio
 from typing import Optional, Dict, Any
 from datetime import datetime
 from .base_provider import BaseIndicatorProvider, logger
-from app.services.executor import run_sync
+from app.infra.executor import run_sync
 
 class CryptoGoldProvider(BaseIndicatorProvider):
     """

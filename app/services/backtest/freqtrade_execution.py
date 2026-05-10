@@ -22,7 +22,7 @@ from app.contracts.backtest import (
 )
 from app.contracts.backtest_symbols import sanitize_backtest_run_fragment
 from app.domain.market.timeframes import timeframe_to_timedelta
-from app.contracts.dto.strategy_contract import StrategyTemplateConfigResponse
+from app.contracts.strategy import StrategyTemplateConfigResponse
 from app.services.market.market_data_service import MarketDataService
 from config import settings
 from utils.logger import logger

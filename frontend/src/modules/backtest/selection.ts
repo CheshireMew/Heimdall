@@ -1,4 +1,4 @@
-import { asNumber } from '@/modules/format'
+import { asNumber } from '@/utils/number'
 import type { StrategyVersionResponse } from './contracts'
 
 export type BacktestStrategySelection = {

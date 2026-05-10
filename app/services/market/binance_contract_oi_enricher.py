@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+from app.infra.executor import run_sync
+
 from .binance_numbers import safe_float
 from .ttl_cache import TtlMemoryCache
 
@@ -34,8 +36,10 @@ class BinanceContractOpenInterestEnricher:
             if cached is not None:
                 return symbol, cached
 
-            stored_response = self.usdm.get_cached_open_interest_stats(symbol=symbol, period="1h", limit=25)
-            summary = self._summarize_open_interest_change(stored_response.model_dump().get("items", []))
+            stored_response = await run_sync(
+                lambda: self.usdm.get_cached_open_interest_stats(symbol=symbol, period="1h", limit=25)
+            )
+            summary = self._summarize_open_interest_change(self._items(stored_response))
             if summary:
                 self._cache.set(symbol, summary)
                 return symbol, summary
@@ -45,7 +49,7 @@ class BinanceContractOpenInterestEnricher:
                     self.usdm.get_open_interest_stats(symbol=symbol, period="1h", limit=25),
                     timeout=CONTRACT_OI_REQUEST_TIMEOUT_SECONDS,
                 )
-                summary = self._summarize_open_interest_change(response.model_dump().get("items", []))
+                summary = self._summarize_open_interest_change(self._items(response))
             except Exception:
                 summary = {}
             self._cache.set(symbol, summary)
@@ -73,6 +77,10 @@ class BinanceContractOpenInterestEnricher:
             except Exception:
                 continue
         return {symbol: summary for symbol, summary in pairs}
+
+    def _items(self, payload: Any) -> list[dict[str, Any]]:
+        data = payload.model_dump() if hasattr(payload, "model_dump") else payload
+        return data.get("items", []) if isinstance(data, dict) else []
 
     def candidate_symbols(self, rows: list[dict[str, Any]]) -> list[str]:
         sorted_rows = sorted(

@@ -3,22 +3,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Callable
 
-from app.contracts.dto.binance_market import (
-    BinanceBasisResponse,
-    BinanceContractResearchDetailResponse,
-    BinanceExchangeInfoResponse,
-    BinanceForceOrderResponse,
-    BinanceFundingHistoryListResponse,
-    BinanceFundingInfoResponse,
-    BinanceKlineResponse,
-    BinanceMarkPriceResponse,
-    BinanceOpenInterestSnapshotResponse,
-    BinanceOpenInterestStatsResponse,
-    BinanceRatioSeriesResponse,
-    BinanceTakerVolumeResponse,
-    BinanceTickerStatsResponse,
-)
-
 from .binance_api_support import BinanceApiSupport, compact_query
 from .binance_market_normalizers import (
     normalize_basis,
@@ -33,6 +17,7 @@ from .binance_market_normalizers import (
     normalize_taker_volume,
 )
 from .binance_numbers import to_float, to_int
+from .binance_research_series import BinanceResearchSeriesLoader
 from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
 from app.infra.persistence.market.funding_rate_store import FundingRateStore
 
@@ -48,26 +33,31 @@ class BinanceUsdmMarketService:
         self.client = client
         self.research_store = research_store
         self.funding_rate_store = funding_rate_store
+        self.research_series = BinanceResearchSeriesLoader(
+            market="usdm",
+            store=research_store,
+            get_json=client.get_json,
+        )
 
-    async def get_exchange_info(self) -> BinanceExchangeInfoResponse:
+    async def get_exchange_info(self) -> dict[str, object]:
         payload = await self.client.get_json("/fapi/v1/exchangeInfo", ttl=300)
-        return BinanceExchangeInfoResponse.model_validate(normalize_derivatives_exchange_info("usdm", payload))
+        return normalize_derivatives_exchange_info("usdm", payload)
 
-    async def get_ticker_24hr(self, *, symbol: str | None = None) -> BinanceTickerStatsResponse:
+    async def get_ticker_24hr(self, *, symbol: str | None = None) -> dict[str, object]:
         payload = await self.client.get_json(
             "/fapi/v1/ticker/24hr",
             params=compact_query({"symbol": symbol.upper() if symbol else None}),
             ttl=10,
         )
-        return BinanceTickerStatsResponse.model_validate(normalize_derivatives_ticker_list("usdm", payload))
+        return normalize_derivatives_ticker_list("usdm", payload)
 
-    async def get_mark_price(self, *, symbol: str | None = None) -> BinanceMarkPriceResponse:
+    async def get_mark_price(self, *, symbol: str | None = None) -> dict[str, object]:
         payload = await self.client.get_json(
             "/fapi/v1/premiumIndex",
             params=compact_query({"symbol": symbol.upper() if symbol else None}),
             ttl=10,
         )
-        return BinanceMarkPriceResponse.model_validate(normalize_mark_price_list("usdm", payload))
+        return normalize_mark_price_list("usdm", payload)
 
     async def get_klines(
         self,
@@ -77,9 +67,9 @@ class BinanceUsdmMarketService:
         limit: int = 200,
         start_time: int | None = None,
         end_time: int | None = None,
-    ) -> BinanceKlineResponse:
+    ) -> dict[str, object]:
         symbol_key = symbol.upper()
-        return await self._load_research_series(
+        return await self.research_series.load(
             endpoint="/fapi/v1/klines",
             params=compact_query(
                 {
@@ -90,7 +80,6 @@ class BinanceUsdmMarketService:
                     "endTime": end_time,
                 }
             ),
-            response_model=BinanceKlineResponse,
             normalizer=lambda market, payload: normalize_kline_response(market, symbol_key, interval, payload),
             series="klines",
             symbol=symbol_key,
@@ -102,9 +91,9 @@ class BinanceUsdmMarketService:
             response_fields={"symbol": symbol_key, "interval": interval},
         )
 
-    async def get_funding_info(self) -> BinanceFundingInfoResponse:
+    async def get_funding_info(self) -> dict[str, object]:
         payload = await self.client.get_json("/fapi/v1/fundingInfo", ttl=300)
-        return BinanceFundingInfoResponse.model_validate({
+        return {
             "exchange": "binance",
             "market": "usdm",
             "items": [
@@ -117,7 +106,7 @@ class BinanceUsdmMarketService:
                 }
                 for item in payload
             ],
-        })
+        }
 
     async def get_funding_history(
         self,
@@ -126,7 +115,7 @@ class BinanceUsdmMarketService:
         limit: int = 100,
         start_time: int | None = None,
         end_time: int | None = None,
-    ) -> BinanceFundingHistoryListResponse:
+    ) -> dict[str, object]:
         symbol_key = symbol.upper() if symbol else None
         try:
             payload = await self.client.get_json(
@@ -148,11 +137,11 @@ class BinanceUsdmMarketService:
                 end_time=end_time,
                 limit=limit,
             )
-            if stored_response.items:
+            if stored_response["items"]:
                 return stored_response
             raise
 
-        response = BinanceFundingHistoryListResponse.model_validate({
+        response = {
             "exchange": "binance",
             "market": "usdm",
             "items": [
@@ -164,8 +153,8 @@ class BinanceUsdmMarketService:
                 }
                 for item in payload
             ],
-        })
-        self._save_funding_history_items(response.model_dump()["items"])
+        }
+        self._save_funding_history_items(response["items"])
         return self._funding_history_from_store(
             symbol=symbol_key,
             start_time=start_time,
@@ -173,9 +162,9 @@ class BinanceUsdmMarketService:
             limit=limit,
         )
 
-    async def get_open_interest(self, *, symbol: str) -> BinanceOpenInterestSnapshotResponse:
+    async def get_open_interest(self, *, symbol: str) -> dict[str, object]:
         payload = await self.client.get_json("/fapi/v1/openInterest", params={"symbol": symbol.upper()}, ttl=10)
-        return BinanceOpenInterestSnapshotResponse.model_validate(normalize_open_interest_snapshot("usdm", payload))
+        return normalize_open_interest_snapshot("usdm", payload)
 
     async def get_open_interest_stats(
         self,
@@ -183,11 +172,10 @@ class BinanceUsdmMarketService:
         symbol: str,
         period: str,
         limit: int = 30,
-    ) -> BinanceOpenInterestStatsResponse:
-        return await self._load_research_series(
+    ) -> dict[str, object]:
+        return await self.research_series.load(
             endpoint="/futures/data/openInterestHist",
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
-            response_model=BinanceOpenInterestStatsResponse,
             normalizer=normalize_open_interest_stats,
             series="open_interest_stats",
             symbol=symbol,
@@ -201,8 +189,8 @@ class BinanceUsdmMarketService:
         symbol: str,
         period: str,
         limit: int = 30,
-    ) -> BinanceOpenInterestStatsResponse:
-        return BinanceOpenInterestStatsResponse.model_validate({
+    ) -> dict[str, object]:
+        return {
             "exchange": "binance",
             "market": "usdm",
             "items": self.research_store.list_items(
@@ -212,13 +200,12 @@ class BinanceUsdmMarketService:
                 period=period,
                 limit=limit,
             ),
-        })
+        }
 
-    async def get_long_short_ratio(self, *, symbol: str, period: str, limit: int = 30) -> BinanceRatioSeriesResponse:
-        return await self._load_research_series(
+    async def get_long_short_ratio(self, *, symbol: str, period: str, limit: int = 30) -> dict[str, object]:
+        return await self.research_series.load(
             endpoint="/futures/data/globalLongShortAccountRatio",
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
-            response_model=BinanceRatioSeriesResponse,
             normalizer=normalize_ratio_series,
             series="global_long_short_account_ratio",
             symbol=symbol,
@@ -226,11 +213,10 @@ class BinanceUsdmMarketService:
             limit=limit,
         )
 
-    async def get_top_trader_accounts(self, *, symbol: str, period: str, limit: int = 30) -> BinanceRatioSeriesResponse:
-        return await self._load_research_series(
+    async def get_top_trader_accounts(self, *, symbol: str, period: str, limit: int = 30) -> dict[str, object]:
+        return await self.research_series.load(
             endpoint="/futures/data/topLongShortAccountRatio",
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
-            response_model=BinanceRatioSeriesResponse,
             normalizer=normalize_ratio_series,
             series="top_trader_account_ratio",
             symbol=symbol,
@@ -238,11 +224,10 @@ class BinanceUsdmMarketService:
             limit=limit,
         )
 
-    async def get_top_trader_positions(self, *, symbol: str, period: str, limit: int = 30) -> BinanceRatioSeriesResponse:
-        return await self._load_research_series(
+    async def get_top_trader_positions(self, *, symbol: str, period: str, limit: int = 30) -> dict[str, object]:
+        return await self.research_series.load(
             endpoint="/futures/data/topLongShortPositionRatio",
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
-            response_model=BinanceRatioSeriesResponse,
             normalizer=normalize_ratio_series,
             series="top_trader_position_ratio",
             symbol=symbol,
@@ -250,11 +235,10 @@ class BinanceUsdmMarketService:
             limit=limit,
         )
 
-    async def get_taker_volume(self, *, symbol: str, period: str, limit: int = 30) -> BinanceTakerVolumeResponse:
-        return await self._load_research_series(
+    async def get_taker_volume(self, *, symbol: str, period: str, limit: int = 30) -> dict[str, object]:
+        return await self.research_series.load(
             endpoint="/futures/data/takerlongshortRatio",
             params={"symbol": symbol.upper(), "period": period, "limit": limit},
-            response_model=BinanceTakerVolumeResponse,
             normalizer=normalize_taker_volume,
             series="taker_long_short_ratio",
             symbol=symbol,
@@ -269,11 +253,10 @@ class BinanceUsdmMarketService:
         contract_type: str,
         period: str,
         limit: int = 30,
-    ) -> BinanceBasisResponse:
-        return await self._load_research_series(
+    ) -> dict[str, object]:
+        return await self.research_series.load(
             endpoint="/futures/data/basis",
             params={"pair": pair.upper(), "contractType": contract_type, "period": period, "limit": limit},
-            response_model=BinanceBasisResponse,
             normalizer=normalize_basis,
             series="basis",
             symbol=pair,
@@ -289,18 +272,20 @@ class BinanceUsdmMarketService:
         limit: int = 50,
         start_time: int | None = None,
         end_time: int | None = None,
-    ) -> BinanceForceOrderResponse:
+    ) -> dict[str, object]:
         payload = await self.client.get_json(
             "/fapi/v1/allForceOrders",
-            params=compact_query({
-                "symbol": symbol.upper(),
-                "limit": limit,
-                "startTime": start_time,
-                "endTime": end_time,
-            }),
+            params=compact_query(
+                {
+                    "symbol": symbol.upper(),
+                    "limit": limit,
+                    "startTime": start_time,
+                    "endTime": end_time,
+                }
+            ),
             ttl=30,
         )
-        return BinanceForceOrderResponse.model_validate(normalize_force_orders("usdm", payload))
+        return normalize_force_orders("usdm", payload)
 
     async def get_contract_research_detail(
         self,
@@ -308,108 +293,38 @@ class BinanceUsdmMarketService:
         symbol: str,
         period: str = "1h",
         limit: int = 72,
-    ) -> BinanceContractResearchDetailResponse:
+    ) -> dict[str, object]:
         symbol_key = symbol.upper()
-        return BinanceContractResearchDetailResponse.model_validate({
+        return {
             "exchange": "binance",
             "market": "usdm",
             "symbol": symbol_key,
             "period": period,
-            "open_interest": (await self._safe_series(self.get_open_interest_stats, symbol=symbol_key, period=period, limit=limit)).model_dump(),
-            "basis": (await self._safe_series(self.get_basis, pair=symbol_key, contract_type="PERPETUAL", period=period, limit=limit)).model_dump(),
-            "taker_volume": (await self._safe_series(self.get_taker_volume, symbol=symbol_key, period=period, limit=limit)).model_dump(),
-            "force_orders": (await self._safe_series(self.get_force_orders, symbol=symbol_key, limit=min(limit, 100))).model_dump(),
-            "long_short_ratio": (await self._safe_series(self.get_long_short_ratio, symbol=symbol_key, period=period, limit=limit)).model_dump(),
-            "top_trader_accounts": (await self._safe_series(self.get_top_trader_accounts, symbol=symbol_key, period=period, limit=limit)).model_dump(),
-            "top_trader_positions": (await self._safe_series(self.get_top_trader_positions, symbol=symbol_key, period=period, limit=limit)).model_dump(),
-        })
+            "open_interest": (await self._safe_series(self.get_open_interest_stats, symbol=symbol_key, period=period, limit=limit)),
+            "basis": (await self._safe_series(self.get_basis, pair=symbol_key, contract_type="PERPETUAL", period=period, limit=limit)),
+            "taker_volume": (await self._safe_series(self.get_taker_volume, symbol=symbol_key, period=period, limit=limit)),
+            "force_orders": (await self._safe_series(self.get_force_orders, symbol=symbol_key, limit=min(limit, 100))),
+            "long_short_ratio": (await self._safe_series(self.get_long_short_ratio, symbol=symbol_key, period=period, limit=limit)),
+            "top_trader_accounts": (await self._safe_series(self.get_top_trader_accounts, symbol=symbol_key, period=period, limit=limit)),
+            "top_trader_positions": (await self._safe_series(self.get_top_trader_positions, symbol=symbol_key, period=period, limit=limit)),
+        }
 
     async def _safe_series(self, loader: Callable[..., Any], **kwargs):
         try:
             return await loader(**kwargs)
         except Exception:
             name = getattr(loader, "__name__", "")
-            empty_by_loader = {
-                "get_open_interest_stats": BinanceOpenInterestStatsResponse,
-                "get_basis": BinanceBasisResponse,
-                "get_taker_volume": BinanceTakerVolumeResponse,
-                "get_force_orders": BinanceForceOrderResponse,
-                "get_long_short_ratio": BinanceRatioSeriesResponse,
-                "get_top_trader_accounts": BinanceRatioSeriesResponse,
-                "get_top_trader_positions": BinanceRatioSeriesResponse,
-            }
-            response_model = empty_by_loader.get(name)
-            if response_model is None:
+            if name not in {
+                "get_open_interest_stats",
+                "get_basis",
+                "get_taker_volume",
+                "get_force_orders",
+                "get_long_short_ratio",
+                "get_top_trader_accounts",
+                "get_top_trader_positions",
+            }:
                 raise
-            return response_model.model_validate({"exchange": "binance", "market": "usdm", "items": []})
-
-    async def _load_research_series(
-        self,
-        *,
-        endpoint: str,
-        params: dict[str, Any],
-        response_model,
-        normalizer: Callable[[str, list[dict[str, Any]]], dict[str, Any]],
-        series: str,
-        symbol: str,
-        period: str,
-        contract_type: str = "",
-        limit: int,
-        start_time: int | None = None,
-        end_time: int | None = None,
-        timestamp_key: str = "timestamp",
-        response_fields: dict[str, Any] | None = None,
-    ):
-        response_fields = response_fields or {}
-        try:
-            payload = await self.client.get_json(endpoint, params=params, ttl=30)
-        except Exception:
-            stored_items = self.research_store.list_items(
-                market="usdm",
-                series=series,
-                symbol=symbol,
-                period=period,
-                contract_type=contract_type,
-                start_time=start_time,
-                end_time=end_time,
-                limit=limit,
-            )
-            if stored_items:
-                return response_model.model_validate({
-                    "exchange": "binance",
-                    "market": "usdm",
-                    **response_fields,
-                    "items": stored_items,
-                })
-            raise
-
-        response = response_model.model_validate(normalizer("usdm", payload))
-        items = response.model_dump()["items"]
-        self.research_store.save_items(
-            market="usdm",
-            series=series,
-            symbol=symbol,
-            items=items,
-            period=period,
-            contract_type=contract_type,
-            timestamp_key=timestamp_key,
-        )
-        stored_items = self.research_store.list_items(
-            market="usdm",
-            series=series,
-            symbol=symbol,
-            period=period,
-            contract_type=contract_type,
-            start_time=start_time,
-            end_time=end_time,
-            limit=limit,
-        )
-        return response_model.model_validate({
-            "exchange": "binance",
-            "market": "usdm",
-            **response_fields,
-            "items": stored_items or items,
-        })
+            return {"exchange": "binance", "market": "usdm", "items": []}
 
     def _save_funding_history_items(self, items: list[dict[str, Any]]) -> None:
         rows = []
@@ -436,7 +351,7 @@ class BinanceUsdmMarketService:
         start_time: int | None,
         end_time: int | None,
         limit: int,
-    ) -> BinanceFundingHistoryListResponse:
+    ) -> dict[str, object]:
         rows = self.funding_rate_store.list_history(
             exchange="binance",
             market_type="usdm",
@@ -445,7 +360,7 @@ class BinanceUsdmMarketService:
             end_date=self._datetime_from_millis(end_time) if end_time is not None else None,
             limit=limit,
         )
-        return BinanceFundingHistoryListResponse.model_validate({
+        return {
             "exchange": "binance",
             "market": "usdm",
             "items": [
@@ -457,7 +372,7 @@ class BinanceUsdmMarketService:
                 }
                 for row in rows
             ],
-        })
+        }
 
     @staticmethod
     def _datetime_from_millis(value: int) -> datetime:

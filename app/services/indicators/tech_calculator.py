@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 from .base_provider import BaseIndicatorProvider, logger
 from config import settings
-from app.services.executor import run_sync
+from app.infra.executor import run_sync
 
 class TechCalculatorProvider(BaseIndicatorProvider):
     """

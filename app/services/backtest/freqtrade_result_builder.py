@@ -13,8 +13,8 @@ from freqtrade.data.btanalysis.bt_fileutils import (
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
 from app.services.backtest.freqtrade_trade_mapper import FreqtradeTradeMapper
 from app.contracts.backtest import BacktestExecutionResult, BacktestResearchConfig
-from app.contracts.dto.backtest_result import BacktestReportResponse, BacktestReportSnapshotResponse, BacktestRunMetadataResponse
-from app.services.backtest.run_contract import BACKTEST_EXECUTION_MODE
+from app.contracts.backtest_result import BacktestReportResponse, BacktestReportSnapshotResponse
+from app.contracts.backtest_run import BACKTEST_EXECUTION_MODE, validate_backtest_run_metadata
 from config import settings
 
 
@@ -70,20 +70,20 @@ class FreqtradeResultBuilder:
         )
         report.symbols = list(data_symbols)
         report.timeframe = timeframe
-        metadata = BacktestRunMetadataResponse(
-            execution_mode=BACKTEST_EXECUTION_MODE,
-            engine="Freqtrade",
-            exchange=settings.EXCHANGE_ID,
-            stake_currency=self.report_builder.quote_currency(data_symbols[0]),
-            initial_cash=initial_cash,
-            fee_rate=fee_rate,
-            fee_ratio=fee_ratio,
-            symbols=list(data_symbols),
-            execution_symbols=list(execution_symbols),
-            price_source="spot_ohlcv",
-            timeframe=timeframe,
-            raw_stats=self.report_snapshot(strategy_stats),
-        )
+        metadata = validate_backtest_run_metadata({
+            "execution_mode": BACKTEST_EXECUTION_MODE,
+            "engine": "Freqtrade",
+            "exchange": settings.EXCHANGE_ID,
+            "stake_currency": self.report_builder.quote_currency(data_symbols[0]),
+            "initial_cash": initial_cash,
+            "fee_rate": fee_rate,
+            "fee_ratio": fee_ratio,
+            "symbols": list(data_symbols),
+            "execution_symbols": list(execution_symbols),
+            "price_source": "spot_ohlcv",
+            "timeframe": timeframe,
+            "raw_stats": self.report_snapshot(strategy_stats),
+        })
         return BacktestExecutionResult(
             total_candles=total_candles,
             signals=signals,

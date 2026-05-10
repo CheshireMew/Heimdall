@@ -9,11 +9,13 @@ from slowapi.errors import RateLimitExceeded
 from app.exceptions import AppError, app_error_handler, unhandled_exception_handler, value_error_handler
 from app.lifecycle import lifespan, wait_for_background_services
 from app.rate_limit import limiter
+from app.runtime import RuntimeRole
 from app.web import register_app_routes
 from config import settings
 
 
-def create_app() -> FastAPI:
+def create_app(role: RuntimeRole | None = None) -> FastAPI:
+    resolved_role = role or settings.APP_RUNTIME_ROLE
     app = FastAPI(
         title="Heimdall",
         description="AI-Powered Crypto Trading Intelligence",
@@ -33,7 +35,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    register_app_routes(app)
+    app.state.runtime_role = resolved_role
+    register_app_routes(app, role=resolved_role)
 
     @app.middleware("http")
     async def _wait_for_background_services(request, call_next):

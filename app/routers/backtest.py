@@ -35,8 +35,8 @@ from app.contracts.dto.backtest import (
 from config import settings
 
 if TYPE_CHECKING:
-    from app.services.backtest.command_service import BacktestCommandService
-    from app.services.backtest.query_service import BacktestQueryService
+    from app.application.backtest.command_service import BacktestCommandService
+    from app.application.backtest.query_service import BacktestQueryService
 
 
 router = APIRouter()

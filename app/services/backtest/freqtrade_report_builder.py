@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from app.contracts.backtest import BacktestEquityPointRecord, BacktestTradeRecord
-from app.contracts.dto.backtest_result import BacktestPairBreakdownResponse, BacktestReportResponse, BacktestReportSnapshotResponse
+from app.contracts.backtest_result import BacktestPairBreakdownResponse, BacktestReportResponse, BacktestReportSnapshotResponse
 from utils.time_utils import to_utc_naive_datetime
 
 

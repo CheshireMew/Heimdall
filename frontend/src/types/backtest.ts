@@ -201,16 +201,15 @@ export interface BacktestDateRangeResponse {
 }
 
 export interface BacktestEquityPointResponse {
-  id: number
   timestamp: string | null
   equity: number
   pnl_abs: number
   drawdown_pct: number
+  id: number
 }
 
 export interface BacktestExecutionMetadataResponse {
   schema_version?: number | null
-  execution_mode: "backtest"
   execution_model?: string | null
   engine?: string | null
   exchange?: string | null
@@ -231,15 +230,14 @@ export interface BacktestExecutionMetadataResponse {
   timeframe?: string | null
   stake_currency?: string | null
   portfolio?: BacktestPortfolioConfig | null
-  research?: BacktestResearchReportResponse | BacktestResearchConfig | null
   selected_config?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
-  sample_ranges?: BacktestSampleRangesResponse | null
-  runtime_state?: BacktestRuntimeStateResponse | null
-  paper_live?: BacktestPaperLiveResponse | null
-  report?: BacktestReportResponse | null
   raw_stats?: BacktestReportSnapshotResponse | null
-  factor_research?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
   error?: string | null
+  execution_mode: "backtest"
+  research?: BacktestResearchReportResponse | BacktestResearchConfig | null
+  sample_ranges?: BacktestSampleRangesResponse | null
+  report?: BacktestReportResponse | null
+  factor_research?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
 }
 
 export interface BacktestIterationSummaryResponse {
@@ -432,8 +430,6 @@ export interface BacktestStrategySummaryResponse {
 }
 
 export interface BacktestTradeResponse {
-  id: number
-  pair: string
   opened_at: string | null
   closed_at: string | null
   entry_price: number
@@ -446,7 +442,10 @@ export interface BacktestTradeResponse {
   duration_minutes?: number | null
   entry_tag?: string | null
   exit_reason?: string | null
-  leverage: number
+  leverage?: number
+  pair: string
+  side?: string
+  id: number
 }
 
 export interface PaginationResponse {
@@ -458,7 +457,6 @@ export interface PaginationResponse {
 
 export interface PaperLiveExecutionMetadataResponse {
   schema_version?: number | null
-  execution_mode: "paper_live"
   execution_model?: string | null
   engine?: string | null
   exchange?: string | null
@@ -479,15 +477,14 @@ export interface PaperLiveExecutionMetadataResponse {
   timeframe?: string | null
   stake_currency?: string | null
   portfolio?: BacktestPortfolioConfig | null
-  research?: BacktestResearchReportResponse | BacktestResearchConfig | null
   selected_config?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
-  sample_ranges?: BacktestSampleRangesResponse | null
+  raw_stats?: BacktestReportSnapshotResponse | null
+  error?: string | null
+  execution_mode: "paper_live"
   runtime_state?: BacktestRuntimeStateResponse | null
   paper_live?: BacktestPaperLiveResponse | null
   report?: BacktestReportResponse | null
-  raw_stats?: BacktestReportSnapshotResponse | null
   factor_research?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
-  error?: string | null
 }
 
 export interface StrategyConditionNodeResponse {

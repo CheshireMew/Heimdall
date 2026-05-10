@@ -3,20 +3,20 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from app.contracts.dto.backtest_result import (
+from app.contracts.backtest_result import (
     BacktestDateRangeResponse,
     BacktestIterationSummaryResponse,
     BacktestOptimizationSummaryResponse,
     BacktestOptimizationTrialResponse,
     BacktestRollingWindowResponse,
 )
-from app.contracts.dto.strategy_contract import StrategyTemplateConfigResponse
+from app.contracts.strategy import StrategyTemplateConfigResponse
 from app.services.backtest.freqtrade_execution import (
     FreqtradeExecutionContext,
     FreqtradeIterationExecutor,
     IterationResult,
 )
-from app.services.backtest.strategy_support import normalize_strategy_version_config_model
+from app.domain.backtest.strategy_support import normalize_strategy_version_config_model
 
 
 class FreqtradeResearchService:

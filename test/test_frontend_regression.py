@@ -160,6 +160,14 @@ def test_market_store_cache_contract_is_stable():
     assert "Extreme Greed" in source
 
 
+def test_kline_series_does_not_block_crypto_load_on_symbol_catalog():
+    source = read_frontend("modules/market/useKlineSeries.ts")
+
+    assert "ensureSymbolCatalogLoaded" not in source
+    assert "marketStore.getKlineData(requestSymbol, requestTimeframe, 1000, options)" in source
+    assert "isIndexSymbol(requestSymbol)" in source
+
+
 def test_trading_view_chart_uses_adaptive_price_axis_precision():
     source = read_frontend("components/TradingViewChart.vue")
 
@@ -231,8 +239,10 @@ def test_binance_market_frontend_uses_warm_start_snapshot_boundary():
 
     assert "heimdall_binance_market_warm_snapshot" in snapshot_source
     assert "heimdall_web3_market_rank_warm_snapshot" in web3_snapshot_source
-    assert "restoreBinanceMarketWarmSnapshot" in monitor_source
-    assert "saveBinanceMarketWarmSnapshot" in monitor_source
+    assert "createWarmSnapshotStore" in snapshot_source
+    assert "createWarmSnapshotStore" in web3_snapshot_source
+    assert "binanceMarketWarmSnapshot.read" in monitor_source
+    assert "binanceMarketWarmSnapshot.write" in monitor_source
     assert "getBinanceMarketPage" in monitor_source
     assert "getBinanceMarketBoards" not in monitor_source
     assert "getBinanceBreakoutMonitor" not in monitor_source
@@ -240,11 +250,40 @@ def test_binance_market_frontend_uses_warm_start_snapshot_boundary():
     assert "getBinanceBreakoutMonitor(" not in api_source
     assert "get_binance_market_boards" not in read_frontend("api/routes.ts")
     assert "get_binance_market_breakout_monitor" not in read_frontend("api/routes.ts")
-    assert "restoreWeb3HeatRankWarmSnapshot" in web3_source
-    assert "saveWeb3HeatRankWarmSnapshot" in web3_source
+    assert "web3HeatRankWarmSnapshot.read" in web3_source
+    assert "web3HeatRankWarmSnapshot.write" in web3_source
+    assert "restoreBinanceMarketWarmSnapshot" not in monitor_source
+    assert "saveBinanceMarketWarmSnapshot" not in monitor_source
+    assert "restoreWeb3HeatRankWarmSnapshot" not in web3_source
+    assert "saveWeb3HeatRankWarmSnapshot" not in web3_source
     assert "binanceMarketCache" not in snapshot_source
     assert "readBinance" not in snapshot_source
     assert "writeBinance" not in snapshot_source
+
+
+def test_market_warm_snapshot_requests_discard_stale_parameter_responses():
+    monitor_source = read_frontend("modules/market/useBinanceMarketMonitor.ts")
+    web3_heat_source = read_frontend("modules/market/useWeb3HeatRankPanel.ts")
+    web3_page_source = read_frontend("modules/market/useWeb3MarketRankPage.ts")
+
+    assert "let fetchState: { key: string; task: Promise<void> } | null = null" in monitor_source
+    assert "const requestMinRisePct = minRisePct.value" in monitor_source
+    assert "if (requestKey !== marketPageRequestKey()) return" in monitor_source
+    assert "binanceMarketWarmSnapshot.write(response.data, requestMinRisePct, requestQuoteAsset)" in monitor_source
+    assert "min_rise_pct: minRisePct.value" not in monitor_source
+    assert "binanceMarketWarmSnapshot.write(response.data, minRisePct.value" not in monitor_source
+
+    assert "let heatRankFetchState: { key: string; task: Promise<void> } | null = null" in web3_heat_source
+    assert "const requestChainId = chainId.value" in web3_heat_source
+    assert "if (requestKey !== heatRankRequestKey()) return" in web3_heat_source
+    assert "web3HeatRankWarmSnapshot.write(response.data, requestChainId, WEB3_HEAT_RANK_SIZE)" in web3_heat_source
+    assert "web3HeatRankWarmSnapshot.write(response.data, chainId.value" not in web3_heat_source
+
+    assert "let addressPnlFetchState: { key: string; task: Promise<void> } | null = null" in web3_page_source
+    assert "const requestChainId = chainId.value" in web3_page_source
+    assert "if (requestKey !== addressPnlRequestKey()) return" in web3_page_source
+    assert "const selectedChainId = web3ApiChainId(requestChainId)" in web3_page_source
+    assert "const selectedChainId = web3ApiChainId(chainId.value)" not in web3_page_source
 
 
 def test_binance_market_rank_tables_use_i18n_headers_and_sortable_volume_metrics():
@@ -342,6 +381,19 @@ def test_market_frontend_uses_generated_query_contracts():
     assert "get_market_full_history_batch" in api_source
 
 
+def test_frontend_api_client_uses_route_response_type_map():
+    request_source = read_frontend("api/request.ts")
+    routes_source = read_frontend("api/routes.ts")
+
+    assert "ApiRouteResponse<TRoute>" in request_source
+    assert "ApiRouteBody<TRoute>" in request_source
+    assert "ApiRouteQuery<TRoute>" in request_source
+    assert "export type ApiRouteResponseMap" in routes_source
+    assert "export type ApiRouteBodyMap" in routes_source
+    assert "export type ApiRouteQueryMap" in routes_source
+    assert "<TResponse = unknown>" not in request_source
+
+
 def test_backtest_and_factor_formatting_entry_points_are_present():
     backtest_source = read_frontend("modules/backtest/useBacktestRunFormatting.ts")
     factor_source = read_frontend("modules/factors/useFactorResearchFormatting.ts")
@@ -366,6 +418,14 @@ def test_backtest_and_factor_formatting_entry_points_are_present():
         "formatDate",
     ]:
         assert token in factor_source
+
+
+def test_factor_research_does_not_auto_run_heavy_analysis_on_mount():
+    source = read_frontend("modules/factors/useFactorResearchData.ts")
+
+    assert "await initializeContract()" in source
+    assert "await Promise.all([fetchCatalog(), fetchRuns()])" in source
+    assert "if (!state.summary.value) await runAnalysis()" not in source
 
 
 def test_backtest_detail_history_panel_exposes_delete_action():

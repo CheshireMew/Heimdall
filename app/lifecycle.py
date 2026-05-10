@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 from contextlib import asynccontextmanager
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from app.background_runtime import BackgroundRuntimeController, BackgroundRuntimeStatus
-from app.runtime import AppRuntimeServices
+from app.runtime import AppRuntimeServices, RuntimeRole, runtime_role_has_target
 from app.runtime_builder import build_app_runtime_services
 from app.runtime_refs import INFRA_DATABASE_RUNTIME
 
@@ -35,6 +36,13 @@ async def _init_db_async(app) -> None:
         _logger().error(f"数据库初始化失败: {exc}", exc_info=True)
 
 
+def _build_runtime_services_for_role(role: RuntimeRole) -> AppRuntimeServices:
+    signature = inspect.signature(build_app_runtime_services)
+    if not signature.parameters:
+        return build_app_runtime_services()
+    return build_app_runtime_services(role)
+
+
 async def _start_background_services(app, runtime_services: AppRuntimeServices) -> None:
     try:
         database_task = getattr(app.state, "database_task", None)
@@ -42,7 +50,8 @@ async def _start_background_services(app, runtime_services: AppRuntimeServices) 
             await database_task
         if getattr(app.state, "database_error", None) is not None:
             return
-        background_runtime = BackgroundRuntimeController(runtime_services)
+        role: RuntimeRole = getattr(app.state, "runtime_role", None) or settings.APP_RUNTIME_ROLE
+        background_runtime = BackgroundRuntimeController(runtime_services, role=role)
         app.state.background_runtime = background_runtime
         await background_runtime.start()
     except asyncio.CancelledError:
@@ -74,13 +83,16 @@ async def _cancel_task(task: asyncio.Task | None) -> None:
 
 @asynccontextmanager
 async def lifespan(app):
+    role: RuntimeRole = getattr(app.state, "runtime_role", None) or settings.APP_RUNTIME_ROLE
     app.state.database_error = None
     app.state.background_services_error = None
     app.state.background_runtime = None
-    app.state.runtime_services = await asyncio.to_thread(build_app_runtime_services)
+    app.state.runtime_services = await asyncio.to_thread(_build_runtime_services_for_role, role)
     app.state.database_task = asyncio.create_task(_init_db_async(app))
-    app.state.background_services_task = asyncio.create_task(
-        _start_background_services(app, app.state.runtime_services)
+    app.state.background_services_task = (
+        asyncio.create_task(_start_background_services(app, app.state.runtime_services))
+        if runtime_role_has_target(role, "background")
+        else None
     )
     yield
     await _cancel_task(getattr(app.state, "background_services_task", None))

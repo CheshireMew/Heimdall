@@ -9,7 +9,7 @@ from app.domain.market.index_catalog import (
     get_index_instrument,
     get_supported_index_symbols,
 )
-from app.services.executor import run_sync
+from app.infra.executor import run_sync
 from app.services.market.history_ranges import collect_missing_ranges
 from app.services.market.index_history_sources import IndexFetchResult, IndexHistorySources
 from app.infra.persistence.market.kline_store import KlineStore

@@ -76,12 +76,12 @@ async def test_usdm_open_interest_stats_are_persisted_and_read_back(installed_da
         limit=10,
     )
     assert [item["timestamp"] for item in stored] == [1717000000000, 1717003600000]
-    assert first.items[0].sum_open_interest == 101.25
+    assert first["items"][0]["sum_open_interest"] == 101.25
 
     second = await service.get_open_interest_stats(symbol="BTCUSDT", period="1h", limit=2)
 
-    assert [item.timestamp for item in second.items] == [1717000000000, 1717003600000]
-    assert second.items[1].sum_open_interest_value == 4300000
+    assert [item["timestamp"] for item in second["items"]] == [1717000000000, 1717003600000]
+    assert second["items"][1]["sum_open_interest_value"] == 4300000
 
 
 @pytest.mark.parametrize(
@@ -150,11 +150,11 @@ async def test_usdm_derivative_research_series_are_persisted_and_read_back(
         contract_type=contract_type,
         limit=10,
     )
-    assert stored[0][stored_field] == getattr(first.items[0], stored_field)
+    assert stored[0][stored_field] == first["items"][0][stored_field]
 
     second = await getattr(service, method_name)(**kwargs)
 
-    assert getattr(second.items[0], stored_field) == getattr(first.items[0], stored_field)
+    assert second["items"][0][stored_field] == first["items"][0][stored_field]
 
 
 @pytest.mark.asyncio
@@ -184,13 +184,13 @@ async def test_usdm_klines_keep_full_binance_payload_in_research_store(installed
     stored = research_store.list_items(market="usdm", series="klines", symbol="BTCUSDT", period="1h", limit=10)
     assert stored[0]["quote_volume"] == 8400000.0
     assert stored[0]["trade_count"] == 876
-    assert first.items[0].close == 68050.0
+    assert first["items"][0]["close"] == 68050.0
 
     second = await service.get_klines(symbol="BTCUSDT", interval="1h", limit=1)
 
-    assert second.symbol == "BTCUSDT"
-    assert second.interval == "1h"
-    assert second.items[0].quote_volume == 8400000.0
+    assert second["symbol"] == "BTCUSDT"
+    assert second["interval"] == "1h"
+    assert second["items"][0]["quote_volume"] == 8400000.0
 
 
 @pytest.mark.asyncio
@@ -210,14 +210,14 @@ async def test_usdm_contract_research_detail_collects_derivative_series(installe
 
     detail = await service.get_contract_research_detail(symbol="btcusdt", period="1h", limit=10)
 
-    assert detail.symbol == "BTCUSDT"
-    assert detail.open_interest.items[0].sum_open_interest_value == 6800000
-    assert detail.basis.items[0].basis_rate == 0.0002
-    assert detail.taker_volume.items[0].buy_sell_ratio == 1.4
-    assert detail.force_orders.items[0].cum_quote == 34000
-    assert detail.long_short_ratio.items[0].long_short_ratio == 1.1
-    assert detail.top_trader_accounts.items[0].long_short_ratio == 1.2
-    assert detail.top_trader_positions.items[0].long_short_ratio == 1.3
+    assert detail["symbol"] == "BTCUSDT"
+    assert detail["open_interest"]["items"][0]["sum_open_interest_value"] == 6800000
+    assert detail["basis"]["items"][0]["basis_rate"] == 0.0002
+    assert detail["taker_volume"]["items"][0]["buy_sell_ratio"] == 1.4
+    assert detail["force_orders"]["items"][0]["cum_quote"] == 34000
+    assert detail["long_short_ratio"]["items"][0]["long_short_ratio"] == 1.1
+    assert detail["top_trader_accounts"]["items"][0]["long_short_ratio"] == 1.2
+    assert detail["top_trader_positions"]["items"][0]["long_short_ratio"] == 1.3
 
 
 @pytest.mark.asyncio
@@ -241,13 +241,13 @@ async def test_usdm_funding_history_uses_funding_rate_store_as_canonical_source(
 
     stored = funding_rate_store.list_history(exchange="binance", market_type="usdm", symbol="BTCUSDT")
     assert len(stored) == 1
-    assert first.items[0].funding_rate == 0.0001
+    assert first["items"][0]["funding_rate"] == 0.0001
 
     second = await service.get_funding_history(symbol="BTCUSDT", limit=10)
 
-    assert len(second.items) == 1
-    assert second.items[0].funding_time == 1717000000000
-    assert second.items[0].mark_price == 68000.5
+    assert len(second["items"]) == 1
+    assert second["items"][0]["funding_time"] == 1717000000000
+    assert second["items"][0]["mark_price"] == 68000.5
 
 
 @pytest.mark.asyncio
@@ -276,12 +276,12 @@ async def test_spot_klines_keep_full_binance_payload_in_research_store(installed
 
     stored = research_store.list_items(market="spot", series="klines", symbol="BTCUSDT", period="1h", limit=10)
     assert stored[0]["quote_volume"] == 8400000.0
-    assert first.items[0].trade_count == 876
+    assert first["items"][0]["trade_count"] == 876
 
     second = await service.get_klines(symbol="BTCUSDT", interval="1h", limit=1)
 
-    assert second.market == "spot"
-    assert second.items[0].close_time == 1717003599999
+    assert second["market"] == "spot"
+    assert second["items"][0]["close_time"] == 1717003599999
 
 
 @pytest.mark.parametrize(
@@ -337,9 +337,9 @@ async def test_spot_trade_series_use_trade_id_identity_and_database_readback(
         end_time=kwargs.get("end_time"),
         limit=10,
     )
-    assert stored[0]["id"] == first.items[0].id
-    assert stored[0]["time"] == first.items[0].time
+    assert stored[0]["id"] == first["items"][0]["id"]
+    assert stored[0]["time"] == first["items"][0]["time"]
 
     second = await getattr(service, method_name)(**kwargs)
 
-    assert second.items[0].id == first.items[0].id
+    assert second["items"][0]["id"] == first["items"][0]["id"]

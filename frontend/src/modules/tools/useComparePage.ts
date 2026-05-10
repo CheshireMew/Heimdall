@@ -121,8 +121,10 @@ export function useComparePage() {
   const symbolLabel = (symbol: string) => isIndexSymbol(symbol) ? symbol : `${symbol}/USDT`
 
   onMounted(async () => {
-    await ensureSymbolCatalogLoaded()
-    const response = await toolsApi.getContract()
+    const [response] = await Promise.all([
+      toolsApi.getContract(),
+      ensureSymbolCatalogLoaded(),
+    ])
     const defaultSnapshot = createDefaultCompareSnapshot(response.data)
     Object.assign(config, normalizeCompareSnapshot(restoredSnapshot, defaultSnapshot).config)
     if (!snapshotStop) {

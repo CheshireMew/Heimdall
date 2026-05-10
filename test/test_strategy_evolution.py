@@ -5,10 +5,11 @@ from datetime import datetime
 from app.contracts.backtest import EvolveStrategyFromBacktestCommand
 from app.infra.db.schema import BacktestRun, StrategyVersion
 from app.infra.persistence.backtest.run_repository import BacktestRunRepository
-from app.services.backtest.strategy_evolution_service import StrategyEvolutionService
-from app.infra.persistence.backtest.strategy_query_service import StrategyQueryService
-from app.services.backtest.strategy_support import normalize_strategy_version_config_model
-from app.infra.persistence.backtest.strategy_write_service import StrategyWriteService
+from app.application.backtest.strategy_evolution_service import StrategyEvolutionService
+from app.application.backtest.strategy_query_service import StrategyQueryService
+from app.domain.backtest.strategy_support import normalize_strategy_version_config_model
+from app.application.backtest.strategy_write_service import StrategyWriteService
+from app.infra.persistence.backtest.strategy_definition_repository import StrategyDefinitionRepository
 
 
 def _base_config() -> dict:
@@ -106,8 +107,12 @@ def test_strategy_evolution_detects_defects_and_persists_new_version(
 
     service = StrategyEvolutionService(
         run_repository=BacktestRunRepository(database_runtime=installed_database_runtime),
-        strategy_query_service=StrategyQueryService(database_runtime=installed_database_runtime),
-        strategy_write_service=StrategyWriteService(database_runtime=installed_database_runtime),
+        strategy_query_service=StrategyQueryService(
+            definition_store=StrategyDefinitionRepository(database_runtime=installed_database_runtime)
+        ),
+        strategy_write_service=StrategyWriteService(
+            definition_store=StrategyDefinitionRepository(database_runtime=installed_database_runtime)
+        ),
     )
     result = service.evolve_from_backtest(
         EvolveStrategyFromBacktestCommand(

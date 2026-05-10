@@ -3,11 +3,11 @@ from __future__ import annotations
 import pytest
 
 from app.contracts.dto.backtest import PaperStartResponse
-from app.services.backtest.command_service import BacktestCommandService
+from app.application.backtest.command_service import BacktestCommandService
 from app.contracts.backtest import PaperStartCommand
 from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBuilder
 from app.contracts.backtest import BacktestPortfolioConfig, StrategyVersionRecord
-from app.services.backtest.strategy_support import normalize_strategy_version_config_model
+from app.domain.backtest.strategy_support import normalize_strategy_version_config_model
 
 
 def test_scripted_strategy_builder_emits_backtest_only_freqtrade_code():

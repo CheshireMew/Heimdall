@@ -1,17 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 from typing import Any
-
-from app.contracts.dto.binance_market import (
-    BinanceWeb3AddressPnlResponse,
-    BinanceWeb3HeatRankBoardsResponse,
-    BinanceWeb3HeatRankResponse,
-    BinanceWeb3MemeRankResponse,
-    BinanceWeb3SmartMoneyInflowResponse,
-    BinanceWeb3SocialHypeResponse,
-    BinanceWeb3UnifiedTokenRankResponse,
-)
 
 from .binance_api_support import BinanceApiSupport, compact_query
 from .binance_numbers import to_float, to_int
@@ -58,9 +49,9 @@ class BinanceWeb3RankService:
     def __init__(self, client: BinanceApiSupport) -> None:
         self.client = client
         self.heat_rank_composer = BinanceWeb3HeatRankComposer()
-        self._heat_rank_boards_cache: TtlMemoryCache[tuple[str | None, int], BinanceWeb3HeatRankBoardsResponse] = TtlMemoryCache(
+        self._heat_rank_boards_cache: TtlMemoryCache[tuple[str | None, int], dict[str, Any]] = TtlMemoryCache(
             HEAT_RANK_BOARDS_CACHE_TTL_SECONDS,
-            copy_value=lambda response: response.model_copy(deep=True),
+            copy_value=deepcopy,
         )
 
     async def get_social_hype_leaderboard(
@@ -71,7 +62,7 @@ class BinanceWeb3RankService:
         time_range: int = 1,
         sentiment: str = "All",
         social_language: str = "ALL",
-    ) -> BinanceWeb3SocialHypeResponse:
+    ) -> dict[str, Any]:
         payload = await self.client.get_json(
             "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/pulse/social/hype/rank/leaderboard/ai",
             params={
@@ -84,7 +75,7 @@ class BinanceWeb3RankService:
             ttl=60,
         )
         rows = ((payload.get("data") or {}).get("leaderBoardList") or [])
-        return BinanceWeb3SocialHypeResponse.model_validate({
+        return {
             "source": "binance-web3",
             "leaderboard": "social_hype",
             "items": [
@@ -102,7 +93,7 @@ class BinanceWeb3RankService:
                 }
                 for item in rows
             ],
-        })
+        }
 
     async def get_unified_token_rank(
         self,
@@ -114,7 +105,7 @@ class BinanceWeb3RankService:
         order_asc: bool = False,
         page: int = 1,
         size: int = 20,
-    ) -> BinanceWeb3UnifiedTokenRankResponse:
+    ) -> dict[str, Any]:
         payload = await self.client.post_json(
             "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/pulse/unified/rank/list/ai",
             body=compact_query(
@@ -133,7 +124,7 @@ class BinanceWeb3RankService:
         )
         data = payload.get("data") or {}
         rows = data.get("tokens") or []
-        return BinanceWeb3UnifiedTokenRankResponse.model_validate({
+        return {
             "source": "binance-web3",
             "leaderboard": "unified_token_rank",
             "rank_type": rank_type,
@@ -141,7 +132,7 @@ class BinanceWeb3RankService:
             "size": data.get("size", size),
             "total": data.get("total"),
             "items": [normalize_rank_token(item) for item in rows],
-        })
+        }
 
     async def get_smart_money_inflow_rank(
         self,
@@ -149,7 +140,7 @@ class BinanceWeb3RankService:
         chain_id: str,
         period: str = "24h",
         tag_type: int = 2,
-    ) -> BinanceWeb3SmartMoneyInflowResponse:
+    ) -> dict[str, Any]:
         payload = await self.client.post_json(
             "/bapi/defi/v1/public/wallet-direct/tracker/wallet/token/inflow/rank/query/ai",
             body={"chainId": chain_id, "period": period, "tagType": tag_type},
@@ -157,7 +148,7 @@ class BinanceWeb3RankService:
             ttl=60,
         )
         rows = payload.get("data") or []
-        return BinanceWeb3SmartMoneyInflowResponse.model_validate({
+        return {
             "source": "binance-web3",
             "leaderboard": "smart_money_inflow",
             "items": [
@@ -178,16 +169,16 @@ class BinanceWeb3RankService:
                 }
                 for item in rows
             ],
-        })
+        }
 
-    async def get_meme_rank(self, *, chain_id: str = "56") -> BinanceWeb3MemeRankResponse:
+    async def get_meme_rank(self, *, chain_id: str = "56") -> dict[str, Any]:
         payload = await self.client.get_json(
             "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/pulse/exclusive/rank/list/ai",
             params={"chainId": chain_id},
             ttl=60,
         )
         rows = ((payload.get("data") or {}).get("tokens") or [])
-        return BinanceWeb3MemeRankResponse.model_validate({
+        return {
             "source": "binance-web3",
             "leaderboard": "meme_rank",
             "items": [
@@ -208,7 +199,7 @@ class BinanceWeb3RankService:
                 }
                 for item in rows
             ],
-        })
+        }
 
     async def get_address_pnl_rank(
         self,
@@ -218,7 +209,7 @@ class BinanceWeb3RankService:
         tag: str = "ALL",
         page_no: int = 1,
         page_size: int = 25,
-    ) -> BinanceWeb3AddressPnlResponse:
+    ) -> dict[str, Any]:
         payload = await self.client.get_json(
             "/bapi/defi/v1/public/wallet-direct/market/leaderboard/query/ai",
             params={
@@ -234,7 +225,7 @@ class BinanceWeb3RankService:
         )
         data = payload.get("data") or {}
         rows = data.get("data") or []
-        return BinanceWeb3AddressPnlResponse.model_validate({
+        return {
             "source": "binance-web3",
             "leaderboard": "address_pnl_rank",
             "page": data.get("current", page_no),
@@ -256,30 +247,30 @@ class BinanceWeb3RankService:
                 }
                 for item in rows
             ],
-        })
+        }
 
     async def get_web3_heat_rank(
         self,
         *,
         chain_id: str | None = None,
         size: int = 30,
-    ) -> BinanceWeb3HeatRankResponse:
+    ) -> dict[str, Any]:
         boards = await self.get_web3_heat_rank_boards(chain_id=chain_id, size=size)
-        return boards.boards.get("heat_score_desc") or BinanceWeb3HeatRankResponse.model_validate({
-            "source": boards.source,
+        return boards["boards"].get("heat_score_desc") or {
+            "source": boards["source"],
             "leaderboard": "web3_heat_rank",
-            "chain_id": boards.chain_id,
-            "size": boards.size,
+            "chain_id": boards["chain_id"],
+            "size": boards["size"],
             "items": [],
-            "formula": boards.formula,
-        })
+            "formula": boards["formula"],
+        }
 
     async def get_web3_heat_rank_boards(
         self,
         *,
         chain_id: str | None = None,
         size: int = 30,
-    ) -> BinanceWeb3HeatRankBoardsResponse:
+    ) -> dict[str, Any]:
         resolved_chain_id = normalize_web3_chain_id(chain_id)
         response_chain_id = resolved_chain_id or WEB3_ALL_CHAINS_ID
         cache_key = (resolved_chain_id, int(size))
@@ -289,25 +280,25 @@ class BinanceWeb3RankService:
         items = await self._compose_web3_heat_rank_items(resolved_chain_id=resolved_chain_id, response_chain_id=response_chain_id, size=size)
         formula = self._heat_rank_formula()
         boards = {
-            board_key(field, direction): BinanceWeb3HeatRankResponse.model_validate({
+            board_key(field, direction): {
                 "source": "binance-web3",
                 "leaderboard": "web3_heat_rank",
                 "chain_id": response_chain_id,
                 "size": size,
                 "items": sort_heat_rank_items(items, field, direction)[:size],
                 "formula": formula,
-            })
+            }
             for field in ("heat_score", "percent_change_24h", "market_cap", "liquidity")
             for direction in ("desc", "asc")
         }
-        response = BinanceWeb3HeatRankBoardsResponse.model_validate({
+        response = {
             "source": "binance-web3",
             "leaderboard": "web3_heat_rank_boards",
             "chain_id": response_chain_id,
             "size": size,
             "boards": boards,
             "formula": formula,
-        })
+        }
         self._heat_rank_boards_cache.set(cache_key, response)
         return response
 
@@ -390,7 +381,7 @@ class BinanceWeb3RankService:
             "penalty": ["low_liquidity", "contract_risk"],
         }
 
-    async def _get_heat_rank_social_hype(self, *, chain_id: str | None) -> dict[str, Any] | BinanceWeb3SocialHypeResponse:
+    async def _get_heat_rank_social_hype(self, *, chain_id: str | None) -> dict[str, Any]:
         if chain_id is not None:
             return await self.get_social_hype_leaderboard(chain_id=chain_id, target_language="zh")
         results = await asyncio.gather(
@@ -408,7 +399,7 @@ class BinanceWeb3RankService:
             "items": [item for result in results for item in result.get("items", [])],
         }
 
-    async def _get_heat_rank_smart_money(self, *, chain_id: str | None) -> dict[str, Any] | BinanceWeb3SmartMoneyInflowResponse:
+    async def _get_heat_rank_smart_money(self, *, chain_id: str | None) -> dict[str, Any]:
         if chain_id is not None:
             return await self.get_smart_money_inflow_rank(chain_id=chain_id, period="24h")
         results = await asyncio.gather(
@@ -426,7 +417,7 @@ class BinanceWeb3RankService:
             "items": [item for result in results for item in result.get("items", [])],
         }
 
-    async def _get_heat_rank_meme(self, *, chain_id: str | None) -> dict[str, Any] | BinanceWeb3MemeRankResponse:
+    async def _get_heat_rank_meme(self, *, chain_id: str | None) -> dict[str, Any]:
         if chain_id not in (None, "56"):
             return {
                 "source": "binance-web3",

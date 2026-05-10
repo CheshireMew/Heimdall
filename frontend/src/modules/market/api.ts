@@ -146,7 +146,7 @@ export const marketApi = {
   },
 
   getBinanceMarketPage(params: GetBinanceMarketPageQueryParams = {}): Promise<AxiosResponse<BinanceMarketPageResponse>> {
-    return apiGet('get_binance_market_page', { query: params, timeout: 5000 })
+    return apiGet('get_binance_market_page', { query: params, timeout: 30000 })
   },
 
   getBinanceSpotPrice(params: GetBinanceSpotPriceQueryParams = {}): Promise<AxiosResponse<BinancePriceTickerResponse>> {

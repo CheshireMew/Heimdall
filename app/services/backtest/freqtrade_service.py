@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from app.contracts.dto.backtest_result import (
+from app.contracts.backtest_result import (
     BacktestReportResponse,
     BacktestPortfolioSummaryResponse,
     BacktestResearchReportResponse,
-    BacktestRunMetadataResponse,
     BacktestSampleRangesResponse,
     BacktestStrategySummaryResponse,
 )
-from app.contracts.dto.strategy_contract import StrategyTemplateConfigResponse
+from app.contracts.strategy import StrategyTemplateConfigResponse
 from app.services.backtest.freqtrade_execution import FreqtradeExecutionContext, IterationResult
 from app.services.backtest.freqtrade_execution import FreqtradeIterationExecutor
 from app.services.backtest.freqtrade_research import FreqtradeResearchService
@@ -18,7 +17,8 @@ from app.services.backtest.freqtrade_result_builder import FreqtradeResultBuilde
 from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBuilder
 from app.contracts.backtest_symbols import normalize_backtest_symbols
 from app.contracts.backtest import BacktestExecutionResult
-from app.services.backtest.scripted_template_runtime import get_template_runtime, template_builder_kind
+from app.contracts.backtest_run import validate_backtest_run_metadata
+from app.domain.backtest.scripted_template_runtime import get_template_runtime, template_builder_kind
 from app.services.market.market_data_service import MarketDataService
 from config import settings
 from utils.time_utils import to_utc_naive_datetime
@@ -182,38 +182,36 @@ class FreqtradeBacktestService:
         if primary_result.execution.metadata is None:
             raise RuntimeError("回测执行结果缺少元数据")
         execution_model = self._execution_model(strategy.template, selected_config)
-        metadata = BacktestRunMetadataResponse.model_validate(
-            primary_result.execution.metadata
-        ).model_copy(
-            update={
-                "engine": "Freqtrade",
-                "execution_model": execution_model,
-                "strategy_key": strategy.strategy_key,
-                "strategy_name": strategy.strategy_name,
-                "strategy_version": strategy.version,
-                "strategy_template": strategy.template,
-                "strategy_notes": strategy.notes,
-                "selected_config": selected_config.model_dump(),
-                "symbols": data_symbols,
-                "execution_symbols": execution_symbols,
-                "price_source": "spot_ohlcv",
-                "portfolio_label": self._portfolio_label(data_symbols),
-                "stake_currency": stake_currency,
-                "initial_cash": initial_cash,
-                "fee_rate": fee_rate,
-                "fee_ratio": fee_ratio,
-                "timeframe": timeframe,
-                "market_type": market_type,
-                "direction": direction,
-                "research": research_report,
-                "sample_ranges": BacktestSampleRangesResponse(
-                    requested=self._range_payload(start_date, end_date),
-                    displayed=self._range_payload(primary_result.start_date, primary_result.end_date),
-                    in_sample=self._range_payload(train_start, train_end),
-                    out_of_sample=self._range_payload(test_start, test_end),
-                ),
-            }
-        )
+        metadata_payload = {
+            **dict(primary_result.execution.metadata or {}),
+            "engine": "Freqtrade",
+            "execution_model": execution_model,
+            "strategy_key": strategy.strategy_key,
+            "strategy_name": strategy.strategy_name,
+            "strategy_version": strategy.version,
+            "strategy_template": strategy.template,
+            "strategy_notes": strategy.notes,
+            "selected_config": selected_config.model_dump(),
+            "symbols": data_symbols,
+            "execution_symbols": execution_symbols,
+            "price_source": "spot_ohlcv",
+            "portfolio_label": self._portfolio_label(data_symbols),
+            "stake_currency": stake_currency,
+            "initial_cash": initial_cash,
+            "fee_rate": fee_rate,
+            "fee_ratio": fee_ratio,
+            "timeframe": timeframe,
+            "market_type": market_type,
+            "direction": direction,
+            "research": research_report,
+            "sample_ranges": BacktestSampleRangesResponse(
+                requested=self._range_payload(start_date, end_date),
+                displayed=self._range_payload(primary_result.start_date, primary_result.end_date),
+                in_sample=self._range_payload(train_start, train_end),
+                out_of_sample=self._range_payload(test_start, test_end),
+            ),
+        }
+        metadata = validate_backtest_run_metadata(metadata_payload)
 
         return BacktestExecutionResult(
             total_candles=primary_result.execution.total_candles,

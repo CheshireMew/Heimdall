@@ -9,9 +9,11 @@ from app.contracts.backtest import (
     BacktestResearchConfig,
     StrategyVersionRecord,
 )
-from app.contracts.dto.backtest_result import BacktestReportResponse, BacktestRunMetadataResponse
-from app.infra.persistence.backtest.run_service import BacktestRunService
-from app.services.backtest.strategy_support import normalize_strategy_version_config_model
+from app.contracts.backtest_result import BacktestReportResponse
+from app.contracts.backtest_run import validate_backtest_run_metadata
+from app.application.backtest.run_service import BacktestRunService
+from app.infra.persistence.backtest.run_mutation_service import BacktestRunMutationService
+from app.domain.backtest.strategy_support import normalize_strategy_version_config_model
 
 
 class _FailingExecutionEngine:
@@ -38,7 +40,7 @@ class _SuccessfulExecutionEngine:
                 losses=0,
                 draws=0,
             ).model_dump(),
-            metadata=BacktestRunMetadataResponse.model_validate(
+            metadata=validate_backtest_run_metadata(
                 {
                     "sample_ranges": {
                     "requested": {
@@ -88,7 +90,7 @@ def _research() -> BacktestResearchConfig:
 def test_run_service_persists_failed_run_record(db_session, installed_database_runtime):
     service = BacktestRunService(
         execution_engine=_FailingExecutionEngine(),
-        database_runtime=installed_database_runtime,
+        run_mutations=BacktestRunMutationService(database_runtime=installed_database_runtime),
     )
     result = service.run_backtest(
         strategy=_strategy(),
@@ -111,7 +113,7 @@ def test_run_service_persists_failed_run_record(db_session, installed_database_r
 def test_run_service_uses_displayed_range_as_canonical_run_range(db_session, installed_database_runtime):
     service = BacktestRunService(
         execution_engine=_SuccessfulExecutionEngine(),
-        database_runtime=installed_database_runtime,
+        run_mutations=BacktestRunMutationService(database_runtime=installed_database_runtime),
     )
     result = service.run_backtest(
         strategy=_strategy(),

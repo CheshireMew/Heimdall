@@ -2,19 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import json
-import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 import websockets
 
-from app.contracts.dto.binance_market import (
-    BinanceMarkPriceResponse,
-    BinanceMarketSourceSnapshotResponse,
-    BinanceTickerStatsResponse,
-)
 from config import settings
 from utils.logger import logger
+from .binance_market_snapshot_store import BinanceMarketSnapshotStore
+from .binance_market_stream_events import mark_from_event, ticker_from_event
 
 
 TickerLoader = Callable[[], Awaitable[Any]]
@@ -29,12 +25,7 @@ class BinanceMarketSnapshotService:
         usdm_ticker_loader: TickerLoader | None = None,
         usdm_mark_loader: MarkPriceLoader | None = None,
     ) -> None:
-        self._spot_ticker: dict[str, dict[str, Any]] = {}
-        self._usdm_ticker: dict[str, dict[str, Any]] = {}
-        self._usdm_mark: dict[str, dict[str, Any]] = {}
-        self._loaded_sources: set[str] = set()
-        self._updated_at: dict[str, int] = {}
-        self._lock = asyncio.Lock()
+        self._store = BinanceMarketSnapshotStore()
         self._tasks: list[asyncio.Task] = []
         self._running = False
         self._reconnect_delay = settings.BINANCE_MARKET_SNAPSHOT_RECONNECT_DELAY
@@ -99,58 +90,32 @@ class BinanceMarketSnapshotService:
                 continue
             await applier(result)
 
-    async def get_market_page_snapshot(self) -> BinanceMarketSourceSnapshotResponse:
-        async with self._lock:
-            load_errors: list[str] = []
-            if "spot_ticker" not in self._loaded_sources:
-                load_errors.append("现货榜单")
-            if "usdm_ticker" not in self._loaded_sources:
-                load_errors.append("U本位24H")
-            if "usdm_mark" not in self._loaded_sources:
-                load_errors.append("U本位Funding")
-            return BinanceMarketSourceSnapshotResponse(
-                spot_ticker=self._ticker_response("spot", self._spot_ticker.values()),
-                usdm_ticker=self._ticker_response("usdm", self._usdm_ticker.values()),
-                usdm_mark=self._mark_response("usdm", self._usdm_mark.values()),
-                load_errors=load_errors,
-                updated_at=max(self._updated_at.values(), default=0),
-            )
+    async def get_market_page_snapshot(self) -> dict[str, Any]:
+        return await self._store.market_page_snapshot()
+
+    async def get_market_page_snapshot_data(self) -> dict[str, Any]:
+        return await self._store.market_page_snapshot_data()
 
     async def has_snapshot(self) -> bool:
-        async with self._lock:
-            return bool(self._loaded_sources)
+        return await self._store.has_snapshot()
 
     async def has_market_page_snapshot(self) -> bool:
-        async with self._lock:
-            return {"spot_ticker", "usdm_ticker", "usdm_mark"}.issubset(self._loaded_sources)
+        return await self._store.has_market_page_snapshot()
 
     async def get_current_price(self, symbol: str) -> float | None:
-        ticker_symbol = self._to_ticker_symbol(symbol)
-        if not ticker_symbol:
-            return None
-        async with self._lock:
-            spot = self._spot_ticker.get(ticker_symbol)
-            if spot is not None:
-                return self._to_float(spot.get("last_price"))
-            mark = self._usdm_mark.get(ticker_symbol)
-            if mark is not None:
-                return self._to_float(mark.get("mark_price"))
-            usdm = self._usdm_ticker.get(ticker_symbol)
-            if usdm is not None:
-                return self._to_float(usdm.get("last_price"))
-        return None
+        return await self._store.current_price(symbol)
 
     async def _apply_spot_ticker_response(self, response: Any) -> None:
         payload = response.model_dump() if hasattr(response, "model_dump") else response
-        await self._merge_tickers("spot_ticker", payload.get("items", []))
+        await self._store.merge_tickers("spot_ticker", payload.get("items", []))
 
     async def _apply_usdm_ticker_response(self, response: Any) -> None:
         payload = response.model_dump() if hasattr(response, "model_dump") else response
-        await self._merge_tickers("usdm_ticker", payload.get("items", []))
+        await self._store.merge_tickers("usdm_ticker", payload.get("items", []))
 
     async def _apply_usdm_mark_response(self, response: Any) -> None:
         payload = response.model_dump() if hasattr(response, "model_dump") else response
-        await self._merge_marks(payload.get("items", []))
+        await self._store.merge_marks(payload.get("items", []))
 
     async def _run_spot_ticker_loop(self) -> None:
         await self._consume_json_array_stream(
@@ -195,98 +160,10 @@ class BinanceMarketSnapshotService:
                     await asyncio.sleep(self._reconnect_delay)
 
     async def _apply_spot_ticker_events(self, events: list[dict[str, Any]]) -> None:
-        await self._merge_tickers("spot_ticker", [self._ticker_from_event(event) for event in events])
+        await self._store.merge_tickers("spot_ticker", [ticker_from_event(event) for event in events])
 
     async def _apply_usdm_ticker_events(self, events: list[dict[str, Any]]) -> None:
-        await self._merge_tickers("usdm_ticker", [self._ticker_from_event(event) for event in events])
+        await self._store.merge_tickers("usdm_ticker", [ticker_from_event(event) for event in events])
 
     async def _apply_usdm_mark_events(self, events: list[dict[str, Any]]) -> None:
-        await self._merge_marks([self._mark_from_event(event) for event in events])
-
-    async def _merge_tickers(self, source: str, rows: list[dict[str, Any]]) -> None:
-        now = int(time.time() * 1000)
-        target = self._spot_ticker if source == "spot_ticker" else self._usdm_ticker
-        async with self._lock:
-            for row in rows:
-                symbol = str(row.get("symbol") or "").upper()
-                if symbol:
-                    target[symbol] = row
-            self._updated_at[source] = now
-            self._loaded_sources.add(source)
-
-    async def _merge_marks(self, rows: list[dict[str, Any]]) -> None:
-        now = int(time.time() * 1000)
-        async with self._lock:
-            for row in rows:
-                symbol = str(row.get("symbol") or "").upper()
-                if symbol:
-                    self._usdm_mark[symbol] = row
-            self._updated_at["usdm_mark"] = now
-            self._loaded_sources.add("usdm_mark")
-
-    def _ticker_from_event(self, event: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "symbol": event.get("s"),
-            "price_change": self._to_float(event.get("p")),
-            "price_change_pct": self._to_float(event.get("P")),
-            "weighted_avg_price": self._to_float(event.get("w")),
-            "last_price": self._to_float(event.get("c")),
-            "last_qty": self._to_float(event.get("Q")),
-            "open_price": self._to_float(event.get("o")),
-            "high_price": self._to_float(event.get("h")),
-            "low_price": self._to_float(event.get("l")),
-            "volume": self._to_float(event.get("v")),
-            "quote_volume": self._to_float(event.get("q")),
-            "open_time": self._to_int(event.get("O")),
-            "close_time": self._to_int(event.get("C")),
-            "count": self._to_int(event.get("n")),
-        }
-
-    def _mark_from_event(self, event: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "symbol": event.get("s"),
-            "pair": None,
-            "mark_price": self._to_float(event.get("p")),
-            "index_price": self._to_float(event.get("i")),
-            "estimated_settle_price": self._to_float(event.get("P")),
-            "last_funding_rate": self._to_float(event.get("r")),
-            "next_funding_time": self._to_int(event.get("T")),
-            "interest_rate": None,
-            "time": self._to_int(event.get("E")),
-        }
-
-    def _ticker_response(self, market: str, rows: Any) -> BinanceTickerStatsResponse:
-        return BinanceTickerStatsResponse.model_validate({
-            "exchange": "binance",
-            "market": market,
-            "items": sorted(list(rows), key=lambda item: item.get("quote_volume") or 0, reverse=True),
-        })
-
-    def _mark_response(self, market: str, rows: Any) -> BinanceMarkPriceResponse:
-        return BinanceMarkPriceResponse.model_validate({
-            "exchange": "binance",
-            "market": market,
-            "items": sorted(list(rows), key=lambda item: item.get("symbol") or ""),
-        })
-
-    def _to_float(self, value: Any) -> float | None:
-        try:
-            if value in (None, ""):
-                return None
-            return float(value)
-        except (TypeError, ValueError):
-            return None
-
-    def _to_int(self, value: Any) -> int | None:
-        try:
-            if value in (None, ""):
-                return None
-            return int(value)
-        except (TypeError, ValueError):
-            return None
-
-    def _to_ticker_symbol(self, symbol: str) -> str:
-        normalized = str(symbol or "").strip().upper()
-        if not normalized:
-            return ""
-        return normalized.replace("/", "")
+        await self._store.merge_marks([mark_from_event(event) for event in events])

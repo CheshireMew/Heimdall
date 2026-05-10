@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from app.contracts.sentiment import SentimentRecord
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import Sentiment
-from app.services.sentiment_client import SentimentRecord
 
 
 class SentimentRepository:

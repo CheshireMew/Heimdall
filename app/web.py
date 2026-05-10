@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from app.exceptions import NotFoundError
 from app.lifecycle import build_health_payload
+from app.runtime import RuntimeRole, runtime_role_has_target
 from app.routers import backtest, config_router, factor, market, tools
 from config import settings
 
@@ -61,12 +62,14 @@ async def frontend_fallback(full_path: str):
     return FileResponse(str(FRONTEND_INDEX_FILE))
 
 
-def register_app_routes(app: FastAPI) -> None:
-    app.include_router(market.router, prefix="/api/v1", tags=["市场数据"])
-    app.include_router(factor.router, prefix="/api/v1", tags=["因子研究"])
-    app.include_router(backtest.router, prefix="/api/v1", tags=["回测"])
-    app.include_router(tools.router, prefix="/api/v1/tools", tags=["工具"])
-    app.include_router(config_router.router, prefix="/api/v1", tags=["配置"])
+def register_app_routes(app: FastAPI, *, role: RuntimeRole) -> None:
+    if runtime_role_has_target(role, "api"):
+        app.include_router(market.router, prefix="/api/v1", tags=["市场数据"])
+        app.include_router(factor.router, prefix="/api/v1", tags=["因子研究"])
+        app.include_router(backtest.router, prefix="/api/v1", tags=["回测"])
+        app.include_router(tools.router, prefix="/api/v1/tools", tags=["工具"])
+        app.include_router(config_router.router, prefix="/api/v1", tags=["配置"])
     app.add_api_route("/", root, methods=["GET"], include_in_schema=False)
     app.add_api_route("/health", health_check, methods=["GET"])
-    app.add_api_route("/{full_path:path}", frontend_fallback, methods=["GET"], include_in_schema=False)
+    if runtime_role_has_target(role, "api"):
+        app.add_api_route("/{full_path:path}", frontend_fallback, methods=["GET"], include_in_schema=False)

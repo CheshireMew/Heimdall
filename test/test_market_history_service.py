@@ -34,7 +34,7 @@ async def test_live_tail_uses_bounded_exchange_retry_policy():
 
     response = await service.get_live_kline_tail(symbol="BTC/USDT", timeframe="1h", limit=16)
 
-    assert response.current_price == 456.0
+    assert response["current_price"] == 456.0
     assert market_data_service.calls == [
         {
             "symbol": "BTC/USDT",

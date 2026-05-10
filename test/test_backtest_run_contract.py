@@ -6,12 +6,13 @@ import pytest
 
 from app.contracts.backtest import BacktestEquityPointRecord, BacktestPortfolioConfig
 from app.infra.db.schema import BacktestRun
-from app.contracts.dto.backtest_result import BacktestRunMetadataResponse
+from app.contracts.backtest_metadata import BacktestExecutionMetadata
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
 from app.infra.persistence.backtest.run_repository import BacktestRunRepository
-from app.services.backtest.run_contract import update_paper_metadata
+from app.contracts.backtest_run import update_paper_metadata
 from app.infra.persistence.backtest.serializers import serialize_backtest_run
-from app.infra.persistence.factors.paper_persistence_service import FactorPaperPersistenceService
+from app.application.factors.paper_persistence_service import FactorPaperPersistenceService
+from app.infra.persistence.backtest.run_mutation_service import BacktestRunMutationService
 
 
 class _NoopFactorExecutionCore:
@@ -51,9 +52,9 @@ def test_repository_filters_by_execution_mode_in_query(db_session, installed_dat
     runs = repository.list_runs("paper_live")
 
     assert len(runs) == 1
-    assert runs[0].symbol == "ETH/USDT"
-    assert runs[0].metadata.execution_mode == "paper_live"
-    assert runs[0].metadata.engine == "FreqtradePaper"
+    assert runs[0]["symbol"] == "ETH/USDT"
+    assert runs[0]["metadata"]["execution_mode"] == "paper_live"
+    assert runs[0]["metadata"]["engine"] == "FreqtradePaper"
 
 
 def test_serializer_projects_mode_and_engine_from_columns():
@@ -149,7 +150,7 @@ def test_update_paper_metadata_does_not_invent_empty_entry_score():
     assert payload["runtime_state"]["positions"]["BTC/USDT"]["entry_score"] is None
 
 
-def test_factor_paper_persistence_increment_uses_backtest_trade_boundary(db_session):
+def test_factor_paper_persistence_increment_uses_backtest_trade_boundary(db_session, installed_database_runtime):
     now = datetime(2026, 3, 28, 10, 0)
     run = BacktestRun(
         symbol="BTC/USDT",
@@ -168,15 +169,16 @@ def test_factor_paper_persistence_increment_uses_backtest_trade_boundary(db_sess
     )
     db_session.add(run)
     db_session.flush()
+    db_session.commit()
 
     service = FactorPaperPersistenceService(
+        run_mutations=BacktestRunMutationService(database_runtime=installed_database_runtime),
         report_builder=FreqtradeReportBuilder(),
         execution_core=_NoopFactorExecutionCore(),
     )
     service.persist_increment(
-        session=db_session,
-        run=run,
-        metadata=BacktestRunMetadataResponse(symbols=["BTC/USDT"], initial_cash=10000),
+        run_id=run.id,
+        metadata=BacktestExecutionMetadata(symbols=["BTC/USDT"], initial_cash=10000),
         runtime_state={"last_processed": {"BTC/USDT": 1710000000000}},
         position=None,
         cash_balance=10000,
@@ -188,6 +190,7 @@ def test_factor_paper_persistence_increment_uses_backtest_trade_boundary(db_sess
         now=now,
     )
 
+    db_session.refresh(run)
     assert run.metadata_info["runtime_state"]["cash_balance"] == 10000
     assert run.metadata_info["report"]["total_trades"] == 0
 

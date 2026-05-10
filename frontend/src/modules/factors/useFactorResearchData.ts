@@ -130,11 +130,10 @@ export const useFactorResearchData = (
         await loadRun(state.selectedRunId.value)
         return
       } catch (err) {
-        console.warn('Failed to restore factor run, falling back to analysis', err)
+        console.warn('Failed to restore factor run, clearing selection', err)
         state.selectedRunId.value = null
       }
     }
-    if (!state.summary.value) await runAnalysis()
   })
 
   return {
@@ -145,4 +144,3 @@ export const useFactorResearchData = (
     startExecution,
   }
 }
-

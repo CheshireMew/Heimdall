@@ -57,3 +57,46 @@ class MarketIndicatorRepository:
                     }
                 )
             return grouped
+
+    def upsert_points(self, data_points: list[dict[str, Any]], meta_catalog: dict[str, tuple[str, str, str]]) -> None:
+        with self.database_runtime.session_scope() as session:
+            for point in data_points:
+                indicator_id = point["indicator_id"]
+                display_name, category, unit = meta_catalog.get(
+                    indicator_id,
+                    (indicator_id.replace("_", " ").title(), "General", ""),
+                )
+                meta = session.query(MarketIndicatorMeta).filter_by(id=indicator_id).first()
+                if not meta:
+                    session.add(
+                        MarketIndicatorMeta(
+                            id=indicator_id,
+                            name=display_name,
+                            category=category,
+                            unit=unit,
+                        )
+                    )
+                    session.flush()
+                elif meta.category == "General":
+                    meta.category = category
+                    meta.name = display_name
+                    meta.unit = unit
+                    session.flush()
+
+            for point in data_points:
+                exists = (
+                    session.query(MarketIndicatorData)
+                    .filter(
+                        MarketIndicatorData.indicator_id == point["indicator_id"],
+                        MarketIndicatorData.timestamp == point["timestamp"],
+                    )
+                    .first()
+                )
+                if not exists:
+                    session.add(
+                        MarketIndicatorData(
+                            indicator_id=point["indicator_id"],
+                            timestamp=point["timestamp"],
+                            value=point["value"],
+                        )
+                    )

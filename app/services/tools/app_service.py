@@ -6,8 +6,7 @@ from datetime import datetime, timedelta
 
 from app.infra.cache import RedisService
 from app.domain.market.symbol_catalog import get_supported_crypto_symbols, resolve_market_asset
-from app.contracts.dto.tools import DCAResponse, PairCompareToolResponse
-from app.services.executor import run_sync
+from app.infra.executor import run_sync
 from app.services.tools.contracts import ComparePairsCommand, SimulateDcaCommand
 from app.services.tools.dca_service import DCAService
 from app.services.tools.pair_compare_service import PairCompareService
@@ -64,13 +63,13 @@ class ToolsAppService:
             raise ValueError("两个标的不能相同")
         return symbol_a, symbol_b
 
-    async def simulate_dca(self, command: SimulateDcaCommand) -> DCAResponse:
+    async def simulate_dca(self, command: SimulateDcaCommand) -> dict:
         self._validate_dca(command)
         start_date_str = command.start_date or (datetime.now() - timedelta(days=command.days or 365)).strftime("%Y-%m-%d")
         cache_key = self._dca_cache_key(command, start_date_str)
         cached = self.cache_service.get(cache_key) if self.cache_service is not None else None
         if cached:
-            return DCAResponse.model_validate(cached)
+            return cached
 
         result = await run_sync(
             lambda: self.dca_service.calculate_dca(
@@ -86,12 +85,11 @@ class ToolsAppService:
         )
         if "error" in result:
             raise ValueError(result["error"])
-        response = DCAResponse.model_validate(result)
         if self.cache_service is not None:
-            self.cache_service.set(cache_key, response.model_dump(), ttl=settings.DCA_CACHE_TTL)
-        return response
+            self.cache_service.set(cache_key, result, ttl=settings.DCA_CACHE_TTL)
+        return result
 
-    async def compare_pairs(self, command: ComparePairsCommand) -> PairCompareToolResponse:
+    async def compare_pairs(self, command: ComparePairsCommand) -> dict:
         symbol_a, symbol_b = self._validate_compare(command)
         logger.info(f"标的对比请求: {symbol_a} vs {symbol_b}, {command.days}天, {command.timeframe}")
         result = await run_sync(
@@ -99,4 +97,4 @@ class ToolsAppService:
         )
         if "error" in result:
             raise ValueError(result["error"])
-        return PairCompareToolResponse.model_validate(result)
+        return result

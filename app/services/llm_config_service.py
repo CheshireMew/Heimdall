@@ -4,7 +4,6 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-from app.contracts.dto.config import LlmProviderConfigResponse, LlmProviderPresetResponse
 from app.services.config_file import mask_secret, read_json_object, write_json_object
 from config import settings
 
@@ -73,13 +72,10 @@ class LlmConfigService:
     def __init__(self, config_path: Path | None = None) -> None:
         self.config_path = config_path or settings.LLM_CONFIG_PATH
 
-    def list_presets(self) -> list[LlmProviderPresetResponse]:
-        return [
-            LlmProviderPresetResponse.model_validate(deepcopy(item))
-            for item in LLM_PROVIDER_PRESETS.values()
-        ]
+    def list_presets(self) -> list[dict[str, Any]]:
+        return [deepcopy(item) for item in LLM_PROVIDER_PRESETS.values()]
 
-    def read_config(self) -> LlmProviderConfigResponse:
+    def read_config(self) -> dict[str, Any]:
         raw = read_json_object(self.config_path)
         provider = self._resolve_provider(raw.get("provider"))
         preset = LLM_PROVIDER_PRESETS[provider]
@@ -92,7 +88,7 @@ class LlmConfigService:
             base_url = preset["baseUrl"]
             model_id = self._preset_model(provider, reasoning_enabled)
 
-        return LlmProviderConfigResponse.model_validate({
+        return {
             "provider": provider,
             "apiKey": "",
             "apiKeySet": bool(api_key),
@@ -101,7 +97,7 @@ class LlmConfigService:
             "modelId": model_id,
             "reasoningEnabled": reasoning_enabled if provider == "deepseek" else False,
             "presets": self.list_presets(),
-        })
+        }
 
     def read_effective_config(self) -> dict[str, Any]:
         raw = read_json_object(self.config_path)
@@ -125,7 +121,7 @@ class LlmConfigService:
             "reasoningEnabled": reasoning_enabled if provider == "deepseek" else False,
         }
 
-    def save_config(self, payload: dict[str, Any]) -> LlmProviderConfigResponse:
+    def save_config(self, payload: dict[str, Any]) -> dict[str, Any]:
         existing = read_json_object(self.config_path)
         provider = self._resolve_provider(payload.get("provider"))
         preset = LLM_PROVIDER_PRESETS[provider]

@@ -6,16 +6,17 @@ import pytest
 from app.infra.db.database import build_database_runtime
 from app.infra.db.schema import Base, StrategyDefinition, StrategyVersion
 from app.contracts.dto.backtest import StrategyDefinitionResponse, StrategyVersionResponse
-from app.contracts.dto.strategy_contract import StrategyTemplateConfigResponse
-from app.infra.persistence.backtest.strategy_catalog import get_template_spec
-from app.services.backtest.strategy_config_normalizer import (
+from app.contracts.strategy import StrategyTemplateConfigResponse
+from app.domain.backtest.strategy_catalog import get_template_spec
+from app.domain.backtest.strategy_config_normalizer import (
     blank_strategy_config,
     normalize_strategy_config,
     normalize_strategy_config_model,
 )
-from app.services.backtest.strategy_rule_tree import build_condition, build_group
-from app.infra.persistence.backtest.strategy_query_service import StrategyQueryService
-from app.services.backtest.strategy_support import (
+from app.domain.backtest.strategy_rule_tree import build_condition, build_group
+from app.application.backtest.strategy_query_service import StrategyQueryService
+from app.infra.persistence.backtest.strategy_definition_repository import StrategyDefinitionRepository
+from app.domain.backtest.strategy_support import (
     build_strategy_version_response_payload,
 )
 from app.services.backtest.strategy_runtime import StrategyRuntime
@@ -282,7 +283,9 @@ def test_strategy_query_service_returns_api_records_after_session_close(isolated
             )
         )
 
-    service = StrategyQueryService(database_runtime=isolated_runtime)
+    service = StrategyQueryService(
+        definition_store=StrategyDefinitionRepository(database_runtime=isolated_runtime)
+    )
     strategies = service.list_strategies()
     for strategy in strategies:
         StrategyDefinitionResponse.model_validate(strategy)

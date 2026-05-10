@@ -20,3 +20,10 @@ def safe_float(value: Any) -> float | None:
         return to_float(value)
     except (TypeError, ValueError):
         return None
+
+
+def safe_int(value: Any) -> int | None:
+    try:
+        return to_int(value)
+    except (TypeError, ValueError):
+        return None

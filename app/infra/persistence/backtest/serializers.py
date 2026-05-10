@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade
-from app.services.backtest.run_contract import serialize_run_metadata
+from app.contracts.backtest_run import serialize_run_metadata
 
 
 def serialize_backtest_metadata(run: BacktestRun) -> dict:
@@ -66,6 +66,7 @@ def serialize_backtest_trade(trade: BacktestTrade) -> dict:
         "entry_tag": trade.entry_tag,
         "exit_reason": trade.exit_reason,
         "leverage": trade.leverage,
+        "side": trade.side,
     }
 
 

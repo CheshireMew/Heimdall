@@ -30,7 +30,7 @@ class TestGlobalTimezone(unittest.TestCase):
     def test_backtester_imports(self):
         print("\n--- Testing Backtester Imports ---")
         # Just check if we can import it and if it uses TimeManager
-        from app.infra.persistence.backtest.run_service import BacktestRunService
+        from app.application.backtest.run_service import BacktestRunService
         
         # Inspect source code or just rely on the fact that import didn't crash
         # and that we patched it successfully.

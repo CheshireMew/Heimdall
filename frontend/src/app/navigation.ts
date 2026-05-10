@@ -13,7 +13,7 @@ export const APP_ROUTE_DEFINITIONS = [
   {
     path: '/indicators/macro',
     name: 'IndicatorsMacro',
-    component: () => import('@/views/indicators/CategoryView.vue'),
+    component: () => import('@/views/indicators/MacroLiquidity.vue'),
     meta: { title: '宏观经济', category: 'Macro' },
     nav: { section: 'indicators', labelKey: 'nav.macro', icon: 'BuildingLibraryIcon' },
   },

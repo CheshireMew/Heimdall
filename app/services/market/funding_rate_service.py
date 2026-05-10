@@ -8,6 +8,7 @@ import httpx
 
 from app.infra.persistence.market.funding_rate_store import FundingRateStore
 from utils.logger import logger
+from .binance_numbers import safe_float
 
 
 class FundingRateService:
@@ -33,11 +34,11 @@ class FundingRateService:
             "exchange": self.EXCHANGE,
             "market_type": self.MARKET_TYPE,
             "symbol": normalized_symbol,
-            "funding_rate": self._safe_float(payload.get("lastFundingRate")),
+            "funding_rate": safe_float(payload.get("lastFundingRate")),
             "funding_rate_pct": self._ratio_to_pct(payload.get("lastFundingRate")),
-            "mark_price": self._safe_float(payload.get("markPrice")),
-            "index_price": self._safe_float(payload.get("indexPrice")),
-            "interest_rate": self._safe_float(payload.get("interestRate")),
+            "mark_price": safe_float(payload.get("markPrice")),
+            "index_price": safe_float(payload.get("indexPrice")),
+            "interest_rate": safe_float(payload.get("interestRate")),
             "next_funding_time": self._to_iso(payload.get("nextFundingTime")),
             "collected_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -167,7 +168,7 @@ class FundingRateService:
             "symbol": self.normalize_symbol(payload["symbol"]),
             "funding_time": self._from_millis(int(payload["fundingTime"])),
             "funding_rate": float(payload["fundingRate"]),
-            "mark_price": self._safe_float(payload.get("markPrice")),
+            "mark_price": safe_float(payload.get("markPrice")),
         }
 
     def _parse_date(self, value: str | datetime | None) -> datetime:
@@ -198,13 +199,8 @@ class FundingRateService:
             return None
         return datetime.fromtimestamp(int(value) / 1000, tz=timezone.utc).isoformat()
 
-    def _safe_float(self, value: Any) -> float | None:
-        if value in (None, ""):
-            return None
-        return float(value)
-
     def _ratio_to_pct(self, value: Any) -> float | None:
-        ratio = self._safe_float(value)
+        ratio = safe_float(value)
         if ratio is None:
             return None
         return ratio * 100.0

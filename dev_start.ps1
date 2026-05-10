@@ -133,6 +133,37 @@ function Stop-HeimdallPortListeners {
     }
 }
 
+function Wait-HeimdallBackendReady {
+    param(
+        [string]$HostName,
+        [int]$Port,
+        [int]$TimeoutSeconds = 120
+    )
+
+    $healthUrl = "http://${HostName}:$Port/health"
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $lastError = $null
+
+    Write-Host "Waiting for backend readiness at $healthUrl ..." -ForegroundColor DarkGray
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $response = Invoke-WebRequest -UseBasicParsing -Uri $healthUrl -TimeoutSec 2 -ErrorAction Stop
+            if ($response.StatusCode -eq 200) {
+                Write-Host "Backend is ready." -ForegroundColor Green
+                return
+            }
+            $lastError = "HTTP $($response.StatusCode)"
+        }
+        catch {
+            $lastError = $_.Exception.Message
+        }
+
+        Start-Sleep -Seconds 1
+    }
+
+    throw "Backend did not become ready within ${TimeoutSeconds}s. Last check: $lastError"
+}
+
 Stop-HeimdallPortListeners -Name "Backend" -Role "backend" -Port $apiPort -Tag $backendTag
 Stop-HeimdallPortListeners -Name "Frontend" -Role "frontend" -Port $frontendPort -Tag $frontendTag
 
@@ -159,7 +190,7 @@ $frontendCommand = @(
 Write-Host "Starting backend..." -ForegroundColor Green
 Start-Process powershell -WorkingDirectory $projectRoot -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $backendCommand
 
-Start-Sleep -Seconds 3
+Wait-HeimdallBackendReady -HostName $apiHost -Port $apiPort
 
 Write-Host "Starting frontend..." -ForegroundColor Green
 Start-Process powershell -WorkingDirectory $frontendRoot -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $frontendCommand

@@ -1,3 +1,4 @@
+import { isRecord } from '@/composables/pageSnapshot'
 import { getLocalStorage } from '@/utils/storage'
 
 const STORAGE_SCHEMA_VERSION = 2
@@ -9,9 +10,7 @@ interface MarketSnapshotStorageEnvelope<TPayload> {
   payload: TPayload
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
-
-export const readMarketWarmSnapshot = <TPayload>(storageKey: string, label: string): TPayload | null => {
+const readMarketWarmSnapshot = <TPayload>(storageKey: string, label: string): TPayload | null => {
   const storage = getLocalStorage()
   if (storage === null) return null
   try {
@@ -28,7 +27,7 @@ export const readMarketWarmSnapshot = <TPayload>(storageKey: string, label: stri
   }
 }
 
-export const writeMarketWarmSnapshot = <TPayload>(storageKey: string, label: string, payload: TPayload) => {
+const writeMarketWarmSnapshot = <TPayload>(storageKey: string, label: string, payload: TPayload) => {
   const storage = getLocalStorage()
   if (storage === null) return
   try {
@@ -42,3 +41,20 @@ export const writeMarketWarmSnapshot = <TPayload>(storageKey: string, label: str
     console.warn(`Failed to save ${label}: ${storageKey}`, error)
   }
 }
+
+export const createWarmSnapshotStore = <TPayload, TArgs extends readonly unknown[]>(options: {
+  label: string
+  key: (...args: TArgs) => string
+  validate: (payload: TPayload, ...args: TArgs) => boolean
+  hasContent: (payload: TPayload) => boolean
+}) => ({
+  read(...args: TArgs): TPayload | null {
+    const payload = readMarketWarmSnapshot<TPayload>(options.key(...args), options.label)
+    if (!payload || !options.validate(payload, ...args)) return null
+    return payload
+  },
+  write(payload: TPayload, ...args: TArgs) {
+    if (!options.hasContent(payload)) return
+    writeMarketWarmSnapshot(options.key(...args), options.label, payload)
+  },
+})

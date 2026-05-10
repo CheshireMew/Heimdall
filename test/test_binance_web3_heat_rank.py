@@ -101,8 +101,8 @@ async def test_web3_token_kline_persists_to_kline_store_before_reusing_network(m
     first = await service.get_kline(address="0xToken", platform="bsc", interval="15min", limit=2)
     second = await service.get_kline(address="0xToken", platform="bsc", interval="15min", limit=2)
 
-    assert [item.close for item in first.items] == [0.000129, 0.0001297]
-    assert [item.close for item in second.items] == [0.000129, 0.0001297]
+    assert [item["close"] for item in first["items"]] == [0.000129, 0.0001297]
+    assert [item["close"] for item in second["items"]] == [0.000129, 0.0001297]
     assert len(kline_client.calls) == 1
     assert kline_store.saved[0][0] == "WEB3:bsc:0xtoken"
     assert kline_store.saved[0][1] == "15min"

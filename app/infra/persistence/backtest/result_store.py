@@ -68,6 +68,7 @@ def build_trade_rows(*, run_id: int, trades, default_pair: str) -> list[Backtest
             entry_tag=item.entry_tag,
             exit_reason=item.exit_reason,
             leverage=item.leverage,
+            side=item.side,
         )
         for item in trades
     ]
@@ -102,6 +103,7 @@ def trade_record_from_row(item: BacktestTrade) -> BacktestTradeRecord:
         exit_reason=item.exit_reason,
         leverage=item.leverage,
         pair=item.pair,
+        side=item.side,
     )
 
 

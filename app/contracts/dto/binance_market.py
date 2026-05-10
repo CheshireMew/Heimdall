@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from app.contracts.dto.json_types import JsonObject
+from app.contracts.json_types import JsonObject
 
 
 class BinanceSymbolSummaryResponse(BaseModel):

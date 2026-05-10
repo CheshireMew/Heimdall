@@ -30,6 +30,7 @@ export function useWeb3MarketRankPage() {
   const chainId = ref(WEB3_ALL_CHAIN_ID)
   const heatRank = useWeb3HeatRankPanel(chainId)
   const addressPnl = ref<BinanceWeb3AddressPnlItemResponse[]>([])
+  let addressPnlFetchState: { key: string; task: Promise<void> } | null = null
 
   const chainOptions = computed(() => (
     [
@@ -49,18 +50,38 @@ export function useWeb3MarketRankPage() {
     }
   })
 
+  const addressPnlRequestKey = () => chainId.value
+
   const fetchData = async () => {
-    loading.value = true
-    errorKey.value = ''
+    const requestChainId = chainId.value
+    const requestKey = addressPnlRequestKey()
+    if (addressPnlFetchState?.key === requestKey) return addressPnlFetchState.task
+    let task!: Promise<void>
+    task = (async () => {
+      loading.value = true
+      errorKey.value = ''
+      try {
+        const selectedChainId = web3ApiChainId(requestChainId)
+        const pnlRes = await marketApi.getBinanceWeb3AddressPnlRank({ chain_id: selectedChainId || '56', page_size: 10 })
+        if (requestKey !== addressPnlRequestKey()) return
+        addressPnl.value = pnlRes.data?.items || []
+      } catch (err) {
+        if (requestKey !== addressPnlRequestKey()) return
+        console.error('Failed to load Binance Web3 rank page', err)
+        errorKey.value = 'web3Rank.loadFailed'
+      } finally {
+        if (addressPnlFetchState?.key === requestKey && addressPnlFetchState.task === task) {
+          loading.value = false
+        }
+      }
+    })()
+    addressPnlFetchState = { key: requestKey, task }
     try {
-      const selectedChainId = web3ApiChainId(chainId.value)
-      const pnlRes = await marketApi.getBinanceWeb3AddressPnlRank({ chain_id: selectedChainId || '56', page_size: 10 })
-      addressPnl.value = pnlRes.data?.items || []
-    } catch (err) {
-      console.error('Failed to load Binance Web3 rank page', err)
-      errorKey.value = 'web3Rank.loadFailed'
+      await task
     } finally {
-      loading.value = false
+      if (addressPnlFetchState?.key === requestKey && addressPnlFetchState.task === task) {
+        addressPnlFetchState = null
+      }
     }
   }
 

@@ -6,7 +6,7 @@ from typing import Any
 
 import pandas as pd
 
-from app.contracts.dto.strategy_contract import (
+from app.contracts.strategy import (
     StrategyConditionNodeResponse,
     StrategyGroupNodeResponse,
     StrategyIndicatorConfigResponse,
@@ -14,18 +14,18 @@ from app.contracts.dto.strategy_contract import (
     StrategyTemplateConfigResponse,
 )
 from app.domain.market.timeframes import timeframe_to_minutes
-from app.services.backtest.scripted_template_runtime import get_template_runtime, template_supports_signal_runtime
-from app.services.backtest.indicator_engines import (
+from app.domain.backtest.scripted_template_runtime import get_template_runtime, template_supports_signal_runtime
+from app.domain.backtest.indicator_engines import (
     indicator_engine_definition,
 )
-from app.infra.persistence.backtest.strategy_catalog import get_indicator_registry_map, get_template_spec
-from app.services.backtest.strategy_config_normalizer import (
+from app.domain.backtest.strategy_catalog import get_indicator_registry_map, get_template_spec
+from app.domain.backtest.strategy_config_normalizer import (
     allowed_run_timeframes,
     explicit_indicator_timeframes,
     normalize_strategy_config_model,
     preferred_run_timeframe,
 )
-from app.services.backtest.strategy_rule_tree import (
+from app.domain.backtest.strategy_rule_tree import (
     strategy_branch,
 )
 from utils.time_utils import to_utc_naive_datetime

@@ -12,14 +12,10 @@ import {
   resolveCurrencyAlias,
   supportedCurrencies,
 } from '@/modules/system'
+import { asNumber } from '@/utils/number'
 
 const normalizeCurrency = (value: string | null | undefined) => {
   return resolveCurrencyAlias(value || 'USD')
-}
-
-const asNumber = (value: unknown) => {
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric : null
 }
 
 export function useMoney() {

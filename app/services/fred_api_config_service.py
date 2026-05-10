@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from app.contracts.dto.config import FredApiConfigResponse
 from app.services.config_file import mask_secret, read_json_object, write_json_object
 from config import settings
 
@@ -12,20 +11,20 @@ class FredApiConfigService:
     def __init__(self, config_path: Path | None = None) -> None:
         self.config_path = config_path or settings.FRED_CONFIG_PATH
 
-    def read_config(self) -> FredApiConfigResponse:
+    def read_config(self) -> dict[str, Any]:
         api_key, source = self._resolve_api_key()
-        return FredApiConfigResponse.model_validate({
+        return {
             "apiKey": "",
             "apiKeySet": bool(api_key),
             "apiKeyPreview": mask_secret(api_key),
             "source": source,
-        })
+        }
 
     def read_effective_api_key(self) -> str:
         api_key, _source = self._resolve_api_key()
         return api_key
 
-    def save_config(self, payload: dict[str, Any]) -> FredApiConfigResponse:
+    def save_config(self, payload: dict[str, Any]) -> dict[str, Any]:
         api_key = self.read_effective_api_key()
         if "apiKey" in payload and payload.get("apiKey") is not None:
             api_key = str(payload.get("apiKey") or "").strip()

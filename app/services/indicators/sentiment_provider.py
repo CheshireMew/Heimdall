@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 from .base_provider import BaseIndicatorProvider, logger
 from config import settings
-from app.services.executor import run_sync
+from app.infra.executor import run_sync
 
 
 class SentimentProvider(BaseIndicatorProvider):

@@ -105,8 +105,8 @@
     "minRisePct": "Rise threshold",
     "resultCount": "{count} results",
     "loadFailure": "{labels} failed to load",
-    "refreshFailedWithCache": "Breakout monitor refresh failed. Showing cached data.",
-    "monitorLoadFailed": "Breakout monitor failed to load.",
+    "refreshFailedWithCache": "Market board refresh failed. Showing cached data.",
+    "monitorLoadFailed": "Market board failed to load.",
     "marketFallback": "Market",
     "market": {
       "spot": "Spot",
