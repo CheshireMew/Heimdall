@@ -58,8 +58,8 @@ export const ensureSymbolCatalogLoaded = async () => {
   loading.value = true
   loadingPromise = marketApi.getSymbols()
     .then((response) => {
-      if (Array.isArray(response.data)) {
-        symbols.value = response.data
+      if (Array.isArray(response)) {
+        symbols.value = response
         loaded = true
       }
     })
@@ -81,3 +81,4 @@ export function useSymbolCatalog() {
     loadSymbols: ensureSymbolCatalogLoaded,
   }
 }
+

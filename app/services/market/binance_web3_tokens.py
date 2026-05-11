@@ -6,7 +6,7 @@ import uuid
 
 from app.domain.market.constants import KLINE_SYMBOL_MAX_LENGTH
 from app.services.market.history_ranges import collect_missing_ranges, is_recent_cache_usable, timeframe_to_ms
-from app.infra.persistence.market.kline_store import KlineStore
+from app.services.persistence_ports import KlineStorePort
 
 from .binance_api_support import BinanceApiSupport, compact_query
 from .binance_numbers import to_float, to_int
@@ -14,7 +14,7 @@ from .binance_web3_support import normalize_token_dynamic
 
 
 class BinanceWeb3TokenService:
-    def __init__(self, *, web3_client: BinanceApiSupport, kline_client: BinanceApiSupport, kline_store: KlineStore) -> None:
+    def __init__(self, *, web3_client: BinanceApiSupport, kline_client: BinanceApiSupport, kline_store: KlineStorePort) -> None:
         self.web3_client = web3_client
         self.kline_client = kline_client
         self.kline_store = kline_store

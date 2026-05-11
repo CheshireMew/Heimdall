@@ -1,5 +1,4 @@
 import { apiGet, apiPost } from '@/api/request'
-import type { AxiosResponse } from 'axios'
 import type {
   FactorCatalogResponse,
   FactorResearchContractResponse,
@@ -12,37 +11,39 @@ import type {
 } from './contracts'
 
 export const factorApi = {
-  getContract(): Promise<AxiosResponse<FactorResearchContractResponse>> {
+  getContract(): Promise<FactorResearchContractResponse> {
     return apiGet('get_factor_contract')
   },
 
-  getCatalog(): Promise<AxiosResponse<FactorCatalogResponse>> {
+  getCatalog(): Promise<FactorCatalogResponse> {
     return apiGet('get_factor_catalog')
   },
 
-  analyze(body: FactorResearchRequest): Promise<AxiosResponse<FactorResearchResponse>> {
+  analyze(body: FactorResearchRequest): Promise<FactorResearchResponse> {
     return apiPost('analyze_factors', body, { client: 'longTask' })
   },
 
-  listRuns(limit: number = 20): Promise<AxiosResponse<FactorResearchRunListItemResponse[]>> {
+  listRuns(limit: number = 20): Promise<FactorResearchRunListItemResponse[]> {
     return apiGet('list_factor_runs', { query: { limit } })
   },
 
-  getRun(runId: number): Promise<AxiosResponse<FactorResearchRunDetailResponse>> {
+  getRun(runId: number): Promise<FactorResearchRunDetailResponse> {
     return apiGet('get_factor_run', { path: { run_id: runId } })
   },
 
-  startBacktest(runId: number, body: FactorExecutionRequest): Promise<AxiosResponse<FactorExecutionResponse>> {
+  startBacktest(runId: number, body: FactorExecutionRequest): Promise<FactorExecutionResponse> {
     return apiPost('start_factor_backtest', body, {
       client: 'longTask',
       path: { run_id: runId },
     })
   },
 
-  startPaper(runId: number, body: FactorExecutionRequest): Promise<AxiosResponse<FactorExecutionResponse>> {
+  startPaper(runId: number, body: FactorExecutionRequest): Promise<FactorExecutionResponse> {
     return apiPost('start_factor_paper_run', body, {
       client: 'longTask',
       path: { run_id: runId },
     })
   },
 }
+
+

@@ -105,9 +105,9 @@ export const useSystemSettingsPage = () => {
         systemApi.getLlmConfig(),
         systemApi.getFredApiConfig(),
       ])
-      systemConfig.value = systemResponse.data
-      applyConfig(llmResponse.data)
-      applyFredConfig(fredResponse.data)
+      systemConfig.value = systemResponse
+      applyConfig(llmResponse)
+      applyFredConfig(fredResponse)
     } catch (err) {
       console.error('Load system config failed', err)
       error.value = '加载配置失败'
@@ -127,7 +127,7 @@ export const useSystemSettingsPage = () => {
         modelId: form.modelId,
         reasoningEnabled: form.reasoningEnabled,
       })
-      applyConfig(response.data)
+      applyConfig(response)
       message.value = '配置已保存'
     } catch (err) {
       console.error('Save LLM config failed', err)
@@ -146,7 +146,7 @@ export const useSystemSettingsPage = () => {
       const response = await systemApi.updateFredApiConfig({
         apiKey: fredApiKeyDraft.value,
       })
-      applyFredConfig(response.data)
+      applyFredConfig(response)
       fredMessage.value = 'FRED API Key 已保存'
     } catch (err) {
       console.error('Save FRED API config failed', err)
@@ -181,3 +181,4 @@ export const useSystemSettingsPage = () => {
     saveFredConfig,
   }
 }
+

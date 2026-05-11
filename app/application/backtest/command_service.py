@@ -9,16 +9,6 @@ from app.contracts.backtest import (
     PaperStartCommand,
 )
 from app.exceptions import BadRequestError, NotFoundError
-from app.contracts.dto.backtest import (
-    BacktestDeleteResponse,
-    BacktestStartResponse,
-    PaperStartResponse,
-    PaperStopResponse,
-    StrategyIndicatorRegistryResponse,
-    StrategyEvolutionResponse,
-    StrategyTemplateResponse,
-    StrategyVersionResponse,
-)
 from app.application.backtest.paper_manager import PaperRunManager
 from app.application.backtest.run_service import BacktestRunService
 from app.application.backtest.ports import BacktestRunReader, StrategyReader, StrategyWriter
@@ -53,7 +43,7 @@ class BacktestCommandService:
             strategy_write_service=strategy_write_service,
         )
 
-    async def start_backtest(self, command: BacktestStartCommand) -> BacktestStartResponse:
+    async def start_backtest(self, command: BacktestStartCommand) -> dict:
         strategy = self.strategy_query_service.get_strategy_version(
             command.strategy_key, command.strategy_version
         )
@@ -78,9 +68,9 @@ class BacktestCommandService:
         )
         if not backtest_id:
             raise RuntimeError("回测执行失败")
-        return BacktestStartResponse(success=True, backtest_id=backtest_id, message="回测已完成")
+        return {"success": True, "backtest_id": backtest_id, "message": "回测已完成"}
 
-    async def start_paper_run(self, command: PaperStartCommand) -> PaperStartResponse:
+    async def start_paper_run(self, command: PaperStartCommand) -> dict:
         strategy = self.strategy_query_service.get_strategy_version(
             command.strategy_key, command.strategy_version
         )
@@ -94,26 +84,26 @@ class BacktestCommandService:
         )
         return await self.paper_manager.start_run(command)
 
-    async def stop_paper_run(self, run_id: int) -> PaperStopResponse:
+    async def stop_paper_run(self, run_id: int) -> dict:
         logger.info(f"停止模拟盘: run_id={run_id}")
         return await self.paper_manager.stop_run(run_id)
 
-    async def delete_backtest(self, backtest_id: int) -> BacktestDeleteResponse:
+    async def delete_backtest(self, backtest_id: int) -> dict:
         logger.info(f"删除回测记录: backtest_id={backtest_id}")
         deleted = await run_sync(
             lambda: self.run_repository.delete_run(backtest_id, "backtest"),
         )
         if not deleted:
             raise NotFoundError(f"回测记录不存在: {backtest_id}")
-        return BacktestDeleteResponse(success=True, run_id=backtest_id, message="回测记录已删除")
+        return {"success": True, "run_id": backtest_id, "message": "回测记录已删除"}
 
-    async def delete_paper_run(self, run_id: int) -> BacktestDeleteResponse:
+    async def delete_paper_run(self, run_id: int) -> dict:
         logger.info(f"删除模拟盘记录: run_id={run_id}")
         return await self.paper_manager.delete_run(run_id)
 
     async def create_template(
         self, command: CreateStrategyTemplateCommand
-    ) -> StrategyTemplateResponse:
+    ) -> dict:
         result = await run_sync(
             lambda: self.strategy_write_service.create_template(
                 key=command.key,
@@ -125,11 +115,11 @@ class BacktestCommandService:
                 default_parameter_space=command.default_parameter_space,
             ),
         )
-        return StrategyTemplateResponse.model_validate(result)
+        return result
 
     async def create_indicator(
         self, command: CreateIndicatorDefinitionCommand
-    ) -> StrategyIndicatorRegistryResponse:
+    ) -> dict:
         result = await run_sync(
             lambda: self.strategy_write_service.create_indicator(
                 key=command.key,
@@ -139,11 +129,11 @@ class BacktestCommandService:
                 params=command.params,
             ),
         )
-        return StrategyIndicatorRegistryResponse.model_validate(result)
+        return result
 
     async def create_strategy_version(
         self, command: CreateStrategyVersionCommand
-    ) -> StrategyVersionResponse:
+    ) -> dict:
         result = await run_sync(
             lambda: self.strategy_write_service.create_strategy_version(
                 key=command.key,
@@ -157,13 +147,11 @@ class BacktestCommandService:
                 make_default=command.make_default,
             ),
         )
-        return StrategyVersionResponse.model_validate(
-            build_strategy_version_response_payload(result)
-        )
+        return build_strategy_version_response_payload(result)
 
     async def evolve_strategy_from_backtest(
         self, command: EvolveStrategyFromBacktestCommand
-    ) -> StrategyEvolutionResponse:
+    ) -> dict:
         return await run_sync(
             lambda: self.strategy_evolution_service.evolve_from_backtest(command),
         )

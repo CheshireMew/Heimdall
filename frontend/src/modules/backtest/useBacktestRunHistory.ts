@@ -42,7 +42,7 @@ export const useBacktestRunHistory = ({
   const fetchHistory = async () => {
     try {
       const res = await backtestApi.listRuns()
-      history.value = res.data
+      history.value = res
       const validRunIds = new Set(history.value.map((run) => run.id))
       compareRunIds.value = compareRunIds.value.filter((item) => validRunIds.has(item))
       const validVersions = new Set(versionCompareOptions.value.map((item) => item.version))
@@ -55,7 +55,7 @@ export const useBacktestRunHistory = ({
   const fetchPaperHistory = async () => {
     try {
       const res = await backtestApi.listPaperRuns()
-      paperHistory.value = res.data
+      paperHistory.value = res
     } catch (error) {
       console.error(error)
     }
@@ -64,12 +64,12 @@ export const useBacktestRunHistory = ({
   const loadResult = async (id: number) => {
     try {
       const res = await backtestApi.getRun(id)
-      selectedRun.value = res.data
+      selectedRun.value = res
       selectedRunMode.value = 'backtest'
       historyMode.value = 'backtest'
       if (!compareRunIds.value.includes(id)) compareRunIds.value = [...compareRunIds.value, id]
-      await loadChart(res.data)
-      return res.data
+      await loadChart(res)
+      return res
     } catch (error) {
       console.error(error)
       return null
@@ -79,11 +79,11 @@ export const useBacktestRunHistory = ({
   const loadPaperResult = async (id: number) => {
     try {
       const res = await backtestApi.getPaperRun(id)
-      selectedRun.value = res.data
+      selectedRun.value = res
       selectedRunMode.value = 'paper'
       historyMode.value = 'paper'
-      await loadChart(res.data)
-      return res.data
+      await loadChart(res)
+      return res
     } catch (error) {
       console.error(error)
       return null
@@ -171,4 +171,5 @@ export const useBacktestRunHistory = ({
     refreshPaperSelection,
   }
 }
+
 

@@ -3,7 +3,7 @@
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
@@ -17,12 +17,8 @@ from app.contracts.dto.tools import (
     PairCompareToolResponse,
     ToolsPageContractResponse,
 )
-from app.services.tools.contracts import ComparePairsCommand, SimulateDcaCommand
-from app.services.tools.app_service import DCA_STRATEGY_KEYS
+from app.contracts.tools import ComparePairsCommand, DCA_STRATEGY_KEYS, SimulateDcaCommand
 from config import settings
-
-if TYPE_CHECKING:
-    from app.services.tools.app_service import ToolsAppService
 
 
 router = APIRouter()
@@ -44,7 +40,7 @@ async def get_tools_contract():
 async def dca_simulate(
     request: Request,
     body: DCARequestSchema,
-    service: ToolsAppService = Depends(tools_app_dependency),
+    service: Any = Depends(tools_app_dependency),
 ):
     return await service.simulate_dca(
         SimulateDcaCommand(
@@ -65,7 +61,7 @@ async def dca_simulate(
 async def compare_pairs(
     request: Request,
     body: PairCompareRequestSchema,
-    service: ToolsAppService = Depends(tools_app_dependency),
+    service: Any = Depends(tools_app_dependency),
 ):
     return await service.compare_pairs(
         ComparePairsCommand(

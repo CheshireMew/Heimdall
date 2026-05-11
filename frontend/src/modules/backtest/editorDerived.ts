@@ -123,3 +123,4 @@ export const buildOptimizableTargets = (
   targets.push({ path: 'risk.trailing.offset', label: t('backtest.trailingOffset'), type: 'float', fallback: versionDraft.config?.risk?.trailing?.offset || 0.03 })
   return targets
 }
+

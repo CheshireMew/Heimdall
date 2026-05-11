@@ -18,8 +18,7 @@ from .binance_market_normalizers import (
 )
 from .binance_numbers import to_float, to_int
 from .binance_research_series import BinanceResearchSeriesLoader
-from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
-from app.infra.persistence.market.funding_rate_store import FundingRateStore
+from app.services.persistence_ports import BinanceMarketResearchStorePort, FundingRateStorePort
 
 
 class BinanceUsdmMarketService:
@@ -27,8 +26,8 @@ class BinanceUsdmMarketService:
         self,
         client: BinanceApiSupport,
         *,
-        research_store: BinanceMarketResearchStore,
-        funding_rate_store: FundingRateStore,
+        research_store: BinanceMarketResearchStorePort,
+        funding_rate_store: FundingRateStorePort,
     ) -> None:
         self.client = client
         self.research_store = research_store

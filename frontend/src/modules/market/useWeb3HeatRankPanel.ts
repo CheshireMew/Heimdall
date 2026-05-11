@@ -64,7 +64,7 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
     web3HeatRankBoards.value[web3HeatRankBoardKey(web3Sort.value.field, web3Sort.value.direction)]?.items || []
   ))
 
-  const applyHeatRankPayload = (payload: Awaited<ReturnType<typeof marketApi.getBinanceWeb3HeatRankBoards>>['data']) => {
+  const applyHeatRankPayload = (payload: Awaited<ReturnType<typeof marketApi.getBinanceWeb3HeatRankBoards>>) => {
     web3HeatRankBoards.value = payload.boards || {}
   }
 
@@ -94,8 +94,8 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
           size: WEB3_HEAT_RANK_SIZE,
         })
         if (requestKey !== heatRankRequestKey()) return
-        applyHeatRankPayload(response.data)
-        web3HeatRankWarmSnapshot.write(response.data, requestChainId, WEB3_HEAT_RANK_SIZE)
+        applyHeatRankPayload(response)
+        web3HeatRankWarmSnapshot.write(response, requestChainId, WEB3_HEAT_RANK_SIZE)
       } catch (requestError) {
         if (requestKey !== heatRankRequestKey()) return
         web3ErrorKey.value = web3HeatRank.value.length
@@ -140,9 +140,9 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
           limit: 240,
         }),
       ])
-      web3Dynamic.value = dynamicRes.data
-      web3Audit.value = auditRes.data
-      web3Kline.value = klineRes.data?.items || []
+      web3Dynamic.value = dynamicRes
+      web3Audit.value = auditRes
+      web3Kline.value = klineRes?.items || []
     } catch (requestError) {
       web3DetailErrorKey.value = 'web3Rank.tokenDetailLoadFailed'
       web3Dynamic.value = null
@@ -211,3 +211,4 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
 }
 
 const web3HeatRankBoardKey = (field: Web3HeatRankSortField, direction: Web3HeatRankSortState['direction']) => `${field}_${direction}`
+

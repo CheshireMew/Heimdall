@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from .binance_api_support import BinanceApiSupport, compact_query, encode_symbol_list
-from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
+from app.services.persistence_ports import BinanceMarketResearchStorePort
 from .binance_market_normalizers import normalize_kline_response, normalize_levels, normalize_ticker_item, normalize_trade
 from .binance_numbers import to_float
 from .binance_research_series import BinanceResearchSeriesLoader
 
 
 class BinanceSpotMarketService:
-    def __init__(self, client: BinanceApiSupport, *, research_store: BinanceMarketResearchStore) -> None:
+    def __init__(self, client: BinanceApiSupport, *, research_store: BinanceMarketResearchStorePort) -> None:
         self.client = client
         self.research_store = research_store
         self.research_series = BinanceResearchSeriesLoader(

@@ -75,10 +75,10 @@ export const useBacktestRunExecution = ({
     backtestLoading.value = true
     try {
       const res = await backtestApi.startRun(buildPayload())
-      if (res.data.success) {
+      if (res.success) {
         historyMode.value = 'backtest'
         await fetchHistory()
-        return { id: res.data.backtest_id, mode: 'backtest' as const }
+        return { id: res.backtest_id, mode: 'backtest' as const }
       }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error)
@@ -94,10 +94,10 @@ export const useBacktestRunExecution = ({
     paperLoading.value = true
     try {
       const res = await backtestApi.startPaperRun(buildPaperPayload())
-      if (res.data.success) {
+      if (res.success) {
         historyMode.value = 'paper'
         await fetchPaperHistory()
-        return { id: res.data.run_id, mode: 'paper' as const }
+        return { id: res.run_id, mode: 'paper' as const }
       }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error)
@@ -115,3 +115,4 @@ export const useBacktestRunExecution = ({
     startPaperRun,
   }
 }
+

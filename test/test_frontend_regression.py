@@ -102,9 +102,9 @@ def test_page_snapshot_registry_and_helpers_are_stable():
 
 
 def test_generated_frontend_contracts_include_route_models():
-    backtest_types = read_frontend("types/backtest.ts")
-    factor_types = read_frontend("types/factor.ts")
-    market_types = read_frontend("types/market.ts")
+    backtest_types = read_frontend("modules/backtest/generatedContracts.ts")
+    factor_types = read_frontend("modules/factors/generatedContracts.ts")
+    market_types = read_frontend("modules/market/generatedContracts.ts")
 
     assert "interface BacktestDeleteResponse" in backtest_types
     assert "interface FactorResearchRunListItemResponse" in factor_types
@@ -113,7 +113,7 @@ def test_generated_frontend_contracts_include_route_models():
     assert "interface OhlcvPointResponse" in market_types
     assert "interface GetMarketFullHistoryQueryParams" in market_types
     assert "GetMarketFullHistoryBatchQueryParamsMeta" not in market_types
-    assert not any(path.name.endswith("-frontend.ts") for path in (FRONTEND_DIR / "types").glob("*.ts"))
+    assert not (FRONTEND_DIR / "types").exists()
 
 
 def test_frontend_business_code_uses_module_contract_boundaries():
@@ -121,7 +121,7 @@ def test_frontend_business_code_uses_module_contract_boundaries():
     for path in FRONTEND_DIR.rglob("*"):
         if path.suffix not in {".ts", ".vue"}:
             continue
-        if path.name == "contracts.ts" or path.parent == FRONTEND_DIR / "types":
+        if path.name in {"contracts.ts", "generatedContracts.ts"}:
             continue
         source = path.read_text(encoding="utf-8")
         if "@/types" in source or re.search(r"from\s+['\"](?:\.\./)+types/", source):
@@ -269,14 +269,14 @@ def test_market_warm_snapshot_requests_discard_stale_parameter_responses():
     assert "let fetchState: { key: string; task: Promise<void> } | null = null" in monitor_source
     assert "const requestMinRisePct = minRisePct.value" in monitor_source
     assert "if (requestKey !== marketPageRequestKey()) return" in monitor_source
-    assert "binanceMarketWarmSnapshot.write(response.data, requestMinRisePct, requestQuoteAsset)" in monitor_source
+    assert "binanceMarketWarmSnapshot.write(response, requestMinRisePct, requestQuoteAsset)" in monitor_source
     assert "min_rise_pct: minRisePct.value" not in monitor_source
     assert "binanceMarketWarmSnapshot.write(response.data, minRisePct.value" not in monitor_source
 
     assert "let heatRankFetchState: { key: string; task: Promise<void> } | null = null" in web3_heat_source
     assert "const requestChainId = chainId.value" in web3_heat_source
     assert "if (requestKey !== heatRankRequestKey()) return" in web3_heat_source
-    assert "web3HeatRankWarmSnapshot.write(response.data, requestChainId, WEB3_HEAT_RANK_SIZE)" in web3_heat_source
+    assert "web3HeatRankWarmSnapshot.write(response, requestChainId, WEB3_HEAT_RANK_SIZE)" in web3_heat_source
     assert "web3HeatRankWarmSnapshot.write(response.data, chainId.value" not in web3_heat_source
 
     assert "let addressPnlFetchState: { key: string; task: Promise<void> } | null = null" in web3_page_source
@@ -358,7 +358,7 @@ def test_frontend_navigation_uses_single_manifest():
 
 
 def test_market_frontend_uses_generated_query_contracts():
-    market_types = read_frontend("types/market.ts")
+    market_types = read_frontend("modules/market/generatedContracts.ts")
     contracts_source = read_frontend("modules/market/contracts.ts")
     api_source = read_frontend("modules/market/api.ts")
     request_source = read_frontend("api/request.ts")
@@ -384,6 +384,13 @@ def test_market_frontend_uses_generated_query_contracts():
 def test_frontend_api_client_uses_route_response_type_map():
     request_source = read_frontend("api/request.ts")
     routes_source = read_frontend("api/routes.ts")
+    module_api_sources = [
+        read_frontend("modules/market/api.ts"),
+        read_frontend("modules/tools/api.ts"),
+        read_frontend("modules/backtest/api.ts"),
+        read_frontend("modules/factors/api.ts"),
+        read_frontend("modules/system/api.ts"),
+    ]
 
     assert "ApiRouteResponse<TRoute>" in request_source
     assert "ApiRouteBody<TRoute>" in request_source
@@ -392,6 +399,21 @@ def test_frontend_api_client_uses_route_response_type_map():
     assert "export type ApiRouteBodyMap" in routes_source
     assert "export type ApiRouteQueryMap" in routes_source
     assert "<TResponse = unknown>" not in request_source
+    assert "AxiosResponse" in request_source
+    assert all("AxiosResponse" not in source for source in module_api_sources)
+
+
+def test_frontend_has_no_global_generated_types_or_js_sources():
+    assert not (FRONTEND_DIR / "types").exists()
+    assert not list(FRONTEND_DIR.rglob("*.js"))
+    offenders = []
+    for path in FRONTEND_DIR.rglob("*"):
+        if path.suffix not in {".ts", ".vue"}:
+            continue
+        source = path.read_text(encoding="utf-8")
+        if "@/types" in source or re.search(r"from\s+['\"](?:\.\./)+types/", source):
+            offenders.append(path.relative_to(FRONTEND_DIR).as_posix())
+    assert offenders == []
 
 
 def test_backtest_and_factor_formatting_entry_points_are_present():

@@ -51,3 +51,4 @@ export const normalizeHalvingSnapshot = (
 export const buildHalvingSnapshot = (snapshot: HalvingPageSnapshot): HalvingPageSnapshot => (
   normalizeHalvingSnapshot(snapshot)
 )
+

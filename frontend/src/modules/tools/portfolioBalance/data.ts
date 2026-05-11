@@ -71,7 +71,7 @@ const loadCryptoHistoryMap = async (symbols: string[], startText: string) => {
       fetch_policy: 'hydrate',
     })
     const seriesBySymbol = new Map(
-      (response.data.items || []).map((item: MarketHistoryBatchItemResponse) => [item.symbol, item.items || []]),
+      (response.items || []).map((item: MarketHistoryBatchItemResponse) => [item.symbol, item.items || []]),
     )
     return Object.fromEntries(
       symbols.map((symbol) => [symbol, rowsToHistory(seriesBySymbol.get(symbol) || [])]),
@@ -87,7 +87,7 @@ const loadIndexHistory = async (symbol: string, startText: string) => {
       timeframe: '1d',
       start_date: startText,
     })
-    return rowsToHistory(response.data.data || [])
+    return rowsToHistory(response.data || [])
   })
 }
 
@@ -116,7 +116,7 @@ export const fetchPortfolioPriceMap = async (portfolio: PortfolioBalancePortfoli
         symbols: cryptoTargets.map((item) => item.marketSymbol),
         timeframe: '1d',
       })
-      ;(response.data.items || []).forEach((item) => {
+      ;(response.items || []).forEach((item) => {
         const currentPrice = Number(item.current_price || 0)
         if (currentPrice > 0) cryptoPriceByMarketSymbol.set(item.symbol, currentPrice)
       })
@@ -213,3 +213,4 @@ export const loadPortfolioBacktestHistory = async (
 
   return historyBySymbol
 }
+

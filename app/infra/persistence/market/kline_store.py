@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from typing import List
 
 from config import settings
-from config.settings import DEFAULT_DB_PATH
+from config.settings import DATA_DIR
 from app.infra.db.database import DatabaseRuntime
 from app.infra.db.schema import Kline
 from utils.logger import logger
@@ -14,7 +14,7 @@ from utils.logger import logger
 
 @lru_cache(maxsize=1)
 def _load_early_btc_history() -> List[List]:
-    file_path = DEFAULT_DB_PATH.parent / "btc_history_early.json"
+    file_path = DATA_DIR / "btc_history_early.json"
     if file_path.exists():
         with file_path.open("r", encoding="utf-8") as f:
             data = json.load(f)

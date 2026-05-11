@@ -1,13 +1,15 @@
 """配置相关API路由"""
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Request
 from fastapi import Depends
 
 from app.dependencies import runtime_dependency
 from app.exceptions import AppError
-from app.infra.db import DatabaseRuntime
 from app.runtime_refs import (
+    INFRA_CACHE_SERVICE,
     INFRA_DATABASE_RUNTIME,
     SYSTEM_CURRENCY_RATE_SERVICE,
     SYSTEM_FRED_API_CONFIG_SERVICE,
@@ -22,9 +24,6 @@ from app.contracts.dto.config import (
     SystemConfigResponse,
 )
 from app.contracts.dto.market import CurrencyRatesResponse
-from app.services.fred_api_config_service import FredApiConfigService
-from app.services.llm_config_service import LlmConfigService
-from app.services.currency_service import CurrencyRateService
 from config import settings
 
 router = APIRouter()
@@ -43,11 +42,20 @@ def _require_local_settings_request(request: Request) -> None:
     raise AppError("配置接口仅允许本机访问", status_code=403)
 
 
+def _optional_runtime_service(request: Request, ref: Any) -> Any | None:
+    runtime_services = getattr(request.app.state, "runtime_services", None)
+    if runtime_services is None:
+        return None
+    return runtime_services.get_service(ref)
+
+
 @router.get("/config", response_model=SystemConfigResponse)
 async def get_config(
-    database_runtime: DatabaseRuntime = Depends(database_runtime_dependency),
+    request: Request,
+    database_runtime: Any = Depends(database_runtime_dependency),
 ):
     """获取系统配置"""
+    cache_service = _optional_runtime_service(request, INFRA_CACHE_SERVICE)
     return SystemConfigResponse.model_validate({
         'exchange': settings.EXCHANGE_ID,
         'symbols': get_supported_market_symbols(),
@@ -63,14 +71,14 @@ async def get_config(
             'app_role': settings.APP_RUNTIME_ROLE,
             'database_engine': database_runtime.engine.dialect.name,
             'database_source': database_runtime.source,
-            'cache_backend': 'local-memory',
+            'cache_backend': type(cache_service).__name__ if cache_service is not None else 'unavailable',
         },
     })
 
 
 @router.get("/currencies", response_model=CurrencyRatesResponse)
 async def get_currencies(
-    currency_service: CurrencyRateService = Depends(currency_rate_dependency),
+    currency_service: Any = Depends(currency_rate_dependency),
 ):
     return await currency_service.get_rates()
 
@@ -78,7 +86,7 @@ async def get_currencies(
 @router.get("/llm-config", response_model=LlmProviderConfigResponse)
 async def get_llm_config(
     request: Request,
-    service: LlmConfigService = Depends(llm_config_dependency),
+    service: Any = Depends(llm_config_dependency),
 ):
     _require_local_settings_request(request)
     return service.read_config()
@@ -88,7 +96,7 @@ async def get_llm_config(
 async def update_llm_config(
     request: Request,
     payload: LlmProviderConfigUpdateRequest,
-    service: LlmConfigService = Depends(llm_config_dependency),
+    service: Any = Depends(llm_config_dependency),
 ):
     _require_local_settings_request(request)
     return service.save_config(payload.model_dump())
@@ -97,7 +105,7 @@ async def update_llm_config(
 @router.get("/fred-api-config", response_model=FredApiConfigResponse)
 async def get_fred_api_config(
     request: Request,
-    service: FredApiConfigService = Depends(fred_api_config_dependency),
+    service: Any = Depends(fred_api_config_dependency),
 ):
     _require_local_settings_request(request)
     return service.read_config()
@@ -107,7 +115,7 @@ async def get_fred_api_config(
 async def update_fred_api_config(
     request: Request,
     payload: FredApiConfigUpdateRequest,
-    service: FredApiConfigService = Depends(fred_api_config_dependency),
+    service: Any = Depends(fred_api_config_dependency),
 ):
     _require_local_settings_request(request)
     return service.save_config(payload.model_dump())

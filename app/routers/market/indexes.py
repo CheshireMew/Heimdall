@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
 
@@ -10,15 +10,12 @@ from app.rate_limit import limiter
 from app.contracts.dto.market import MarketIndexHistoryResponse, MarketIndexResponse, build_ohlcv_points
 from config import settings
 
-if TYPE_CHECKING:
-    from app.services.market.index_data_service import IndexDataService, MarketIndexHistoryRecord, MarketIndexRecord
-
 
 router = APIRouter(tags=["Market Data"])
 index_data_dependency = runtime_dependency(MARKET_INDEX_DATA_SERVICE)
 
 
-def _index_response(record: MarketIndexRecord) -> MarketIndexResponse:
+def _index_response(record: Any) -> MarketIndexResponse:
     return MarketIndexResponse(
         symbol=record.symbol,
         name=record.name,
@@ -30,7 +27,7 @@ def _index_response(record: MarketIndexRecord) -> MarketIndexResponse:
     )
 
 
-def _index_history_response(record: MarketIndexHistoryRecord) -> MarketIndexHistoryResponse:
+def _index_history_response(record: Any) -> MarketIndexHistoryResponse:
     return MarketIndexHistoryResponse(
         symbol=record.symbol,
         name=record.name,
@@ -51,7 +48,7 @@ def _index_history_response(record: MarketIndexHistoryRecord) -> MarketIndexHist
 
 @router.get("/indexes", response_model=list[MarketIndexResponse])
 async def list_market_indexes(
-    service: IndexDataService = Depends(index_data_dependency),
+    service: Any = Depends(index_data_dependency),
 ):
     return [_index_response(record) for record in await service.list_indexes_async()]
 
@@ -64,7 +61,7 @@ async def get_index_history(
     timeframe: str = Query("1d", description="第一版仅支持 1d"),
     start_date: str = Query("2010-01-01", description="Start Date YYYY-MM-DD"),
     end_date: str | None = Query(None, description="End Date YYYY-MM-DD"),
-    service: IndexDataService = Depends(index_data_dependency),
+    service: Any = Depends(index_data_dependency),
 ):
     return _index_history_response(
         await service.get_history_async(
@@ -81,7 +78,7 @@ async def get_index_history(
 async def get_latest_index(
     request: Request,
     symbol: str = Query(..., description="指数 symbol, 如 US_SP500 或 CN_CSI300"),
-    service: IndexDataService = Depends(index_data_dependency),
+    service: Any = Depends(index_data_dependency),
 ):
     return _index_history_response(await service.get_latest_async(symbol=symbol))
 
@@ -94,7 +91,7 @@ async def get_index_pricing_history(
     timeframe: str = Query("1d", description="第一版仅支持 1d"),
     start_date: str = Query("2010-01-01", description="Start Date YYYY-MM-DD"),
     end_date: str | None = Query(None, description="End Date YYYY-MM-DD"),
-    service: IndexDataService = Depends(index_data_dependency),
+    service: Any = Depends(index_data_dependency),
 ):
     return _index_history_response(
         await service.get_pricing_history_async(
@@ -111,6 +108,6 @@ async def get_index_pricing_history(
 async def get_latest_index_pricing(
     request: Request,
     symbol: str = Query(..., description="指数 symbol, 如 US_SP500 或 CN_CSI300"),
-    service: IndexDataService = Depends(index_data_dependency),
+    service: Any = Depends(index_data_dependency),
 ):
     return _index_history_response(await service.get_latest_pricing_async(symbol=symbol))

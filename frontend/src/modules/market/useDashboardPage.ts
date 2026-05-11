@@ -107,7 +107,7 @@ export function useDashboardPage() {
         signal: controller.signal,
       })
       if (tradeSetupAbortController !== controller) return
-      tradeSetupResult.value = response.data
+      tradeSetupResult.value = response
     } catch (error) {
       if (controller.signal.aborted) return
       console.error('Trade setup failed', error)
@@ -162,3 +162,4 @@ export function useDashboardPage() {
     askTradeSetup,
   })
 }
+

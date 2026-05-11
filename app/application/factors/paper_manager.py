@@ -5,7 +5,6 @@ from typing import Any
 
 from app.domain.market.timeframes import timeframe_to_timedelta
 from app.contracts.backtest import BacktestEquityPointRecord, BacktestPortfolioConfig, StrategyVersionRecord
-from app.contracts.dto.factor import FactorExecutionResponse
 from app.contracts.backtest_run import (
     FACTOR_BLEND_PAPER_ENGINE,
     PAPER_LIVE_EXECUTION_MODE,
@@ -34,6 +33,7 @@ class FactorPaperRunManager(PaperRunHostedService):
         execution_core: FactorSignalCore,
         persistence_service: FactorPaperPersistence,
         run_mutations: BacktestRunMutations,
+        activate_created_runs: bool,
     ) -> None:
         self.factor_service = factor_service
         self.run_repository = run_repository
@@ -41,6 +41,7 @@ class FactorPaperRunManager(PaperRunHostedService):
         self.execution_core = execution_core
         self.persistence_service = persistence_service
         self.run_mutations = run_mutations
+        self.activate_created_runs = activate_created_runs
         self.paper_host = PaperRunHost(
             PaperRunController(
                 engine=FACTOR_BLEND_PAPER_ENGINE,
@@ -53,10 +54,11 @@ class FactorPaperRunManager(PaperRunHostedService):
             )
         )
 
-    async def start_run(self, config: FactorExecutionConfig) -> FactorExecutionResponse:
+    async def start_run(self, config: FactorExecutionConfig) -> dict:
         run_id = await run_sync(lambda: self._create_run(config))
-        self._activate_created_run(run_id)
-        return FactorExecutionResponse(success=True, run_id=run_id, message="因子模拟盘已启动")
+        if self.activate_created_runs:
+            self._activate_created_run(run_id)
+        return {"success": True, "run_id": run_id, "message": "因子模拟盘已启动"}
 
     def _tick(self, run_id: int) -> bool:
         run = self.run_mutations.get_running_paper_run(run_id=run_id, engine=FACTOR_BLEND_PAPER_ENGINE)

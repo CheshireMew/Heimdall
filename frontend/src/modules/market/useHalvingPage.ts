@@ -309,7 +309,7 @@ export function useHalvingPage() {
         symbol: 'BTC/USDT',
         timeframe: '1d',
       })
-      const livePrice = Number(response.data?.current_price)
+      const livePrice = Number(response?.current_price)
       if (Number.isFinite(livePrice) && livePrice > 0) {
         currentPrice.value = livePrice
       }
@@ -326,7 +326,7 @@ export function useHalvingPage() {
         start_date: '2010-07-01',
         timeframe: '1d',
       })
-      historyData.value = (response.data.items || []).filter((row) => row.close > 0)
+      historyData.value = (response.items || []).filter((row) => row.close > 0)
       if (currentPrice.value <= 0 && historyData.value.length > 0) {
         currentPrice.value = Number(historyData.value[historyData.value.length - 1]?.close || 0)
       }
@@ -404,3 +404,4 @@ export function useHalvingPage() {
     formatPrice: (price: number) => formatDisplayMoney(price, 'USDT', { maximumFractionDigits: 2 }),
   }
 }
+

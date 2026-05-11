@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
 
@@ -9,9 +9,6 @@ from app.runtime_refs import MARKET_FUNDING_RATE_APP_SERVICE
 from app.rate_limit import limiter
 from app.contracts.dto.market import FundingRateHistoryResponse, FundingRateSnapshotResponse, FundingRateSyncResponse
 from config import settings
-
-if TYPE_CHECKING:
-    from app.services.market.funding_rate_app_service import FundingRateAppService
 
 
 router = APIRouter(tags=["Market Data"])
@@ -23,7 +20,7 @@ funding_rate_dependency = runtime_dependency(MARKET_FUNDING_RATE_APP_SERVICE)
 async def get_current_funding_rate(
     request: Request,
     symbol: str = Query(..., description="合约 symbol，例如 BTCUSDT 或 BTC/USDT:USDT"),
-    service: FundingRateAppService = Depends(funding_rate_dependency),
+    service: Any = Depends(funding_rate_dependency),
 ):
     return await service.get_current_funding_rate(symbol)
 
@@ -35,7 +32,7 @@ async def sync_funding_rate_history(
     symbol: str = Query(..., description="合约 symbol，例如 BTCUSDT"),
     start_date: str = Query("2019-09-01", description="开始日期 YYYY-MM-DD"),
     end_date: str | None = Query(None, description="结束日期 YYYY-MM-DD，默认当前时间"),
-    service: FundingRateAppService = Depends(funding_rate_dependency),
+    service: Any = Depends(funding_rate_dependency),
 ):
     return await service.sync_funding_rate_history(
         symbol=symbol,
@@ -50,7 +47,7 @@ async def get_funding_rate_history(
     start_date: str | None = Query(None, description="开始日期 YYYY-MM-DD"),
     end_date: str | None = Query(None, description="结束日期 YYYY-MM-DD"),
     limit: int | None = Query(None, ge=1, le=20000),
-    service: FundingRateAppService = Depends(funding_rate_dependency),
+    service: Any = Depends(funding_rate_dependency),
 ):
     return await service.get_funding_rate_history(
         symbol=symbol,

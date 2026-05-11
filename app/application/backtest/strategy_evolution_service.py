@@ -4,14 +4,6 @@ from copy import deepcopy
 from typing import Any
 
 from app.contracts.backtest import EvolveStrategyFromBacktestCommand
-from app.contracts.dto.backtest import (
-    BacktestDetailResponse,
-    StrategyEvolutionChangeResponse,
-    StrategyEvolutionDefectResponse,
-    StrategyEvolutionResponse,
-    StrategyDefinitionResponse,
-    StrategyVersionResponse,
-)
 from app.contracts.backtest_result import (
     BacktestReportResponse,
     BacktestReportSnapshotResponse,
@@ -24,6 +16,10 @@ from app.domain.backtest.strategy_support import (
     build_strategy_version_response_payload,
     normalize_strategy_version_config_model,
 )
+
+
+EvolutionDefect = dict[str, Any]
+EvolutionChange = dict[str, Any]
 
 
 class StrategyEvolutionService:
@@ -42,18 +38,20 @@ class StrategyEvolutionService:
 
     def evolve_from_backtest(
         self, command: EvolveStrategyFromBacktestCommand
-    ) -> StrategyEvolutionResponse:
+    ) -> dict:
         run = self.run_repository.get_run(command.backtest_id, page=1, page_size=1000, execution_mode="backtest")
         if run is None:
             raise ValueError(f"回测记录不存在: {command.backtest_id}")
-        run = BacktestDetailResponse.model_validate(run)
-        if run.status != "completed":
+        if run.get("status") != "completed":
             raise ValueError("只有已完成的回测才能用于策略进化")
-        if run.report is None:
+        report_payload = run.get("report")
+        if report_payload is None:
             raise ValueError("回测缺少绩效报告，无法诊断策略缺陷")
+        report = BacktestReportResponse.model_validate(report_payload)
+        metadata = run.get("metadata") or {}
 
-        strategy_key = _strategy_key(run.report, run.metadata)
-        source_version = _strategy_version(run.report, run.metadata)
+        strategy_key = _strategy_key(report, metadata)
+        source_version = _strategy_version(report, metadata)
         if not strategy_key:
             raise ValueError("回测缺少策略标识，无法创建进化版本")
 
@@ -62,13 +60,13 @@ class StrategyEvolutionService:
         if not template_supports_version_editing(runtime_contract):
             raise ValueError("当前策略是只读脚本策略，不能自动创建进化版本")
 
-        base_config = _selected_config(run.report) or _metadata_selected_config(run.metadata) or source_strategy.config
+        base_config = _selected_config(report) or _metadata_selected_config(metadata) or source_strategy.config
         normalized_base = normalize_strategy_version_config_model(
             source_strategy.template,
             base_config,
         ).model_dump()
-        defects = diagnose_strategy_defects(run.report)
-        evolved_config, changes = evolve_strategy_config(run.report, normalized_base)
+        defects = diagnose_strategy_defects(report)
+        evolved_config, changes = evolve_strategy_config(report, normalized_base)
         normalized_evolved = normalize_strategy_version_config_model(
             source_strategy.template,
             evolved_config,
@@ -80,47 +78,44 @@ class StrategyEvolutionService:
             definition = self._strategy_definition(strategy_key)
             result = self.strategy_write_service.create_strategy_version(
                 key=strategy_key,
-                name=command.version_name or f"{source_strategy.strategy_name} evolved from run #{run.id}",
+                name=command.version_name or f"{source_strategy.strategy_name} evolved from run #{run['id']}",
                 template=source_strategy.template,
                 category=definition.get("category") or "custom",
                 description=definition.get("description") or source_strategy.description,
                 config=normalized_evolved.model_dump(),
                 parameter_space=source_strategy.parameter_space,
-                notes=command.notes or _default_evolution_notes(run.id, defects, changes),
+                notes=command.notes or _default_evolution_notes(run["id"], defects, changes),
                 make_default=command.make_default,
             )
-            created_version = StrategyVersionResponse.model_validate(
-                build_strategy_version_response_payload(result)
-            )
+            created_version = build_strategy_version_response_payload(result)
             created = True
 
         message = _evolution_message(created=created, dry_run=command.dry_run, changes=changes, defects=defects)
-        return StrategyEvolutionResponse(
-            source_backtest_id=run.id,
-            strategy_key=strategy_key,
-            source_version=source_version,
-            created=created,
-            message=message,
-            defects=defects,
-            changes=changes,
-            evolved_version=created_version,
-            base_config=normalize_strategy_version_config_model(
+        return {
+            "source_backtest_id": run["id"],
+            "strategy_key": strategy_key,
+            "source_version": source_version,
+            "created": created,
+            "message": message,
+            "defects": defects,
+            "changes": changes,
+            "evolved_version": created_version,
+            "base_config": normalize_strategy_version_config_model(
                 source_strategy.template,
                 normalized_base,
             ),
-            evolved_config=normalized_evolved,
-        )
+            "evolved_config": normalized_evolved,
+        }
 
     def _strategy_definition(self, strategy_key: str) -> dict[str, Any]:
         for definition in self.strategy_query_service.list_strategies():
-            parsed = StrategyDefinitionResponse.model_validate(definition)
-            if parsed.key == strategy_key:
-                return parsed.model_dump()
+            if definition.get("key") == strategy_key:
+                return definition
         return {}
 
 
-def diagnose_strategy_defects(report: BacktestReportResponse) -> list[StrategyEvolutionDefectResponse]:
-    defects: list[StrategyEvolutionDefectResponse] = []
+def diagnose_strategy_defects(report: BacktestReportResponse) -> list[EvolutionDefect]:
+    defects: list[EvolutionDefect] = []
     if report.total_trades <= 0:
         defects.append(
             _defect(
@@ -239,7 +234,7 @@ def diagnose_strategy_defects(report: BacktestReportResponse) -> list[StrategyEv
 def evolve_strategy_config(
     report: BacktestReportResponse,
     base_config: dict[str, Any],
-) -> tuple[dict[str, Any], list[StrategyEvolutionChangeResponse]]:
+) -> tuple[dict[str, Any], list[EvolutionChange]]:
     optimization_best = None
     if report.research and report.research.optimization and report.research.optimization.best_config:
         optimization_best = report.research.optimization.best_config.model_dump()
@@ -249,17 +244,12 @@ def evolve_strategy_config(
         changes = _diff_scalar_changes(base_config, evolved)
         if changes:
             return evolved, [
-                StrategyEvolutionChangeResponse(
-                    path=item.path,
-                    before=item.before,
-                    after=item.after,
-                    reason="采用参数优化中胜出的候选配置",
-                )
+                _change(item["path"], item["before"], item["after"], "采用参数优化中胜出的候选配置")
                 for item in changes
             ]
 
     evolved = deepcopy(base_config)
-    changes: list[StrategyEvolutionChangeResponse] = []
+    changes: list[EvolutionChange] = []
     drawdown = abs(report.max_drawdown_pct)
     risk = evolved.setdefault("risk", {})
 
@@ -269,12 +259,7 @@ def evolve_strategy_config(
         if round(target_stoploss, 6) != round(current_stoploss, 6):
             risk["stoploss"] = target_stoploss
             changes.append(
-                StrategyEvolutionChangeResponse(
-                    path="risk.stoploss",
-                    before=current_stoploss,
-                    after=target_stoploss,
-                    reason="回撤或负收益触发风险收紧",
-                )
+                _change("risk.stoploss", current_stoploss, target_stoploss, "回撤或负收益触发风险收紧")
             )
 
     if drawdown >= 12:
@@ -282,12 +267,7 @@ def evolve_strategy_config(
         if trailing.get("enabled") is not True:
             trailing["enabled"] = True
             changes.append(
-                StrategyEvolutionChangeResponse(
-                    path="risk.trailing.enabled",
-                    before=False,
-                    after=True,
-                    reason="最大回撤偏高，启用追踪止损",
-                )
+                _change("risk.trailing.enabled", False, True, "最大回撤偏高，启用追踪止损")
             )
         positive = float(trailing.get("positive", 0.02) or 0.02)
         offset = float(trailing.get("offset", 0.03) or 0.03)
@@ -296,28 +276,18 @@ def evolve_strategy_config(
         if round(target_positive, 6) != round(positive, 6):
             trailing["positive"] = target_positive
             changes.append(
-                StrategyEvolutionChangeResponse(
-                    path="risk.trailing.positive",
-                    before=positive,
-                    after=target_positive,
-                    reason="统一追踪止损触发阈值",
-                )
+                _change("risk.trailing.positive", positive, target_positive, "统一追踪止损触发阈值")
             )
         if round(target_offset, 6) != round(offset, 6):
             trailing["offset"] = target_offset
             changes.append(
-                StrategyEvolutionChangeResponse(
-                    path="risk.trailing.offset",
-                    before=offset,
-                    after=target_offset,
-                    reason="统一追踪止损回撤偏移",
-                )
+                _change("risk.trailing.offset", offset, target_offset, "统一追踪止损回撤偏移")
             )
 
     return evolved, changes
 
 
-def _diagnose_sample_split(research: BacktestResearchReportResponse) -> list[StrategyEvolutionDefectResponse]:
+def _diagnose_sample_split(research: BacktestResearchReportResponse) -> list[EvolutionDefect]:
     if not research.in_sample or not research.out_of_sample:
         return []
     in_report = research.in_sample.report
@@ -351,7 +321,7 @@ def _diagnose_sample_split(research: BacktestResearchReportResponse) -> list[Str
     return []
 
 
-def _diagnose_rolling_windows(research: BacktestResearchReportResponse) -> list[StrategyEvolutionDefectResponse]:
+def _diagnose_rolling_windows(research: BacktestResearchReportResponse) -> list[EvolutionDefect]:
     windows = [item for item in research.rolling_windows if item.report is not None]
     if len(windows) < 2:
         return []
@@ -375,22 +345,31 @@ def _defect(
     title: str,
     evidence: list[str],
     recommendation: str,
-) -> StrategyEvolutionDefectResponse:
-    return StrategyEvolutionDefectResponse(
-        key=key,
-        severity=severity,
-        title=title,
-        evidence=evidence,
-        recommendation=recommendation,
-    )
+) -> EvolutionDefect:
+    return {
+        "key": key,
+        "severity": severity,
+        "title": title,
+        "evidence": evidence,
+        "recommendation": recommendation,
+    }
+
+
+def _change(path: str, before: Any, after: Any, reason: str) -> EvolutionChange:
+    return {
+        "path": path,
+        "before": before,
+        "after": after,
+        "reason": reason,
+    }
 
 
 def _diff_scalar_changes(
     before: Any,
     after: Any,
     path: str = "",
-) -> list[StrategyEvolutionChangeResponse]:
-    changes: list[StrategyEvolutionChangeResponse] = []
+) -> list[EvolutionChange]:
+    changes: list[EvolutionChange] = []
     if isinstance(before, dict) and isinstance(after, dict):
         keys = sorted(set(before) | set(after))
         for key in keys:
@@ -405,14 +384,7 @@ def _diff_scalar_changes(
             changes.extend(_diff_scalar_changes(left, right, f"{path}[{index}]"))
         return changes
     if before != after and _is_json_change_value(before) and _is_json_change_value(after):
-        changes.append(
-            StrategyEvolutionChangeResponse(
-                path=path,
-                before=before,
-                after=after,
-                reason="参数发生变化",
-            )
-        )
+        changes.append(_change(path, before, after, "参数发生变化"))
     return changes
 
 
@@ -427,13 +399,15 @@ def _is_json_change_value(value: Any) -> bool:
 def _strategy_key(report: BacktestReportResponse, metadata: Any) -> str:
     if report.strategy and report.strategy.key:
         return report.strategy.key
+    if isinstance(metadata, dict):
+        return str(metadata.get("strategy_key") or "")
     return str(getattr(metadata, "strategy_key", "") or "")
 
 
 def _strategy_version(report: BacktestReportResponse, metadata: Any) -> int | None:
     if report.strategy and report.strategy.version:
         return report.strategy.version
-    value = getattr(metadata, "strategy_version", None)
+    value = metadata.get("strategy_version") if isinstance(metadata, dict) else getattr(metadata, "strategy_version", None)
     return int(value) if value is not None else None
 
 
@@ -444,17 +418,17 @@ def _selected_config(report: BacktestReportResponse) -> dict[str, Any] | None:
 
 
 def _metadata_selected_config(metadata: Any) -> dict[str, Any] | None:
-    value = getattr(metadata, "selected_config", None)
+    value = metadata.get("selected_config") if isinstance(metadata, dict) else getattr(metadata, "selected_config", None)
     return dict(value) if isinstance(value, dict) and value else None
 
 
 def _default_evolution_notes(
     run_id: int,
-    defects: list[StrategyEvolutionDefectResponse],
-    changes: list[StrategyEvolutionChangeResponse],
+    defects: list[EvolutionDefect],
+    changes: list[EvolutionChange],
 ) -> str:
-    defect_titles = "、".join(item.title for item in defects if item.severity != "info") or "未发现重大缺陷"
-    change_paths = "、".join(item.path for item in changes[:6])
+    defect_titles = "、".join(item["title"] for item in defects if item["severity"] != "info") or "未发现重大缺陷"
+    change_paths = "、".join(item["path"] for item in changes[:6])
     return f"由回测 #{run_id} 自动诊断进化。缺陷: {defect_titles}。变更: {change_paths}。"
 
 
@@ -462,14 +436,14 @@ def _evolution_message(
     *,
     created: bool,
     dry_run: bool,
-    changes: list[StrategyEvolutionChangeResponse],
-    defects: list[StrategyEvolutionDefectResponse],
+    changes: list[EvolutionChange],
+    defects: list[EvolutionDefect],
 ) -> str:
     if dry_run and changes:
         return "已完成缺陷诊断和进化预演，未创建新版本"
     if created:
         return "已完成缺陷诊断，并创建新的策略版本"
-    if not changes and any(item.key == "entry_starvation" for item in defects):
+    if not changes and any(item["key"] == "entry_starvation" for item in defects):
         return "已发现缺陷，但缺少可安全自动迁移的参数变化；请先补充参数搜索空间"
     return "已完成缺陷诊断，当前没有需要自动创建的新版本"
 

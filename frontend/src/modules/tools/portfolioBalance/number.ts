@@ -11,3 +11,4 @@ export const sanitizeNumber = (value: unknown, fallback = 0) => {
   const candidate = typeof value === 'number' && Number.isFinite(value) ? value : fallback
   return candidate >= 0 ? candidate : fallback
 }
+

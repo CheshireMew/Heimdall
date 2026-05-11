@@ -140,3 +140,4 @@ export const normalizeCompareSnapshot = (
 export const buildCompareSnapshot = (config: ComparePageSnapshot['config'], fallback = createEmptyCompareSnapshot()): ComparePageSnapshot => (
   normalizeCompareSnapshot({ config }, fallback)
 )
+

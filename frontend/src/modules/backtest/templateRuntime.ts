@@ -33,3 +33,4 @@ export const supportsPaperTrading = (value: EditorTemplateRuntimeCarrier) => get
 
 export const supportsVersionEditing = (value: EditorTemplateRuntimeCarrier) => getTemplateRuntime(value).capabilities.version_editing
 
+

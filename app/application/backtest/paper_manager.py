@@ -13,11 +13,6 @@ from app.contracts.backtest import (
     BacktestTradeRecord,
     PaperStartCommand,
 )
-from app.contracts.dto.backtest import (
-    BacktestDeleteResponse,
-    PaperStartResponse,
-    PaperStopResponse,
-)
 from app.contracts.backtest_result import BacktestPortfolioSummaryResponse, BacktestStrategySummaryResponse
 from app.infra.executor import run_sync
 from app.contracts.backtest_run import (
@@ -53,12 +48,14 @@ class PaperRunManager(PaperRunHostedService):
         report_builder: BacktestReportBuilder,
         run_repository: BacktestRunReader,
         run_mutations: BacktestRunMutations,
+        activate_created_runs: bool,
     ) -> None:
         self.strategy_query_service = strategy_query_service
         self.freqtrade_service = freqtrade_service
         self.report_builder = report_builder
         self.run_repository = run_repository
         self.run_mutations = run_mutations
+        self.activate_created_runs = activate_created_runs
         self.paper_host = PaperRunHost(
             PaperRunController(
                 engine=PAPER_LIVE_ENGINE,
@@ -71,16 +68,17 @@ class PaperRunManager(PaperRunHostedService):
             )
         )
 
-    async def start_run(self, command: PaperStartCommand) -> PaperStartResponse:
+    async def start_run(self, command: PaperStartCommand) -> dict:
         run_id = await run_sync(lambda: self._create_run(command))
-        self._activate_created_run(run_id)
-        return PaperStartResponse(success=True, run_id=run_id, message="模拟盘已启动")
+        if self.activate_created_runs:
+            self._activate_created_run(run_id)
+        return {"success": True, "run_id": run_id, "message": "模拟盘已启动"}
 
-    async def stop_run(self, run_id: int) -> PaperStopResponse:
+    async def stop_run(self, run_id: int) -> dict:
         await self._stop_and_cancel_run(run_id, status=RUN_STATUS_STOPPED, reason="manual_stop")
-        return PaperStopResponse(success=True, run_id=run_id, message="模拟盘已停止")
+        return {"success": True, "run_id": run_id, "message": "模拟盘已停止"}
 
-    async def delete_run(self, run_id: int) -> BacktestDeleteResponse:
+    async def delete_run(self, run_id: int) -> dict:
         await self._stop_and_cancel_run(run_id, status=RUN_STATUS_STOPPED, reason="manual_delete")
 
         deleted = await run_sync(
@@ -88,7 +86,7 @@ class PaperRunManager(PaperRunHostedService):
         )
         if not deleted:
             raise NotFoundError(f"模拟盘记录不存在: {run_id}")
-        return BacktestDeleteResponse(success=True, run_id=run_id, message="模拟盘记录已删除")
+        return {"success": True, "run_id": run_id, "message": "模拟盘记录已删除"}
 
     def _tick(self, run_id: int) -> bool:
         run = self.run_mutations.get_running_paper_run(run_id=run_id, engine=PAPER_LIVE_ENGINE)

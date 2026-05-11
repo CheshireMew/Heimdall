@@ -38,3 +38,4 @@ export const useFactorResearchFormatting = (state: FactorResearchState) => {
     formatDate,
   }
 }
+

@@ -77,3 +77,4 @@ export const createDefaultPortfolioBalanceAssets = (): PortfolioBalanceAssetInpu
   createPortfolioBalanceAsset({ symbol: 'SOL', targetWeight: 5 }),
   createPortfolioBalanceAsset({ symbol: 'OKB', targetWeight: 5 }),
 ])
+

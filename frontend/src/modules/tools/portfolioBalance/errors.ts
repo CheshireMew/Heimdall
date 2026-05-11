@@ -19,3 +19,4 @@ export const toPortfolioUserError = (error: unknown, fallback: string) => {
   }
   return message
 }
+

@@ -8,7 +8,7 @@ from app.services.market_scheduler_runtime import MarketSchedulerRuntime
 
 @pytest.mark.asyncio
 async def test_deferred_scheduler_task_logs_and_consumes_callback_exception(caplog):
-    runtime = MarketSchedulerRuntime(database_runtime=object(), indicator_repository=object())
+    runtime = MarketSchedulerRuntime(indicator_repository=object(), cleanup_old_data=lambda: None)
 
     async def fail():
         raise RuntimeError("boom")

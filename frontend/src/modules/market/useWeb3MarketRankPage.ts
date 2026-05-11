@@ -64,7 +64,7 @@ export function useWeb3MarketRankPage() {
         const selectedChainId = web3ApiChainId(requestChainId)
         const pnlRes = await marketApi.getBinanceWeb3AddressPnlRank({ chain_id: selectedChainId || '56', page_size: 10 })
         if (requestKey !== addressPnlRequestKey()) return
-        addressPnl.value = pnlRes.data?.items || []
+        addressPnl.value = pnlRes?.items || []
       } catch (err) {
         if (requestKey !== addressPnlRequestKey()) return
         console.error('Failed to load Binance Web3 rank page', err)
@@ -136,3 +136,4 @@ export function useWeb3MarketRankPage() {
     changeClass,
   }
 }
+

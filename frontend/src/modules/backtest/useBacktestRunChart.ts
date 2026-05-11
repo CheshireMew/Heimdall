@@ -25,7 +25,7 @@ export const useBacktestRunChart = () => {
       start_date: startDate,
       fetch_policy: 'hydrate',
     })
-    const candles = (res.data.items || []).filter((item: OhlcvPointResponse) => item.timestamp <= endTs)
+    const candles = (res.items || []).filter((item: OhlcvPointResponse) => item.timestamp <= endTs)
     chartData.candles = candles.map<CandlestickData>((item) => ({
       time: item.timestamp / 1000,
       open: item.open,
@@ -51,3 +51,4 @@ export const useBacktestRunChart = () => {
     clearChart,
   }
 }
+

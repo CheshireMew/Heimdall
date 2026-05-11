@@ -40,8 +40,8 @@ export const useFactorResearchPage = () => {
   const initializeContract = async () => {
     const response = await factorApi.getContract()
     const fallbackSnapshot = {
-      form: createFactorResearchForm(response.data),
-      executionForm: createFactorExecutionForm(response.data),
+      form: createFactorResearchForm(response),
+      executionForm: createFactorExecutionForm(response),
       selectedRunId: null,
       selectedFactorId: '',
     }
@@ -129,3 +129,4 @@ export const useFactorResearchPage = () => {
     detailPanel,
   })
 }
+

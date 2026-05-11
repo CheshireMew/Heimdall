@@ -29,3 +29,4 @@ export const isWeb3AllChain = (chainId: string | null | undefined) => !chainId |
 export const web3ApiChainId = (chainId: string | null | undefined) => (
   isWeb3AllChain(chainId) ? undefined : String(chainId)
 )
+

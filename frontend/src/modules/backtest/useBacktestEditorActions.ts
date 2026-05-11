@@ -50,7 +50,7 @@ export const useBacktestEditorActions = ({
         default_parameter_space: buildParameterSpaceJson(editor.optimizableTargets.value, editor.versionDraft.parameterSpaceValues),
       })
       await fetchTemplates()
-      editor.applyDraftFromTemplate(res.data.template, res.data.default_config, res.data.default_parameter_space, { description: res.data.description || '' })
+      editor.applyDraftFromTemplate(res.template, res.default_config, res.default_parameter_space, { description: res.description || '' })
       editor.resetTemplateDraft()
       alert(t('backtest.templateSaved'))
     } catch (error) {
@@ -77,7 +77,7 @@ export const useBacktestEditorActions = ({
       })
       await fetchStrategies()
       config.strategy_key = editor.versionDraft.key.trim()
-      config.strategy_version = res.data.version
+      config.strategy_version = res.version
       syncStrategyVersion()
       await router.replace({
         path: '/backtest/editor',
@@ -100,4 +100,5 @@ export const useBacktestEditorActions = ({
     createStrategyVersion,
   }
 }
+
 

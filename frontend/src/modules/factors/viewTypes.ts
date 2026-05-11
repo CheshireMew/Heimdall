@@ -63,3 +63,4 @@ export interface FactorResearchSummaryView {
   formatDate: (value: string | null | undefined) => string
 }
 
+

@@ -25,3 +25,4 @@ export const diffDaysFromToday = (dateText: string) => {
   const current = new Date(today.getFullYear(), today.getMonth(), today.getDate())
   return Math.ceil((target.getTime() - current.getTime()) / 86400000)
 }
+

@@ -73,10 +73,10 @@ export function useTokenizedSecuritiesPage() {
         marketApi.getBinanceRwaDynamic(params),
         marketApi.getBinanceRwaKline({ ...params, interval: '1d', limit: 120 }),
       ])
-      meta.value = metaRes.data
-      assetStatus.value = assetStatusRes.data
-      dynamic.value = dynamicRes.data
-      kline.value = klineRes.data?.items || []
+      meta.value = metaRes
+      assetStatus.value = assetStatusRes
+      dynamic.value = dynamicRes
+      kline.value = klineRes?.items || []
     } catch (err) {
       console.error('Failed to load tokenized security detail', err)
       error.value = 'Failed to load tokenized security detail.'
@@ -99,8 +99,8 @@ export function useTokenizedSecuritiesPage() {
         marketApi.getBinanceRwaSymbols({ platform_type: 1 }),
         marketApi.getBinanceRwaMarketStatus(),
       ])
-      rows.value = symbolsRes.data?.items || []
-      marketStatus.value = marketStatusRes.data || null
+      rows.value = symbolsRes?.items || []
+      marketStatus.value = marketStatusRes || null
       if (!selectedKey.value && rows.value.length) {
         selectedKey.value = `${rows.value[0].chain_id}:${rows.value[0].contract_address}`
       }
@@ -138,3 +138,4 @@ export function useTokenizedSecuritiesPage() {
     formatPrice: formatTokenPrice,
   }
 }
+

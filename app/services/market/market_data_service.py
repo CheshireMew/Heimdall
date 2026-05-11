@@ -5,8 +5,8 @@ from datetime import datetime
 from typing import Callable
 
 from app.infra.cache import RedisService
-from app.infra.persistence.market.kline_store import KlineStore
 from app.domain.market.constants import KEY_PREFIX_KLINE
+from app.services.persistence_ports import KlineStorePort
 from app.services.market import kline_range_loader
 from app.services.market.exchange_gateway import ExchangeGateway
 from app.services.market.history_ranges import is_recent_cache_usable, timeframe_to_ms
@@ -20,7 +20,7 @@ class MarketDataService:
     def __init__(
         self,
         exchange_gateway: ExchangeGateway | None = None,
-        kline_store: KlineStore | None = None,
+        kline_store: KlineStorePort | None = None,
         cache_service: RedisService | None = None,
     ) -> None:
         if exchange_gateway is None or kline_store is None:

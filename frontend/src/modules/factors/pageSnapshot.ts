@@ -62,3 +62,4 @@ export const normalizeFactorResearchSnapshot = (
 export const buildFactorResearchSnapshot = (snapshot: FactorResearchSnapshot): FactorResearchSnapshot => (
   normalizeFactorResearchSnapshot(snapshot)
 )
+

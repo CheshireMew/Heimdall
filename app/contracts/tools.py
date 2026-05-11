@@ -4,6 +4,16 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
+DCA_STRATEGY_KEYS = (
+    "standard",
+    "ema_deviation",
+    "rsi_dynamic",
+    "ahr999",
+    "fear_greed",
+    "value_averaging",
+)
+
+
 @dataclass(slots=True)
 class SimulateDcaCommand:
     symbol: str

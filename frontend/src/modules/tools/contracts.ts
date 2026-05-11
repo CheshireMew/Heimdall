@@ -1,1 +1,2 @@
-export type * from '../../types/tools'
+export type * from './generatedContracts'
+

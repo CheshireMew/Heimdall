@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.domain.market.symbol_catalog import get_supported_crypto_symbols
-from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
+from app.services.persistence_ports import IndicatorRepositoryPort
 
 from .contracts import (
     DEFAULT_CLEANING,
@@ -16,7 +16,7 @@ from .contracts import (
 
 
 class FactorCatalogService:
-    def __init__(self, indicator_repository: MarketIndicatorRepository) -> None:
+    def __init__(self, indicator_repository: IndicatorRepositoryPort) -> None:
         self.indicator_repository = indicator_repository
 
     def get_catalog(self) -> dict:

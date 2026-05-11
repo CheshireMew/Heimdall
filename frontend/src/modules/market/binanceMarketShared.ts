@@ -174,3 +174,4 @@ export const displaySymbol = (value: string | null | undefined) => {
   if (!symbol) return '--'
   return toBaseSymbol(symbol) || symbol
 }
+

@@ -159,8 +159,8 @@ export function useMacroLiquidityPage(days: number | Ref<number> = 365, changeDa
     error.value = ''
     try {
       const res = await marketApi.getDliLiquidity({ days: unref(days), change_days: unref(changeDays) })
-      dli.value = res?.data || null
-      indicators.value = res?.data?.indicators || []
+      dli.value = res || null
+      indicators.value = res?.indicators || []
     } catch (e) {
       console.error('Failed to fetch DLI liquidity:', e)
       error.value = '宏观流动性数据加载失败'
@@ -271,3 +271,4 @@ export function useMacroLiquidityPage(days: number | Ref<number> = 365, changeDa
     load,
   }
 }
+

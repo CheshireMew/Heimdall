@@ -219,3 +219,4 @@ export interface BacktestVersionEditorPanel {
   createStrategyVersion: () => Promise<void>
 }
 
+

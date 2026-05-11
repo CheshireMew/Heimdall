@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from app.domain.market.dli_catalog import DLI_SOURCE_IDS
-from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
+from app.services.persistence_ports import IndicatorRepositoryPort
 from app.services.market.dli_payload import DliPayloadBuilder
 from app.services.market.dli_scoring import DliScoreEngine
 from app.services.market.dli_series import DliSeriesBuilder
@@ -13,7 +13,7 @@ from app.services.market.dli_series import DliSeriesBuilder
 class DliLiquidityService:
     def __init__(
         self,
-        repository: MarketIndicatorRepository,
+        repository: IndicatorRepositoryPort,
         *,
         series_builder: DliSeriesBuilder | None = None,
         score_engine: DliScoreEngine | None = None,

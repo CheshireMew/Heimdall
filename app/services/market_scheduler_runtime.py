@@ -5,10 +5,8 @@ import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from app.infra.db import DatabaseRuntime
-from app.infra.persistence.data_retention import cleanup_old_data
-from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
 from app.application.indicators.market_cron import MarketIndicatorCronJob
+from app.services.persistence_ports import DataRetentionCleanup, IndicatorRepositoryPort
 from app.services.market.dli_cache import DliLiquidityCache
 from config import settings
 
@@ -19,11 +17,11 @@ class MarketSchedulerRuntime:
     def __init__(
         self,
         *,
-        database_runtime: DatabaseRuntime,
-        indicator_repository: MarketIndicatorRepository,
+        indicator_repository: IndicatorRepositoryPort,
+        cleanup_old_data: DataRetentionCleanup,
         dli_cache: DliLiquidityCache | None = None,
     ) -> None:
-        self.database_runtime = database_runtime
+        self._cleanup_old_data_callback = cleanup_old_data
         self.scheduler = AsyncIOScheduler()
         self._deferred_tasks: set[asyncio.Task[None]] = set()
         self._job = MarketIndicatorCronJob(
@@ -83,7 +81,9 @@ class MarketSchedulerRuntime:
         logger.info(f"Market Indicator Scheduler Started. Fetching every {settings.MARKET_CRON_INTERVAL_HOURS} hours.")
 
     async def _cleanup_old_data(self) -> None:
-        await cleanup_old_data(self.database_runtime)
+        result = self._cleanup_old_data_callback()
+        if asyncio.iscoroutine(result):
+            await result
 
     async def shutdown(self) -> None:
         if self._deferred_tasks:

@@ -214,7 +214,7 @@ export function usePortfolioBalancePage() {
     resetFeedback()
     try {
       const response = await backtestApi.listPaperRuns()
-      const targetRun = selectLatestPaperRunForPortfolio(response.data || [])
+      const targetRun = selectLatestPaperRunForPortfolio(response || [])
       if (!targetRun) throw new Error('没有找到可导入的模拟盘持仓')
 
       const importedAssets = buildPortfolioAssetsFromPaperRun(targetRun)
@@ -359,3 +359,4 @@ export function usePortfolioBalancePage() {
     runBacktest,
   }
 }
+

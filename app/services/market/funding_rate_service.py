@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from app.infra.persistence.market.funding_rate_store import FundingRateStore
+from app.services.persistence_ports import FundingRateStorePort
 from utils.logger import logger
 from .binance_numbers import safe_float
 
@@ -18,7 +18,7 @@ class FundingRateService:
     HISTORY_LIMIT = 1000
     DEFAULT_START_DATE = "2019-09-01"
 
-    def __init__(self, store: FundingRateStore) -> None:
+    def __init__(self, store: FundingRateStorePort) -> None:
         self.store = store
 
     def fetch_current_rate(self, symbol: str) -> dict[str, Any]:

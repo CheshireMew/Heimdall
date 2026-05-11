@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
 
@@ -18,9 +18,6 @@ from app.contracts.dto.binance.common import (
 )
 from config import settings
 
-if TYPE_CHECKING:
-    from app.services.market.binance_market_intel_service import BinanceMarketIntelService
-
 
 router = APIRouter(tags=["Market Data"])
 binance_market_dependency = runtime_dependency(MARKET_BINANCE_MARKET_INTEL)
@@ -33,7 +30,7 @@ async def get_binance_spot_exchange_info(
     symbols: list[str] | None = Query(None),
     permissions: list[str] | None = Query(None),
     symbol_status: str | None = Query(None),
-    service: BinanceMarketIntelService = Depends(binance_market_dependency),
+    service: Any = Depends(binance_market_dependency),
 ):
     return await service.spot.get_exchange_info(
         symbols=symbols,
@@ -45,7 +42,7 @@ async def get_binance_spot_exchange_info(
 @router.get("/binance/spot/ticker_24hr", response_model=BinanceTickerStatsResponse)
 async def get_binance_spot_ticker_24hr(
     symbols: list[str] | None = Query(None),
-    service: BinanceMarketIntelService = Depends(binance_market_dependency),
+    service: Any = Depends(binance_market_dependency),
 ):
     return await service.spot.get_ticker_24hr(symbols=symbols)
 
@@ -54,7 +51,7 @@ async def get_binance_spot_ticker_24hr(
 async def get_binance_spot_ticker_window(
     symbols: list[str] | None = Query(None),
     window_size: str | None = Query(None),
-    service: BinanceMarketIntelService = Depends(binance_market_dependency),
+    service: Any = Depends(binance_market_dependency),
 ):
     return await service.spot.get_ticker_window(symbols=symbols, window_size=window_size)
 
@@ -62,7 +59,7 @@ async def get_binance_spot_ticker_window(
 @router.get("/binance/spot/price", response_model=BinancePriceTickerResponse)
 async def get_binance_spot_price(
     symbols: list[str] | None = Query(None),
-    service: BinanceMarketIntelService = Depends(binance_market_dependency),
+    service: Any = Depends(binance_market_dependency),
 ):
     return await service.spot.get_price(symbols=symbols)
 
@@ -70,7 +67,7 @@ async def get_binance_spot_price(
 @router.get("/binance/spot/book_ticker", response_model=BinanceBookTickerResponse)
 async def get_binance_spot_book_ticker(
     symbols: list[str] | None = Query(None),
-    service: BinanceMarketIntelService = Depends(binance_market_dependency),
+    service: Any = Depends(binance_market_dependency),
 ):
     return await service.spot.get_book_ticker(symbols=symbols)
 
@@ -79,7 +76,7 @@ async def get_binance_spot_book_ticker(
 async def get_binance_spot_depth(
     symbol: str = Query(...),
     limit: int = Query(20, ge=5, le=5000),
-    service: BinanceMarketIntelService = Depends(binance_market_dependency),
+    service: Any = Depends(binance_market_dependency),
 ):
     return await service.spot.get_depth(symbol=symbol, limit=limit)
 
@@ -88,7 +85,7 @@ async def get_binance_spot_depth(
 async def get_binance_spot_trades(
     symbol: str = Query(...),
     limit: int = Query(50, ge=1, le=1000),
-    service: BinanceMarketIntelService = Depends(binance_market_dependency),
+    service: Any = Depends(binance_market_dependency),
 ):
     return await service.spot.get_trades(symbol=symbol, limit=limit)
 
@@ -99,7 +96,7 @@ async def get_binance_spot_agg_trades(
     limit: int = Query(50, ge=1, le=1000),
     start_time: int | None = Query(None),
     end_time: int | None = Query(None),
-    service: BinanceMarketIntelService = Depends(binance_market_dependency),
+    service: Any = Depends(binance_market_dependency),
 ):
     return await service.spot.get_agg_trades(
         symbol=symbol,
@@ -116,7 +113,7 @@ async def get_binance_spot_klines(
     limit: int = Query(200, ge=1, le=1000),
     start_time: int | None = Query(None),
     end_time: int | None = Query(None),
-    service: BinanceMarketIntelService = Depends(binance_market_dependency),
+    service: Any = Depends(binance_market_dependency),
 ):
     return await service.spot.get_klines(
         symbol=symbol,
@@ -135,7 +132,7 @@ async def get_binance_spot_ui_klines(
     limit: int = Query(200, ge=1, le=1000),
     start_time: int | None = Query(None),
     end_time: int | None = Query(None),
-    service: BinanceMarketIntelService = Depends(binance_market_dependency),
+    service: Any = Depends(binance_market_dependency),
 ):
     return await service.spot.get_klines(
         symbol=symbol,

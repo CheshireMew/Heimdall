@@ -20,3 +20,4 @@ export {
   toSlashMarketSymbol,
   useSymbolCatalog,
 } from './symbolCatalog'
+

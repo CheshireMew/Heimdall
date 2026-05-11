@@ -98,9 +98,9 @@ export function useComparePage() {
         days: config.days,
         timeframe: config.timeframe,
       })
-      dataA.value = response.data.data_a || []
-      dataB.value = response.data.data_b || []
-      dataRatio.value = (response.data.ratio_ohlc || []).map((item) => ({
+      dataA.value = response.data_a || []
+      dataB.value = response.data_b || []
+      dataRatio.value = (response.ratio_ohlc || []).map((item) => ({
         time: item.time,
         value: item.close,
       }))
@@ -125,7 +125,7 @@ export function useComparePage() {
       toolsApi.getContract(),
       ensureSymbolCatalogLoaded(),
     ])
-    const defaultSnapshot = createDefaultCompareSnapshot(response.data)
+    const defaultSnapshot = createDefaultCompareSnapshot(response)
     Object.assign(config, normalizeCompareSnapshot(restoredSnapshot, defaultSnapshot).config)
     if (!snapshotStop) {
       snapshotStop = pageSnapshot.bind(
@@ -156,3 +156,4 @@ export function useComparePage() {
     symbolLabel,
   }
 }
+

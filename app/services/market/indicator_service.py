@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
+from app.services.persistence_ports import IndicatorRepositoryPort
 from app.services.market.dli_cache import DliLiquidityCache
 from app.services.market.dli_service import DliLiquidityService
 
@@ -11,7 +11,7 @@ from app.services.market.dli_service import DliLiquidityService
 class IndicatorService:
     def __init__(
         self,
-        repository: MarketIndicatorRepository,
+        repository: IndicatorRepositoryPort,
         *,
         dli_cache: DliLiquidityCache | None = None,
     ) -> None:

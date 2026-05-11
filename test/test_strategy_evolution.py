@@ -122,11 +122,11 @@ def test_strategy_evolution_detects_defects_and_persists_new_version(
         )
     )
 
-    assert result.created is True
-    assert result.evolved_version is not None
-    assert result.evolved_version.version == 2
-    assert "negative_expectancy" in {item.key for item in result.defects}
-    assert any(item.path == "risk.stoploss" and item.after == -0.06 for item in result.changes)
+    assert result["created"] is True
+    assert result["evolved_version"] is not None
+    assert result["evolved_version"]["version"] == 2
+    assert "negative_expectancy" in {item["key"] for item in result["defects"]}
+    assert any(item["path"] == "risk.stoploss" and item["after"] == -0.06 for item in result["changes"])
 
     stored = db_session.query(StrategyVersion).filter_by(strategy_key="ema_rsi_macd", version=2).one()
     assert stored.is_default is True

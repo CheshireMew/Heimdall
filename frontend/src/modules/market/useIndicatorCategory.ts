@@ -12,7 +12,7 @@ export function useIndicatorCategory(category: ComputedRef<string>, days: number
     error.value = ''
     try {
       const res = await marketApi.getIndicators({ category: category.value, days })
-      indicators.value = res?.data || []
+      indicators.value = res || []
     } catch (e) {
       console.error(`Failed to fetch ${category.value} indicators:`, e)
       error.value = 'Failed to load indicators.'
@@ -33,3 +33,4 @@ export function useIndicatorCategory(category: ComputedRef<string>, days: number
     load,
   }
 }
+

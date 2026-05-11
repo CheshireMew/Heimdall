@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
 from app.infra.executor import run_sync
+from app.services.persistence_ports import BinanceMarketResearchStorePort
 
 JsonLoader = Callable[..., Awaitable[Any]]
 SeriesNormalizer = Callable[[str, Any], dict[str, Any]]
@@ -15,7 +15,7 @@ class BinanceResearchSeriesLoader:
         self,
         *,
         market: str,
-        store: BinanceMarketResearchStore,
+        store: BinanceMarketResearchStorePort,
         get_json: JsonLoader,
     ) -> None:
         self.market = market

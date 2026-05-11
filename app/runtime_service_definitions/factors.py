@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.runtime import runtime_role_has_target
 from app.runtime_definition import RuntimeBuildContext, RuntimeServiceDefinition
 from app.runtime_lifecycle import restore_paper_runs, shutdown_service
 from app.runtime_refs import (
@@ -71,6 +72,7 @@ def _build_factor_paper_run_manager(ctx: RuntimeBuildContext):
         execution_core=ctx.require(FACTORS_SIGNAL_EXECUTION_CORE),
         persistence_service=ctx.require(FACTORS_PAPER_PERSISTENCE_SERVICE),
         run_mutations=ctx.require(BACKTEST_RUN_MUTATION_SERVICE),
+        activate_created_runs=runtime_role_has_target(ctx.role, "background"),
     )
 
 

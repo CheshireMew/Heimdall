@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from config import settings
+from app.services.persistence_ports import CacheServicePort, BinanceMarketResearchStorePort, FundingRateStorePort
 
 from .binance_api_support import BinanceApiSupport
 from .binance_market_page_service import BinanceMarketPageService
@@ -10,20 +9,14 @@ from .binance_market_snapshot_service import BinanceMarketSnapshotService
 from .binance_spot_market import BinanceSpotMarketService
 from .binance_usdm_market import BinanceUsdmMarketService
 
-if TYPE_CHECKING:
-    from app.infra.cache import RedisService
-    from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
-    from app.infra.persistence.market.funding_rate_store import FundingRateStore
-
-
 class BinanceMarketIntelService:
     def __init__(
         self,
         *,
-        research_store: BinanceMarketResearchStore,
-        funding_rate_store: FundingRateStore,
+        research_store: BinanceMarketResearchStorePort,
+        funding_rate_store: FundingRateStorePort,
         snapshot_service: BinanceMarketSnapshotService | None = None,
-        cache_service: RedisService | None = None,
+        cache_service: CacheServicePort | None = None,
     ) -> None:
         spot_client = BinanceApiSupport(
             base_url=settings.BINANCE_PUBLIC_BASE_URL,

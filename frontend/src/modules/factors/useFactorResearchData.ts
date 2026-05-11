@@ -23,12 +23,12 @@ export const useFactorResearchData = (
     state.catalogLoading.value = true
     try {
       const response = await factorApi.getCatalog()
-      state.catalog.symbols = response.data.symbols || []
-      state.catalog.timeframes = response.data.timeframes || []
-      state.catalog.categories = response.data.categories || []
-      state.catalog.factors = response.data.factors || []
-      state.catalog.forward_horizons = response.data.forward_horizons || []
-      state.catalog.cleaning = response.data.cleaning || {}
+      state.catalog.symbols = response.symbols || []
+      state.catalog.timeframes = response.timeframes || []
+      state.catalog.categories = response.categories || []
+      state.catalog.factors = response.factors || []
+      state.catalog.forward_horizons = response.forward_horizons || []
+      state.catalog.cleaning = response.cleaning || {}
       if (state.catalog.symbols.length && !state.catalog.symbols.includes(state.form.symbol)) state.form.symbol = state.catalog.symbols[0]
       if (state.catalog.timeframes.length && !state.catalog.timeframes.includes(state.form.timeframe)) state.form.timeframe = state.catalog.timeframes[0] as typeof state.form.timeframe
       if (!state.form.categories.length) state.form.categories = [...state.catalog.categories]
@@ -44,10 +44,10 @@ export const useFactorResearchData = (
     state.runsLoading.value = true
     try {
       const response = await factorApi.listRuns()
-      state.runs.value = response.data || []
+      state.runs.value = response || []
       if (!state.selectedRunId.value && state.runs.value.length) {
         const latest = await factorApi.getRun(state.runs.value[0].id)
-        applyRun(latest.data)
+        applyRun(latest)
       }
     } catch (err) {
       console.error('Failed to load factor runs', err)
@@ -58,7 +58,7 @@ export const useFactorResearchData = (
 
   const loadRun = async (runId: number) => {
     const response = await factorApi.getRun(runId)
-    const run = response.data
+    const run = response
     const existingIndex = state.runs.value.findIndex((item) => item.id === run.id)
     if (existingIndex >= 0) state.runs.value.splice(existingIndex, 1, run)
     else state.runs.value.unshift(run)
@@ -70,19 +70,19 @@ export const useFactorResearchData = (
     state.error.value = ''
     try {
       const response = await factorApi.analyze(factorResearchPayload(state.form))
-      state.summary.value = response.data.summary
-      state.ranking.value = response.data.ranking || []
-      state.details.value = response.data.details || []
-      state.blend.value = response.data.blend || null
-      state.selectedRunId.value = response.data.run_id
+      state.summary.value = response.summary
+      state.ranking.value = response.ranking || []
+      state.details.value = response.details || []
+      state.blend.value = response.blend || null
+      state.selectedRunId.value = response.run_id
       if (!state.selectedDetail.value || !state.details.value.find((item) => item.factor_id === state.selectedFactorId.value)) {
         state.selectedFactorId.value = state.details.value[0]?.factor_id || ''
       }
-      state.executionForm.entry_threshold = response.data.blend?.entry_threshold ?? null
-      state.executionForm.exit_threshold = response.data.blend?.exit_threshold ?? null
+      state.executionForm.entry_threshold = response.blend?.entry_threshold ?? null
+      state.executionForm.exit_threshold = response.blend?.exit_threshold ?? null
       await fetchRuns()
-      if (response.data.run_id) {
-        await loadRun(response.data.run_id)
+      if (response.run_id) {
+        await loadRun(response.run_id)
       }
     } catch (err: unknown) {
       console.error('Failed to analyze factors', err)
@@ -106,7 +106,7 @@ export const useFactorResearchData = (
       const response = mode === 'backtest'
         ? await factorApi.startBacktest(state.selectedRunId.value, body)
         : await factorApi.startPaper(state.selectedRunId.value, body)
-      router.push(mode === 'backtest' ? `/backtest/runs/${response.data.run_id}` : `/backtest/paper/${response.data.run_id}`)
+      router.push(mode === 'backtest' ? `/backtest/runs/${response.run_id}` : `/backtest/paper/${response.run_id}`)
     } catch (err: unknown) {
       console.error('Failed to start factor execution', err)
       state.error.value = responseErrorDetail(err) || t('factorResearch.executionFailed')
@@ -144,3 +144,4 @@ export const useFactorResearchData = (
     startExecution,
   }
 }
+

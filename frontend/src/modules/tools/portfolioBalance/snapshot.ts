@@ -260,3 +260,4 @@ export const hasMarketGap = (portfolio: PortfolioBalancePortfolio) => (
 export const hasActiveAssets = (portfolio: PortfolioBalancePortfolio) => (
   portfolio.assets.some((asset) => Boolean(toBaseSymbol(asset.symbol)))
 )
+

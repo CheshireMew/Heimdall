@@ -25,7 +25,7 @@ export const loadCurrencyRates = async () => {
   loadingRates.value = true
   ratesPromise = systemApi.getCurrencyRates()
     .then((response) => {
-      applyCurrencyRates(response.data)
+      applyCurrencyRates(response)
     })
     .catch((error) => {
       console.warn('Failed to load currency rates:', error)
@@ -66,3 +66,4 @@ export const readCurrencyMeta = (code: string) => {
     }
   )
 }
+

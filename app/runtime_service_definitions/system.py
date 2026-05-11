@@ -33,10 +33,11 @@ def _build_fred_api_config_service(_ctx: RuntimeBuildContext):
 
 def _build_market_scheduler_runtime(ctx: RuntimeBuildContext):
     from app.services.market_scheduler_runtime import MarketSchedulerRuntime
+    from app.infra.persistence.data_retention import cleanup_old_data
 
     return MarketSchedulerRuntime(
-        database_runtime=ctx.require(INFRA_DATABASE_RUNTIME),
         indicator_repository=ctx.require(MARKET_INDICATOR_REPOSITORY),
+        cleanup_old_data=lambda: cleanup_old_data(ctx.require(INFRA_DATABASE_RUNTIME)),
         dli_cache=ctx.require(MARKET_DLI_CACHE),
     )
 

@@ -84,7 +84,7 @@ export const useMarketStore = defineStore('market', {
         const request = (async (): Promise<OhlcvPointResponse[] | null> => {
           try {
             const res = await marketApi.getLatestKlines({ symbol, timeframe, limit })
-            const items = res.data.items || []
+            const items = res.items || []
             if (items.length) {
               this._setKlineCache(key, items)
               return this._readKlineSlice(items, limit)
@@ -150,8 +150,8 @@ export const useMarketStore = defineStore('market', {
     async _fetchSentiment(): Promise<SentimentData | null> {
       try {
         const res = await marketApi.getIndicators({ days: 7 })
-        if (res.data && Array.isArray(res.data)) {
-          const fearGreed = (res.data as MarketIndicatorResponse[]).find(ind => ind.indicator_id === 'FEAR_GREED')
+        if (res && Array.isArray(res)) {
+          const fearGreed = (res as MarketIndicatorResponse[]).find(ind => ind.indicator_id === 'FEAR_GREED')
           if (fearGreed && fearGreed.current_value !== null) {
             const sentimentData: SentimentData = {
               value: fearGreed.current_value,
@@ -183,3 +183,4 @@ export const useMarketStore = defineStore('market', {
     },
   },
 })
+

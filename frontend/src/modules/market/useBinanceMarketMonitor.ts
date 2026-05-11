@@ -166,9 +166,9 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
           quote_asset: requestQuoteAsset,
         })
         if (requestKey !== marketPageRequestKey()) return
-        applyPayload(response.data)
-        schedulePendingRefresh(response.data)
-        binanceMarketWarmSnapshot.write(response.data, requestMinRisePct, requestQuoteAsset)
+        applyPayload(response)
+        schedulePendingRefresh(response)
+        binanceMarketWarmSnapshot.write(response, requestMinRisePct, requestQuoteAsset)
       } catch (requestError) {
         if (requestKey !== marketPageRequestKey()) return
         errorState.value = {
@@ -291,3 +291,4 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
 }
 
 const boardKey = (field: string, direction: SortDirection) => `${field}_${direction}`
+

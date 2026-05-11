@@ -5,8 +5,8 @@ from typing import Any
 
 from app.domain.market.symbol_catalog import get_supported_crypto_symbols
 from app.exceptions import NotFoundError
-from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
 from app.services.market.market_data_service import MarketDataService
+from app.services.persistence_ports import FactorResearchRepositoryPort, IndicatorRepositoryPort
 from app.infra.executor import run_sync
 
 from .analysis_service import FactorAnalysisService
@@ -15,7 +15,6 @@ from .contracts import DEFAULT_CLEANING, DEFAULT_FORWARD_HORIZONS, SUPPORTED_TIM
 from .dataset_service import FactorDatasetService
 from .frame_builder import FactorFrameBuilder
 from .math_utils import FactorMath
-from app.infra.persistence.factors.repository import FactorResearchRepository
 
 
 class FactorResearchService:
@@ -23,8 +22,8 @@ class FactorResearchService:
         self,
         *,
         market_data_service: MarketDataService,
-        indicator_repository: MarketIndicatorRepository,
-        repository: FactorResearchRepository,
+        indicator_repository: IndicatorRepositoryPort,
+        repository: FactorResearchRepositoryPort,
     ) -> None:
         self.market_data_service = market_data_service
         self.indicator_repository = indicator_repository

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
@@ -12,9 +12,6 @@ from app.contracts.dto.binance.web3 import (
     BinanceWeb3TokenKlineResponse,
 )
 
-if TYPE_CHECKING:
-    from app.services.market.binance_web3_service import BinanceWeb3Service
-
 
 router = APIRouter(tags=["Market Data"])
 binance_web3_dependency = runtime_dependency(MARKET_BINANCE_WEB3_SERVICE)
@@ -24,7 +21,7 @@ binance_web3_dependency = runtime_dependency(MARKET_BINANCE_WEB3_SERVICE)
 async def get_binance_web3_token_dynamic(
     chain_id: str = Query(...),
     contract_address: str = Query(...),
-    service: BinanceWeb3Service = Depends(binance_web3_dependency),
+    service: Any = Depends(binance_web3_dependency),
 ):
     return await service.tokens.get_dynamic(chain_id=chain_id, contract_address=contract_address)
 
@@ -38,7 +35,7 @@ async def get_binance_web3_token_kline(
     from_time: int | None = Query(None, alias="from"),
     to_time: int | None = Query(None, alias="to"),
     pm: str | None = Query("p"),
-    service: BinanceWeb3Service = Depends(binance_web3_dependency),
+    service: Any = Depends(binance_web3_dependency),
 ):
     return await service.tokens.get_kline(
         address=address,
@@ -55,6 +52,6 @@ async def get_binance_web3_token_kline(
 async def get_binance_web3_token_audit(
     binance_chain_id: str = Query(...),
     contract_address: str = Query(...),
-    service: BinanceWeb3Service = Depends(binance_web3_dependency),
+    service: Any = Depends(binance_web3_dependency),
 ):
     return await service.tokens.get_audit(binance_chain_id=binance_chain_id, contract_address=contract_address)

@@ -7,21 +7,11 @@ from datetime import datetime, timedelta
 from app.infra.cache import RedisService
 from app.domain.market.symbol_catalog import get_supported_crypto_symbols, resolve_market_asset
 from app.infra.executor import run_sync
-from app.services.tools.contracts import ComparePairsCommand, SimulateDcaCommand
+from app.contracts.tools import ComparePairsCommand, DCA_STRATEGY_KEYS, SimulateDcaCommand
 from app.services.tools.dca_service import DCAService
 from app.services.tools.pair_compare_service import PairCompareService
 from config import settings
 from utils.logger import logger
-
-
-DCA_STRATEGY_KEYS = (
-    "standard",
-    "ema_deviation",
-    "rsi_dynamic",
-    "ahr999",
-    "fear_greed",
-    "value_averaging",
-)
 
 
 class ToolsAppService:

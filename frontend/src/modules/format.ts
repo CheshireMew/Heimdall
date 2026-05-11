@@ -122,3 +122,4 @@ export const formatRange = (value: { start?: string; end?: string } | null | und
   const formatted = dateTime.formatDateRange(value)
   return formatted === '--' ? '-' : formatted
 }
+

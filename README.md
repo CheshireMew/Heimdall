@@ -200,7 +200,7 @@ npm --prefix frontend run typecheck
 npm run build:frontend
 ```
 
-`frontend/src/types/backtest.ts`、`factor.ts`、`market.ts`、`tools.ts`、`config.ts` 都由后端 Pydantic schema 生成，不要手写修改。
+各业务模块的 `generatedContracts.ts` 和 `frontend/src/api/routes.ts` 都由后端 Pydantic schema 生成，不要手写修改。
 
 ## 🔧 高级功能
 

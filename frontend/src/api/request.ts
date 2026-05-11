@@ -77,33 +77,37 @@ const resolveClient = <TRoute extends ApiRouteName>(options: ApiOptions<TRoute> 
 export const apiGet = <TRoute extends ApiRouteName>(
     name: TRoute,
     options: ApiOptions<TRoute> = {},
-): Promise<AxiosResponse<ApiRouteResponse<TRoute>>> => {
+): Promise<ApiRouteResponse<TRoute>> => {
     const endpoint = apiEndpoint(name, options.path)
     return resolveClient(options).get<ApiRouteResponse<TRoute>>(endpoint.url, buildRequestConfig(name, options))
+        .then((response) => response.data)
 }
 
 export const apiPost = <TRoute extends ApiRouteName>(
     name: TRoute,
     body?: ApiRouteBody<TRoute>,
     options: ApiOptions<TRoute> = {},
-): Promise<AxiosResponse<ApiRouteResponse<TRoute>>> => {
+): Promise<ApiRouteResponse<TRoute>> => {
     const endpoint = apiEndpoint(name, options.path)
     return resolveClient(options).post<ApiRouteResponse<TRoute>>(endpoint.url, body, buildRequestConfig(name, options))
+        .then((response) => response.data)
 }
 
 export const apiPut = <TRoute extends ApiRouteName>(
     name: TRoute,
     body?: ApiRouteBody<TRoute>,
     options: ApiOptions<TRoute> = {},
-): Promise<AxiosResponse<ApiRouteResponse<TRoute>>> => {
+): Promise<ApiRouteResponse<TRoute>> => {
     const endpoint = apiEndpoint(name, options.path)
     return resolveClient(options).put<ApiRouteResponse<TRoute>>(endpoint.url, body, buildRequestConfig(name, options))
+        .then((response) => response.data)
 }
 
 export const apiDelete = <TRoute extends ApiRouteName>(
     name: TRoute,
     options: ApiOptions<TRoute> = {},
-): Promise<AxiosResponse<ApiRouteResponse<TRoute>>> => {
+): Promise<ApiRouteResponse<TRoute>> => {
     const endpoint = apiEndpoint(name, options.path)
     return resolveClient(options).delete<ApiRouteResponse<TRoute>>(endpoint.url, buildRequestConfig(name, options))
+        .then((response) => response.data)
 }

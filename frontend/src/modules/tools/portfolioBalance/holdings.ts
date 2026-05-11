@@ -94,3 +94,4 @@ export const readPaperRunTotalValue = (run: BacktestRunResponse) => (
     2,
   )
 )
+

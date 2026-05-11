@@ -118,3 +118,4 @@ export interface PortfolioBalanceSnapshot {
   activePortfolioId: string
   portfolios: PortfolioBalancePortfolio[]
 }
+

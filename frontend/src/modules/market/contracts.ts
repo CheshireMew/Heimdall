@@ -6,8 +6,8 @@ import type {
   BinanceWeb3TokenDynamicResponse,
   MarketSymbolSearchResponse,
   OhlcvPointResponse,
-} from '../../types/market'
-export type * from '../../types/market'
+} from './generatedContracts'
+export type * from './generatedContracts'
 
 export interface CandlestickData {
   time: number
@@ -45,3 +45,4 @@ export type BinanceWeb3HeatRankItem = BinanceWeb3HeatRankItemResponse
 export type BinanceWeb3TokenAudit = BinanceWeb3TokenAuditResponse
 export type BinanceWeb3TokenDynamic = BinanceWeb3TokenDynamicResponse
 export type MarketSymbolSearchItem = MarketSymbolSearchResponse
+

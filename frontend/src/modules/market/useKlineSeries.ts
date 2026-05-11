@@ -65,7 +65,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
         end_date: toLocalIsoDate(end),
       })
       if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
-      indexKlineData.value = res.data.data || []
+      indexKlineData.value = res.data || []
       return
     }
     const data = await marketStore.getKlineData(requestSymbol, requestTimeframe, 1000, options)
@@ -89,7 +89,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
       limit: LIVE_TAIL_LIMIT,
     })
     if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
-    const tail = res.data.kline_data || []
+    const tail = res.kline_data || []
     if (tail.length === 0) return
     marketStore.applyKlineTail(requestSymbol, requestTimeframe, tail, 1000)
   }
@@ -134,7 +134,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
           end_date: toLocalIsoDate(end),
         })
         if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
-        const newKlines = res.data.data || []
+        const newKlines = res.data || []
         if (newKlines.length === 0) {
           noMoreHistory.value = true
           return
@@ -151,7 +151,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
       })
       if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
 
-      const newKlines = res.data.items || []
+      const newKlines = res.items || []
       if (newKlines.length === 0) {
         noMoreHistory.value = true
         return
@@ -193,3 +193,4 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
     loadMore,
   }
 }
+

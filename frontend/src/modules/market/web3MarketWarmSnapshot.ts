@@ -14,3 +14,4 @@ export const web3HeatRankWarmSnapshot = createWarmSnapshotStore<BinanceWeb3HeatR
   validate: (payload, chainId, size) => payload.chain_id === chainId && payload.size === size && Boolean(payload.boards),
   hasContent: (payload) => Object.values(payload.boards || {}).some((board) => Boolean(board.items?.length)),
 })
+

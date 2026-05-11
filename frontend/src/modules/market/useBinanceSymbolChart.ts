@@ -89,7 +89,7 @@ export function useBinanceSymbolChart() {
         limit: 72,
       })
       if (requestId !== contractDetailRequestId) return
-      contractDetail.value = response.data
+      contractDetail.value = response
     } catch (error) {
       if (requestId !== contractDetailRequestId) return
       contractDetailError.value = t('binanceMarket.contractDetail.loadFailed')
@@ -120,3 +120,4 @@ export function useBinanceSymbolChart() {
     loadMoreChartHistory,
   }
 }
+

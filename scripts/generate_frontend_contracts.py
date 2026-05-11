@@ -16,9 +16,15 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from app.main import app
 
-FRONTEND_TYPES_DIR = REPO_ROOT / "frontend" / "src" / "types"
 FRONTEND_API_DIR = REPO_ROOT / "frontend" / "src" / "api"
 TARGET_FILES = ("backtest.ts", "factor.ts", "market.ts", "tools.ts", "config.ts")
+TARGET_PATHS = {
+    "backtest.ts": REPO_ROOT / "frontend" / "src" / "modules" / "backtest" / "generatedContracts.ts",
+    "factor.ts": REPO_ROOT / "frontend" / "src" / "modules" / "factors" / "generatedContracts.ts",
+    "market.ts": REPO_ROOT / "frontend" / "src" / "modules" / "market" / "generatedContracts.ts",
+    "tools.ts": REPO_ROOT / "frontend" / "src" / "modules" / "tools" / "generatedContracts.ts",
+    "config.ts": REPO_ROOT / "frontend" / "src" / "modules" / "system" / "generatedContracts.ts",
+}
 API_PREFIX = "/api/v1"
 TYPE_NAMESPACE_BY_FILE = {
     "backtest.ts": "BacktestTypes",
@@ -64,7 +70,7 @@ def main() -> None:
             grouped_models.get(filename, []),
             grouped_query_params.get(filename, []),
         )
-        (FRONTEND_TYPES_DIR / filename).write_text(content, encoding="utf-8")
+        TARGET_PATHS[filename].write_text(content, encoding="utf-8")
     (FRONTEND_API_DIR / "routes.ts").write_text(render_api_routes(), encoding="utf-8")
 
 
@@ -72,6 +78,8 @@ def collect_route_contract_models() -> tuple[RouteContractModel, ...]:
     models: dict[tuple[str, str], RouteContractModel] = {}
     for route in app.routes:
         if not isinstance(route, APIRoute):
+            continue
+        if not route.path.startswith(API_PREFIX):
             continue
         target_file = resolve_route_target_file(route)
         for model in extract_pydantic_models(route.response_model):
@@ -89,6 +97,8 @@ def collect_route_query_param_contracts() -> tuple[QueryParamContract, ...]:
     contracts: dict[str, QueryParamContract] = {}
     for route in app.routes:
         if not isinstance(route, APIRoute):
+            continue
+        if not route.path.startswith(API_PREFIX):
             continue
         if not route.dependant.query_params:
             continue
@@ -167,7 +177,26 @@ def resolve_route_target_file(route: APIRoute) -> str:
         or path.startswith("/api/v1/fred-api-config")
     ):
         return "config.ts"
-    return "market.ts"
+    market_prefixes = (
+        "/api/v1/status",
+        "/api/v1/symbols",
+        "/api/v1/realtime",
+        "/api/v1/ws/realtime",
+        "/api/v1/history",
+        "/api/v1/klines/",
+        "/api/v1/price/",
+        "/api/v1/full_history",
+        "/api/v1/indicators",
+        "/api/v1/technical-metrics",
+        "/api/v1/trade-setup",
+        "/api/v1/crypto_index",
+        "/api/v1/indexes",
+        "/api/v1/funding-rate",
+        "/api/v1/binance/",
+    )
+    if any(path == prefix or path.startswith(prefix) for prefix in market_prefixes):
+        return "market.ts"
+    raise RuntimeError(f"API route has no frontend contract target: {route.name} {path}")
 
 
 def render_api_routes() -> str:

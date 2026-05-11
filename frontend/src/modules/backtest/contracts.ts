@@ -8,8 +8,8 @@ import type {
   StrategyRiskConfigResponse,
   StrategyRoiTargetResponse,
   StrategyTemplateConfigResponse,
-} from '../../types/backtest'
-export type * from '../../types/backtest'
+} from './generatedContracts'
+export type * from './generatedContracts'
 
 type StrategyConditionNode = StrategyConditionNodeResponse
 type StrategyGroupNodeContract = StrategyGroupNodeResponse
@@ -58,3 +58,4 @@ export const isStrategyGroupNode = (
 export const isPaperLiveMetadata = (
   metadata: BacktestExecutionMetadataResponse | PaperLiveExecutionMetadataResponse | null | undefined,
 ): metadata is PaperLiveExecutionMetadataResponse => metadata?.execution_mode === 'paper_live'
+

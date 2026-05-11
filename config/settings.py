@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_DB_PATH = BASE_DIR / "data" / "heimdall.db"
+DATA_DIR = BASE_DIR / "data"
 
 
 def _default_runtime_root() -> Path:
@@ -201,4 +201,4 @@ class AppSettings(BaseSettings):
 
 settings = AppSettings()
 
-__all__ = ["AppSettings", "settings", "BASE_DIR", "DEFAULT_DB_PATH"]
+__all__ = ["AppSettings", "settings", "BASE_DIR", "DATA_DIR"]

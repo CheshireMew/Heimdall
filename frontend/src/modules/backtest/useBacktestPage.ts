@@ -104,10 +104,10 @@ export const useBacktestPage = () => {
       backtestApi.listStrategies(),
     ])
 
-    editorContract.value = contractResponse.data
-    bindSnapshot(contractResponse.data)
+    editorContract.value = contractResponse
+    bindSnapshot(contractResponse)
 
-    strategies.value = strategiesResponse.data
+    strategies.value = strategiesResponse
     if (strategies.value.length && !strategies.value.find((item) => item.key === config.strategy_key)) {
       config.strategy_key = strategies.value[0].key
     }
@@ -243,4 +243,5 @@ export const useBacktestPage = () => {
 }
 
 export type BacktestPageState = ReturnType<typeof useBacktestPage>
+
 

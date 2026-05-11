@@ -65,11 +65,11 @@ export function useDcaPage() {
       }
       const response = await toolsApi.runSimulation(payload)
       result.value = {
-        ...response.data,
-        current_price: typeof response.data.current_price !== 'undefined'
-          ? response.data.current_price
-          : response.data.history?.[response.data.history.length - 1]?.price,
-        total_days: response.data.history?.length ?? response.data.total_days,
+        ...response,
+        current_price: typeof response.current_price !== 'undefined'
+          ? response.current_price
+          : response.history?.[response.history.length - 1]?.price,
+        total_days: response.history?.length ?? response.total_days,
       }
       await fetchMarketIndicators()
       renderCharts()
@@ -131,9 +131,9 @@ export function useDcaPage() {
       toolsApi.getContract(),
       ensureSymbolCatalogLoaded(),
     ])
-    strategyKeys.value = [...contractResponse.data.dca_strategies]
-    multiplierDefault.value = contractResponse.data.dca_multiplier_default
-    const defaultConfig = createDefaultDcaConfig(contractResponse.data)
+    strategyKeys.value = [...contractResponse.dca_strategies]
+    multiplierDefault.value = contractResponse.dca_multiplier_default
+    const defaultConfig = createDefaultDcaConfig(contractResponse)
     const restoredConfig = normalizeDcaSnapshot(
       restoredSnapshot,
       { config: defaultConfig },
@@ -176,3 +176,4 @@ export function useDcaPage() {
     formatMoney,
   }
 }
+

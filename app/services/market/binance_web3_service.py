@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from app.infra.cache import RedisService
-from app.infra.persistence.market.kline_store import KlineStore
 from config import settings
+from app.services.persistence_ports import CacheServicePort, KlineStorePort
 
 from .binance_api_support import BinanceApiSupport
 from .binance_web3_ranks import BinanceWeb3RankService
@@ -11,7 +10,7 @@ from .binance_web3_tokens import BinanceWeb3TokenService
 
 
 class BinanceWeb3Service:
-    def __init__(self, *, cache_service: RedisService | None = None, kline_store: KlineStore) -> None:
+    def __init__(self, *, cache_service: CacheServicePort | None = None, kline_store: KlineStorePort) -> None:
         web3_client = BinanceApiSupport(
             base_url=settings.BINANCE_WEB3_BASE_URL,
             cache_namespace="binance:web3",

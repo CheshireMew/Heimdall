@@ -100,7 +100,7 @@ export function useCryptoIndexPage() {
         top_n: topN.value,
         days: days.value,
       })
-      data.value = response.data
+      data.value = response
     } catch (err) {
       console.error('Crypto index fetch failed', err)
       error.value = 'Failed to load crypto index data.'
@@ -148,4 +148,5 @@ export function useCryptoIndexPage() {
     changeClass,
   }
 }
+
 

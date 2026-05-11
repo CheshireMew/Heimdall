@@ -1,1 +1,2 @@
-export type * from '../../types/factor'
+export type * from './generatedContracts'
+

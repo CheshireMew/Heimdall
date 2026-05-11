@@ -51,7 +51,7 @@ export const useBacktestDetailPage = () => {
   const fetchStrategies = async () => {
     try {
       const res = await backtestApi.listStrategies()
-      strategies.value = res.data
+      strategies.value = res
     } catch (error) {
       console.error(error)
     }
@@ -113,7 +113,7 @@ export const useBacktestDetailPage = () => {
         make_default: true,
         dry_run: false,
       })
-      evolutionResult.value = res.data
+      evolutionResult.value = res
       await fetchStrategies()
     } catch (error) {
       console.error(error)
@@ -202,4 +202,5 @@ export const useBacktestDetailPage = () => {
 
 
 export type BacktestDetailPageState = ReturnType<typeof useBacktestDetailPage>
+
 

@@ -12,7 +12,7 @@ from app.domain.market.index_catalog import (
 from app.infra.executor import run_sync
 from app.services.market.history_ranges import collect_missing_ranges
 from app.services.market.index_history_sources import IndexFetchResult, IndexHistorySources
-from app.infra.persistence.market.kline_store import KlineStore
+from app.services.persistence_ports import KlineStorePort
 
 
 @dataclass(frozen=True, slots=True)

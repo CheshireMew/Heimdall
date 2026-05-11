@@ -11,6 +11,7 @@ from app.background_runtime import BackgroundRuntimeController, BackgroundRuntim
 from app.runtime import AppRuntimeServices, RuntimeRole, runtime_role_has_target
 from app.runtime_builder import build_app_runtime_services
 from app.runtime_refs import INFRA_DATABASE_RUNTIME
+from config import settings
 
 
 def _logger():

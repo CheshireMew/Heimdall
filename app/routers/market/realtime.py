@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 
@@ -10,10 +10,6 @@ from app.runtime_refs import MARKET_QUERY_APP_SERVICE, MARKET_WEBSOCKET_SERVICE
 from app.contracts.dto.market import RealtimeResponse
 from config import settings
 from utils.logger import logger
-
-if TYPE_CHECKING:
-    from app.services.market.query_app_service import MarketQueryAppService
-    from app.services.market.websocket_service import MarketWebSocketService
 
 
 router = APIRouter(tags=["Market Data"])
@@ -26,7 +22,7 @@ async def get_realtime_analysis(
     symbol: str = Query(..., description="交易对，如 BTC/USDT"),
     timeframe: str | None = Query(default=None),
     limit: int | None = Query(default=None, ge=1, le=settings.API_MAX_LIMIT),
-    service: MarketQueryAppService = Depends(market_query_dependency),
+    service: Any = Depends(market_query_dependency),
 ):
     return await service.get_realtime(
         symbol=symbol,
@@ -38,8 +34,8 @@ async def get_realtime_analysis(
 @router.websocket("/ws/realtime")
 async def websocket_realtime(
     websocket: WebSocket,
-    service: MarketQueryAppService = Depends(market_query_dependency),
-    websocket_service: MarketWebSocketService = Depends(market_websocket_dependency),
+    service: Any = Depends(market_query_dependency),
+    websocket_service: Any = Depends(market_websocket_dependency),
 ):
     await websocket.accept()
     try:

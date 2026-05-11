@@ -4,7 +4,6 @@ import asyncio
 from datetime import datetime
 
 from app.infra.db.schema import BacktestRun
-from app.contracts.dto.backtest import BacktestDeleteResponse
 from app.application.backtest.paper_manager import PaperRunManager
 from app.infra.persistence.backtest.run_repository import BacktestRunRepository
 from app.infra.persistence.backtest.run_mutation_service import BacktestRunMutationService
@@ -46,10 +45,11 @@ def test_delete_paper_run_updates_stop_state_and_removes_row(installed_database_
         report_builder=object(),
         run_repository=BacktestRunRepository(database_runtime=installed_database_runtime),
         run_mutations=BacktestRunMutationService(database_runtime=installed_database_runtime),
+        activate_created_runs=True,
     )
 
     result = asyncio.run(manager.delete_run(run_id))
 
-    assert result == BacktestDeleteResponse(success=True, run_id=run_id, message="模拟盘记录已删除")
+    assert result == {"success": True, "run_id": run_id, "message": "模拟盘记录已删除"}
     with installed_database_runtime.session_scope() as session:
         assert session.get(BacktestRun, run_id) is None

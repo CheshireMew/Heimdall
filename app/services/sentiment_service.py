@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.services.sentiment_client import SentimentApiClient
-from app.infra.persistence.sentiment_repository import SentimentRepository
+from app.services.persistence_ports import SentimentRepositoryPort
 from utils.logger import logger
 from utils.time_manager import TimeManager
 
@@ -13,7 +13,7 @@ class SentimentService:
         self,
         *,
         client: SentimentApiClient,
-        repository: SentimentRepository,
+        repository: SentimentRepositoryPort,
     ) -> None:
         self.client = client
         self.repository = repository

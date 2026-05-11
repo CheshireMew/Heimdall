@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable
 
-from app.infra.persistence.market.kline_store import KlineStore
+from app.services.persistence_ports import KlineStorePort
 from app.services.market.history_ranges import collect_missing_ranges
 from app.services.market.symbol_routing import MarketSymbolRouting
 from config import settings
@@ -31,7 +31,7 @@ class OhlcvRangeResult:
 
 
 class KlineRangeLoader:
-    def __init__(self, *, kline_store: KlineStore, symbol_routing: MarketSymbolRouting) -> None:
+    def __init__(self, *, kline_store: KlineStorePort, symbol_routing: MarketSymbolRouting) -> None:
         self.kline_store = kline_store
         self.symbol_routing = symbol_routing
 

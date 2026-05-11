@@ -124,7 +124,7 @@ def test_services_do_not_depend_on_orm_schema_or_legacy_persistence_paths():
         "app.services.paper_run_lifecycle",
         "app.services.market_cron",
     )
-    forbidden_prefixes = ("app.infra.db.schema", *legacy_prefixes)
+    forbidden_prefixes = ("app.infra.db", "app.infra.persistence", *legacy_prefixes)
     offenders = [
         f"{path.relative_to(ROOT_DIR).as_posix()} -> {module}"
         for path in _python_files(APP_DIR / "services")
@@ -274,11 +274,22 @@ def test_application_does_not_open_orm_boundary_directly():
     assert offenders == []
 
 
-def test_application_boundary_uses_ports_instead_of_concrete_infra_or_services():
-    forbidden_prefixes = ("app.infra.db", "app.infra.persistence", "app.services")
+def test_application_boundary_uses_ports_instead_of_concrete_infra_services_or_api_dtos():
+    forbidden_prefixes = ("app.infra.db", "app.infra.persistence", "app.services", "app.contracts.dto")
     offenders = [
         f"{path.relative_to(ROOT_DIR).as_posix()} -> {module}"
         for path in _python_files(APP_DIR / "application")
+        for module in _import_modules(path)
+        if any(module == prefix or module.startswith(f"{prefix}.") for prefix in forbidden_prefixes)
+    ]
+    assert offenders == []
+
+
+def test_routers_do_not_import_concrete_services_or_infra():
+    forbidden_prefixes = ("app.services", "app.infra")
+    offenders = [
+        f"{path.relative_to(ROOT_DIR).as_posix()} -> {module}"
+        for path in _python_files(APP_DIR / "routers")
         for module in _import_modules(path)
         if any(module == prefix or module.startswith(f"{prefix}.") for prefix in forbidden_prefixes)
     ]
@@ -321,9 +332,9 @@ def test_frontend_generated_contracts_are_current():
             grouped_models.get(filename, []),
             grouped_query_params.get(filename, []),
         )
-        actual = (generator.FRONTEND_TYPES_DIR / filename).read_text(encoding="utf-8")
+        actual = generator.TARGET_PATHS[filename].read_text(encoding="utf-8")
         if actual != expected:
-            changed.append(str((generator.FRONTEND_TYPES_DIR / filename).relative_to(ROOT_DIR)))
+            changed.append(str(generator.TARGET_PATHS[filename].relative_to(ROOT_DIR)))
     expected_routes = generator.render_api_routes()
     actual_routes = (generator.FRONTEND_API_DIR / "routes.ts").read_text(encoding="utf-8")
     if actual_routes != expected_routes:

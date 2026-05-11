@@ -31,7 +31,7 @@ export const useBacktestEditorCatalog = ({
   const fetchStrategies = async () => {
     try {
       const res = await backtestApi.listStrategies()
-      strategies.value = res.data
+      strategies.value = res
       if (strategies.value.length && !strategies.value.find((item) => item.key === config.strategy_key)) {
         config.strategy_key = strategies.value[0].key
       }
@@ -44,7 +44,7 @@ export const useBacktestEditorCatalog = ({
   const fetchTemplates = async () => {
     try {
       const res = await backtestApi.listTemplates()
-      templates.value = res.data
+      templates.value = res
       if (!templates.value.length) return
       const editableTemplates = Array.isArray(editor.editableTemplates?.value) ? editor.editableTemplates.value : templates.value
       const matchedTemplate = editableTemplates.find((item) => item.template === editor.versionDraft.template) || editableTemplates[0]
@@ -63,8 +63,8 @@ export const useBacktestEditorCatalog = ({
   const fetchIndicators = async () => {
     try {
       const [indicatorRes, engineRes] = await Promise.all([backtestApi.listIndicators(), backtestApi.listIndicatorEngines()])
-      indicators.value = indicatorRes.data
-      indicatorEngines.value = engineRes.data
+      indicators.value = indicatorRes
+      indicatorEngines.value = engineRes
       if (!editor.newIndicatorType.value) editor.newIndicatorType.value = indicators.value[0]?.key || 'ema'
       editor.resetIndicatorDraft()
     } catch (error) {
@@ -75,7 +75,7 @@ export const useBacktestEditorCatalog = ({
   const fetchEditorContract = async () => {
     try {
       const res = await backtestApi.getEditorContract()
-      editorContract.value = res.data
+      editorContract.value = res
     } catch (error) {
       console.error(error)
     }
@@ -90,4 +90,5 @@ export const useBacktestEditorCatalog = ({
     fetchEditorContract,
   }
 }
+
 

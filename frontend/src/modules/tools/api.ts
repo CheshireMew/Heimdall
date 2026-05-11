@@ -1,5 +1,4 @@
 import { apiGet, apiPost } from '@/api/request'
-import type { AxiosResponse } from 'axios'
 import type {
   DCARequestSchema,
   DCAResponse,
@@ -9,15 +8,17 @@ import type {
 } from './contracts'
 
 export const toolsApi = {
-  getContract(): Promise<AxiosResponse<ToolsPageContractResponse>> {
+  getContract(): Promise<ToolsPageContractResponse> {
     return apiGet('get_tools_contract')
   },
 
-  runSimulation(config: DCARequestSchema): Promise<AxiosResponse<DCAResponse>> {
+  runSimulation(config: DCARequestSchema): Promise<DCAResponse> {
     return apiPost('dca_simulate', config)
   },
 
-  comparePairs(params: PairCompareRequestSchema): Promise<AxiosResponse<PairCompareToolResponse>> {
+  comparePairs(params: PairCompareRequestSchema): Promise<PairCompareToolResponse> {
     return apiPost('compare_pairs', params)
   },
 }
+
+

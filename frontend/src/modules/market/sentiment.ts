@@ -12,3 +12,4 @@ export const resolveSentimentBucket = (value: number): SentimentBucket => {
   if (value <= 75) return 'greed'
   return 'extremeGreed'
 }
+

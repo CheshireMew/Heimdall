@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
@@ -16,9 +16,6 @@ from app.contracts.dto.binance.web3 import (
     BinanceWeb3UnifiedTokenRankResponse,
 )
 
-if TYPE_CHECKING:
-    from app.services.market.binance_web3_service import BinanceWeb3Service
-
 
 router = APIRouter(tags=["Market Data"])
 binance_web3_dependency = runtime_dependency(MARKET_BINANCE_WEB3_SERVICE)
@@ -31,7 +28,7 @@ async def get_binance_web3_social_hype(
     time_range: int = Query(1, ge=1, le=30),
     sentiment: str = Query("All"),
     social_language: str = Query("ALL"),
-    service: BinanceWeb3Service = Depends(binance_web3_dependency),
+    service: Any = Depends(binance_web3_dependency),
 ):
     return await service.ranks.get_social_hype_leaderboard(
         chain_id=chain_id,
@@ -51,7 +48,7 @@ async def get_binance_web3_unified_token_rank(
     order_asc: bool = Query(False),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=200),
-    service: BinanceWeb3Service = Depends(binance_web3_dependency),
+    service: Any = Depends(binance_web3_dependency),
 ):
     return await service.ranks.get_unified_token_rank(
         rank_type=rank_type,
@@ -69,7 +66,7 @@ async def get_binance_web3_smart_money_inflow(
     chain_id: str = Query(...),
     period: str = Query("24h"),
     tag_type: int = Query(2),
-    service: BinanceWeb3Service = Depends(binance_web3_dependency),
+    service: Any = Depends(binance_web3_dependency),
 ):
     return await service.ranks.get_smart_money_inflow_rank(chain_id=chain_id, period=period, tag_type=tag_type)
 
@@ -77,7 +74,7 @@ async def get_binance_web3_smart_money_inflow(
 @router.get("/binance/web3/meme_rank", response_model=BinanceWeb3MemeRankResponse)
 async def get_binance_web3_meme_rank(
     chain_id: str = Query("56"),
-    service: BinanceWeb3Service = Depends(binance_web3_dependency),
+    service: Any = Depends(binance_web3_dependency),
 ):
     return await service.ranks.get_meme_rank(chain_id=chain_id)
 
@@ -89,7 +86,7 @@ async def get_binance_web3_address_pnl_rank(
     tag: str = Query("ALL"),
     page_no: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=25),
-    service: BinanceWeb3Service = Depends(binance_web3_dependency),
+    service: Any = Depends(binance_web3_dependency),
 ):
     return await service.ranks.get_address_pnl_rank(
         chain_id=chain_id,
@@ -104,7 +101,7 @@ async def get_binance_web3_address_pnl_rank(
 async def get_binance_web3_heat_rank(
     chain_id: str | None = Query(None),
     size: int = Query(30, ge=1, le=50),
-    service: BinanceWeb3Service = Depends(binance_web3_dependency),
+    service: Any = Depends(binance_web3_dependency),
 ):
     return await service.ranks.get_web3_heat_rank(chain_id=chain_id, size=size)
 
@@ -113,6 +110,6 @@ async def get_binance_web3_heat_rank(
 async def get_binance_web3_heat_rank_boards(
     chain_id: str | None = Query(None),
     size: int = Query(30, ge=1, le=50),
-    service: BinanceWeb3Service = Depends(binance_web3_dependency),
+    service: Any = Depends(binance_web3_dependency),
 ):
     return await service.ranks.get_web3_heat_rank_boards(chain_id=chain_id, size=size)

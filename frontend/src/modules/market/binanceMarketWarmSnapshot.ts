@@ -22,3 +22,4 @@ export const binanceMarketWarmSnapshot = createWarmSnapshotStore<BinanceMarketPa
     return Boolean(payload.monitor?.items?.length || hasSpotRows || hasContractRows)
   },
 })
+
