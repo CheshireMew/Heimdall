@@ -32,8 +32,8 @@ class MarketInsightAppService:
     ) -> list[dict[str, Any]]:
         return self.indicator_service.get_indicators(category=category, days=days)
 
-    def get_dli_liquidity(self, days: int) -> dict[str, Any]:
-        return self.indicator_service.get_dli_liquidity(days=days)
+    def get_dli_liquidity(self, days: int, change_days: int = 30) -> dict[str, Any]:
+        return self.indicator_service.get_dli_liquidity(days=days, change_days=change_days)
 
     async def get_indicators_async(
         self,
@@ -42,8 +42,8 @@ class MarketInsightAppService:
     ) -> list[dict[str, Any]]:
         return await run_sync(lambda: self.get_indicators(category=category, days=days))
 
-    async def get_dli_liquidity_async(self, days: int) -> dict[str, Any]:
-        return await run_sync(lambda: self.get_dli_liquidity(days=days))
+    async def get_dli_liquidity_async(self, days: int, change_days: int = 30) -> dict[str, Any]:
+        return await run_sync(lambda: self.get_dli_liquidity(days=days, change_days=change_days))
 
     async def get_crypto_index(self, top_n: int, days: int) -> dict[str, Any]:
         return await self.crypto_index_service.build_index(top_n=top_n, days=days)

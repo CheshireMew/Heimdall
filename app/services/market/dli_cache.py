@@ -8,7 +8,7 @@ from app.services.market.ttl_cache import TtlMemoryCache
 from config import settings
 
 
-DLI_LIQUIDITY_CACHE_PREFIX = "market:dli:liquidity:v1"
+DLI_LIQUIDITY_CACHE_PREFIX = "market:dli:liquidity:v3"
 
 
 class DliLiquidityCache:
@@ -26,11 +26,11 @@ class DliLiquidityCache:
         )
 
     @staticmethod
-    def key(days: int) -> str:
-        return f"{DLI_LIQUIDITY_CACHE_PREFIX}:days:{days}"
+    def key(days: int, change_days: int) -> str:
+        return f"{DLI_LIQUIDITY_CACHE_PREFIX}:days:{days}:change_days:{change_days}"
 
-    def get(self, *, days: int) -> dict[str, Any] | None:
-        cache_key = self.key(days)
+    def get(self, *, days: int, change_days: int = 30) -> dict[str, Any] | None:
+        cache_key = self.key(days, change_days)
         cached = self.memory_cache.get(cache_key)
         if cached is not None:
             return cached
@@ -42,8 +42,8 @@ class DliLiquidityCache:
         self.memory_cache.set(cache_key, cached)
         return deepcopy(cached)
 
-    def set(self, *, days: int, payload: dict[str, Any]) -> None:
-        cache_key = self.key(days)
+    def set(self, *, days: int, change_days: int = 30, payload: dict[str, Any]) -> None:
+        cache_key = self.key(days, change_days)
         self.memory_cache.set(cache_key, payload)
         optional_cache_set(
             self.cache_service,

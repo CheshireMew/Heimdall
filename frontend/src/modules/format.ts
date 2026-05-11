@@ -67,6 +67,24 @@ export const formatNumber = (value: unknown, empty = '-') => {
   return numeric === null ? empty : numeric.toLocaleString()
 }
 
+export const formatSignedNumber = (value: unknown, digits = 2, empty = '--') => {
+  const numeric = asNumber(value)
+  if (numeric === null) return empty
+  return `${numeric >= 0 ? '+' : ''}${numeric.toFixed(digits)}`
+}
+
+export const formatSignedMetric = (value: unknown, digits = 2, suffix = '%', withSign = true, empty = '--') => {
+  const numeric = asNumber(value)
+  if (numeric === null) return empty
+  const sign = withSign && numeric > 0 ? '+' : ''
+  return `${sign}${numeric.toFixed(digits)}${suffix}`
+}
+
+export const formatPercentile = (value: unknown, empty = '--') => {
+  const numeric = asNumber(value)
+  return numeric === null ? empty : `P${Math.round(numeric)}`
+}
+
 export const formatLocalizedNumber = (value: unknown, maximumFractionDigits = 3, empty = '--') => {
   const numeric = asNumber(value)
   if (numeric === null) return empty

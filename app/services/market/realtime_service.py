@@ -5,10 +5,10 @@ from datetime import datetime
 from typing import Any
 
 from config import settings
-from app.contracts.dto.market import RealtimeResponse, build_ohlcv_points
 from app.domain.market.prompt_engine import PromptEngine
 from app.domain.market.technical_analysis import TechnicalAnalysis
 from app.services.market.market_data_service import MarketDataService
+from app.services.market.query_payloads import realtime_response
 
 
 @dataclass(slots=True)
@@ -77,16 +77,16 @@ class RealtimeService:
         include_type: bool = False,
     ) -> dict[str, Any]:
         closes = [x[4] for x in kline_data]
-        return RealtimeResponse(
+        return realtime_response(
             symbol=symbol,
             timestamp=datetime.now().isoformat(),
             current_price=closes[-1],
             indicators=indicators,
             ai_analysis=ai_analysis,
-            kline_data=build_ohlcv_points(kline_data),
+            kline_data=kline_data,
             timeframe=timeframe,
-            type="realtime" if include_type else None,
-        ).model_dump()
+            include_type=include_type,
+        )
 
     async def maybe_run_ai(
         self,

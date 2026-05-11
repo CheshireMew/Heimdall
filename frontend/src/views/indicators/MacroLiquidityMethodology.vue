@@ -7,7 +7,7 @@
           <p class="detail-kicker mt-4">DLI 计算原理</p>
           <h1 class="detail-title mt-2">美元流动性评分如何生成</h1>
           <p class="mt-3 max-w-3xl text-sm leading-6 text-stone-600 dark:text-slate-400">
-            DLI 不是单个宏观指标，而是把政策流动性、融资成本、信用压力和风险偏好代理放入同一评分框架。分数越高，代表当前环境相对历史样本越宽松。
+            DLI 是一个当期美元流动性压力测度。它把政策准备金、融资管道、信用中介和市场价格反馈放到同一方向、同一尺度下比较；状态分位越高，代表当前环境相对过去 5 年越紧。
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
@@ -21,6 +21,28 @@
       <div v-if="error" class="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-950/40 dark:text-red-200">
         {{ error }}
       </div>
+
+      <section class="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <article class="detail-panel p-5">
+          <p class="detail-kicker">模型定位</p>
+          <h2 class="mt-2 text-lg font-semibold text-slate-950 dark:text-white">当期状态，不是收益预测</h2>
+          <div class="mt-5 space-y-3 text-sm leading-6 text-stone-600 dark:text-slate-400">
+            <p>这个模型回答的问题是：今天美元流动性压力处在过去几年分布的什么位置。它不回答未来 20 天或 60 天风险资产会涨跌多少。</p>
+            <p>原因很直接：TGA、ON RRP、SRF、VIX、信用利差这些指标每天都在变化，今天的状态到几周后通常已经不是同一个状态。把今天的状态拿去预测很远的未来收益，容易把不同状态混在一起。</p>
+            <p>因此这里更适合做宏观背景和仓位环境判断，而不是短线交易信号。</p>
+          </div>
+        </article>
+
+        <article class="detail-panel p-5">
+          <p class="detail-kicker">与公开站口径</p>
+          <h2 class="mt-2 text-lg font-semibold text-slate-950 dark:text-white">独立复刻，不镜像私有 API</h2>
+          <div class="mt-5 space-y-3 text-sm leading-6 text-stone-600 dark:text-slate-400">
+            <p>本页模型参考 DollarLiquidity 公开方法论和公开指标结构，但后端使用官方数据源独立计算，不直接代理它的 /api/regime。</p>
+            <p>目标站的首页分数使用服务端未完全公开的 regime z-score 细节，因此本地分数可能与目标站有小幅偏差。偏差通常来自单指标 z-score 的窗口、压缩、平滑或采样方式。</p>
+            <p>这种设计保留了可解释性和可复现性：每个指标的当前值、压力 z、历史分位、有效权重和贡献都在诊断表中展示。</p>
+          </div>
+        </article>
+      </section>
 
       <section class="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <article class="detail-panel p-5">
@@ -56,7 +78,7 @@
           <p class="detail-kicker">指标权重</p>
           <h2 class="mt-2 text-lg font-semibold text-slate-950 dark:text-white">当前纳入 DLI 的驱动项</h2>
           <p class="mt-2 text-sm text-stone-500 dark:text-slate-400">
-            权重分为原始权重和有效权重。有效权重会根据当前可用数据覆盖率重新归一，避免缺失指标直接扭曲综合分。
+            综合评分先生成压力方向的复合 z-score，再转成 5 年滚动百分位作为状态分数。核心权重为政策与准备金 65%，融资与管道 10%，信用与中介 5%，风险与价格 20%，组内等权。
           </p>
         </div>
         <div class="overflow-x-auto">
@@ -69,7 +91,10 @@
                 <th class="px-5 py-3 font-semibold">原始权重</th>
                 <th class="px-5 py-3 font-semibold">有效权重</th>
                 <th class="px-5 py-3 font-semibold">当前分数</th>
+                <th class="px-5 py-3 font-semibold">压力 z</th>
+                <th class="px-5 py-3 font-semibold">历史分位</th>
                 <th class="px-5 py-3 font-semibold">贡献</th>
+                <th class="px-5 py-3 font-semibold">数据滞后</th>
               </tr>
             </thead>
             <tbody>
@@ -78,18 +103,36 @@
                   <div class="font-semibold text-slate-950 dark:text-white">{{ driver.definition.label }}</div>
                   <div class="mt-1 text-xs text-stone-500 dark:text-slate-500">{{ driver.definition.description }}</div>
                 </td>
-                <td class="px-5 py-4">{{ groupLabel(driver.definition.group) }}</td>
+                <td class="px-5 py-4">{{ driver.definition.groupLabel }}</td>
                 <td class="px-5 py-4">{{ polarityLabel(driver.definition.polarity) }}</td>
                 <td class="px-5 py-4">{{ componentWeight(driver) }}</td>
                 <td class="px-5 py-4">{{ formatWeight(driver.effectiveWeight) }}</td>
                 <td class="px-5 py-4">{{ driver.score }}</td>
-                <td class="px-5 py-4" :class="driver.contribution && driver.contribution >= 0 ? 'text-[#0f6b4f] dark:text-emerald-300' : 'text-[#c84c28] dark:text-orange-300'">
-                  {{ formatContribution(driver.contribution) }}
+                <td class="px-5 py-4" :class="driver.zScore && driver.zScore >= 0 ? 'text-[#c84c28] dark:text-orange-300' : 'text-[#0f6b4f] dark:text-emerald-300'">
+                  {{ formatSignedNumber(driver.zScore) }}
                 </td>
+                <td class="px-5 py-4">{{ formatPercentile(driver.percentile) }}</td>
+                <td class="px-5 py-4" :class="driver.contribution && driver.contribution >= 0 ? 'text-[#c84c28] dark:text-orange-300' : 'text-[#0f6b4f] dark:text-emerald-300'">
+                  {{ formatSignedNumber(driver.contribution) }}
+                </td>
+                <td class="px-5 py-4">{{ driver.dataLagLabel }}</td>
               </tr>
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section class="grid gap-4 lg:grid-cols-3">
+        <article v-for="section in detailSections" :key="section.title" class="detail-panel p-5">
+          <p class="detail-kicker">{{ section.kicker }}</p>
+          <h2 class="mt-2 text-lg font-semibold text-slate-950 dark:text-white">{{ section.title }}</h2>
+          <ul class="mt-5 space-y-3">
+            <li v-for="item in section.items" :key="item" class="flex gap-2 text-sm leading-6 text-stone-600 dark:text-slate-400">
+              <span class="mt-2 h-1.5 w-1.5 flex-shrink-0 bg-[#0f6b4f] dark:bg-emerald-400"></span>
+              <span>{{ item }}</span>
+            </li>
+          </ul>
+        </article>
       </section>
     </section>
   </div>
@@ -97,7 +140,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { useMacroLiquidityPage, type MacroDriver, type MacroGroupId, type MacroPolarity } from '@/modules/market'
+import { formatPercentile, formatSignedNumber } from '@/modules/format'
+import { useMacroLiquidityPage, type MacroDriver, type MacroPolarity } from '@/modules/market'
 
 const {
   loading,
@@ -115,74 +159,99 @@ const thresholdValues = computed(() => ({
 
 const regimes = computed(() => [
   {
-    title: '流动性收紧',
+    title: '流动性宽松',
     range: `≤ P20 (${thresholdValues.value.p20.toFixed(1)})`,
-    color: '#c84c28',
-    description: '综合分处于历史低分位，说明关键指标整体偏向抽走流动性或抬高融资压力。',
-  },
-  {
-    title: '中性偏紧',
-    range: `P20-P50 (${thresholdValues.value.p20.toFixed(1)}-${thresholdValues.value.p50.toFixed(1)})`,
-    color: '#c9873a',
-    description: '未进入极端收紧，但低于历史中位数，风险资产仍需考虑宏观压力。',
+    color: '#0f6b4f',
+    description: '压力分处于历史低分位，说明关键指标整体偏向释放流动性或缓和融资压力。',
   },
   {
     title: '中性偏松',
-    range: `P50-P80 (${thresholdValues.value.p50.toFixed(1)}-${thresholdValues.value.p80.toFixed(1)})`,
+    range: `P20-P50 (${thresholdValues.value.p20.toFixed(1)}-${thresholdValues.value.p50.toFixed(1)})`,
     color: '#8a8f56',
-    description: '高于历史中位数，流动性环境边际友好，但不是极端宽松。',
+    description: '未进入极端宽松，但压力低于历史中位数，流动性背景偏友好。',
   },
   {
-    title: '流动性宽松',
+    title: '中性偏紧',
+    range: `P50-P80 (${thresholdValues.value.p50.toFixed(1)}-${thresholdValues.value.p80.toFixed(1)})`,
+    color: '#c9873a',
+    description: '压力高于历史中位数，但尚未进入极端收紧区间。',
+  },
+  {
+    title: '流动性收紧',
     range: `≥ P80 (${thresholdValues.value.p80.toFixed(1)})`,
-    color: '#0f6b4f',
-    description: '综合分处于历史高分位，美元流动性通常对风险偏好形成支撑。',
+    color: '#c84c28',
+    description: '压力分处于历史高分位，美元流动性通常对风险资产形成明显逆风。',
   },
 ])
 
 const methodologySteps = [
   {
     index: '01',
-    title: '统一方向',
-    body: '每个指标先定义方向：有些指标越高越支撑风险资产，例如美联储资产负债表、M2；有些指标越低越支撑，例如 TGA、ON RRP、利率、VIX 和美元指数。',
+    title: '多源数据接入',
+    body: '采集并对齐 FRED、Treasury Fiscal Data 和 NY Fed Markets 的跨频率序列。TGA 使用财政部 DTS 日频数据；SOFR-IORB、银行现金缓冲和净流动性是派生序列。',
   },
   {
     index: '02',
-    title: '和自身历史比较',
-    body: '当前值不直接横向相加，而是放回自身历史窗口，计算稳健 z-score 和历史分位，解决不同单位、频率和量纲不可比的问题。',
+    title: '统一压力方向',
+    body: '所有指标先转成压力方向：数值上升会收紧的指标保留正向；数值下降会收紧的指标反向。处理后，z-score 为正代表收紧压力，z-score 为负代表流动性缓和。',
   },
   {
     index: '03',
-    title: '转为 0-100 分',
-    body: '每个指标转换成支持度分数。50 是中性附近，越接近 100 越宽松，越接近 0 越收紧。',
+    title: '稳健统计标准化',
+    body: '核心指标放回 10 年滚动窗口，用中位数和 MAD 计算稳健 z-score，并截断到 [-4, +4]。当 MAD 不可用时，回退到总体标准差，避免零波动序列中断模型。',
   },
   {
     index: '04',
-    title: '按分组权重汇总',
-    body: '政策与准备金池、融资与利率、信用与中介、风险与价格四组分别加权。若部分指标缺失，可用组内权重会重新归一。',
+    title: '风险组压缩',
+    body: 'VIX、美元指数、10Y 实际利率属于价格反馈项，先用 2 年滚动百分位压缩，再映射回 z-score，降低极端市场价格对总分的循环污染。',
   },
   {
     index: '05',
+    title: '按分组权重汇总',
+    body: '政策与准备金池占 65%，融资与管道占 10%，信用与中介占 5%，风险与价格占 20%。组内等权；若部分指标缺失，按可用组和可用指标重新归一有效权重。',
+  },
+  {
+    index: '06',
     title: '用历史分位定义状态',
-    body: '综合分再和历史综合分分布比较，使用 P20、P50、P80 划分四个状态，而不是用固定绝对分数硬切。',
+    body: '复合 z-score 再和 5 年滚动分布比较，输出 P0-P100 状态分数，并用 P20、P50、P80 划分宽松、中性偏松、中性偏紧和收紧。',
   },
 ]
 
-const groupLabel = (group: MacroGroupId) => ({
-  policy: '政策与准备金池',
-  funding: '融资与利率',
-  credit: '信用与中介',
-  risk: '风险与价格',
-}[group])
+const detailSections = [
+  {
+    kicker: '公式',
+    title: '核心计算',
+    items: [
+      '单指标压力 z = 方向因子 × (当前值 - 10 年中位数) / (1.4826 × MAD)。',
+      '复合 z = 0.65 × 政策组均值 + 0.10 × 融资组均值 + 0.05 × 信用组均值 + 0.20 × 风险组均值。',
+      '状态分位 = 当前复合 z 在过去 5 年复合 z 分布中的 percentile rank。',
+    ],
+  },
+  {
+    kicker: '数据',
+    title: '更新频率',
+    items: [
+      'TGA、ON RRP、SRF、VIX、美元指数、HY 利差和实际利率通常按日更新。',
+      'Fed 总资产、银行现金缓冲和 M2 是周频或月频序列，天然存在更长数据滞后。',
+      '看板会展示 data lag，用来判断当前评分是否被某些慢频指标拖慢。',
+    ],
+  },
+  {
+    kicker: '限制',
+    title: '使用边界',
+    items: [
+      'DLI 是同期压力测度，不是价格预测器。',
+      '权重来自经济传导机制和公开方法论，不是机器学习自动优化。',
+      '极端日内事件、数据修订和私有站点的未公开平滑逻辑，都会造成短期偏差。',
+    ],
+  },
+]
 
 const polarityLabel = (polarity: MacroPolarity) => (
-  polarity === 'higherSupports' ? '越高越宽松' : '越低越宽松'
+  polarity === 'higherTightens' ? '越高越紧' : '越低越紧'
 )
 
 const formatWeight = (value: number) => `${value.toFixed(2)}%`
-const formatContribution = (value: number | null) => (
-  typeof value === 'number' ? `${value >= 0 ? '+' : ''}${value.toFixed(2)}` : '--'
-)
 const componentWeight = (driver: MacroDriver) => `${driver.rawWeight.toFixed(2)}%`
 
 onMounted(() => {

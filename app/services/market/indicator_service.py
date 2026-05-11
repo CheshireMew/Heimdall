@@ -47,13 +47,13 @@ class IndicatorService:
             )
         return result
 
-    def get_dli_liquidity(self, days: int) -> dict[str, Any]:
+    def get_dli_liquidity(self, days: int, change_days: int = 30) -> dict[str, Any]:
         if self.dli_cache is not None:
-            cached = self.dli_cache.get(days=days)
+            cached = self.dli_cache.get(days=days, change_days=change_days)
             if cached is not None:
                 return cached
 
-        payload = self.dli_service.build(days=days)
+        payload = self.dli_service.build(days=days, change_days=change_days)
         if self.dli_cache is not None:
-            self.dli_cache.set(days=days, payload=payload)
+            self.dli_cache.set(days=days, change_days=change_days, payload=payload)
         return payload

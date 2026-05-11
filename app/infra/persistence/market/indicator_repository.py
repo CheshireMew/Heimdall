@@ -60,8 +60,11 @@ class MarketIndicatorRepository:
 
     def upsert_points(self, data_points: list[dict[str, Any]], meta_catalog: dict[str, tuple[str, str, str]]) -> None:
         with self.database_runtime.session_scope() as session:
+            ensured_meta_ids: set[str] = set()
             for point in data_points:
                 indicator_id = point["indicator_id"]
+                if indicator_id in ensured_meta_ids:
+                    continue
                 display_name, category, unit = meta_catalog.get(
                     indicator_id,
                     (indicator_id.replace("_", " ").title(), "General", ""),
@@ -82,6 +85,7 @@ class MarketIndicatorRepository:
                     meta.name = display_name
                     meta.unit = unit
                     session.flush()
+                ensured_meta_ids.add(indicator_id)
 
             for point in data_points:
                 exists = (

@@ -4,15 +4,14 @@ import asyncio
 from datetime import datetime
 from typing import Any, Callable, Literal
 
-from app.contracts.dto.market import (
-    KlineTailResponse,
-    build_market_history_batch_response,
-    build_market_history_response,
-    build_ohlcv_points,
-)
 from app.infra.executor import run_sync
 from app.services.market.app_service_support import validate_market_request
 from app.services.market.market_data_service import MarketDataService
+from app.services.market.query_payloads import (
+    market_history_batch_response,
+    market_history_response,
+    ohlcv_points,
+)
 from config import settings
 
 
@@ -32,7 +31,7 @@ class MarketHistoryQueryService:
         rows = await run_sync(
             lambda: self.market_data_service.get_history_data(symbol, timeframe, end_ts, limit)
         )
-        return build_market_history_response(symbol=symbol, timeframe=timeframe, rows=rows).model_dump()
+        return market_history_response(symbol=symbol, timeframe=timeframe, rows=rows)
 
     async def get_recent_klines(
         self,
@@ -50,7 +49,7 @@ class MarketHistoryQueryService:
                 allow_cached_response=True,
             )
         )
-        return build_market_history_response(symbol=symbol, timeframe=timeframe, rows=rows).model_dump()
+        return market_history_response(symbol=symbol, timeframe=timeframe, rows=rows)
 
     async def get_live_kline_tail(
         self,
@@ -70,13 +69,13 @@ class MarketHistoryQueryService:
             )
         )
         current_price = kline_data[-1][4] if kline_data else None
-        return KlineTailResponse(
-            symbol=symbol,
-            timeframe=timeframe,
-            timestamp=datetime.now().isoformat(),
-            current_price=current_price,
-            kline_data=build_ohlcv_points(kline_data),
-        ).model_dump()
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "timestamp": datetime.now().isoformat(),
+            "current_price": current_price,
+            "kline_data": ohlcv_points(kline_data),
+        }
 
     async def get_full_history(
         self,
@@ -95,12 +94,12 @@ class MarketHistoryQueryService:
             fetch_policy=fetch_policy,
             persist_klines=persist_klines,
         )
-        return build_market_history_response(
+        return market_history_response(
             symbol=symbol,
             timeframe=timeframe,
             rows=rows,
             missing_ranges=missing_ranges,
-        ).model_dump()
+        )
 
     async def get_full_history_batch(
         self,
@@ -132,10 +131,10 @@ class MarketHistoryQueryService:
                 for symbol in normalized_symbols
             ],
         )
-        return build_market_history_batch_response(
+        return market_history_batch_response(
             timeframe=timeframe,
             series_by_symbol=dict(zip(normalized_symbols, series, strict=False)),
-        ).model_dump()
+        )
 
     async def _load_full_history_rows(
         self,

@@ -7,7 +7,7 @@
           <p class="detail-kicker mt-4">DLI 历史走势</p>
           <h1 class="detail-title mt-2">美元流动性评分走势</h1>
           <p class="mt-3 max-w-3xl text-sm leading-6 text-stone-600 dark:text-slate-400">
-            使用同一套 DLI 综合评分序列回看历史状态变化。分数越高表示美元流动性越宽松，越低表示风险资产面临的宏观流动性压力越强。
+            使用同一套 DLI 综合压力分序列回看历史状态变化。分数越低表示美元流动性越宽松，越高表示风险资产面临的宏观流动性压力越强。
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
@@ -109,28 +109,28 @@ const thresholdValues = computed(() => ({
 
 const regimes = computed(() => [
   {
-    title: '流动性收紧',
+    title: '流动性宽松',
     range: `≤ P20 (${thresholdValues.value.p20.toFixed(1)})`,
-    color: '#c84c28',
-    description: '分数处于历史低位，美元流动性对风险资产形成压制。',
-  },
-  {
-    title: '中性偏紧',
-    range: `P20-P50 (${thresholdValues.value.p20.toFixed(1)}-${thresholdValues.value.p50.toFixed(1)})`,
-    color: '#c9873a',
-    description: '压力尚未进入极端区间，但相对中位数仍偏紧。',
+    color: '#0f6b4f',
+    description: '压力分处于历史低位，美元流动性环境偏宽松。',
   },
   {
     title: '中性偏松',
-    range: `P50-P80 (${thresholdValues.value.p50.toFixed(1)}-${thresholdValues.value.p80.toFixed(1)})`,
+    range: `P20-P50 (${thresholdValues.value.p20.toFixed(1)}-${thresholdValues.value.p50.toFixed(1)})`,
     color: '#8a8f56',
-    description: '流动性环境好于中位数，但尚未达到宽松极端。',
+    description: '压力低于历史中位数，但尚未达到极端宽松。',
   },
   {
-    title: '流动性宽松',
+    title: '中性偏紧',
+    range: `P50-P80 (${thresholdValues.value.p50.toFixed(1)}-${thresholdValues.value.p80.toFixed(1)})`,
+    color: '#c9873a',
+    description: '压力高于历史中位数，但尚未进入极端收紧区间。',
+  },
+  {
+    title: '流动性收紧',
     range: `≥ P80 (${thresholdValues.value.p80.toFixed(1)})`,
-    color: '#0f6b4f',
-    description: '分数处于历史高位，宏观流动性通常更支撑风险偏好。',
+    color: '#c84c28',
+    description: '压力分处于历史高位，风险资产面临明显美元流动性逆风。',
   },
 ])
 

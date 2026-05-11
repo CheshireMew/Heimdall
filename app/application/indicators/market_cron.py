@@ -2,42 +2,9 @@ import asyncio
 import logging
 
 from app.application.indicators.ports import DliCacheInvalidator, IndicatorProvider, MarketIndicatorWriter
+from app.domain.market.dli_catalog import market_indicator_meta_catalog
 
 logger = logging.getLogger(__name__)
-
-# 指标元数据配置: indicator_id -> (display_name, category, unit)
-INDICATOR_META = {
-    # Macro
-    "US10Y":            ("US 10Y Treasury Yield", "Macro", "%"),
-    "NASDAQ":           ("NASDAQ Composite",      "Macro", ""),
-    "GOLD":             ("Gold Spot Price",        "Macro", "USD"),
-    "HY_SPREAD":        ("High Yield Spread",     "Macro", "%"),
-    "FED_RATE":         ("Fed Funds Rate",         "Macro", "%"),
-    "FED_BALANCE":      ("Fed Balance Sheet",      "Macro", "M USD"),
-    "TGA":              ("Treasury General Account", "Macro", "M USD"),
-    "ONRRP":            ("Overnight Reverse Repo", "Macro", "B USD"),
-    "SOFR":             ("Secured Overnight Financing Rate", "Macro", "%"),
-    "US02Y":            ("US 2Y Treasury Yield",   "Macro", "%"),
-    "M2":               ("M2 Money Supply",        "Macro", "B USD"),
-    "VIX":              ("CBOE Volatility Index",  "Macro", ""),
-    "DXY":              ("Trade Weighted U.S. Dollar Index", "Macro", ""),
-    "WTI":              ("WTI Crude Oil",          "Macro", "USD"),
-    # Onchain
-    "HASHRATE":         ("BTC Hashrate",           "Onchain", "EH/s"),
-    "DIFFICULTY":       ("Mining Difficulty",       "Onchain", "T"),
-    "STABLECOIN_CAP":   ("Stablecoin Market Cap",  "Onchain", "USD"),
-    "USDT_CAP":         ("USDT Market Cap",        "Onchain", "USD"),
-    "USDC_CAP":         ("USDC Market Cap",        "Onchain", "USD"),
-    # Sentiment
-    "FEAR_GREED":       ("Fear & Greed Index",     "Sentiment", ""),
-    "GOOGLE_TRENDS_BTC":("Google Trends: BTC",     "Sentiment", ""),
-    # Tech
-    "200WMA":           ("200-Week Moving Avg",    "Tech", "USD"),
-    "S19_BREAKEVEN":    ("S19 Miner Breakeven",    "Tech", "USD"),
-    "S21_BREAKEVEN":    ("S21 Miner Breakeven",    "Tech", "USD"),
-    "S23_BREAKEVEN":    ("S23 Miner Breakeven",    "Tech", "USD"),
-    "BTC_DRAWDOWN":     ("BTC Drawdown from ATH",  "Tech", "%"),
-}
 
 class MarketIndicatorCronJob:
     """市场核心指标定时汇聚作业类"""
@@ -75,7 +42,7 @@ class MarketIndicatorCronJob:
     def _save_to_db(self, data_points: list):
         """将获取到的指标数据点插入数据表"""
         try:
-            self.repository.upsert_points(data_points, INDICATOR_META)
+            self.repository.upsert_points(data_points, market_indicator_meta_catalog())
         except Exception as e:
             logger.error(f"Failed to save Market Indicator to DB: {e}")
             raise

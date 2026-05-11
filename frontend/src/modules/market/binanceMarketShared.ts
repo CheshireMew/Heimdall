@@ -121,13 +121,6 @@ export const buildBinanceMarketSnapshot = (snapshot: BinanceMarketSnapshot): Bin
   normalizeSnapshot(snapshot)
 )
 
-export const formatSigned = (value: number | null | undefined, digits = 2, suffix = '%', withSign = true) => {
-  if (value === null || value === undefined || Number.isNaN(value)) return '--'
-  const numeric = Number(value)
-  const sign = withSign && numeric > 0 ? '+' : ''
-  return `${sign}${numeric.toFixed(digits)}${suffix}`
-}
-
 export const formatScore = (value: number | null | undefined) => {
   if (value === null || value === undefined || Number.isNaN(value)) return '--'
   return `${Math.round(Number(value))}`

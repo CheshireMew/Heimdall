@@ -9,7 +9,7 @@
           美元流动性看板
         </h1>
         <p class="max-w-3xl text-sm leading-6 text-stone-600 dark:text-slate-400 sm:text-base">
-          把 Fed 资产负债表、TGA、ON RRP、政策利率、美元指数、波动率和 M2 放在同一页，先看美元流动性主线，再下钻到每个宏观指标。
+          把 Fed 资产负债表、TGA、ON RRP、SOFR-IORB、SRF、银行现金缓冲和市场压力指标放在同一页，先看美元流动性压力，再下钻到每个驱动。
         </p>
       </div>
 
@@ -30,6 +30,11 @@
                 <h2 class="mt-2 text-lg font-semibold text-slate-950 dark:text-white">综合压力仪表盘</h2>
               </div>
               <div class="flex flex-wrap items-center gap-3">
+                <select v-model.number="changeDays" class="macro-period-select self-start" :disabled="loading" @change="load">
+                  <option :value="7">7 日</option>
+                  <option :value="30">30 日</option>
+                  <option :value="90">90 日</option>
+                </select>
                 <button class="macro-primary-button self-start" :disabled="loading" @click="load">
                   {{ loading ? '刷新中...' : '刷新宏观数据' }}
                 </button>
@@ -48,9 +53,9 @@
             <div class="grid gap-5">
               <div class="score-summary-grid">
                 <div class="score-summary-card score-summary-card--primary">
-                  <span>综合评分</span>
-                  <strong :class="scoreToneClass">{{ score === null ? '--' : score }}</strong>
-                  <em>0-100</em>
+                  <span>状态分位</span>
+                  <strong :class="scoreToneClass">{{ statusPercentileLabel }}</strong>
+                  <em>原始评分 {{ rawScore === null ? '--' : rawScore.toFixed(2) }}</em>
                 </div>
                 <div class="score-summary-card">
                   <span>流动性状态</span>
@@ -74,19 +79,19 @@
                 </div>
                 <div class="score-scale-labels">
                   <div>
-                    <strong>收紧</strong>
+                    <strong>宽松</strong>
                     <span>≤ P20</span>
                   </div>
                   <div>
-                    <strong>中性偏紧</strong>
+                    <strong>中性偏松</strong>
                     <span>P20-P50</span>
                   </div>
                   <div>
-                    <strong>中性偏松</strong>
+                    <strong>中性偏紧</strong>
                     <span>P50-P80</span>
                   </div>
                   <div>
-                    <strong>宽松</strong>
+                    <strong>收紧</strong>
                     <span>≥ P80</span>
                   </div>
                 </div>
@@ -129,7 +134,7 @@
                 class="mt-3"
                 :history="card.indicator?.history || []"
                 :color="sparkColor(card.tone)"
-                :mode="card.definition.id === 'TGA' || card.definition.id === 'ONRRP' ? 'bar' : 'line'"
+                :mode="['TGA', 'ONRRP', 'SRF_USAGE'].includes(card.definition.id) ? 'bar' : 'line'"
               />
 
               <p class="mt-3 border-t border-stone-200 pt-3 text-xs leading-5 text-stone-500 dark:border-slate-800 dark:text-slate-500">
@@ -146,23 +151,77 @@
             <div v-for="driver in drivers" :key="driver.definition.id" class="driver-row grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_56px] sm:items-center">
               <div class="min-w-0">
                 <div class="truncate text-sm font-medium text-slate-800 dark:text-slate-200">{{ driver.definition.label }}</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-500">30 日 {{ driver.changeLabel }}</div>
+                <div class="text-[11px] text-slate-500 dark:text-slate-500">{{ changeWindowLabel }} {{ driver.changeLabel }}</div>
               </div>
               <div class="relative h-5 bg-stone-200 dark:bg-slate-800">
                 <div class="absolute inset-y-0 left-1/2 w-px bg-white dark:bg-slate-950"></div>
                 <div
                   v-if="driver.score >= 50"
-                  class="absolute inset-y-0 left-1/2 bg-[#0f6b4f] dark:bg-emerald-400"
+                  class="absolute inset-y-0 left-1/2 bg-[#c84c28] dark:bg-orange-500"
                   :style="{ width: `${driver.score - 50}%` }"
                 ></div>
                 <div
                   v-else
-                  class="absolute inset-y-0 bg-[#c84c28] dark:bg-orange-500"
+                  class="absolute inset-y-0 bg-[#0f6b4f] dark:bg-emerald-400"
                   :style="{ left: `${driver.score}%`, width: `${50 - driver.score}%` }"
                 ></div>
               </div>
-              <div :class="['text-right text-sm font-semibold', driver.score >= 50 ? 'text-[#0f6b4f] dark:text-emerald-300' : 'text-[#c84c28] dark:text-orange-300']">
+              <div :class="['text-right text-sm font-semibold', driver.score >= 50 ? 'text-[#c84c28] dark:text-orange-300' : 'text-[#0f6b4f] dark:text-emerald-300']">
                 {{ driver.score }}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="macro-panel p-5">
+          <div class="panel-kicker">模型诊断</div>
+          <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <h2 class="text-lg font-semibold text-slate-950 dark:text-white">指标贡献与数据新鲜度</h2>
+            <span class="text-xs text-stone-500 dark:text-slate-500">当前周期：{{ changeWindowLabel }}</span>
+          </div>
+          <div class="mt-5 overflow-x-auto">
+            <table class="min-w-full text-left text-sm">
+              <thead class="diagnostic-table-head">
+                <tr>
+                  <th class="px-4 py-3 font-semibold">指标</th>
+                  <th class="px-4 py-3 font-semibold">当前值</th>
+                  <th class="px-4 py-3 font-semibold">压力 z</th>
+                  <th class="px-4 py-3 font-semibold">历史分位</th>
+                  <th class="px-4 py-3 font-semibold">有效权重</th>
+                  <th class="px-4 py-3 font-semibold">贡献</th>
+                  <th class="px-4 py-3 font-semibold">数据状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="driver in drivers" :key="driver.definition.id" class="diagnostic-table-row">
+                  <td class="px-4 py-3">
+                    <div class="font-semibold text-slate-950 dark:text-white">{{ driver.definition.label }}</div>
+                    <div class="mt-1 text-xs text-stone-500 dark:text-slate-500">{{ driver.definition.shortLabel }}</div>
+                  </td>
+                  <td class="px-4 py-3 tabular-nums">{{ driver.valueLabel }}</td>
+                  <td class="px-4 py-3 tabular-nums" :class="pressureClass(driver.zScore)">{{ formatSignedNumber(driver.zScore) }}</td>
+                  <td class="px-4 py-3 tabular-nums">{{ formatPercentile(driver.percentile) }}</td>
+                  <td class="px-4 py-3 tabular-nums">{{ formatWeight(driver.effectiveWeight) }}</td>
+                  <td class="px-4 py-3 tabular-nums" :class="pressureClass(driver.contribution)">{{ formatSignedNumber(driver.contribution) }}</td>
+                  <td class="px-4 py-3">
+                    <span :class="['data-lag-pill', lagClass(driver.dataLagDays)]">{{ driver.dataLagLabel }}</span>
+                    <div class="mt-1 text-xs text-stone-500 dark:text-slate-500">{{ driver.freshness }}</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="macro-panel p-5">
+          <div class="panel-kicker">数据源状态</div>
+          <h2 class="mt-2 text-lg font-semibold text-slate-950 dark:text-white">更新滞后检查</h2>
+          <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div v-for="card in cards" :key="card.definition.id" class="source-status-card">
+              <div class="truncate text-sm font-semibold text-slate-950 dark:text-white">{{ card.definition.label }}</div>
+              <div class="mt-2 flex items-center justify-between gap-3">
+                <span class="text-xs text-stone-500 dark:text-slate-500">{{ card.freshness }}</span>
+                <span :class="['data-lag-pill', lagClass(card.dataLagDays)]">{{ card.dataLagLabel }}</span>
               </div>
             </div>
           </div>
@@ -173,29 +232,37 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import MacroSparkline from '@/components/market/MacroSparkline.vue'
 import { useTheme } from '@/composables/useTheme'
+import { formatPercentile, formatSignedNumber } from '@/modules/format'
 import { useMacroLiquidityPage, type MacroMetricCard } from '@/modules/market'
 
 const lookbackDays = 365
+const changeDays = ref(30)
 const { theme } = useTheme()
 const {
   loading,
   error,
   score,
+  rawScore,
   scorePercentile,
   scoreLabel,
   scoreTone,
+  cards,
   groups,
   drivers,
   alerts,
   lastUpdated,
+  changeWindowLabel,
   load,
-} = useMacroLiquidityPage(lookbackDays)
+} = useMacroLiquidityPage(lookbackDays, changeDays)
 
 const clampPercent = (value: number) => Math.max(0, Math.min(100, value))
 const scorePercentilePosition = computed(() => clampPercent(scorePercentile.value ?? score.value ?? 0))
+const statusPercentileLabel = computed(() => (
+  scorePercentile.value === null ? '--' : `P${Math.round(scorePercentile.value)}`
+))
 const scoreToneClass = computed(() => {
   if (scoreTone.value === 'support') return 'text-[#0f6b4f] dark:text-emerald-300'
   if (scoreTone.value === 'pressure') return 'text-[#c84c28] dark:text-orange-300'
@@ -212,6 +279,18 @@ const sparkColor = (tone: MacroMetricCard['tone']) => {
   if (tone === 'support') return theme.value === 'dark' ? '#34d399' : '#1d6fba'
   if (tone === 'pressure') return theme.value === 'dark' ? '#fb923c' : '#c84c28'
   return theme.value === 'dark' ? '#38bdf8' : '#8a6a24'
+}
+
+const formatWeight = (value: number) => `${value.toFixed(2)}%`
+const pressureClass = (value: number | null) => {
+  if (typeof value !== 'number' || Math.abs(value) < 0.001) return 'text-slate-500 dark:text-slate-400'
+  return value >= 0 ? 'text-[#c84c28] dark:text-orange-300' : 'text-[#0f6b4f] dark:text-emerald-300'
+}
+const lagClass = (value: number | null) => {
+  if (typeof value !== 'number') return 'data-lag-pill--stale'
+  if (value <= 3) return 'data-lag-pill--fresh'
+  if (value <= 14) return 'data-lag-pill--normal'
+  return 'data-lag-pill--stale'
 }
 
 onMounted(() => {
@@ -343,25 +422,25 @@ onMounted(() => {
 .score-scale-zone--tight {
   left: 0;
   width: 20%;
-  background: #c84c28;
+  background: #0f6b4f;
 }
 
 .score-scale-zone--neutral-tight {
   left: 20%;
   width: 30%;
-  background: #c9873a;
+  background: #8a8f56;
 }
 
 .score-scale-zone--neutral-loose {
   left: 50%;
   width: 30%;
-  background: #8a8f56;
+  background: #c9873a;
 }
 
 .score-scale-zone--loose {
   left: 80%;
   width: 20%;
-  background: #0f6b4f;
+  background: #c84c28;
 }
 
 .score-scale-split {
@@ -429,7 +508,8 @@ onMounted(() => {
 }
 
 .macro-primary-button,
-.macro-secondary-button {
+.macro-secondary-button,
+.macro-period-select {
   border: 1px solid #0f6b4f;
   padding: 0.65rem 0.95rem;
   font-size: 0.82rem;
@@ -447,12 +527,23 @@ onMounted(() => {
   opacity: 0.55;
 }
 
-.macro-secondary-button {
+.macro-secondary-button,
+.macro-period-select {
   background: #ffffff;
   color: #0f6b4f;
 }
 
+.macro-period-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .macro-page--dark .macro-secondary-button {
+  background: rgba(15, 23, 42, 0.65);
+  color: #cbd5e1;
+}
+
+.macro-page--dark .macro-period-select {
   background: rgba(15, 23, 42, 0.65);
   color: #cbd5e1;
 }
@@ -494,5 +585,80 @@ onMounted(() => {
 .macro-page--dark .driver-row {
   border-color: rgba(30, 41, 59, 0.75);
   background: rgba(15, 23, 42, 0.32);
+}
+
+.diagnostic-table-head {
+  background: rgba(237, 243, 238, 0.9);
+  color: #0f172a;
+}
+
+.macro-page--dark .diagnostic-table-head {
+  background: rgba(15, 23, 42, 0.86);
+  color: #e2e8f0;
+}
+
+.diagnostic-table-row {
+  border-top: 1px solid #eee7dc;
+}
+
+.macro-page--dark .diagnostic-table-row {
+  border-color: rgba(30, 41, 59, 0.75);
+}
+
+.source-status-card {
+  border: 1px solid #eee7dc;
+  background: #fbfaf7;
+  padding: 0.8rem;
+}
+
+.macro-page--dark .source-status-card {
+  border-color: rgba(30, 41, 59, 0.75);
+  background: rgba(15, 23, 42, 0.32);
+}
+
+.data-lag-pill {
+  display: inline-flex;
+  align-items: center;
+  border-width: 1px;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.data-lag-pill--fresh {
+  border-color: #b8d2c4;
+  background: #edf3ee;
+  color: #0f6b4f;
+}
+
+.data-lag-pill--normal {
+  border-color: #e4d2a3;
+  background: #fbf7e9;
+  color: #8a6a24;
+}
+
+.data-lag-pill--stale {
+  border-color: #efc4b5;
+  background: #fff3ed;
+  color: #c84c28;
+}
+
+.macro-page--dark .data-lag-pill--fresh {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.1);
+  color: #6ee7b7;
+}
+
+.macro-page--dark .data-lag-pill--normal {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.1);
+  color: #fcd34d;
+}
+
+.macro-page--dark .data-lag-pill--stale {
+  border-color: rgba(251, 146, 60, 0.35);
+  background: rgba(251, 146, 60, 0.1);
+  color: #fdba74;
 }
 </style>

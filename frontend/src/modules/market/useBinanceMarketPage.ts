@@ -2,14 +2,13 @@ import { onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
-import { formatAdaptivePrice, formatCompactCurrency } from '@/modules/format'
+import { formatAdaptivePrice, formatCompactCurrency, formatSignedMetric } from '@/modules/format'
 import type { BinanceBreakoutMonitorItemResponse } from './contracts'
 import {
   normalizeSnapshot,
   toItemKey,
   displaySymbol,
   formatScore,
-  formatSigned,
   formatTime,
   sortDirectionIcon,
   valueTone,
@@ -152,7 +151,7 @@ export function useBinanceMarketPage() {
     openChart,
     closeChart,
     loadMoreChartHistory: chart.loadMoreChartHistory,
-    formatSigned,
+    formatSigned: formatSignedMetric,
     formatScore,
     formatTime: (value: number | null | undefined) => formatTime(value, locale.value),
     formatPrice: (value: number | null | undefined) => formatAdaptivePrice(value, 'USDT', '--'),

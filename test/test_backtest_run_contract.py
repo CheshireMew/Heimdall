@@ -5,6 +5,7 @@ from datetime import datetime
 import pytest
 
 from app.contracts.backtest import BacktestEquityPointRecord, BacktestPortfolioConfig
+from app.domain.backtest.backtest_symbols import normalize_backtest_symbols
 from app.infra.db.schema import BacktestRun
 from app.contracts.backtest_metadata import BacktestExecutionMetadata
 from app.services.backtest.freqtrade_report_builder import FreqtradeReportBuilder
@@ -195,12 +196,12 @@ def test_factor_paper_persistence_increment_uses_backtest_trade_boundary(db_sess
     assert run.metadata_info["report"]["total_trades"] == 0
 
 
-def test_backtest_portfolio_symbols_use_market_catalog_contract():
-    payload = BacktestPortfolioConfig(symbols=["btc", "ETH/USDT", "btc/usdt"])
+def test_backtest_symbol_normalization_uses_market_catalog_boundary():
+    symbols = normalize_backtest_symbols(["btc", "ETH/USDT", "btc/usdt"])
 
-    assert payload.symbols == ["BTC/USDT", "ETH/USDT"]
+    assert symbols == ["BTC/USDT", "ETH/USDT"]
 
 
-def test_backtest_portfolio_rejects_unknown_symbol():
+def test_backtest_symbol_normalization_rejects_unknown_symbol():
     with pytest.raises(ValueError, match="回测不支持的交易对"):
-        BacktestPortfolioConfig(symbols=["BAD\\USDT"])
+        normalize_backtest_symbols(["BAD\\USDT"])

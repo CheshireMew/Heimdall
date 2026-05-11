@@ -142,6 +142,14 @@ class MarketIndicatorResponse(BaseModel):
     unit: str | None
     current_value: float | None
     last_updated: str | None
+    data_lag_days: int | None = None
+    short_label: str | None = None
+    group: str | None = None
+    group_label: str | None = None
+    group_description: str | None = None
+    polarity: str | None = None
+    description: str | None = None
+    is_scored: bool | None = None
     history: list[IndicatorHistoryPoint]
 
 
@@ -159,6 +167,7 @@ class DliComponentResponse(BaseModel):
     short_label: str
     group: str
     group_label: str
+    group_description: str | None = None
     weight: float
     effective_weight: float
     polarity: str
@@ -169,6 +178,7 @@ class DliComponentResponse(BaseModel):
     contribution: float | None
     change_pct: float | None
     last_updated: str | None
+    data_lag_days: int | None = None
     missing_reason: str | None = None
 
 

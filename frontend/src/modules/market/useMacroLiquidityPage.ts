@@ -1,15 +1,18 @@
 import { computed, ref, unref, type Ref } from 'vue'
+import { formatCompactNumber, formatSignedPercent } from '@/modules/format'
 import { marketApi } from './api'
 import type { DliComponentResponse, DliLiquidityResponse, MarketIndicatorResponse } from './contracts'
 
 export type MacroGroupId = 'policy' | 'funding' | 'credit' | 'risk'
-export type MacroPolarity = 'higherSupports' | 'lowerSupports'
+export type MacroPolarity = 'higherTightens' | 'lowerTightens'
 
 export interface MacroIndicatorDefinition {
   id: string
   label: string
   shortLabel: string
   group: MacroGroupId
+  groupLabel: string
+  groupDescription: string
   polarity: MacroPolarity
   description: string
 }
@@ -22,6 +25,8 @@ export interface MacroMetricCard {
   changeValue: number | null
   tone: 'support' | 'pressure' | 'neutral'
   freshness: string
+  dataLagDays: number | null
+  dataLagLabel: string
 }
 
 export interface MacroDriver extends MacroMetricCard {
@@ -32,37 +37,6 @@ export interface MacroDriver extends MacroMetricCard {
   effectiveWeight: number
   zScore: number | null
   percentile: number | null
-}
-
-const MACRO_INDICATORS: MacroIndicatorDefinition[] = [
-  { id: 'FED_BALANCE', label: '美联储资产负债表', shortLabel: 'Fed Balance', group: 'policy', polarity: 'higherSupports', description: '联储资产端扩张通常代表基础流动性改善。' },
-  { id: 'TGA', label: '美国财政部现金账户', shortLabel: 'TGA', group: 'policy', polarity: 'lowerSupports', description: 'TGA 上升会从银行体系抽走准备金，下降则释放流动性。' },
-  { id: 'ONRRP', label: '隔夜逆回购', shortLabel: 'ON RRP', group: 'policy', polarity: 'lowerSupports', description: 'ON RRP 余额下降代表闲置现金回流市场体系。' },
-  { id: 'FED_RATE', label: '联邦基金利率', shortLabel: 'Fed Funds', group: 'funding', polarity: 'lowerSupports', description: '政策利率越高，风险资产折现和融资压力越强。' },
-  { id: 'SOFR', label: 'SOFR 隔夜融资利率', shortLabel: 'SOFR', group: 'funding', polarity: 'lowerSupports', description: '美元短端融资成本，快速上行通常压制风险偏好。' },
-  { id: 'US10Y', label: '美国 10 年期国债收益率', shortLabel: '10Y Yield', group: 'funding', polarity: 'lowerSupports', description: '长端无风险收益率，影响估值锚和美元资产吸引力。' },
-  { id: 'US02Y', label: '美国 2 年期国债收益率', shortLabel: '2Y Yield', group: 'funding', polarity: 'lowerSupports', description: '更贴近政策路径预期的短中端收益率。' },
-  { id: 'HY_SPREAD', label: '高收益债利差', shortLabel: 'HY Spread', group: 'credit', polarity: 'lowerSupports', description: '信用风险溢价，扩张时代表风险融资环境转差。' },
-  { id: 'NASDAQ', label: '纳斯达克综合指数', shortLabel: 'NASDAQ', group: 'risk', polarity: 'higherSupports', description: '高久期成长资产的风险偏好代理。' },
-  { id: 'VIX', label: 'VIX 波动率指数', shortLabel: 'VIX', group: 'risk', polarity: 'lowerSupports', description: '美股隐含波动率，越高代表避险需求越强。' },
-  { id: 'DXY', label: '贸易加权美元指数', shortLabel: 'Dollar', group: 'risk', polarity: 'lowerSupports', description: '美元强势通常压制全球美元流动性和风险资产。' },
-  { id: 'WTI', label: 'WTI 原油价格', shortLabel: 'WTI Oil', group: 'risk', polarity: 'lowerSupports', description: '能源价格上行会推升通胀约束和政策压力。' },
-  { id: 'GOLD', label: '黄金现货价格', shortLabel: 'Gold', group: 'risk', polarity: 'higherSupports', description: '真实利率和避险需求的综合映射。' },
-  { id: 'M2', label: '美国 M2 货币供应', shortLabel: 'M2', group: 'risk', polarity: 'higherSupports', description: '广义货币环境，扩张时更利于风险资产估值。' },
-]
-
-const GROUP_TITLES: Record<MacroGroupId, string> = {
-  policy: '政策与准备金池',
-  funding: '融资与利率',
-  credit: '信用与中介',
-  risk: '风险与价格',
-}
-
-const GROUP_DESCRIPTIONS: Record<MacroGroupId, string> = {
-  policy: 'Fed 资产负债表、TGA 和 ON RRP 是美元流动性的核心水位。',
-  funding: '政策利率、SOFR 和长端收益率决定美元融资压力。',
-  credit: '信用利差衡量私人部门融资条件是否正在收紧。',
-  risk: '股指、波动率、美元和 M2 反映市场正在如何定价宏观环境。',
 }
 
 const toDate = (value: string | null | undefined) => {
@@ -97,15 +71,12 @@ const formatDateLabel = (value: string | null | undefined) => {
   return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' }).format(new Date(time))
 }
 
-const formatSigned = (value: number | null, digits = 2) => {
-  if (value === null) return '--'
-  const sign = value > 0 ? '+' : ''
-  return `${sign}${value.toFixed(digits)}%`
+const formatLagLabel = (value: number | null | undefined) => {
+  if (typeof value !== 'number') return '滞后 --'
+  if (value <= 0) return '今日更新'
+  if (value === 1) return '滞后 1 天'
+  return `滞后 ${value} 天`
 }
-
-const formatCompact = (value: number) => (
-  new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(value)
-)
 
 export const formatMacroValue = (indicator: MarketIndicatorResponse | null) => {
   const value = latestValue(indicator)
@@ -116,9 +87,14 @@ export const formatMacroValue = (indicator: MarketIndicatorResponse | null) => {
     case 'TGA':
       return `$${(value / 1_000).toFixed(1)}B`
     case 'ONRRP':
+    case 'SRF_USAGE':
       return `$${value.toFixed(1)}B`
+    case 'SOFR_IORB':
+      return `${value.toFixed(1)}bp`
     case 'M2':
       return `$${(value / 1_000).toFixed(2)}T`
+    case 'NET_LIQUIDITY':
+      return `$${(value / 1_000_000).toFixed(2)}T`
     case 'GOLD':
     case 'WTI':
       return `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
@@ -128,35 +104,51 @@ export const formatMacroValue = (indicator: MarketIndicatorResponse | null) => {
       return value.toLocaleString('en-US', { maximumFractionDigits: 2 })
     case 'FED_RATE':
     case 'SOFR':
-    case 'US10Y':
+    case 'US10Y_REAL':
+    case 'BANK_CASH_BUFFER':
     case 'US02Y':
     case 'HY_SPREAD':
       return `${value.toFixed(2)}%`
     default:
-      return indicator?.unit ? `${formatCompact(value)} ${indicator.unit}` : formatCompact(value)
+      return indicator?.unit ? `${formatCompactNumber(value)} ${indicator.unit}` : formatCompactNumber(value)
   }
 }
 
 const metricTone = (definition: MacroIndicatorDefinition, change: number | null): MacroMetricCard['tone'] => {
   if (change === null || Math.abs(change) < 0.01) return 'neutral'
-  const supportive = definition.polarity === 'higherSupports' ? change > 0 : change < 0
-  return supportive ? 'support' : 'pressure'
+  const pressure = definition.polarity === 'higherTightens' ? change > 0 : change < 0
+  return pressure ? 'pressure' : 'support'
 }
 
+const normalizePolarity = (value: string | null | undefined): MacroPolarity => (
+  value === 'higher_tightens' || value === 'higherTightens' ? 'higherTightens' : 'lowerTightens'
+)
+
+const definitionFromIndicator = (indicator: MarketIndicatorResponse): MacroIndicatorDefinition => ({
+  id: indicator.indicator_id,
+  label: indicator.name,
+  shortLabel: indicator.short_label || indicator.name,
+  group: (indicator.group as MacroGroupId) || 'risk',
+  groupLabel: indicator.group_label || '风险与价格',
+  groupDescription: indicator.group_description || '',
+  polarity: normalizePolarity(indicator.polarity),
+  description: indicator.description || '',
+})
+
 const definitionFromComponent = (component: DliComponentResponse): MacroIndicatorDefinition => {
-  const existing = MACRO_INDICATORS.find((item) => item.id === component.indicator_id)
-  if (existing) return existing
   return {
     id: component.indicator_id,
     label: component.name,
     shortLabel: component.short_label,
     group: (component.group as MacroGroupId) || 'risk',
-    polarity: component.polarity === 'higher_supports' ? 'higherSupports' : 'lowerSupports',
+    groupLabel: component.group_label,
+    groupDescription: component.group_description || '',
+    polarity: normalizePolarity(component.polarity),
     description: '',
   }
 }
 
-export function useMacroLiquidityPage(days: number | Ref<number> = 365) {
+export function useMacroLiquidityPage(days: number | Ref<number> = 365, changeDays: number | Ref<number> = 30) {
   const dli = ref<DliLiquidityResponse | null>(null)
   const indicators = ref<MarketIndicatorResponse[]>([])
   const loading = ref(true)
@@ -166,7 +158,7 @@ export function useMacroLiquidityPage(days: number | Ref<number> = 365) {
     loading.value = true
     error.value = ''
     try {
-      const res = await marketApi.getDliLiquidity({ days: unref(days) })
+      const res = await marketApi.getDliLiquidity({ days: unref(days), change_days: unref(changeDays) })
       dli.value = res?.data || null
       indicators.value = res?.data?.indicators || []
     } catch (e) {
@@ -181,32 +173,44 @@ export function useMacroLiquidityPage(days: number | Ref<number> = 365) {
 
   const indicatorMap = computed(() => new Map(indicators.value.map((item) => [item.indicator_id, item])))
 
-  const cards = computed<MacroMetricCard[]>(() => MACRO_INDICATORS.map((definition) => {
+  const changeWindowDays = computed(() => unref(changeDays))
+  const changeWindowLabel = computed(() => `${changeWindowDays.value} 日`)
+
+  const definitions = computed(() => indicators.value.map(definitionFromIndicator))
+
+  const cards = computed<MacroMetricCard[]>(() => definitions.value.map((definition) => {
     const indicator = indicatorMap.value.get(definition.id) || null
-    const change = changePercent(indicator)
+    const change = changePercent(indicator, changeWindowDays.value)
     return {
       definition,
       indicator,
       valueLabel: formatMacroValue(indicator),
-      changeLabel: formatSigned(change),
+      changeLabel: formatSignedPercent(change),
       changeValue: change,
       tone: metricTone(definition, change),
       freshness: formatDateLabel(indicator?.last_updated),
+      dataLagDays: indicator?.data_lag_days ?? null,
+      dataLagLabel: formatLagLabel(indicator?.data_lag_days),
     }
   }))
 
   const score = computed(() => dli.value?.score ?? null)
+  const rawScore = computed(() => dli.value?.raw_score ?? null)
   const scorePercentile = computed(() => dli.value?.score_percentile ?? null)
   const scoreLabel = computed(() => dli.value?.state || '等待数据')
   const scoreTone = computed(() => dli.value?.tone || 'neutral')
   const thresholds = computed(() => dli.value?.thresholds || null)
 
-  const groups = computed(() => (Object.keys(GROUP_TITLES) as MacroGroupId[]).map((group) => ({
-    id: group,
-    title: GROUP_TITLES[group],
-    description: GROUP_DESCRIPTIONS[group],
-    cards: cards.value.filter((card) => card.definition.group === group),
-  })).filter((group) => group.cards.length > 0))
+  const groups = computed(() => Array.from(new Set(cards.value.map((card) => card.definition.group))).map((group) => {
+    const groupCards = cards.value.filter((card) => card.definition.group === group)
+    const firstDefinition = groupCards[0]?.definition
+    return {
+      id: group,
+      title: firstDefinition?.groupLabel || group,
+      description: firstDefinition?.groupDescription || '',
+      cards: groupCards,
+    }
+  }))
 
   const drivers = computed<MacroDriver[]>(() => (dli.value?.components || []).map((component) => {
     const definition = definitionFromComponent(component)
@@ -216,10 +220,12 @@ export function useMacroLiquidityPage(days: number | Ref<number> = 365) {
       definition,
       indicator: card?.indicator || null,
       valueLabel: card?.valueLabel || '--',
-      changeLabel: typeof component.change_pct === 'number' ? formatSigned(component.change_pct) : (card?.changeLabel || '--'),
+      changeLabel: typeof component.change_pct === 'number' ? formatSignedPercent(component.change_pct) : (card?.changeLabel || '--'),
       changeValue: component.change_pct ?? card?.changeValue ?? null,
-      tone: driverScore >= 50 ? 'support' : 'pressure',
+      tone: driverScore >= 50 ? 'pressure' : 'support',
       freshness: card?.freshness || formatDateLabel(component.last_updated),
+      dataLagDays: component.data_lag_days ?? card?.dataLagDays ?? null,
+      dataLagLabel: formatLagLabel(component.data_lag_days ?? card?.dataLagDays),
       score: driverScore,
       pressure: Math.round(100 - driverScore),
       contribution: component.contribution,
@@ -251,6 +257,7 @@ export function useMacroLiquidityPage(days: number | Ref<number> = 365) {
     error,
     cards,
     score,
+    rawScore,
     scorePercentile,
     scoreLabel,
     scoreTone,
@@ -259,6 +266,8 @@ export function useMacroLiquidityPage(days: number | Ref<number> = 365) {
     drivers,
     alerts,
     lastUpdated,
+    changeWindowDays,
+    changeWindowLabel,
     load,
   }
 }

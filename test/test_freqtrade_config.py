@@ -1,35 +1,12 @@
 from __future__ import annotations
 
-from app.services.backtest.freqtrade_execution import FreqtradeIterationExecutor
+from app.services.backtest.freqtrade_config_builder import FreqtradeConfigBuilder
 from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBuilder
 from app.contracts.backtest import BacktestPortfolioConfig
-from config import settings
-
-
-class _DummyStrategyBuilder:
-    def warmup_bars(self, template, config, timeframe):
-        return 0
-
-    def build_code(self, template, timeframe, config):
-        return ""
-
-
-class _DummyResultBuilder:
-    pass
-
-
-def _make_executor() -> FreqtradeIterationExecutor:
-    return FreqtradeIterationExecutor(
-        workspace_root=settings.TEMP_DIR / "tests" / "freqtrade-config",
-        strategy_class_name="HeimdallStrategy",
-        market_data_service=object(),
-        strategy_builder=_DummyStrategyBuilder(),
-        result_builder=_DummyResultBuilder(),
-    )
 
 
 def test_freqtrade_config_uses_same_side_pricing_for_spot_and_futures():
-    executor = _make_executor()
+    config_builder = FreqtradeConfigBuilder()
     strategy_builder = FreqtradeStrategyBuilder("HeimdallStrategy")
     portfolio = BacktestPortfolioConfig(
         symbols=["BTC/USDT"],
@@ -39,7 +16,7 @@ def test_freqtrade_config_uses_same_side_pricing_for_spot_and_futures():
     )
     trade_settings = strategy_builder.trade_settings("ema_rsi_macd", {})
 
-    spot_config = executor._build_config(
+    spot_config = config_builder.build(
         symbols=["BTC/USDT"],
         timeframe="1h",
         initial_cash=10000,
@@ -48,7 +25,7 @@ def test_freqtrade_config_uses_same_side_pricing_for_spot_and_futures():
         market_type="spot",
         trade_settings=trade_settings,
     )
-    futures_config = executor._build_config(
+    futures_config = config_builder.build(
         symbols=["BTC/USDT:USDT"],
         timeframe="1h",
         initial_cash=10000,

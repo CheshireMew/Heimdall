@@ -38,9 +38,10 @@ async def get_market_indicators(
 @router.get("/indicators/dli", response_model=DliLiquidityResponse)
 async def get_dli_liquidity(
     days: int = Query(settings.INDICATORS_DEFAULT_DAYS, ge=30, le=3650, description="展示历史数据天数"),
+    change_days: int = Query(30, ge=1, le=365, description="变化统计周期天数"),
     service: MarketInsightAppService = Depends(market_insight_dependency),
 ):
-    return await service.get_dli_liquidity_async(days=days)
+    return await service.get_dli_liquidity_async(days=days, change_days=change_days)
 
 
 @router.get("/technical-metrics", response_model=TechnicalMetricsResponse)

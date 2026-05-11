@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from app.contracts.dto.market import TechnicalMetricsResponse
 from app.exceptions import ServiceUnavailableError
 from app.infra.executor import run_sync
 from app.services.market.app_service_support import validate_market_request
@@ -139,13 +138,13 @@ class MarketRealtimeQueryService:
         kline_data = snapshot.kline_data
         indicators = snapshot.indicators
         current_price = kline_data[-1][4]
-        return TechnicalMetricsResponse(
-            symbol=symbol,
-            timeframe=timeframe,
-            sample_size=len(kline_data),
-            current_price=current_price,
-            atr=indicators["atr"],
-            atr_pct=indicators["atr_pct"],
-            realized_volatility_pct=indicators["realized_volatility_pct"],
-            annualized_volatility_pct=indicators["annualized_volatility_pct"],
-        ).model_dump()
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "sample_size": len(kline_data),
+            "current_price": current_price,
+            "atr": indicators["atr"],
+            "atr_pct": indicators["atr_pct"],
+            "realized_volatility_pct": indicators["realized_volatility_pct"],
+            "annualized_volatility_pct": indicators["annualized_volatility_pct"],
+        }

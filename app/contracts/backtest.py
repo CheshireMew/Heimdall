@@ -7,7 +7,6 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.contracts.backtest_defaults import DEFAULT_PORTFOLIO, DEFAULT_RESEARCH
-from app.contracts.backtest_symbols import normalize_backtest_symbols
 
 @dataclass(slots=True)
 class StrategyVersionRecord:
@@ -39,7 +38,7 @@ class BacktestPortfolioConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_portfolio(self) -> "BacktestPortfolioConfig":
-        self.symbols = normalize_backtest_symbols(self.symbols)
+        self.symbols = list(dict.fromkeys(symbol.strip() for symbol in self.symbols if symbol.strip()))
         if not self.symbols:
             raise ValueError("至少选择一个交易对")
         if self.stake_mode == "fixed" and self.position_size_pct * self.max_open_trades > 100:

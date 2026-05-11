@@ -131,6 +131,14 @@ export interface MarketIndicatorResponse {
   unit: string | null
   current_value: number | null
   last_updated: string | null
+  data_lag_days?: number | null
+  short_label?: string | null
+  group?: string | null
+  group_label?: string | null
+  group_description?: string | null
+  polarity?: string | null
+  description?: string | null
+  is_scored?: boolean | null
   history: Array<IndicatorHistoryPoint>
 }
 
@@ -888,6 +896,7 @@ export interface DliComponentResponse {
   short_label: string
   group: string
   group_label: string
+  group_description?: string | null
   weight: number
   effective_weight: number
   polarity: string
@@ -898,6 +907,7 @@ export interface DliComponentResponse {
   contribution: number | null
   change_pct: number | null
   last_updated: string | null
+  data_lag_days?: number | null
   missing_reason?: string | null
 }
 
@@ -1221,6 +1231,7 @@ export interface GetCurrentPriceQueryParams {
 
 export interface GetDliLiquidityQueryParams {
   days?: number
+  change_days?: number
 }
 
 export interface GetFundingRateHistoryQueryParams {

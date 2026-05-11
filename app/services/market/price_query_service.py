@@ -4,14 +4,10 @@ import asyncio
 from datetime import datetime
 from typing import Any
 
-from app.contracts.dto.market import (
-    CurrentPriceBatchItemResponse,
-    CurrentPriceBatchResponse,
-    CurrentPriceResponse,
-)
 from app.infra.executor import run_sync
 from app.services.market.app_service_support import validate_market_request
 from app.services.market.market_data_service import MarketDataService
+from app.services.market.query_payloads import current_price_response
 from config import settings
 
 
@@ -38,12 +34,12 @@ class MarketPriceQueryService:
                 symbol=symbol,
                 timeframe=timeframe,
             )
-        return CurrentPriceResponse(
+        return current_price_response(
             symbol=symbol,
             timeframe=timeframe,
             timestamp=datetime.now().isoformat(),
             current_price=current_price,
-        ).model_dump()
+        )
 
     async def get_current_price_batch(
         self,
@@ -66,14 +62,14 @@ class MarketPriceQueryService:
                 for symbol in normalized_symbols
             ],
         )
-        return CurrentPriceBatchResponse(timeframe=timeframe, items=items).model_dump()
+        return {"timeframe": timeframe, "items": items}
 
     async def _build_current_price_batch_item(
         self,
         *,
         symbol: str,
         timeframe: str,
-    ) -> CurrentPriceBatchItemResponse:
+    ) -> dict[str, Any]:
         current_price = await self._get_current_price_from_snapshot(symbol)
         source = "websocket_snapshot" if current_price is not None else "kline_tail"
         if current_price is None:
@@ -81,7 +77,7 @@ class MarketPriceQueryService:
                 symbol=symbol,
                 timeframe=timeframe,
             )
-        return CurrentPriceBatchItemResponse(
+        return current_price_response(
             symbol=symbol,
             timeframe=timeframe,
             timestamp=datetime.now().isoformat(),
