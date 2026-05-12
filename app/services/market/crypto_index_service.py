@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
@@ -11,6 +12,12 @@ import httpx
 from app.infra.cache import RedisService, optional_cache_get, optional_cache_set
 from config import settings
 from utils.logger import logger
+
+
+@dataclass(frozen=True, slots=True)
+class ExchangeClose:
+    timestamp: int
+    close: float
 
 
 class CryptoIndexService:
@@ -26,6 +33,8 @@ class CryptoIndexService:
         self.retry_delay = settings.COINGECKO_RETRY_DELAY
         self.request_gap = settings.COINGECKO_REQUEST_GAP
         self.cache_ttl = settings.COINGECKO_CACHE_TTL
+        self.binance_base_url = settings.BINANCE_PUBLIC_BASE_URL.rstrip("/")
+        self.okx_base_url = settings.OKX_PUBLIC_BASE_URL.rstrip("/")
 
     def _headers(self) -> Dict[str, str]:
         headers = {"accept": "application/json"}
@@ -34,14 +43,14 @@ class CryptoIndexService:
         return headers
 
     def _index_cache_key(self, top_n: int, days: int, base_value: float) -> str:
-        raw = f"crypto-index:{top_n}:{days}:{base_value}"
+        raw = f"crypto-index:v2:{top_n}:{days}:{base_value}"
         return f"crypto_index:{hashlib.md5(raw.encode()).hexdigest()}"
 
     def _top_market_caps_cache_key(self, top_n: int) -> str:
         return f"crypto_index:top_market_caps:{top_n}"
 
-    def _coin_history_cache_key(self, coin_id: str, days: int) -> str:
-        return f"crypto_index:coin_history:{coin_id}:{days}"
+    def _coin_history_cache_key(self, coin_id: str, symbol: str, days: int) -> str:
+        return f"crypto_index:coin_history:v2:{coin_id}:{symbol}:{days}"
 
     @staticmethod
     def _retry_after_seconds(response: httpx.Response, default_delay: float) -> float:
@@ -138,13 +147,53 @@ class CryptoIndexService:
     async def _get_coin_market_caps(
         self,
         client: httpx.AsyncClient,
-        coin_id: str,
+        coin: dict[str, Any],
         days: int,
     ) -> Dict[str, Any]:
-        cache_key = self._coin_history_cache_key(coin_id, days)
+        coin_id = str(coin["id"])
+        symbol = str(coin["symbol"]).upper()
+        cache_key = self._coin_history_cache_key(coin_id, symbol, days)
         cached = optional_cache_get(self.cache_service, cache_key)
         if cached is not None:
-            return {"id": coin_id, "market_caps": cached, "error": None}
+            if isinstance(cached, dict):
+                return {
+                    "id": coin_id,
+                    "market_caps": cached.get("market_caps") or [],
+                    "source": cached.get("source") or "cache",
+                    "error": None,
+                }
+            return {
+                "id": coin_id,
+                "market_caps": cached,
+                "source": "cache",
+                "error": None,
+            }
+
+        market_cap = self._positive_float(coin.get("market_cap"))
+        current_price = self._positive_float(coin.get("price"))
+        if market_cap and current_price:
+            exchange_closes = await self._get_exchange_daily_closes(client, symbol, days)
+            if exchange_closes:
+                market_caps = [
+                    [row.timestamp, market_cap * row.close / current_price]
+                    for row in exchange_closes
+                    if row.close > 0
+                ]
+                if market_caps:
+                    source = self._preferred_exchange(symbol)
+                    optional_cache_set(
+                        self.cache_service,
+                        cache_key,
+                        {"market_caps": market_caps, "source": source},
+                        ttl=None,
+                        default_ttl=self.cache_ttl,
+                    )
+                    return {
+                        "id": coin_id,
+                        "market_caps": market_caps,
+                        "source": source,
+                        "error": None,
+                    }
 
         try:
             data = await self._get_json(
@@ -158,11 +207,138 @@ class CryptoIndexService:
             )
             market_caps = data.get("market_caps", [])
             if market_caps:
-                optional_cache_set(self.cache_service, cache_key, market_caps, ttl=None, default_ttl=self.cache_ttl)
-            return {"id": coin_id, "market_caps": market_caps, "error": None}
+                optional_cache_set(
+                    self.cache_service,
+                    cache_key,
+                    {"market_caps": market_caps, "source": "coingecko"},
+                    ttl=None,
+                    default_ttl=self.cache_ttl,
+                )
+            return {"id": coin_id, "market_caps": market_caps, "source": "coingecko", "error": None}
         except Exception as e:
             logger.warning(f"CoinGecko history fetch failed for {coin_id}: {e}")
-            return {"id": coin_id, "market_caps": [], "error": str(e)}
+            return {"id": coin_id, "market_caps": [], "source": "coingecko", "error": str(e)}
+
+    async def _get_exchange_daily_closes(
+        self,
+        client: httpx.AsyncClient,
+        symbol: str,
+        days: int,
+    ) -> list[ExchangeClose]:
+        if self._preferred_exchange(symbol) == "okx":
+            return await self._get_okx_daily_closes(client, symbol, days)
+        return await self._get_binance_daily_closes(client, symbol, days)
+
+    def _preferred_exchange(self, symbol: str) -> str:
+        if symbol.upper() == "OKB":
+            return "okx"
+        return "binance"
+
+    async def _get_binance_daily_closes(
+        self,
+        client: httpx.AsyncClient,
+        symbol: str,
+        days: int,
+    ) -> list[ExchangeClose]:
+        pair_symbol = f"{symbol.upper()}USDT"
+        try:
+            response = await client.get(
+                f"{self.binance_base_url}/api/v3/klines",
+                params={
+                    "symbol": pair_symbol,
+                    "interval": "1d",
+                    "limit": min(max(days + 5, 1), 1000),
+                },
+                timeout=settings.BINANCE_PUBLIC_TIMEOUT,
+            )
+            response.raise_for_status()
+            rows = response.json()
+            return self._normalize_binance_closes(rows, days)
+        except Exception as exc:
+            logger.debug(f"Binance crypto index history unavailable for {pair_symbol}: {exc}")
+            return []
+
+    async def _get_okx_daily_closes(
+        self,
+        client: httpx.AsyncClient,
+        symbol: str,
+        days: int,
+    ) -> list[ExchangeClose]:
+        instrument_id = f"{symbol.upper()}-USDT"
+        rows: list[Any] = []
+        after: str | None = None
+        try:
+            while len(rows) < days + 5:
+                params = {
+                    "instId": instrument_id,
+                    "bar": "1D",
+                    "limit": min(100, days + 5 - len(rows)),
+                }
+                if after:
+                    params["after"] = after
+                response = await client.get(
+                    f"{self.okx_base_url}/api/v5/market/history-candles",
+                    params=params,
+                    timeout=settings.BINANCE_PUBLIC_TIMEOUT,
+                )
+                response.raise_for_status()
+                data = response.json().get("data") or []
+                if not data:
+                    break
+                rows.extend(data)
+                oldest_ts = str(data[-1][0])
+                if oldest_ts == after or len(data) < params["limit"]:
+                    break
+                after = oldest_ts
+            return self._normalize_okx_closes(rows, days)
+        except Exception as exc:
+            logger.debug(f"OKX crypto index history unavailable for {instrument_id}: {exc}")
+            return []
+
+    @staticmethod
+    def _normalize_binance_closes(rows: Any, days: int) -> list[ExchangeClose]:
+        closes: list[ExchangeClose] = []
+        if not isinstance(rows, list):
+            return closes
+        for row in rows:
+            if not isinstance(row, list) or len(row) < 5:
+                continue
+            timestamp = CryptoIndexService._positive_int(row[0])
+            close = CryptoIndexService._positive_float(row[4])
+            if timestamp and close:
+                closes.append(ExchangeClose(timestamp=timestamp, close=close))
+        return sorted(closes, key=lambda item: item.timestamp)[-days:]
+
+    @staticmethod
+    def _normalize_okx_closes(rows: Any, days: int) -> list[ExchangeClose]:
+        closes: list[ExchangeClose] = []
+        if not isinstance(rows, list):
+            return closes
+        for row in rows:
+            if not isinstance(row, list) or len(row) < 5:
+                continue
+            timestamp = CryptoIndexService._positive_int(row[0])
+            close = CryptoIndexService._positive_float(row[4])
+            if timestamp and close:
+                closes.append(ExchangeClose(timestamp=timestamp, close=close))
+        unique = {item.timestamp: item for item in closes}
+        return sorted(unique.values(), key=lambda item: item.timestamp)[-days:]
+
+    @staticmethod
+    def _positive_float(value: Any) -> float | None:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        return number if number > 0 else None
+
+    @staticmethod
+    def _positive_int(value: Any) -> int | None:
+        try:
+            number = int(value)
+        except (TypeError, ValueError):
+            return None
+        return number if number > 0 else None
 
     async def build_index(self, top_n: int = 20, days: int = 90, base_value: float = 1000.0) -> Dict[str, Any]:
         index_cache_key = self._index_cache_key(top_n, days, base_value)
@@ -190,7 +366,7 @@ class CryptoIndexService:
                 histories.extend(
                     await asyncio.gather(
                         *[
-                            self._get_coin_market_caps(client, item["id"], days)
+                            self._get_coin_market_caps(client, item, days)
                             for item in chunk
                         ]
                     )
@@ -198,8 +374,12 @@ class CryptoIndexService:
                 if start + self.max_concurrency < len(constituents):
                     await asyncio.sleep(self.request_gap)
 
-        history_by_id = {item["id"]: item for item in histories}
         available_ids = {item["id"] for item in histories if item["market_caps"]}
+        available_sources = {
+            item.get("source")
+            for item in histories
+            if item.get("market_caps") and item.get("source")
+        }
         filtered_constituents = [item for item in constituents if item["id"] in available_ids]
         missing_symbols = [item["symbol"] for item in constituents if item["id"] not in available_ids]
         is_partial = len(filtered_constituents) != len(constituents)
@@ -282,6 +462,7 @@ class CryptoIndexService:
 
         btc_market_cap = next((item["market_cap"] for item in filtered_constituents if item["symbol"] == "BTC"), 0)
         eth_market_cap = next((item["market_cap"] for item in filtered_constituents if item["symbol"] == "ETH"), 0)
+        history_method = "exchange-price-history" if available_sources <= {"binance", "okx"} else "mixed-price-history"
 
         result = {
             "top_n": top_n,
@@ -299,7 +480,7 @@ class CryptoIndexService:
                 "btc_weight_pct": round((btc_market_cap / current_basket_cap) * 100, 2) if current_basket_cap else 0.0,
                 "eth_weight_pct": round((eth_market_cap / current_basket_cap) * 100, 2) if current_basket_cap else 0.0,
                 "common_start_date": valid_dates[0],
-                "methodology": "fixed-basket-market-cap-weighted-partial" if is_partial else "fixed-basket-market-cap-weighted",
+                "methodology": f"fixed-current-market-cap-weighted-{history_method}-partial" if is_partial else f"fixed-current-market-cap-weighted-{history_method}",
             },
         }
         optional_cache_set(

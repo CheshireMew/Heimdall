@@ -216,6 +216,33 @@ def test_market_history_api_requests_do_not_keep_a_second_cache():
         assert route_name in source
 
 
+def test_market_api_timeout_policy_matches_backend_wait_boundaries():
+    source = read_frontend("modules/market/api.ts")
+
+    assert "const MARKET_API_TIMEOUT_MS = {" in source
+    assert "macroLiquidity: 60000" in source
+    assert "liveMarket: 30000" in source
+    assert "externalMarket: 30000" in source
+    assert "aiTradeSetup: 180000" in source
+    assert not re.search(r"timeout:\s*(?:15000|30000|60000|180000)", source)
+
+    for route_name, timeout_key in [
+        ("get_dli_liquidity", "macroLiquidity"),
+        ("get_realtime_analysis", "liveMarket"),
+        ("get_latest_klines", "liveMarket"),
+        ("get_kline_tail", "liveMarket"),
+        ("get_current_price", "liveMarket"),
+        ("get_crypto_index", "externalMarket"),
+        ("get_binance_market_page", "externalMarket"),
+        ("get_binance_web3_heat_rank", "externalMarket"),
+        ("get_binance_rwa_kline", "externalMarket"),
+    ]:
+        assert re.search(
+            rf"apiGet\('{route_name}'[^\n]*timeout: MARKET_API_TIMEOUT_MS\.{timeout_key}",
+            source,
+        ), route_name
+
+
 def test_binance_market_frontend_does_not_persist_server_response_cache():
     assert not (FRONTEND_DIR / "modules" / "market" / "binanceMarketCache.ts").exists()
 

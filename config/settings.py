@@ -129,6 +129,7 @@ class AppSettings(BaseSettings):
     BINANCE_FUTURES_COINM_BASE_URL: str = "https://dapi.binance.com"
     BINANCE_WEB3_BASE_URL: str = "https://web3.binance.com"
     BINANCE_WWW_BASE_URL: str = "https://www.binance.com"
+    OKX_PUBLIC_BASE_URL: str = "https://www.okx.com"
     BINANCE_PUBLIC_TIMEOUT: float = 20.0
     BINANCE_PUBLIC_CACHE_TTL: int = 120
     BINANCE_PUBLIC_MAX_RETRIES: int = 2

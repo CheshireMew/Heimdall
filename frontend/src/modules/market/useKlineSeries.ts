@@ -1,4 +1,4 @@
-import { computed, onUnmounted, ref, watch, type Ref } from 'vue'
+import { computed, onActivated, onDeactivated, onUnmounted, ref, watch, type Ref } from 'vue'
 import { marketApi } from './api'
 import { useMarketStore } from './store'
 import { isIndexSymbol } from './symbolCatalog'
@@ -20,6 +20,8 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
   const enabled = computed(() => options.enabled?.value ?? true)
   let tailRefreshPending = false
   let refreshTimer: number | null = null
+  let isRouteActive = true
+  let shouldRefreshOnActivate = false
 
   const cacheKey = computed(() => `${symbol.value}:${timeframe.value}`)
   const klineData = computed(() => (
@@ -49,7 +51,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
   const fetchLatest = async (options: { force?: boolean } = {}) => {
     const requestSymbol = symbol.value
     const requestTimeframe = timeframe.value
-    if (!enabled.value || !requestSymbol || !requestTimeframe) {
+    if (!isRouteActive || !enabled.value || !requestSymbol || !requestTimeframe) {
       indexKlineData.value = []
       return
     }
@@ -64,12 +66,12 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
         start_date: toLocalIsoDate(start),
         end_date: toLocalIsoDate(end),
       })
-      if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
+      if (!isRouteActive || requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
       indexKlineData.value = res.data || []
       return
     }
     const data = await marketStore.getKlineData(requestSymbol, requestTimeframe, 1000, options)
-    if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
+    if (!isRouteActive || requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
     if (data) {
       marketStore.setKlineHistory(requestSymbol, requestTimeframe, data, 1000)
     }
@@ -83,12 +85,13 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
   const refreshTail = async () => {
     const requestSymbol = symbol.value
     const requestTimeframe = timeframe.value
+    if (!isRouteActive || !enabled.value || !requestSymbol || !requestTimeframe || isIndexSymbol(requestSymbol)) return
     const res = await marketApi.getPriceSeriesTail({
       symbol: requestSymbol,
       timeframe: requestTimeframe,
       limit: LIVE_TAIL_LIMIT,
     })
-    if (requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
+    if (!isRouteActive || requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
     const tail = res.kline_data || []
     if (tail.length === 0) return
     marketStore.applyKlineTail(requestSymbol, requestTimeframe, tail, 1000)
@@ -103,9 +106,9 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
 
   const startAutoRefresh = () => {
     stopAutoRefresh()
-    if (!enabled.value || !symbol.value || !timeframe.value) return
+    if (!isRouteActive || !enabled.value || !symbol.value || !timeframe.value || isIndexSymbol(symbol.value)) return
     refreshTimer = window.setInterval(() => {
-      if (isIndexSymbol(symbol.value) || tailRefreshPending) return
+      if (!isRouteActive || isIndexSymbol(symbol.value) || tailRefreshPending) return
       tailRefreshPending = true
       refreshTail().catch(error => {
         console.error('Realtime refresh failed', error)
@@ -168,7 +171,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
   watch([symbol, timeframe, enabled], async () => {
     stopAutoRefresh()
     tailRefreshPending = false
-    if (!enabled.value || !symbol.value || !timeframe.value) {
+    if (!isRouteActive || !enabled.value || !symbol.value || !timeframe.value) {
       indexKlineData.value = []
       noMoreHistory.value = false
       return
@@ -180,7 +183,25 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
     startAutoRefresh()
   }, { immediate: true })
 
+  onActivated(() => {
+    isRouteActive = true
+    if (!enabled.value || !symbol.value || !timeframe.value) return
+    if (shouldRefreshOnActivate) {
+      shouldRefreshOnActivate = false
+      void fetchLatest()
+    }
+    startAutoRefresh()
+  })
+
+  onDeactivated(() => {
+    isRouteActive = false
+    shouldRefreshOnActivate = true
+    tailRefreshPending = false
+    stopAutoRefresh()
+  })
+
   onUnmounted(() => {
+    isRouteActive = false
     stopAutoRefresh()
   })
 
