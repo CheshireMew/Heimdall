@@ -241,21 +241,49 @@ class CryptoIndexService:
         days: int,
     ) -> list[ExchangeClose]:
         pair_symbol = f"{symbol.upper()}USDT"
+        params = {
+            "symbol": pair_symbol,
+            "interval": "1d",
+            "limit": min(max(days + 5, 1), 1000),
+        }
+        spot_rows = await self._get_binance_kline_rows(
+            client,
+            url=f"{self.binance_base_url}/api/v3/klines",
+            params=params,
+            pair_symbol=pair_symbol,
+            market="spot",
+        )
+        if spot_rows:
+            return self._normalize_binance_closes(spot_rows, days)
+
+        usdm_rows = await self._get_binance_kline_rows(
+            client,
+            url=f"{settings.BINANCE_FUTURES_USDM_BASE_URL.rstrip('/')}/fapi/v1/klines",
+            params=params,
+            pair_symbol=pair_symbol,
+            market="usdm",
+        )
+        return self._normalize_binance_closes(usdm_rows, days)
+
+    async def _get_binance_kline_rows(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        url: str,
+        params: dict[str, Any],
+        pair_symbol: str,
+        market: str,
+    ) -> Any:
         try:
             response = await client.get(
-                f"{self.binance_base_url}/api/v3/klines",
-                params={
-                    "symbol": pair_symbol,
-                    "interval": "1d",
-                    "limit": min(max(days + 5, 1), 1000),
-                },
+                url,
+                params=params,
                 timeout=settings.BINANCE_PUBLIC_TIMEOUT,
             )
             response.raise_for_status()
-            rows = response.json()
-            return self._normalize_binance_closes(rows, days)
+            return response.json()
         except Exception as exc:
-            logger.debug(f"Binance crypto index history unavailable for {pair_symbol}: {exc}")
+            logger.debug(f"Binance {market} crypto index history unavailable for {pair_symbol}: {exc}")
             return []
 
     async def _get_okx_daily_closes(

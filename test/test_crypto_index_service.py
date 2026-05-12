@@ -11,6 +11,44 @@ def day_ms(year: int, month: int, day: int) -> int:
     return int(datetime(year, month, day, tzinfo=timezone.utc).timestamp() * 1000)
 
 
+class FakeBinanceResponse:
+    def __init__(self, payload, *, fail: bool = False) -> None:
+        self.payload = payload
+        self.fail = fail
+
+    def raise_for_status(self) -> None:
+        if self.fail:
+            raise RuntimeError("upstream rejected symbol")
+
+    def json(self):
+        return self.payload
+
+
+class FakeBinanceClient:
+    def __init__(self) -> None:
+        self.urls: list[str] = []
+
+    async def get(self, url: str, **kwargs):
+        self.urls.append(url)
+        if "/api/v3/klines" in url:
+            return FakeBinanceResponse([], fail=True)
+        return FakeBinanceResponse([
+            [day_ms(2026, 5, 11), "42", "43", "40", "41", "100", day_ms(2026, 5, 12)],
+        ])
+
+
+@pytest.mark.asyncio
+async def test_binance_history_uses_usdm_when_spot_symbol_is_unavailable():
+    service = CryptoIndexService(cache_service=None)
+    client = FakeBinanceClient()
+
+    rows = await service._get_binance_daily_closes(client, "HYPE", 1)
+
+    assert ["/api/v3/klines" in url for url in client.urls] == [True, False]
+    assert ["/fapi/v1/klines" in url for url in client.urls] == [False, True]
+    assert rows == [ExchangeClose(day_ms(2026, 5, 11), 41.0)]
+
+
 @pytest.mark.asyncio
 async def test_crypto_index_uses_exchange_history_before_coingecko(monkeypatch):
     service = CryptoIndexService(cache_service=None)
