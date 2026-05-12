@@ -10,6 +10,7 @@ import type { OhlcvPointResponse } from './contracts'
 import { marketApi } from './api'
 import { buildHalvingSnapshot, createDefaultHalvingSnapshot, normalizeHalvingSnapshot } from './pageSnapshots'
 import { parseLocalIsoDate } from '@/utils/localDate'
+import { useMarketStore } from './store'
 
 interface HalvingChartRuntime {
   Chart: typeof import('chart.js').Chart
@@ -31,6 +32,9 @@ const LAST_HALVING_DATE = parseLocalIsoDate(LAST_HALVING_DATE_TEXT) ?? new Date(
 const NEXT_HALVING_ESTIMATE = parseLocalIsoDate(NEXT_HALVING_DATE_TEXT) ?? new Date(2028, 3, 17)
 const ONE_DAY = 24 * 60 * 60 * 1000
 const CURRENT_PRICE_REFRESH_INTERVAL_MS = 15_000
+const HALVING_PRICE_SYMBOL = 'BTC/USDT'
+const HALVING_PRICE_TIMEFRAME = '1d'
+const HALVING_HISTORY_START_DATE = '2010-07-01'
 
 const nextAnimationFrame = () => new Promise<void>((resolve) => {
   requestAnimationFrame(() => resolve())
@@ -67,12 +71,11 @@ export function useHalvingPage() {
   const { t } = useI18n()
   const { theme } = useTheme()
   const { displayCurrency, toDisplayAmount, formatMoney } = useMoney()
+  const marketStore = useMarketStore()
   const pageSnapshot = createPersistentPageSnapshot(PAGE_SNAPSHOT_KEYS.halving, normalizeHalvingSnapshot, createDefaultHalvingSnapshot())
   const restoredSnapshot = pageSnapshot.initial
 
-  const loading = ref(true)
   const chartCanvas = ref<HTMLCanvasElement | null>(null)
-  const historyData = ref<OhlcvPointResponse[]>([])
   const currentPrice = ref(0)
   const showPhases = ref(restoredSnapshot.showPhases)
   const scaleType = ref<'logarithmic' | 'linear'>(restoredSnapshot.scaleType)
@@ -89,6 +92,19 @@ export function useHalvingPage() {
     const elapsed = Date.now() - LAST_HALVING_DATE.getTime()
     return Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100).toFixed(1)
   })
+  const historyResponse = computed(() => (
+    marketStore.readPriceHistory(HALVING_PRICE_SYMBOL, HALVING_PRICE_TIMEFRAME, HALVING_HISTORY_START_DATE)
+  ))
+  const historyData = computed<OhlcvPointResponse[]>(() => (
+    (historyResponse.value?.items || []).filter((row) => row.close > 0)
+  ))
+  const historyError = computed(() => (
+    marketStore.getPriceHistoryError(HALVING_PRICE_SYMBOL, HALVING_PRICE_TIMEFRAME, HALVING_HISTORY_START_DATE)
+  ))
+  const loading = computed(() => (
+    marketStore.isPriceHistoryLoading(HALVING_PRICE_SYMBOL, HALVING_PRICE_TIMEFRAME, HALVING_HISTORY_START_DATE)
+    || (!historyResponse.value && !historyError.value)
+  ))
 
   const seriesData = computed(() =>
     historyData.value.map((row) => ({
@@ -306,8 +322,8 @@ export function useHalvingPage() {
   const refreshCurrentPrice = async () => {
     try {
       const response = await marketApi.getCurrentPrice({
-        symbol: 'BTC/USDT',
-        timeframe: '1d',
+        symbol: HALVING_PRICE_SYMBOL,
+        timeframe: HALVING_PRICE_TIMEFRAME,
       })
       const livePrice = Number(response?.current_price)
       if (Number.isFinite(livePrice) && livePrice > 0) {
@@ -319,21 +335,19 @@ export function useHalvingPage() {
   }
 
   const fetchHistoryData = async () => {
-    loading.value = true
     try {
-      const response = await marketApi.getPriceHistory({
-        symbol: 'BTC/USDT',
-        start_date: '2010-07-01',
-        timeframe: '1d',
-      })
-      historyData.value = (response.items || []).filter((row) => row.close > 0)
-      if (currentPrice.value <= 0 && historyData.value.length > 0) {
-        currentPrice.value = Number(historyData.value[historyData.value.length - 1]?.close || 0)
+      const response = await marketStore.getPriceHistory(
+        HALVING_PRICE_SYMBOL,
+        HALVING_PRICE_TIMEFRAME,
+        HALVING_HISTORY_START_DATE,
+      )
+      const history = (response?.items || []).filter((row) => row.close > 0)
+      if (currentPrice.value <= 0 && history.length > 0) {
+        currentPrice.value = Number(history[history.length - 1]?.close || 0)
       }
     } catch (error) {
       console.error('Fetch halving history failed', error)
     } finally {
-      loading.value = false
       void syncChart()
     }
   }

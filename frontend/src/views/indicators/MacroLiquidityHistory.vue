@@ -16,7 +16,7 @@
             <option :value="1095">近 3 年</option>
             <option :value="1825">近 5 年</option>
           </select>
-          <button class="detail-primary-button" :disabled="loading" @click="load">
+          <button class="detail-primary-button" :disabled="loading" @click="refresh">
             {{ loading ? '刷新中...' : '刷新数据' }}
           </button>
         </div>
@@ -87,6 +87,7 @@ const {
   thresholds,
   lastUpdated,
   load,
+  refresh,
 } = useMacroLiquidityPage(pageDays)
 
 const coverageLabel = computed(() => {

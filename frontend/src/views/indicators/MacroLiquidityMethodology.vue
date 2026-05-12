@@ -12,7 +12,7 @@
         </div>
         <div class="flex flex-wrap items-center gap-3">
           <RouterLink class="detail-secondary-button" :to="{ name: 'IndicatorsMacroHistory' }">历史走势</RouterLink>
-          <button class="detail-primary-button" :disabled="loading" @click="load">
+          <button class="detail-primary-button" :disabled="loading" @click="refresh">
             {{ loading ? '刷新中...' : '刷新数据' }}
           </button>
         </div>
@@ -149,6 +149,7 @@ const {
   thresholds,
   drivers,
   load,
+  refresh,
 } = useMacroLiquidityPage(365)
 
 const thresholdValues = computed(() => ({

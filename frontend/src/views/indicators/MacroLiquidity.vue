@@ -30,12 +30,12 @@
                 <h2 class="mt-2 text-lg font-semibold text-slate-950 dark:text-white">综合压力仪表盘</h2>
               </div>
               <div class="flex flex-wrap items-center gap-3">
-                <select v-model.number="changeDays" class="macro-period-select self-start" :disabled="loading" @change="load">
+                <select v-model.number="changeDays" class="macro-period-select self-start" :disabled="loading" @change="load()">
                   <option :value="7">7 日</option>
                   <option :value="30">30 日</option>
                   <option :value="90">90 日</option>
                 </select>
-                <button class="macro-primary-button self-start" :disabled="loading" @click="load">
+                <button class="macro-primary-button self-start" :disabled="loading" @click="refresh">
                   {{ loading ? '刷新中...' : '刷新宏观数据' }}
                 </button>
                 <RouterLink class="macro-secondary-button self-start" :to="{ name: 'IndicatorsMacroHistory' }">
@@ -256,6 +256,7 @@ const {
   lastUpdated,
   changeWindowLabel,
   load,
+  refresh,
 } = useMacroLiquidityPage(lookbackDays, changeDays)
 
 const clampPercent = (value: number) => Math.max(0, Math.min(100, value))

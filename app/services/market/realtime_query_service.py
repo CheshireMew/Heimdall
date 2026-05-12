@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from app.domain.market.constants import DEFAULT_ATR_PERIOD, DEFAULT_VOLATILITY_PERIOD
 from app.exceptions import ServiceUnavailableError
 from app.infra.executor import run_sync
 from app.services.market.app_service_support import validate_market_request
@@ -29,8 +30,8 @@ class MarketRealtimeQueryService:
         symbol: str,
         timeframe: str,
         limit: int,
-        atr_period: int | None = None,
-        volatility_period: int | None = None,
+        atr_period: int = DEFAULT_ATR_PERIOD,
+        volatility_period: int = DEFAULT_VOLATILITY_PERIOD,
     ) -> MarketSnapshot:
         validate_market_request(symbol, timeframe)
         result = await run_sync(

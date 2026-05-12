@@ -1,5 +1,7 @@
 import math
 
+from app.domain.market.constants import DEFAULT_ATR_PERIOD, DEFAULT_VOLATILITY_PERIOD
+
 
 class TechnicalAnalysis:
     @staticmethod
@@ -90,7 +92,7 @@ class TechnicalAnalysis:
         return 100.0 - (100.0 / (1.0 + rs))
 
     @staticmethod
-    def calculate_atr(highs, lows, closes, period=14):
+    def calculate_atr(highs, lows, closes, period=DEFAULT_ATR_PERIOD):
         """
         计算 ATR (Average True Range)
         """
@@ -98,7 +100,7 @@ class TechnicalAnalysis:
         return series[-1] if series else None
 
     @staticmethod
-    def calculate_atr_series(highs, lows, closes, period=14):
+    def calculate_atr_series(highs, lows, closes, period=DEFAULT_ATR_PERIOD):
         if period <= 0 or len(highs) != len(lows) or len(lows) != len(closes) or len(closes) <= period:
             return []
 
@@ -118,7 +120,7 @@ class TechnicalAnalysis:
         return values
 
     @staticmethod
-    def calculate_atr_pct(highs, lows, closes, period=14):
+    def calculate_atr_pct(highs, lows, closes, period=DEFAULT_ATR_PERIOD):
         atr = TechnicalAnalysis.calculate_atr(highs, lows, closes, period)
         if atr is None or not closes or closes[-1] <= 0:
             return None
@@ -140,7 +142,7 @@ class TechnicalAnalysis:
         return returns
 
     @staticmethod
-    def calculate_realized_volatility(prices, period=20, use_log=True):
+    def calculate_realized_volatility(prices, period=DEFAULT_VOLATILITY_PERIOD, use_log=True):
         if period <= 1 or len(prices) < period + 1:
             return None
 
@@ -154,7 +156,12 @@ class TechnicalAnalysis:
         return math.sqrt(variance)
 
     @staticmethod
-    def calculate_annualized_volatility(prices, period=20, periods_per_year=365, use_log=True):
+    def calculate_annualized_volatility(
+        prices,
+        period=DEFAULT_VOLATILITY_PERIOD,
+        periods_per_year=365,
+        use_log=True,
+    ):
         realized_volatility = TechnicalAnalysis.calculate_realized_volatility(
             prices,
             period=period,

@@ -11,6 +11,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { useEcharts } from '@/composables/useEcharts'
 import { useTheme } from '@/composables/useTheme'
 import { useDateTime } from '@/composables/useDateTime'
+import { formatIndicatorAxisValue } from '@/modules/market/indicatorDisplay'
 
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
@@ -46,7 +47,7 @@ const getChartOption = (indicator, isDark) => {
         color: isDark ? '#f3f4f6' : '#111827'
       },
       formatter: function (params) {
-        return `${params[0].axisValue}<br/><b>${params[0].data}</b> ${indicator.unit || ''}`
+        return `${params[0].axisValue}<br/><b>${formatIndicatorAxisValue(indicator, Number(params[0].data))}</b>`
       }
     },
     grid: {
@@ -67,7 +68,10 @@ const getChartOption = (indicator, isDark) => {
     yAxis: {
       type: 'value',
       scale: true,
-      axisLabel: { color: textColor },
+      axisLabel: {
+        color: textColor,
+        formatter: (value) => formatIndicatorAxisValue(indicator, Number(value))
+      },
       splitLine: { 
         show: true,
         lineStyle: {

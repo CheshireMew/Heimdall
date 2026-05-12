@@ -7,9 +7,7 @@
     "realtime": "Dashboard",
     "indicators": "Indicators",
     "macro": "Macro",
-    "onchain": "On-chain",
-    "sentiment": "Sentiment",
-    "tech": "Technical",
+    "marketSignals": "Market Signals",
     "cryptoIndex": "Crypto Index",
     "binanceMarket": "Binance Market",
     "web3Rank": "Web3 Ranks",
@@ -31,24 +29,6 @@
   },
   "lang": {
     "switch": "中"
-  },
-  "category": {
-    "macro": {
-      "title": "Macro Economics",
-      "desc": "US Treasury Yield, NASDAQ, Gold, High Yield Spread"
-    },
-    "onchain": {
-      "title": "On-chain Data",
-      "desc": "BTC Hashrate, Mining Difficulty, Stablecoin Market Cap"
-    },
-    "sentiment": {
-      "title": "Market Sentiment",
-      "desc": "Fear & Greed Index, Google Trends"
-    },
-    "tech": {
-      "title": "Technical Indicators",
-      "desc": "200-Week Moving Average, Miner Breakeven, ATH Drawdown"
-    }
   },
   "indicator": {
     "US10Y": "US 10Y Treasury Yield",

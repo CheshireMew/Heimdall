@@ -8,22 +8,26 @@ import {
   formatPercent,
   formatSignedPercent,
 } from '@/modules/format'
-import { marketApi } from './api'
 import type { CryptoIndexConstituentResponse, CryptoIndexHistoryPointResponse, CryptoIndexResponse } from './contracts'
 import { buildCryptoIndexSnapshot, createDefaultCryptoIndexSnapshot, normalizeCryptoIndexSnapshot } from './pageSnapshots'
+import { useMarketStore } from './store'
 
 
 export function useCryptoIndexPage() {
   const { theme } = useTheme()
+  const marketStore = useMarketStore()
   const pageSnapshot = createPersistentPageSnapshot(PAGE_SNAPSHOT_KEYS.cryptoIndex, normalizeCryptoIndexSnapshot, createDefaultCryptoIndexSnapshot())
   const restoredSnapshot = pageSnapshot.initial
 
   const basketSizes = [10, 20, 50]
   const topN = ref(restoredSnapshot.topN)
   const days = ref(restoredSnapshot.days)
-  const loading = ref(false)
-  const error = ref('')
-  const data = ref<CryptoIndexResponse | null>(null)
+  const data = computed<CryptoIndexResponse | null>(() => marketStore.readCryptoIndex(topN.value, days.value))
+  const error = computed(() => marketStore.getCryptoIndexError(topN.value, days.value))
+  const loading = computed(() => (
+    marketStore.isCryptoIndexLoading(topN.value, days.value)
+    || (!data.value && !error.value)
+  ))
 
   const chartColors = computed(() => {
     const isDark = theme.value === 'dark'
@@ -92,26 +96,17 @@ export function useCryptoIndexPage() {
     },
   ])
 
-  const fetchData = async () => {
-    loading.value = true
-    error.value = ''
-    try {
-      const response = await marketApi.getCryptoIndex({
-        top_n: topN.value,
-        days: days.value,
-      })
-      data.value = response
-    } catch (err) {
-      console.error('Crypto index fetch failed', err)
-      error.value = 'Failed to load crypto index data.'
-    } finally {
-      loading.value = false
-    }
+  const fetchData = async (options: { force?: boolean } = {}) => {
+    await marketStore.getCryptoIndex(topN.value, days.value, options)
+  }
+
+  const refresh = async () => {
+    await fetchData({ force: true })
   }
 
   const setTopN = (size: number) => {
     topN.value = size
-    fetchData()
+    void fetchData()
   }
 
   onMounted(() => {
@@ -140,6 +135,7 @@ export function useCryptoIndexPage() {
     summaryCards,
     setTopN,
     fetchData,
+    refresh,
     weightOf,
     formatCurrency,
     formatCompactCurrency: formatIndexCompactCurrency,

@@ -7,9 +7,7 @@
     "realtime": "实时分析",
     "indicators": "市场指标",
     "macro": "宏观经济",
-    "onchain": "链上数据",
-    "sentiment": "市场情绪",
-    "tech": "技术指标",
+    "marketSignals": "市场信号",
     "cryptoIndex": "加密指数",
     "binanceMarket": "币安市场",
     "web3Rank": "Web3 榜单",
@@ -31,24 +29,6 @@
   },
   "lang": {
     "switch": "EN"
-  },
-  "category": {
-    "macro": {
-      "title": "宏观经济",
-      "desc": "美债收益率、纳斯达克、黄金价格、高收益利差"
-    },
-    "onchain": {
-      "title": "链上数据",
-      "desc": "BTC 算力、挖矿难度、稳定币市值"
-    },
-    "sentiment": {
-      "title": "市场情绪",
-      "desc": "恐惧贪婪指数、Google 趋势"
-    },
-    "tech": {
-      "title": "技术指标",
-      "desc": "200周均线、矿机关机价、ATH回撤"
-    }
   },
   "indicator": {
     "US10Y": "美国10年期国债收益率",

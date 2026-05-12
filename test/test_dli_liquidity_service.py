@@ -96,3 +96,29 @@ def test_indicator_service_caches_dli_payload_until_invalidated():
     service.get_dli_liquidity(days=30)
 
     assert repository.history_reads == 2
+
+
+class StaticIndicatorRepository:
+    def list_active_meta(self, category=None):
+        return [
+            {"id": "HASHRATE", "name": "BTC Hashrate", "category": "Onchain", "unit": "EH/s"},
+            {"id": "DIFFICULTY", "name": "Mining Difficulty", "category": "Onchain", "unit": "T"},
+            {"id": "STABLECOIN_CAP", "name": "Stablecoin Market Cap", "category": "Onchain", "unit": "USD"},
+        ]
+
+    def get_history_points(self, indicator_ids, *, start_date=None):
+        now = datetime.now().replace(microsecond=0)
+        return {
+            "HASHRATE": [{"date": now.isoformat(), "value": 1_008_000_000_000_000_000_000.0}],
+            "DIFFICULTY": [{"date": now.isoformat(), "value": 132_470_000_000_000.0}],
+            "STABLECOIN_CAP": [{"date": now.isoformat(), "value": 320_850_000_000.0}],
+        }
+
+
+def test_indicator_service_returns_display_unit_values_for_market_indicator_api():
+    payload = IndicatorService(StaticIndicatorRepository()).get_indicators(category="Onchain", days=30)
+    values = {item["indicator_id"]: item["current_value"] for item in payload}
+
+    assert values["HASHRATE"] == pytest.approx(1008.0)
+    assert values["DIFFICULTY"] == pytest.approx(132.47)
+    assert values["STABLECOIN_CAP"] == pytest.approx(320_850_000_000.0)

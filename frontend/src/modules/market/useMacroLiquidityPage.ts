@@ -1,7 +1,7 @@
-import { computed, ref, unref, type Ref } from 'vue'
+import { computed, unref, type Ref } from 'vue'
 import { formatCompactNumber, formatSignedPercent } from '@/modules/format'
-import { marketApi } from './api'
 import type { DliComponentResponse, DliLiquidityResponse, MarketIndicatorResponse } from './contracts'
+import { useMarketStore } from './store'
 
 export type MacroGroupId = 'policy' | 'funding' | 'credit' | 'risk'
 export type MacroPolarity = 'higherTightens' | 'lowerTightens'
@@ -149,26 +149,25 @@ const definitionFromComponent = (component: DliComponentResponse): MacroIndicato
 }
 
 export function useMacroLiquidityPage(days: number | Ref<number> = 365, changeDays: number | Ref<number> = 30) {
-  const dli = ref<DliLiquidityResponse | null>(null)
-  const indicators = ref<MarketIndicatorResponse[]>([])
-  const loading = ref(true)
-  const error = ref('')
+  const marketStore = useMarketStore()
+  const currentDays = computed(() => unref(days))
+  const currentChangeDays = computed(() => unref(changeDays))
+  const dli = computed<DliLiquidityResponse | null>(() => (
+    marketStore.readDliLiquidity(currentDays.value, currentChangeDays.value)
+  ))
+  const indicators = computed<MarketIndicatorResponse[]>(() => dli.value?.indicators || [])
+  const error = computed(() => marketStore.getDliLiquidityError(currentDays.value, currentChangeDays.value))
+  const loading = computed(() => (
+    marketStore.isDliLiquidityLoading(currentDays.value, currentChangeDays.value)
+    || (!dli.value && !error.value)
+  ))
 
-  const load = async () => {
-    loading.value = true
-    error.value = ''
-    try {
-      const res = await marketApi.getDliLiquidity({ days: unref(days), change_days: unref(changeDays) })
-      dli.value = res || null
-      indicators.value = res?.indicators || []
-    } catch (e) {
-      console.error('Failed to fetch DLI liquidity:', e)
-      error.value = '宏观流动性数据加载失败'
-      dli.value = null
-      indicators.value = []
-    } finally {
-      loading.value = false
-    }
+  const load = async (options: { force?: boolean } = {}) => {
+    await marketStore.getDliLiquidity(currentDays.value, currentChangeDays.value, options)
+  }
+
+  const refresh = async () => {
+    await load({ force: true })
   }
 
   const indicatorMap = computed(() => new Map(indicators.value.map((item) => [item.indicator_id, item])))
@@ -269,6 +268,7 @@ export function useMacroLiquidityPage(days: number | Ref<number> = 365, changeDa
     changeWindowDays,
     changeWindowLabel,
     load,
+    refresh,
   }
 }
 

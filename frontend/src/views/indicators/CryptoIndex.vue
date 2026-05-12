@@ -53,7 +53,7 @@
             </div>
 
             <button
-              @click="fetchData"
+              @click="refresh"
               :disabled="loading"
               class="app-button-primary"
             >
@@ -165,7 +165,7 @@ const {
   chartData,
   summaryCards,
   setTopN,
-  fetchData,
+  refresh,
   weightOf,
   formatCurrency,
   formatCompactCurrency,

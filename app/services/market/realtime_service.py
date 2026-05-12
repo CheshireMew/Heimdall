@@ -25,8 +25,8 @@ class RealtimeService:
         timeframe: str,
         limit: int,
         *,
-        atr_period: int = 14,
-        volatility_period: int = 20,
+        atr_period: int,
+        volatility_period: int,
     ) -> MarketSnapshot | None:
         kline_data = market_data_service.get_recent_candles(symbol, timeframe, limit=limit)
         if not kline_data:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Literal
 
+from app.domain.market.constants import DEFAULT_ATR_PERIOD, DEFAULT_VOLATILITY_PERIOD
 from app.services.market.app_service_support import VALID_MARKET_SYMBOLS, VALID_MARKET_TIMEFRAMES
 from app.services.market.history_query_service import MarketHistoryQueryService
 from app.services.market.market_data_service import MarketDataService
@@ -38,8 +39,8 @@ class MarketQueryAppService:
         symbol: str,
         timeframe: str,
         limit: int,
-        atr_period: int | None = None,
-        volatility_period: int | None = None,
+        atr_period: int = DEFAULT_ATR_PERIOD,
+        volatility_period: int = DEFAULT_VOLATILITY_PERIOD,
     ) -> MarketSnapshot:
         return await self.realtime.load_snapshot(
             symbol=symbol,

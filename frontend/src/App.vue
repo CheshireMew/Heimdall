@@ -75,8 +75,6 @@ import {
   SunIcon,
   BuildingLibraryIcon,
   CubeTransparentIcon,
-  HeartIcon,
-  CalculatorIcon,
   LanguageIcon,
   CircleStackIcon,
   PresentationChartLineIcon
@@ -107,8 +105,6 @@ const iconMap: Record<AppNavIconName, Component> = {
   ClockIcon,
   BuildingLibraryIcon,
   CubeTransparentIcon,
-  HeartIcon,
-  CalculatorIcon,
   CircleStackIcon,
   PresentationChartLineIcon,
 }

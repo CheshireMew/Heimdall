@@ -14,6 +14,7 @@ from app.contracts.dto.market import (
     TechnicalMetricsResponse,
     TradeSetupResponse,
 )
+from app.domain.market.constants import DEFAULT_ATR_PERIOD, DEFAULT_VOLATILITY_PERIOD
 from config import settings
 
 
@@ -45,8 +46,8 @@ async def get_technical_metrics(
     symbol: str = Query(..., description="交易对，如 BTC/USDT"),
     timeframe: str = Query("1d", description="时间周期，如 1d"),
     limit: int = Query(120, ge=30, le=settings.API_MAX_LIMIT),
-    atr_period: int = Query(14, ge=2, le=200),
-    volatility_period: int = Query(20, ge=2, le=365),
+    atr_period: int = Query(DEFAULT_ATR_PERIOD, ge=2, le=200),
+    volatility_period: int = Query(DEFAULT_VOLATILITY_PERIOD, ge=2, le=365),
     service: Any = Depends(market_query_dependency),
 ):
     return await service.get_technical_metrics(

@@ -8,6 +8,18 @@ from app.services.market.dli_cache import DliLiquidityCache
 from app.services.market.dli_service import DliLiquidityService
 
 
+INDICATOR_DISPLAY_FACTORS = {
+    # Mempool returns hashrate as H/s while the market indicator contract exposes EH/s.
+    "HASHRATE": 1 / 1_000_000_000_000_000_000,
+    # Bitcoin difficulty is a raw dimensionless target value; the UI contract exposes trillions.
+    "DIFFICULTY": 1 / 1_000_000_000_000,
+}
+
+
+def _to_display_value(indicator_id: str, value: float) -> float:
+    return value * INDICATOR_DISPLAY_FACTORS.get(indicator_id, 1.0)
+
+
 class IndicatorService:
     def __init__(
         self,
@@ -31,7 +43,7 @@ class IndicatorService:
         result: list[dict[str, Any]] = []
         for meta in metas:
             history = [
-                {"date": item["date"], "value": item["value"]}
+                {"date": item["date"], "value": _to_display_value(meta["id"], item["value"])}
                 for item in history_map.get(meta["id"], [])
             ]
             result.append(
