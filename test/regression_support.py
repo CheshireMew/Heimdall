@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from app.contracts.backtest_defaults import backtest_run_defaults
-from app.contracts.dto.market import (
-    build_market_history_response,
-    build_ohlcv_points,
+from app.contracts.market_history import (
+    build_market_history_payload,
+    build_ohlcv_point_payloads,
 )
 
 
@@ -236,7 +236,6 @@ def make_template_response() -> dict:
         "template_runtime": {
             "builder_kind": "rules",
             "capabilities": {
-                "signal_runtime": True,
                 "paper": True,
                 "version_editing": True,
             },
@@ -278,7 +277,6 @@ def make_strategy_definition() -> dict:
         "template_runtime": {
             "builder_kind": "rules",
             "capabilities": {
-                "signal_runtime": True,
                 "paper": True,
                 "version_editing": True,
             },
@@ -579,7 +577,7 @@ def make_market_realtime_response() -> dict:
             "annualized_volatility_pct": 0.44,
         },
         "ai_analysis": {"signal": "BUY", "confidence": 78},
-        "kline_data": [item.model_dump() for item in build_ohlcv_points(make_kline_data())],
+        "kline_data": build_ohlcv_point_payloads(make_kline_data()),
         "timeframe": "1h",
         "type": "snapshot",
     }
@@ -1045,11 +1043,11 @@ class StubMarketQueryAppService:
         }
 
     async def get_history(self, **kwargs):
-        return build_market_history_response(
+        return build_market_history_payload(
             symbol=kwargs.get("symbol", "BTC/USDT"),
             timeframe=kwargs.get("timeframe", "1h"),
             rows=make_kline_data(),
-        ).model_dump()
+        )
 
     async def get_recent_klines(self, **kwargs):
         return await self.get_history(**kwargs)
@@ -1059,11 +1057,11 @@ class StubMarketQueryAppService:
         self.full_history_used_external_persist_callback = persist_klines is not None
         if persist_klines:
             persist_klines(kwargs["symbol"], kwargs["timeframe"], klines)
-        return build_market_history_response(
+        return build_market_history_payload(
             symbol=kwargs.get("symbol", "BTC/USDT"),
             timeframe=kwargs.get("timeframe", "1h"),
             rows=klines,
-        ).model_dump()
+        )
 
     async def get_technical_metrics(self, **kwargs):
         return make_technical_metrics_response()
@@ -1074,7 +1072,7 @@ class StubMarketQueryAppService:
             "timeframe": kwargs.get("timeframe", "1h"),
             "timestamp": "2025-06-01T12:00:00",
             "current_price": 116.0,
-            "kline_data": [item.model_dump() for item in build_ohlcv_points(make_kline_data())],
+            "kline_data": build_ohlcv_point_payloads(make_kline_data()),
         }
 
 
@@ -1144,6 +1142,26 @@ class StubBacktestCommandService:
     async def start_backtest(self, command):
         self.received_commands["start_backtest"] = command
         return {"success": True, "backtest_id": 101, "message": "Backtest started"}
+
+    async def preview_backtest(self, command):
+        self.received_commands["preview_backtest"] = command
+        return {
+            "preview_id": "preview-101",
+            "fingerprint": "fingerprint-101",
+            "strategy_key": command.strategy_key,
+            "strategy_name": "EMA RSI MACD",
+            "strategy_version": command.strategy_version or 1,
+            "strategy_template": "ema_rsi_macd",
+            "timeframe": command.timeframe,
+            "symbols": command.portfolio.symbols,
+            "start_date": command.start_date.isoformat(),
+            "end_date": command.end_date.isoformat(),
+            "candles": {},
+            "markers": {},
+            "indicator_series": {},
+            "coverage": {},
+            "diagnostics": [],
+        }
 
     async def start_paper_run(self, command):
         self.received_commands["start_paper_run"] = command

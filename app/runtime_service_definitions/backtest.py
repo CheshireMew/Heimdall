@@ -2,16 +2,20 @@ from __future__ import annotations
 
 from app.runtime import runtime_role_has_target
 from app.runtime_definition import RuntimeBuildContext, RuntimeServiceDefinition
-from app.runtime_lifecycle import restore_paper_runs, shutdown_service
+from app.runtime_lifecycle import start_paper_run_monitoring, shutdown_service
 from app.runtime_refs import (
     BACKTEST_COMMAND_SERVICE,
+    BACKTEST_FACTOR_PAPER_RUN_WRITER,
+    BACKTEST_FACTOR_RUN_WRITER,
     BACKTEST_FREQTRADE_SERVICE,
-    BACKTEST_RUN_MUTATION_SERVICE,
+    BACKTEST_PREVIEW_SERVICE,
+    BACKTEST_PAPER_RUN_WRITER,
     BACKTEST_PAPER_RUN_MANAGER,
     BACKTEST_QUERY_SERVICE,
     BACKTEST_REPORT_BUILDER,
     BACKTEST_RUN_REPOSITORY,
     BACKTEST_RUN_SERVICE,
+    BACKTEST_RUN_WRITER,
     BACKTEST_STRATEGY_DEFINITION_STORE,
     BACKTEST_STRATEGY_QUERY_SERVICE,
     BACKTEST_STRATEGY_WRITE_SERVICE,
@@ -26,10 +30,28 @@ def _build_backtest_run_repository(ctx: RuntimeBuildContext):
     return BacktestRunRepository(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
 
 
-def _build_backtest_run_mutation_service(ctx: RuntimeBuildContext):
-    from app.infra.persistence.backtest.run_mutation_service import BacktestRunMutationService
+def _build_backtest_run_writer(ctx: RuntimeBuildContext):
+    from app.infra.persistence.backtest.backtest_run_writer import BacktestRunWriteRepository
 
-    return BacktestRunMutationService(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
+    return BacktestRunWriteRepository(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
+
+
+def _build_factor_backtest_run_writer(ctx: RuntimeBuildContext):
+    from app.infra.persistence.backtest.factor_backtest_run_writer import FactorBacktestRunWriteRepository
+
+    return FactorBacktestRunWriteRepository(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
+
+
+def _build_paper_run_writer(ctx: RuntimeBuildContext):
+    from app.infra.persistence.backtest.paper_run_writer import PaperRunWriteRepository
+
+    return PaperRunWriteRepository(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
+
+
+def _build_factor_paper_run_writer(ctx: RuntimeBuildContext):
+    from app.infra.persistence.backtest.factor_paper_run_writer import FactorPaperRunWriteRepository
+
+    return FactorPaperRunWriteRepository(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
 
 
 def _build_freqtrade_backtest_service(ctx: RuntimeBuildContext):
@@ -43,7 +65,17 @@ def _build_backtest_run_service(ctx: RuntimeBuildContext):
 
     return BacktestRunService(
         execution_engine=ctx.require(BACKTEST_FREQTRADE_SERVICE),
-        run_mutations=ctx.require(BACKTEST_RUN_MUTATION_SERVICE),
+        run_writer=ctx.require(BACKTEST_RUN_WRITER),
+    )
+
+
+def _build_backtest_preview_service(ctx: RuntimeBuildContext):
+    from app.application.backtest.preview_service import BacktestPreviewService
+    from app.services.backtest.strategy_runtime import StrategyRuntime
+
+    return BacktestPreviewService(
+        market_data_service=ctx.require(MARKET_MARKET_DATA_SERVICE),
+        strategy_runtime=StrategyRuntime(),
     )
 
 
@@ -83,7 +115,7 @@ def _build_paper_run_manager(ctx: RuntimeBuildContext):
         freqtrade_service=ctx.require(BACKTEST_FREQTRADE_SERVICE),
         report_builder=ctx.require(BACKTEST_REPORT_BUILDER),
         run_repository=ctx.require(BACKTEST_RUN_REPOSITORY),
-        run_mutations=ctx.require(BACKTEST_RUN_MUTATION_SERVICE),
+        paper_runs=ctx.require(BACKTEST_PAPER_RUN_WRITER),
         activate_created_runs=runtime_role_has_target(ctx.role, "background"),
     )
 
@@ -93,6 +125,7 @@ def _build_backtest_command_service(ctx: RuntimeBuildContext):
 
     return BacktestCommandService(
         run_service=ctx.require(BACKTEST_RUN_SERVICE),
+        preview_service=ctx.require(BACKTEST_PREVIEW_SERVICE),
         paper_manager=ctx.require(BACKTEST_PAPER_RUN_MANAGER),
         run_repository=ctx.require(BACKTEST_RUN_REPOSITORY),
         strategy_query_service=ctx.require(BACKTEST_STRATEGY_QUERY_SERVICE),
@@ -117,9 +150,27 @@ BACKTEST_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         deps=(INFRA_DATABASE_RUNTIME,),
     ),
     RuntimeServiceDefinition(
-        BACKTEST_RUN_MUTATION_SERVICE,
+        BACKTEST_RUN_WRITER,
         frozenset({"api", "background"}),
-        _build_backtest_run_mutation_service,
+        _build_backtest_run_writer,
+        deps=(INFRA_DATABASE_RUNTIME,),
+    ),
+    RuntimeServiceDefinition(
+        BACKTEST_FACTOR_RUN_WRITER,
+        frozenset({"api", "background"}),
+        _build_factor_backtest_run_writer,
+        deps=(INFRA_DATABASE_RUNTIME,),
+    ),
+    RuntimeServiceDefinition(
+        BACKTEST_PAPER_RUN_WRITER,
+        frozenset({"api", "background"}),
+        _build_paper_run_writer,
+        deps=(INFRA_DATABASE_RUNTIME,),
+    ),
+    RuntimeServiceDefinition(
+        BACKTEST_FACTOR_PAPER_RUN_WRITER,
+        frozenset({"api", "background"}),
+        _build_factor_paper_run_writer,
         deps=(INFRA_DATABASE_RUNTIME,),
     ),
     RuntimeServiceDefinition(
@@ -132,7 +183,13 @@ BACKTEST_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         BACKTEST_RUN_SERVICE,
         frozenset({"api"}),
         _build_backtest_run_service,
-        deps=(BACKTEST_FREQTRADE_SERVICE, BACKTEST_RUN_MUTATION_SERVICE),
+        deps=(BACKTEST_FREQTRADE_SERVICE, BACKTEST_RUN_WRITER),
+    ),
+    RuntimeServiceDefinition(
+        BACKTEST_PREVIEW_SERVICE,
+        frozenset({"api"}),
+        _build_backtest_preview_service,
+        deps=(MARKET_MARKET_DATA_SERVICE,),
     ),
     RuntimeServiceDefinition(
         BACKTEST_STRATEGY_DEFINITION_STORE,
@@ -162,9 +219,9 @@ BACKTEST_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
             BACKTEST_FREQTRADE_SERVICE,
             BACKTEST_REPORT_BUILDER,
             BACKTEST_RUN_REPOSITORY,
-            BACKTEST_RUN_MUTATION_SERVICE,
+            BACKTEST_PAPER_RUN_WRITER,
         ),
-        background_start=restore_paper_runs,
+        background_start=start_paper_run_monitoring,
         background_stop=shutdown_service,
         background_start_order=30,
         background_stop_order=30,
@@ -175,6 +232,7 @@ BACKTEST_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         _build_backtest_command_service,
         deps=(
             BACKTEST_RUN_SERVICE,
+            BACKTEST_PREVIEW_SERVICE,
             BACKTEST_PAPER_RUN_MANAGER,
             BACKTEST_RUN_REPOSITORY,
             BACKTEST_STRATEGY_QUERY_SERVICE,

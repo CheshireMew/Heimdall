@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
-import shutil
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from app.contracts.backtest import (
     BacktestExecutionResult,
@@ -90,7 +90,7 @@ class FreqtradeIterationExecutor:
         strategy_path = strategies_dir / self.strategy_file_name
 
         if run_root.exists():
-            shutil.rmtree(run_root)
+            raise RuntimeError(f"Freqtrade 工作目录已存在，拒绝覆盖: {run_root}")
         results_dir.mkdir(parents=True, exist_ok=True)
         strategies_dir.mkdir(parents=True, exist_ok=True)
 
@@ -174,7 +174,11 @@ class FreqtradeIterationExecutor:
         end_date: datetime,
         label: str,
     ) -> str:
-        return f"{self._sanitize_symbol_fragment(symbols)}_{timeframe}_{label}_{int(start_date.timestamp())}_{int(end_date.timestamp())}"
+        unique_suffix = uuid4().hex[:12]
+        return (
+            f"{self._sanitize_symbol_fragment(symbols)}_{timeframe}_{label}_"
+            f"{int(start_date.timestamp())}_{int(end_date.timestamp())}_{unique_suffix}"
+        )
 
     @staticmethod
     def _sanitize_symbol_fragment(symbols: list[str]) -> str:

@@ -14,6 +14,7 @@ from app.contracts.strategy import (
 )
 from app.contracts.json_types import JsonObject, JsonValue
 from app.contracts.backtest import (
+    BacktestPreviewCommand,
     BacktestPortfolioConfig,
     BacktestResearchConfig,
     BacktestEquityPointRecord,
@@ -25,6 +26,7 @@ from app.contracts.backtest import (
     EvolveStrategyFromBacktestCommand,
     PaperStartCommand,
 )
+from app.contracts.dto.market import MarketHistoryCoverageResponse, OhlcvPointResponse
 from app.contracts.backtest_result import (
     BacktestReportResponse,
     BacktestRunMetadataContractResponse,
@@ -41,7 +43,7 @@ from app.contracts.backtest_defaults import (
 )
 
 
-class BacktestStartRequest(BaseModel):
+class BacktestPreviewRequest(BaseModel):
     strategy_key: str = DEFAULT_STRATEGY_KEY
     strategy_version: int | None = None
     timeframe: str = DEFAULT_TIMEFRAME
@@ -55,7 +57,7 @@ class BacktestStartRequest(BaseModel):
     research: BacktestResearchConfig = Field(default_factory=BacktestResearchConfig)
 
     @model_validator(mode="after")
-    def validate_range(self) -> "BacktestStartRequest":
+    def validate_range(self) -> "BacktestPreviewRequest":
         if self.start_date >= self.end_date:
             raise ValueError("开始日期必须早于结束日期")
         if (self.end_date - self.start_date).days < 7:
@@ -64,10 +66,10 @@ class BacktestStartRequest(BaseModel):
             raise ValueError("回测区间不能超过 3650 天")
         return self
 
-    def to_command(self) -> BacktestStartCommand:
+    def to_preview_command(self) -> BacktestPreviewCommand:
         from datetime import datetime, time, timezone
 
-        return BacktestStartCommand(
+        return BacktestPreviewCommand(
             strategy_key=self.strategy_key,
             strategy_version=self.strategy_version,
             timeframe=self.timeframe,
@@ -80,10 +82,79 @@ class BacktestStartRequest(BaseModel):
         )
 
 
+class BacktestStartRequest(BacktestPreviewRequest):
+    preview_id: str
+    approved_fingerprint: str
+
+    def to_command(self) -> BacktestStartCommand:
+        preview_command = self.to_preview_command()
+        return BacktestStartCommand(
+            strategy_key=preview_command.strategy_key,
+            strategy_version=preview_command.strategy_version,
+            timeframe=preview_command.timeframe,
+            start_date=preview_command.start_date,
+            end_date=preview_command.end_date,
+            initial_cash=preview_command.initial_cash,
+            fee_rate=preview_command.fee_rate,
+            portfolio=preview_command.portfolio,
+            research=preview_command.research,
+            preview_id=self.preview_id,
+            approved_fingerprint=self.approved_fingerprint,
+        )
+
+
 class BacktestStartResponse(BaseModel):
     success: bool
     backtest_id: int
     message: str
+
+
+class StrategyPreviewMarkerResponse(BaseModel):
+    symbol: str
+    time: int
+    price: float
+    kind: Literal["long_entry", "long_exit", "short_entry", "short_exit"]
+    side: Literal["long", "short"]
+    label: str
+    active_regime: str | None = None
+    indicators: JsonObject = Field(default_factory=dict)
+
+
+class StrategyPreviewIndicatorPointResponse(BaseModel):
+    time: int
+    value: float
+
+
+class StrategyPreviewIndicatorSeriesResponse(BaseModel):
+    symbol: str
+    indicator_id: str
+    output: str
+    label: str
+    points: list[StrategyPreviewIndicatorPointResponse] = Field(default_factory=list)
+
+
+class StrategyPreviewDiagnosticResponse(BaseModel):
+    severity: Literal["info", "warning", "critical"]
+    title: str
+    message: str
+
+
+class BacktestPreviewResponse(BaseModel):
+    preview_id: str
+    fingerprint: str
+    strategy_key: str
+    strategy_name: str
+    strategy_version: int
+    strategy_template: str
+    timeframe: str
+    symbols: list[str]
+    start_date: str
+    end_date: str
+    candles: dict[str, list[OhlcvPointResponse]] = Field(default_factory=dict)
+    markers: dict[str, list[StrategyPreviewMarkerResponse]] = Field(default_factory=dict)
+    indicator_series: dict[str, list[StrategyPreviewIndicatorSeriesResponse]] = Field(default_factory=dict)
+    coverage: dict[str, MarketHistoryCoverageResponse] = Field(default_factory=dict)
+    diagnostics: list[StrategyPreviewDiagnosticResponse] = Field(default_factory=list)
 
 
 class PaperStartRequest(BaseModel):
@@ -195,7 +266,6 @@ class StrategyVersionResponse(BaseModel):
 
 
 class StrategyTemplateCapabilitiesResponse(BaseModel):
-    signal_runtime: bool = True
     paper: bool = True
     version_editing: bool = True
 

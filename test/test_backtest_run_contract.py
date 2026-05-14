@@ -13,7 +13,8 @@ from app.infra.persistence.backtest.run_repository import BacktestRunRepository
 from app.contracts.backtest_run import update_paper_metadata
 from app.infra.persistence.backtest.serializers import serialize_backtest_run
 from app.application.factors.paper_persistence_service import FactorPaperPersistenceService
-from app.infra.persistence.backtest.run_mutation_service import BacktestRunMutationService
+from app.infra.persistence.backtest.factor_paper_run_writer import FactorPaperRunWriteRepository
+from app.infra.persistence.backtest.paper_run_writer import PaperRunWriteRepository
 
 
 class _NoopFactorExecutionCore:
@@ -173,7 +174,8 @@ def test_factor_paper_persistence_increment_uses_backtest_trade_boundary(db_sess
     db_session.commit()
 
     service = FactorPaperPersistenceService(
-        run_mutations=BacktestRunMutationService(database_runtime=installed_database_runtime),
+        paper_runs=PaperRunWriteRepository(database_runtime=installed_database_runtime),
+        factor_paper_runs=FactorPaperRunWriteRepository(database_runtime=installed_database_runtime),
         report_builder=FreqtradeReportBuilder(),
         execution_core=_NoopFactorExecutionCore(),
     )

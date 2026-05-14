@@ -2,7 +2,7 @@ import { computed } from 'vue'
 import { formatDate, formatSignedPercent } from '@/modules/format'
 import { formatIndicatorDisplayValue } from './indicatorDisplay'
 import type { MarketIndicatorResponse } from './contracts'
-import { useMarketStore } from './store'
+import { useMarketIndicatorStore } from './indicatorStore'
 
 export type MarketSignalCategoryId = 'Onchain' | 'Sentiment' | 'Tech'
 export type MarketSignalGroupId = 'cycle' | 'stablecoins' | 'mining'
@@ -104,26 +104,26 @@ const cardFromIndicator = (indicator: MarketIndicatorResponse, changeDays: numbe
 })
 
 export function useMarketSignalIndicators(days = 365, changeDays = 30) {
-  const marketStore = useMarketStore()
+  const indicatorStore = useMarketIndicatorStore()
   const indicators = computed<Record<MarketSignalCategoryId, MarketIndicatorResponse[]>>(() => ({
-    Onchain: marketStore.readMarketIndicators('Onchain', days) || [],
-    Sentiment: marketStore.readMarketIndicators('Sentiment', days) || [],
-    Tech: marketStore.readMarketIndicators('Tech', days) || [],
+    Onchain: indicatorStore.readMarketIndicators('Onchain', days) || [],
+    Sentiment: indicatorStore.readMarketIndicators('Sentiment', days) || [],
+    Tech: indicatorStore.readMarketIndicators('Tech', days) || [],
   }))
   const error = computed(() => (
-    SOURCE_CATEGORIES.map((category) => marketStore.getMarketIndicatorsError(category, days)).find(Boolean) || ''
+    SOURCE_CATEGORIES.map((category) => indicatorStore.getMarketIndicatorsError(category, days)).find(Boolean) || ''
   ))
   const hasLoadedAllCategories = computed(() => (
-    SOURCE_CATEGORIES.every((category) => marketStore.readMarketIndicators(category, days) !== null)
+    SOURCE_CATEGORIES.every((category) => indicatorStore.readMarketIndicators(category, days) !== null)
   ))
   const loading = computed(() => (
-    SOURCE_CATEGORIES.some((category) => marketStore.isMarketIndicatorsLoading(category, days))
+    SOURCE_CATEGORIES.some((category) => indicatorStore.isMarketIndicatorsLoading(category, days))
     || (!hasLoadedAllCategories.value && !error.value)
   ))
 
   const load = async (options: { force?: boolean } = {}) => {
     await Promise.all(
-      SOURCE_CATEGORIES.map((category) => marketStore.getMarketIndicators(category, days, options)),
+      SOURCE_CATEGORIES.map((category) => indicatorStore.getMarketIndicators(category, days, options)),
     )
   }
 

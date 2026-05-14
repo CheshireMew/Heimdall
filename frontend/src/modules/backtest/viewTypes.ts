@@ -1,6 +1,7 @@
 import { reactive } from 'vue'
 import type {
   CandlestickData,
+  ChartMarkerData,
   VolumeData,
 } from './contracts'
 import type {
@@ -9,6 +10,8 @@ import type {
   BacktestPairBreakdownResponse,
   BacktestRollingWindowResponse,
   BacktestRunResponse,
+  BacktestPreviewResponse,
+  StrategyPreviewMarkerResponse,
   StrategyEvolutionResponse,
   StrategyDefinitionResponse,
   StrategyVersionResponse,
@@ -55,6 +58,7 @@ export type BacktestDisplayRun = BacktestListRun | BacktestLoadedRun
 export interface BacktestChartData {
   candles: CandlestickData[]
   volume: VolumeData[]
+  markers: ChartMarkerData[]
 }
 
 export interface BacktestComparisonSeries {
@@ -95,11 +99,18 @@ export interface BacktestControlPanelView {
   optimizeMetrics: string[]
   symbolsText: string
   backtestLoading: boolean
+  previewLoading: boolean
   paperLoading: boolean
   isBusy: boolean
+  strategyPreview: BacktestPreviewResponse | null
+  previewSymbol: string
+  previewSymbols: string[]
+  previewChartData: BacktestChartData
+  previewMarkers: StrategyPreviewMarkerResponse[]
   syncStrategyVersion: () => void
   openCopyEditor: () => void
   openBlankEditor: () => void
+  previewBacktest: () => Promise<unknown>
   startBacktest: () => Promise<void>
   startPaperRun: () => Promise<void>
 }

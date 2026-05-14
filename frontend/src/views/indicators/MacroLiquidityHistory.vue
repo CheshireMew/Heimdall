@@ -72,6 +72,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { useEcharts } from '@/composables/useEcharts'
 import { useTheme } from '@/composables/useTheme'
 import { useMacroLiquidityPage } from '@/modules/market'
+import { macroScoreToneClass, macroThresholdValues, useMacroRegimes } from '@/modules/market/macroLiquidityPresentation'
 
 echarts.use([LineChart, GridComponent, MarkLineComponent, TooltipComponent, CanvasRenderer])
 
@@ -95,45 +96,11 @@ const coverageLabel = computed(() => {
   return typeof value === 'number' ? `${value.toFixed(1)}%` : '--'
 })
 
-const scoreToneClass = computed(() => {
-  if (scoreTone.value === 'support') return 'text-[#0f6b4f] dark:text-emerald-300'
-  if (scoreTone.value === 'pressure') return 'text-[#c84c28] dark:text-orange-300'
-  return 'text-[#8a6a24] dark:text-amber-300'
-})
+const scoreToneClass = computed(() => macroScoreToneClass(scoreTone.value))
 
 const historyPoints = computed(() => dli.value?.history || [])
-const thresholdValues = computed(() => ({
-  p20: thresholds.value?.p20 ?? 43,
-  p50: thresholds.value?.p50 ?? 50,
-  p80: thresholds.value?.p80 ?? 68,
-}))
-
-const regimes = computed(() => [
-  {
-    title: '流动性宽松',
-    range: `≤ P20 (${thresholdValues.value.p20.toFixed(1)})`,
-    color: '#0f6b4f',
-    description: '压力分处于历史低位，美元流动性环境偏宽松。',
-  },
-  {
-    title: '中性偏松',
-    range: `P20-P50 (${thresholdValues.value.p20.toFixed(1)}-${thresholdValues.value.p50.toFixed(1)})`,
-    color: '#8a8f56',
-    description: '压力低于历史中位数，但尚未达到极端宽松。',
-  },
-  {
-    title: '中性偏紧',
-    range: `P50-P80 (${thresholdValues.value.p50.toFixed(1)}-${thresholdValues.value.p80.toFixed(1)})`,
-    color: '#c9873a',
-    description: '压力高于历史中位数，但尚未进入极端收紧区间。',
-  },
-  {
-    title: '流动性收紧',
-    range: `≥ P80 (${thresholdValues.value.p80.toFixed(1)})`,
-    color: '#c84c28',
-    description: '压力分处于历史高位，风险资产面临明显美元流动性逆风。',
-  },
-])
+const thresholdValues = computed(() => macroThresholdValues(thresholds.value))
+const regimes = useMacroRegimes(thresholds)
 
 const buildChartOption = () => {
   const isDark = theme.value === 'dark'

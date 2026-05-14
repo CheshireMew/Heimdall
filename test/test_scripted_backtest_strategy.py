@@ -6,11 +6,12 @@ from app.contracts.dto.backtest import PaperStartResponse
 from app.application.backtest.command_service import BacktestCommandService
 from app.contracts.backtest import PaperStartCommand
 from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBuilder
+from app.services.backtest.strategy_runtime import StrategyRuntime
 from app.contracts.backtest import BacktestPortfolioConfig, StrategyVersionRecord
 from app.domain.backtest.strategy_support import normalize_strategy_version_config_model
 
 
-def test_scripted_strategy_builder_emits_backtest_only_freqtrade_code():
+def test_scripted_strategy_builder_emits_freqtrade_code():
     strategy_builder = FreqtradeStrategyBuilder("HeimdallStrategy")
 
     code = strategy_builder.build_code("btc_regime_pulse_supertrend", "1h", {})
@@ -24,6 +25,28 @@ def test_scripted_strategy_builder_emits_backtest_only_freqtrade_code():
     assert trade_settings["order_types"]["entry"] == "market"
     assert trade_settings["order_types"]["exit"] == "market"
     assert warmup_bars == 220
+
+
+def test_scripted_strategy_builds_preview_signal_frame():
+    runtime = StrategyRuntime()
+    candles: list[list[float]] = []
+    base_timestamp = 1_710_000_000_000
+    price = 100.0
+    for index in range(260):
+        drift = 1.2 if index == 120 else (0.25 if index < 180 else -0.35)
+        open_price = price
+        close_price = price + drift
+        high_price = max(open_price, close_price) + 0.8
+        low_price = min(open_price, close_price) - 0.8
+        volume = 5_000.0 if index in {120, 181} else 1_000.0 + index
+        candles.append([base_timestamp + index * 3_600_000, open_price, high_price, low_price, close_price, volume])
+        price = close_price
+
+    frame = runtime.build_frame("btc_regime_pulse_supertrend", {}, candles, "1h")
+
+    assert "st_band" in frame.columns
+    assert "long_entry_signal" in frame.columns
+    assert "short_entry_signal" in frame.columns
 
 
 class _StrategyQueryServiceStub:
@@ -54,6 +77,7 @@ async def test_command_service_routes_scripted_strategy_to_paper_manager():
     paper_manager = _PaperManagerStub()
     service = BacktestCommandService(
         run_service=object(),
+        preview_service=object(),
         paper_manager=paper_manager,
         run_repository=object(),
         strategy_query_service=_StrategyQueryServiceStub(),

@@ -2,6 +2,8 @@ import { apiDelete, apiGet, apiPost } from '@/api/request'
 import type {
   BacktestDetailResponse,
   BacktestDeleteResponse,
+  BacktestPreviewRequest,
+  BacktestPreviewResponse,
   BacktestRunResponse,
   BacktestStartRequest,
   BacktestStartResponse,
@@ -28,6 +30,10 @@ export const backtestApi = {
 
   startRun(body: BacktestStartRequest): Promise<BacktestStartResponse> {
     return apiPost('start_backtest', body, { client: 'longTask' })
+  },
+
+  previewRun(body: BacktestPreviewRequest): Promise<BacktestPreviewResponse> {
+    return apiPost('preview_backtest', body, { client: 'longTask' })
   },
 
   listPaperRuns(): Promise<BacktestRunResponse[]> {

@@ -14,7 +14,7 @@ from app.contracts.backtest import (
     PaperStartCommand,
 )
 from app.contracts.backtest_result import BacktestPortfolioSummaryResponse, BacktestStrategySummaryResponse
-from app.infra.executor import run_sync
+from app.infra.executor import run_compute, run_database
 from app.contracts.backtest_run import (
     PAPER_LIVE_ENGINE,
     PAPER_LIVE_EXECUTION_MODE,
@@ -23,7 +23,7 @@ from app.contracts.backtest_run import (
     build_paper_metadata,
     update_paper_metadata,
 )
-from app.application.backtest.ports import BacktestExecutionEngine, BacktestReportBuilder, BacktestRunMutations, BacktestRunReader, StrategyReader
+from app.application.backtest.ports import BacktestExecutionEngine, BacktestReportBuilder, BacktestRunReader, PaperRunWriter, StrategyReader
 from app.application.paper_run_lifecycle import PaperRunController, PaperRunHost, PaperRunHostedService
 from config import settings
 from utils.time_utils import to_utc_naive_datetime, utc_now_naive
@@ -47,20 +47,20 @@ class PaperRunManager(PaperRunHostedService):
         freqtrade_service: BacktestExecutionEngine,
         report_builder: BacktestReportBuilder,
         run_repository: BacktestRunReader,
-        run_mutations: BacktestRunMutations,
+        paper_runs: PaperRunWriter,
         activate_created_runs: bool,
     ) -> None:
         self.strategy_query_service = strategy_query_service
         self.freqtrade_service = freqtrade_service
         self.report_builder = report_builder
         self.run_repository = run_repository
-        self.run_mutations = run_mutations
+        self.paper_runs = paper_runs
         self.activate_created_runs = activate_created_runs
         self.paper_host = PaperRunHost(
             PaperRunController(
                 engine=PAPER_LIVE_ENGINE,
                 run_repository=run_repository,
-                run_mutations=run_mutations,
+                paper_runs=paper_runs,
                 runtime_state=lambda metadata: metadata.runtime_state.model_dump() if metadata.runtime_state else {},
                 tick=self._tick,
                 interval_seconds=lambda: float(settings.WS_UPDATE_INTERVAL),
@@ -69,7 +69,7 @@ class PaperRunManager(PaperRunHostedService):
         )
 
     async def start_run(self, command: PaperStartCommand) -> dict:
-        run_id = await run_sync(lambda: self._create_run(command))
+        run_id = await run_compute(lambda: self._create_run(command))
         if self.activate_created_runs:
             self._activate_created_run(run_id)
         return {"success": True, "run_id": run_id, "message": "模拟盘已启动"}
@@ -81,7 +81,7 @@ class PaperRunManager(PaperRunHostedService):
     async def delete_run(self, run_id: int) -> dict:
         await self._stop_and_cancel_run(run_id, status=RUN_STATUS_STOPPED, reason="manual_delete")
 
-        deleted = await run_sync(
+        deleted = await run_database(
             lambda: self.run_repository.delete_run(run_id, PAPER_LIVE_EXECUTION_MODE),
         )
         if not deleted:
@@ -89,7 +89,7 @@ class PaperRunManager(PaperRunHostedService):
         return {"success": True, "run_id": run_id, "message": "模拟盘记录已删除"}
 
     def _tick(self, run_id: int) -> bool:
-        run = self.run_mutations.get_running_paper_run(run_id=run_id, engine=PAPER_LIVE_ENGINE)
+        run = self.paper_runs.get_running_paper_run(run_id=run_id, engine=PAPER_LIVE_ENGINE)
         if not run:
             return False
         metadata = run.metadata
@@ -138,7 +138,7 @@ class PaperRunManager(PaperRunHostedService):
             "execution_model": "freqtrade_replay",
             "research": None,
         }
-        self.run_mutations.store_paper_snapshot(
+        self.paper_runs.store_paper_snapshot(
             run_id=run.id,
             engine=PAPER_LIVE_ENGINE,
             result=result,
@@ -188,7 +188,7 @@ class PaperRunManager(PaperRunHostedService):
             "last_synced_end": sync_window.synced_end_ms,
             "positions": {},
         }
-        return self.run_mutations.create_run(
+        return self.paper_runs.create_run(
             symbol=symbols[0] if len(symbols) == 1 else "PORTFOLIO",
             timeframe=command.timeframe,
             start_date=now,

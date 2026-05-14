@@ -139,9 +139,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { formatPercentile, formatSignedNumber } from '@/modules/format'
 import { useMacroLiquidityPage, type MacroDriver, type MacroPolarity } from '@/modules/market'
+import { useMacroRegimes } from '@/modules/market/macroLiquidityPresentation'
 
 const {
   loading,
@@ -152,38 +153,7 @@ const {
   refresh,
 } = useMacroLiquidityPage(365)
 
-const thresholdValues = computed(() => ({
-  p20: thresholds.value?.p20 ?? 43,
-  p50: thresholds.value?.p50 ?? 50,
-  p80: thresholds.value?.p80 ?? 68,
-}))
-
-const regimes = computed(() => [
-  {
-    title: '流动性宽松',
-    range: `≤ P20 (${thresholdValues.value.p20.toFixed(1)})`,
-    color: '#0f6b4f',
-    description: '压力分处于历史低分位，说明关键指标整体偏向释放流动性或缓和融资压力。',
-  },
-  {
-    title: '中性偏松',
-    range: `P20-P50 (${thresholdValues.value.p20.toFixed(1)}-${thresholdValues.value.p50.toFixed(1)})`,
-    color: '#8a8f56',
-    description: '未进入极端宽松，但压力低于历史中位数，流动性背景偏友好。',
-  },
-  {
-    title: '中性偏紧',
-    range: `P50-P80 (${thresholdValues.value.p50.toFixed(1)}-${thresholdValues.value.p80.toFixed(1)})`,
-    color: '#c9873a',
-    description: '压力高于历史中位数，但尚未进入极端收紧区间。',
-  },
-  {
-    title: '流动性收紧',
-    range: `≥ P80 (${thresholdValues.value.p80.toFixed(1)})`,
-    color: '#c84c28',
-    description: '压力分处于历史高分位，美元流动性通常对风险资产形成明显逆风。',
-  },
-])
+const regimes = useMacroRegimes(thresholds)
 
 const methodologySteps = [
   {

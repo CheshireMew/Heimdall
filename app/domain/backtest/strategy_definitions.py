@@ -207,7 +207,7 @@ BUILTIN_TEMPLATE_DEFINITIONS: dict[str, dict[str, Any]] = {
                     "or",
                     [
                         build_condition("price_below_ema", "收盘价跌破 EMA", {"kind": "price", "field": "close"}, "lt", {"kind": "indicator", "indicator": "ema", "output": "value"}),
-                        build_condition("exit_rsi_min", "RSI 高于离场阈值", {"kind": "indicator", "indicator": "rsi", "output": "value"}, "gt", {"kind": "value", "value": 32}),
+                        build_condition("exit_rsi_min", "RSI 低于离场阈值", {"kind": "indicator", "indicator": "rsi", "output": "value"}, "lt", {"kind": "value", "value": 32}),
                     ],
                 ),
             },

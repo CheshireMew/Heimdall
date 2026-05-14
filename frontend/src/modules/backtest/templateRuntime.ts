@@ -5,7 +5,6 @@ import type { EditorTemplateRuntimeCarrier } from './editorTypes'
 const DEFAULT_TEMPLATE_RUNTIME: Required<StrategyTemplateRuntimeResponse> = {
   builder_kind: 'rules',
   capabilities: {
-    signal_runtime: true,
     paper: true,
     version_editing: true,
   },
@@ -22,7 +21,6 @@ export const getTemplateRuntime = (value: EditorTemplateRuntimeCarrier): Require
   return {
     builder_kind: typeof runtime.builder_kind === 'string' ? runtime.builder_kind : DEFAULT_TEMPLATE_RUNTIME.builder_kind,
     capabilities: {
-      signal_runtime: capabilities.signal_runtime !== false,
       paper: capabilities.paper !== false,
       version_editing: capabilities.version_editing !== false,
     },

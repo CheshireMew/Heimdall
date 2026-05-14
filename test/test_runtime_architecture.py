@@ -9,13 +9,17 @@ import pytest
 from app.runtime_builder import validate_runtime_services
 from app.runtime import AppRuntimeServices
 from app.runtime_refs import (
+    BACKTEST_FACTOR_PAPER_RUN_WRITER,
+    BACKTEST_FACTOR_RUN_WRITER,
     BACKTEST_FREQTRADE_SERVICE,
-    BACKTEST_RUN_MUTATION_SERVICE,
+    BACKTEST_PAPER_RUN_WRITER,
     BACKTEST_PAPER_RUN_MANAGER,
+    BACKTEST_PREVIEW_SERVICE,
     BACKTEST_QUERY_SERVICE,
     BACKTEST_REPORT_BUILDER,
     BACKTEST_RUN_REPOSITORY,
     BACKTEST_RUN_SERVICE,
+    BACKTEST_RUN_WRITER,
     BACKTEST_STRATEGY_DEFINITION_STORE,
     BACKTEST_STRATEGY_QUERY_SERVICE,
     BACKTEST_STRATEGY_WRITE_SERVICE,
@@ -177,8 +181,18 @@ def test_backtest_use_cases_live_in_application_boundary_only():
     assert offenders == []
 
 
-def test_paper_run_mutation_service_only_persists_final_payloads():
-    source = (APP_DIR / "infra" / "persistence" / "backtest" / "run_mutation_service.py").read_text(encoding="utf-8")
+def test_backtest_run_write_repositories_have_narrow_boundaries():
+    removed_path = APP_DIR / "infra" / "persistence" / "backtest" / ("run_" + "mutation_service.py")
+    assert not removed_path.exists()
+    sources = {
+        path.name: path.read_text(encoding="utf-8")
+        for path in [
+            APP_DIR / "infra" / "persistence" / "backtest" / "backtest_run_writer.py",
+            APP_DIR / "infra" / "persistence" / "backtest" / "paper_run_writer.py",
+            APP_DIR / "infra" / "persistence" / "backtest" / "factor_backtest_run_writer.py",
+            APP_DIR / "infra" / "persistence" / "backtest" / "factor_paper_run_writer.py",
+        ]
+    }
 
     for removed_helper in [
         "replace_paper_snapshot",
@@ -188,7 +202,13 @@ def test_paper_run_mutation_service_only_persists_final_payloads():
         "report_builder",
         "execution_core",
     ]:
-        assert removed_helper not in source
+        assert all(removed_helper not in source for source in sources.values())
+
+    assert "store_completed_result" in sources["backtest_run_writer.py"]
+    assert "store_paper_snapshot" not in sources["backtest_run_writer.py"]
+    assert "store_paper_snapshot" in sources["paper_run_writer.py"]
+    assert "append_factor_paper_increment" not in sources["paper_run_writer.py"]
+    assert "append_factor_paper_increment" in sources["factor_paper_run_writer.py"]
 
 
 def test_domain_does_not_depend_on_infra_application_or_services():
@@ -244,9 +264,79 @@ def test_services_do_not_assemble_api_dtos():
         f"{path.relative_to(ROOT_DIR).as_posix()} -> {module}"
         for path in _python_files(APP_DIR / "services")
         for module in _import_modules(path)
-        if module == "app.contracts.dto" or module.startswith("app.contracts.dto.")
+        if (module == "app.contracts.dto" or module.startswith("app.contracts.dto."))
     ]
     assert offenders == []
+
+
+def test_market_payload_builders_have_no_api_dto_shadow_source():
+    dto_source = (APP_DIR / "contracts" / "dto" / "market.py").read_text(encoding="utf-8")
+    contract_source = (APP_DIR / "contracts" / "market_history.py").read_text(encoding="utf-8")
+
+    for old_helper in [
+        "build_market_history_response",
+        "build_market_history_batch_response",
+        "build_kline_tail_response",
+        "build_current_price_response",
+        "build_realtime_response",
+        "build_ohlcv_points",
+    ]:
+        assert f"def {old_helper}" not in dto_source
+    for helper in [
+        "build_market_history_payload",
+        "build_market_history_batch_payload",
+        "build_kline_tail_payload",
+        "build_current_price_payload",
+        "build_realtime_payload",
+        "build_ohlcv_point_payloads",
+    ]:
+        assert f"def {helper}" in contract_source
+
+
+def test_backtest_workspaces_are_never_deleted_for_parameter_reuse():
+    source = (APP_DIR / "services" / "backtest" / "freqtrade_execution.py").read_text(encoding="utf-8")
+
+    assert "shutil.rmtree" not in source
+    assert "uuid4().hex" in source
+    assert "拒绝覆盖" in source
+
+
+def test_paper_run_lifecycle_uses_active_monitoring_not_restore_only():
+    scanned = [
+        APP_DIR / "application" / "run_task_manager.py",
+        APP_DIR / "application" / "paper_run_lifecycle.py",
+        APP_DIR / "runtime_lifecycle.py",
+        APP_DIR / "runtime_service_definitions" / "backtest.py",
+        APP_DIR / "runtime_service_definitions" / "factors.py",
+    ]
+    sources = "\n".join(path.read_text(encoding="utf-8") for path in scanned)
+
+    assert "restore_active_runs" not in sources
+    assert "restore_paper_runs" not in sources
+    assert "start_active_run_monitoring" in sources
+    assert "_discover_active_runs_loop" in sources
+
+
+def test_blocking_work_uses_bounded_executor_boundary():
+    source = (APP_DIR / "infra" / "executor.py").read_text(encoding="utf-8")
+    frontend_request = (ROOT_DIR / "frontend" / "src" / "api" / "request.ts").read_text(encoding="utf-8")
+
+    assert "ThreadPoolExecutor" in source
+    for boundary in [
+        "run_database",
+        "run_compute",
+        "run_external_io",
+        "run_background",
+    ]:
+        assert f"async def {boundary}" in source
+    assert "run_sync" not in source
+    assert "_blocking_executor" not in source
+    assert "BLOCKING_DATABASE_MAX_WORKERS" in source
+    assert "BLOCKING_COMPUTE_MAX_WORKERS" in source
+    assert "BLOCKING_EXTERNAL_IO_MAX_WORKERS" in source
+    assert "BLOCKING_BACKGROUND_MAX_WORKERS" in source
+    assert "run_in_executor(None" not in source
+    assert "longTask: createClient(0)" not in frontend_request
 
 
 def test_backtest_run_metadata_has_no_wide_response_model():
@@ -357,7 +447,10 @@ def make_background_runtime_services() -> AppRuntimeServices:
         MARKET_BINANCE_MARKET_RESEARCH_STORE: object(),
         MARKET_BINANCE_MARKET_INTEL: object(),
         BACKTEST_RUN_REPOSITORY: object(),
-        BACKTEST_RUN_MUTATION_SERVICE: object(),
+        BACKTEST_RUN_WRITER: object(),
+        BACKTEST_FACTOR_RUN_WRITER: object(),
+        BACKTEST_PAPER_RUN_WRITER: object(),
+        BACKTEST_FACTOR_PAPER_RUN_WRITER: object(),
         BACKTEST_FREQTRADE_SERVICE: object(),
         BACKTEST_STRATEGY_DEFINITION_STORE: object(),
         BACKTEST_STRATEGY_QUERY_SERVICE: object(),
@@ -402,8 +495,12 @@ def make_api_runtime_services() -> AppRuntimeServices:
         TOOLS_PAIR_COMPARE_SERVICE: object(),
         TOOLS_TOOLS_APP_SERVICE: object(),
         BACKTEST_RUN_REPOSITORY: object(),
-        BACKTEST_RUN_MUTATION_SERVICE: object(),
+        BACKTEST_RUN_WRITER: object(),
+        BACKTEST_FACTOR_RUN_WRITER: object(),
+        BACKTEST_PAPER_RUN_WRITER: object(),
+        BACKTEST_FACTOR_PAPER_RUN_WRITER: object(),
         BACKTEST_FREQTRADE_SERVICE: object(),
+        BACKTEST_PREVIEW_SERVICE: object(),
         BACKTEST_RUN_SERVICE: object(),
         BACKTEST_STRATEGY_DEFINITION_STORE: object(),
         BACKTEST_STRATEGY_QUERY_SERVICE: object(),

@@ -4,7 +4,7 @@ from typing import Any
 
 from app.application.backtest.ports import StrategyDefinitionStore
 from app.contracts.backtest import StrategyVersionRecord
-from app.domain.backtest.scripted_template_runtime import template_supports_version_editing
+from app.domain.backtest.scripted_templates import template_supports_version_editing
 from app.domain.backtest.strategy_catalog import (
     get_builtin_strategy_definitions,
     get_template_spec,

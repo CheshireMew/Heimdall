@@ -1,7 +1,8 @@
-import type { Ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
 
 import { backtestApi } from './api'
-import type { BacktestPageConfig } from './viewTypes'
+import type { BacktestPageConfig, BacktestChartData } from './viewTypes'
+import type { BacktestPreviewResponse, StrategyPreviewMarkerResponse } from './contracts'
 
 
 interface UseBacktestRunExecutionOptions {
@@ -27,8 +28,11 @@ export const useBacktestRunExecution = ({
 }: UseBacktestRunExecutionOptions) => {
   const splitSymbols = () => symbolsText.value.split(',').map((item) => item.trim()).filter(Boolean)
   const isBusy = () => backtestLoading.value || paperLoading.value
+  const previewLoading = ref(false)
+  const strategyPreview = ref<BacktestPreviewResponse | null>(null)
+  const previewSymbol = ref('')
 
-  const buildPayload = () => ({
+  const buildPreviewPayload = () => ({
     strategy_key: config.strategy_key,
     strategy_version: config.strategy_version,
     timeframe: config.timeframe,
@@ -52,6 +56,17 @@ export const useBacktestRunExecution = ({
     },
   })
 
+  const buildPayload = () => {
+    if (!strategyPreview.value) {
+      throw new Error(t('backtest.previewRequired'))
+    }
+    return {
+      ...buildPreviewPayload(),
+      preview_id: strategyPreview.value.preview_id,
+      approved_fingerprint: strategyPreview.value.fingerprint,
+    }
+  }
+
   const buildPaperPayload = () => ({
     strategy_key: config.strategy_key,
     strategy_version: config.strategy_version,
@@ -66,10 +81,70 @@ export const useBacktestRunExecution = ({
     },
   })
 
+  const previewSymbols = computed(() => strategyPreview.value?.symbols || [])
+  const previewMarkers = computed<StrategyPreviewMarkerResponse[]>(() => {
+    const symbol = previewSymbol.value
+    if (!symbol || !strategyPreview.value?.markers) return []
+    return strategyPreview.value.markers[symbol] || []
+  })
+  const previewChartData = computed<BacktestChartData>(() => {
+    const symbol = previewSymbol.value
+    const candles = symbol && strategyPreview.value?.candles ? strategyPreview.value.candles[symbol] || [] : []
+    return {
+      candles: candles.map((item) => ({
+        time: item.timestamp / 1000,
+        open: item.open,
+        high: item.high,
+        low: item.low,
+        close: item.close,
+      })),
+      volume: candles.map((item) => ({
+        time: item.timestamp / 1000,
+        value: item.volume,
+        color: item.close >= item.open ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+      })),
+      markers: previewMarkers.value.map((item) => ({
+        time: item.time,
+        kind: item.kind,
+        label: item.label,
+      })),
+    }
+  })
+
+  const clearPreview = () => {
+    strategyPreview.value = null
+    previewSymbol.value = ''
+  }
+
+  const previewBacktest = async () => {
+    if (isBusy() || previewLoading.value) return null
+    if (!config.start_date || !config.end_date) {
+      alert(t('backtest.rangeRequired'))
+      return null
+    }
+    previewLoading.value = true
+    try {
+      const res = await backtestApi.previewRun(buildPreviewPayload())
+      strategyPreview.value = res
+      previewSymbol.value = res.symbols?.[0] || ''
+      return res
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      alert(`${t('backtest.previewFailed')}: ${detail}`)
+    } finally {
+      previewLoading.value = false
+    }
+    return null
+  }
+
   const startBacktest = async () => {
     if (isBusy()) return null
     if (!config.start_date || !config.end_date) {
       alert(t('backtest.rangeRequired'))
+      return null
+    }
+    if (!strategyPreview.value) {
+      alert(t('backtest.previewRequired'))
       return null
     }
     backtestLoading.value = true
@@ -109,8 +184,17 @@ export const useBacktestRunExecution = ({
   }
 
   return {
+    previewLoading,
+    strategyPreview,
+    previewSymbol,
+    previewSymbols,
+    previewChartData,
+    previewMarkers,
+    buildPreviewPayload,
     buildPayload,
     buildPaperPayload,
+    clearPreview,
+    previewBacktest,
     startBacktest,
     startPaperRun,
   }

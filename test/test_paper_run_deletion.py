@@ -6,7 +6,7 @@ from datetime import datetime
 from app.infra.db.schema import BacktestRun
 from app.application.backtest.paper_manager import PaperRunManager
 from app.infra.persistence.backtest.run_repository import BacktestRunRepository
-from app.infra.persistence.backtest.run_mutation_service import BacktestRunMutationService
+from app.infra.persistence.backtest.paper_run_writer import PaperRunWriteRepository
 
 
 def test_delete_paper_run_updates_stop_state_and_removes_row(installed_database_runtime):
@@ -44,7 +44,7 @@ def test_delete_paper_run_updates_stop_state_and_removes_row(installed_database_
         freqtrade_service=object(),
         report_builder=object(),
         run_repository=BacktestRunRepository(database_runtime=installed_database_runtime),
-        run_mutations=BacktestRunMutationService(database_runtime=installed_database_runtime),
+        paper_runs=PaperRunWriteRepository(database_runtime=installed_database_runtime),
         activate_created_runs=True,
     )
 

@@ -1,7 +1,7 @@
 import { computed, unref, type Ref } from 'vue'
 import { formatCompactNumber, formatSignedPercent } from '@/modules/format'
 import type { DliComponentResponse, DliLiquidityResponse, MarketIndicatorResponse } from './contracts'
-import { useMarketStore } from './store'
+import { useMacroLiquidityStore } from './macroLiquidityStore'
 
 export type MacroGroupId = 'policy' | 'funding' | 'credit' | 'risk'
 export type MacroPolarity = 'higherTightens' | 'lowerTightens'
@@ -149,21 +149,21 @@ const definitionFromComponent = (component: DliComponentResponse): MacroIndicato
 }
 
 export function useMacroLiquidityPage(days: number | Ref<number> = 365, changeDays: number | Ref<number> = 30) {
-  const marketStore = useMarketStore()
+  const macroLiquidityStore = useMacroLiquidityStore()
   const currentDays = computed(() => unref(days))
   const currentChangeDays = computed(() => unref(changeDays))
   const dli = computed<DliLiquidityResponse | null>(() => (
-    marketStore.readDliLiquidity(currentDays.value, currentChangeDays.value)
+    macroLiquidityStore.readDliLiquidity(currentDays.value, currentChangeDays.value)
   ))
   const indicators = computed<MarketIndicatorResponse[]>(() => dli.value?.indicators || [])
-  const error = computed(() => marketStore.getDliLiquidityError(currentDays.value, currentChangeDays.value))
+  const error = computed(() => macroLiquidityStore.getDliLiquidityError(currentDays.value, currentChangeDays.value))
   const loading = computed(() => (
-    marketStore.isDliLiquidityLoading(currentDays.value, currentChangeDays.value)
+    macroLiquidityStore.isDliLiquidityLoading(currentDays.value, currentChangeDays.value)
     || (!dli.value && !error.value)
   ))
 
   const load = async (options: { force?: boolean } = {}) => {
-    await marketStore.getDliLiquidity(currentDays.value, currentChangeDays.value, options)
+    await macroLiquidityStore.getDliLiquidity(currentDays.value, currentChangeDays.value, options)
   }
 
   const refresh = async () => {

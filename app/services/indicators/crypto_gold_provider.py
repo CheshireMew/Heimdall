@@ -7,7 +7,7 @@ import asyncio
 from typing import Optional, Dict, Any
 from datetime import datetime
 from .base_provider import BaseIndicatorProvider, logger
-from app.infra.executor import run_sync
+from app.infra.executor import run_external_io
 
 class CryptoGoldProvider(BaseIndicatorProvider):
     """
@@ -30,7 +30,7 @@ class CryptoGoldProvider(BaseIndicatorProvider):
                     "value": float(ticker['last'])
                 }
 
-            return await run_sync(_get)
+            return await run_external_io(_get)
 
         except Exception as e:
             logger.error(f"Failed to fetch Gold via PAXG: {e}")

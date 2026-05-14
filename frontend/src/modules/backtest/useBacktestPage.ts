@@ -21,7 +21,6 @@ import { defineReactiveView, type BacktestControlPanelView, type BacktestHistory
 export const useBacktestPage = () => {
   const { t } = useI18n()
   const router = useRouter()
-  let paperRefreshTimer: number | null = null
   let snapshotStopHandle: WatchStopHandle | null = null
 
   const ready = ref(false)
@@ -159,21 +158,44 @@ export const useBacktestPage = () => {
   onMounted(async () => {
     try {
       await hydratePage()
-      paperRefreshTimer = window.setInterval(() => {
-        runs.refreshPaperSelection().catch((error) => console.error(error))
-      }, 10000)
+      runs.startPaperHistoryPolling()
     } catch (error) {
       console.error(error)
     }
   })
 
   watch(() => config.strategy_key, () => {
+    runs.clearPreview()
     syncStrategyVersion()
   })
 
   watch(() => config.strategy_version, () => {
+    runs.clearPreview()
     syncRunTimeframe()
   })
+
+  watch(
+    () => [
+      config.timeframe,
+      config.start_date,
+      config.end_date,
+      config.initial_cash,
+      config.fee_rate,
+      config.portfolio.max_open_trades,
+      config.portfolio.position_size_pct,
+      config.portfolio.stake_mode,
+      config.research.slippage_bps,
+      config.research.funding_rate_daily,
+      config.research.in_sample_ratio,
+      config.research.optimize_metric,
+      config.research.optimize_trials,
+      config.research.rolling_windows,
+      runs.symbolsText.value,
+    ],
+    () => {
+      runs.clearPreview()
+    },
+  )
 
   watch(() => config.start_date, (value) => {
     if (!value) return
@@ -191,10 +213,7 @@ export const useBacktestPage = () => {
 
   onBeforeUnmount(() => {
     snapshotStopHandle?.()
-    if (paperRefreshTimer !== null) {
-      window.clearInterval(paperRefreshTimer)
-      paperRefreshTimer = null
-    }
+    runs.stopPaperHistoryPolling()
   })
 
   const controlPanel = defineReactiveView<BacktestControlPanelView>({
@@ -212,11 +231,18 @@ export const useBacktestPage = () => {
     optimizeMetrics,
     symbolsText: runs.symbolsText,
     backtestLoading: runs.backtestLoading,
+    previewLoading: runs.previewLoading,
     paperLoading: runs.paperLoading,
     isBusy: runs.isBusy,
+    strategyPreview: runs.strategyPreview,
+    previewSymbol: runs.previewSymbol,
+    previewSymbols: runs.previewSymbols,
+    previewChartData: runs.previewChartData,
+    previewMarkers: runs.previewMarkers,
     syncStrategyVersion,
     openCopyEditor,
     openBlankEditor,
+    previewBacktest: runs.previewBacktest,
     startBacktest,
     startPaperRun,
   })

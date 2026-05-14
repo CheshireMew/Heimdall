@@ -1,6 +1,6 @@
 import { computed, onActivated, onDeactivated, onUnmounted, ref, watch, type Ref } from 'vue'
 import { marketApi } from './api'
-import { useMarketStore } from './store'
+import { useKlineStore } from './klineStore'
 import { isIndexSymbol } from './symbolCatalog'
 import { toLocalIsoDate } from '@/utils/localDate'
 import type { OhlcvPointResponse } from './contracts'
@@ -13,7 +13,7 @@ type UseKlineSeriesOptions = {
 }
 
 export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, options: UseKlineSeriesOptions = {}) {
-  const marketStore = useMarketStore()
+  const klineStore = useKlineStore()
   const indexKlineData = ref<OhlcvPointResponse[]>([])
   const loadingMore = ref(false)
   const noMoreHistory = ref(false)
@@ -27,7 +27,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
   const klineData = computed(() => (
     isIndexSymbol(symbol.value)
       ? indexKlineData.value
-      : marketStore.klineCache[cacheKey.value]?.data || []
+      : klineStore.klineCache[cacheKey.value]?.data || []
   ))
 
   const chartData = computed(() =>
@@ -70,10 +70,10 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
       indexKlineData.value = res.data || []
       return
     }
-    const data = await marketStore.getKlineData(requestSymbol, requestTimeframe, 1000, options)
+    const data = await klineStore.getKlineData(requestSymbol, requestTimeframe, 1000, options)
     if (!isRouteActive || requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
     if (data) {
-      marketStore.setKlineHistory(requestSymbol, requestTimeframe, data, 1000)
+      klineStore.setKlineHistory(requestSymbol, requestTimeframe, data, 1000)
     }
     if (!isIndexSymbol(requestSymbol)) {
       refreshTail().catch(error => {
@@ -94,7 +94,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
     if (!isRouteActive || requestSymbol !== symbol.value || requestTimeframe !== timeframe.value) return
     const tail = res.kline_data || []
     if (tail.length === 0) return
-    marketStore.applyKlineTail(requestSymbol, requestTimeframe, tail, 1000)
+    klineStore.applyKlineTail(requestSymbol, requestTimeframe, tail, 1000)
   }
 
   const stopAutoRefresh = () => {
@@ -160,7 +160,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
         return
       }
 
-      marketStore.prependKlineHistory(requestSymbol, requestTimeframe, newKlines)
+      klineStore.prependKlineHistory(requestSymbol, requestTimeframe, newKlines)
     } catch (e) {
       console.error('Load history failed', e)
     } finally {

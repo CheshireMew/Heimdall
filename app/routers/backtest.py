@@ -14,6 +14,8 @@ from app.rate_limit import limiter
 from app.contracts.dto.backtest import (
     BacktestDetailResponse,
     BacktestDeleteResponse,
+    BacktestPreviewRequest,
+    BacktestPreviewResponse,
     BacktestRunResponse,
     BacktestStartRequest,
     BacktestStartResponse,
@@ -37,6 +39,16 @@ from config import settings
 router = APIRouter()
 backtest_command_dependency = runtime_dependency(BACKTEST_COMMAND_SERVICE)
 backtest_query_dependency = runtime_dependency(BACKTEST_QUERY_SERVICE)
+
+
+@router.post("/backtest/preview", response_model=BacktestPreviewResponse)
+@limiter.limit(settings.RATE_LIMIT_HEAVY)
+async def preview_backtest(
+    request: Request,
+    body: BacktestPreviewRequest,
+    service: Any = Depends(backtest_command_dependency),
+):
+    return await service.preview_backtest(body.to_preview_command())
 
 
 @router.post("/backtest/start", response_model=BacktestStartResponse)

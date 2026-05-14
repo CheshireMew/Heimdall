@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 from .base_provider import BaseIndicatorProvider, logger
 from config import settings
-from app.infra.executor import run_sync
+from app.infra.executor import run_external_io
 
 class TechCalculatorProvider(BaseIndicatorProvider):
     """
@@ -35,7 +35,7 @@ class TechCalculatorProvider(BaseIndicatorProvider):
                     "timestamp": datetime.fromtimestamp(last_ts, tz=timezone.utc),
                     "value": round(wma_200, 2)
                 }
-            return await run_sync(_get)
+            return await run_external_io(_get)
         except Exception as e:
             logger.error(f"Failed to calculate 200WMA: {e}")
             return None
@@ -124,7 +124,7 @@ class TechCalculatorProvider(BaseIndicatorProvider):
                     "timestamp": datetime.fromtimestamp(last_ts, tz=timezone.utc),
                     "value": round(drawdown, 2)
                 }
-            return await run_sync(_get)
+            return await run_external_io(_get)
         except Exception as e:
             logger.error(f"Failed to calculate BTC drawdown: {e}")
             return None

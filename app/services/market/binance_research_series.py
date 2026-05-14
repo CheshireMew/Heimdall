@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from app.infra.executor import run_sync
+from app.infra.executor import run_database
 from app.services.persistence_ports import BinanceMarketResearchStorePort
 
 JsonLoader = Callable[..., Awaitable[Any]]
@@ -45,7 +45,7 @@ class BinanceResearchSeriesLoader:
         try:
             payload = await self.get_json(endpoint, params=params, ttl=ttl)
         except Exception:
-            stored_items = await run_sync(
+            stored_items = await run_database(
                 lambda: self.store.list_items(
                     market=self.market,
                     series=series,
@@ -68,7 +68,7 @@ class BinanceResearchSeriesLoader:
 
         response = normalizer(self.market, payload)
         items = response["items"]
-        stored_items = await run_sync(
+        stored_items = await run_database(
             lambda: self.save_and_list(
                 series=series,
                 symbol=symbol_key,

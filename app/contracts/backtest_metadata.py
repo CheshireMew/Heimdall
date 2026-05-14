@@ -37,6 +37,17 @@ class BacktestPaperLiveState(BaseModel):
     stop_reason: str | None = None
 
 
+class BacktestPreviewApproval(BaseModel):
+    id: str
+    fingerprint: str
+    strategy_key: str | None = None
+    strategy_version: int | None = None
+    timeframe: str | None = None
+    symbols: list[str] = Field(default_factory=list)
+    markers: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
+    diagnostics: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class BacktestRunMetadataCommon(BaseModel):
     schema_version: int | None = None
     execution_model: str | None = None
@@ -62,6 +73,7 @@ class BacktestRunMetadataCommon(BaseModel):
     selected_config: dict[str, Any] = Field(default_factory=dict)
     raw_stats: dict[str, Any] | None = None
     error: str | None = None
+    preview: BacktestPreviewApproval | None = None
 
 
 class BacktestExecutionMetadata(BacktestRunMetadataCommon):

@@ -18,7 +18,7 @@ from app.services.backtest.freqtrade_strategy_builder import FreqtradeStrategyBu
 from app.contracts.backtest import BacktestExecutionResult
 from app.contracts.backtest_run import validate_backtest_run_metadata
 from app.domain.backtest.backtest_symbols import normalize_backtest_symbols
-from app.domain.backtest.scripted_template_runtime import get_template_runtime, template_builder_kind
+from app.domain.backtest.scripted_templates import get_template_runtime, template_builder_kind
 from app.services.market.market_data_service import MarketDataService
 from config import settings
 from utils.time_utils import to_utc_naive_datetime

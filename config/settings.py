@@ -169,6 +169,10 @@ class AppSettings(BaseSettings):
     FREQTRADE_WORKSPACE_DIR: Path = Field(default_factory=lambda: _default_runtime_root() / "freqtrade")
     LLM_CONFIG_PATH: Path = Field(default_factory=lambda: _default_runtime_root() / "config" / "llm_provider_config.json")
     FRED_CONFIG_PATH: Path = Field(default_factory=lambda: _default_runtime_root() / "config" / "fred_api_config.json")
+    BLOCKING_DATABASE_MAX_WORKERS: int = 8
+    BLOCKING_COMPUTE_MAX_WORKERS: int = 2
+    BLOCKING_EXTERNAL_IO_MAX_WORKERS: int = 8
+    BLOCKING_BACKGROUND_MAX_WORKERS: int = 4
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

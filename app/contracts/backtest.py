@@ -111,6 +111,21 @@ class BacktestStartCommand:
     fee_rate: float
     portfolio: BacktestPortfolioConfig
     research: BacktestResearchConfig
+    preview_id: str
+    approved_fingerprint: str
+
+
+@dataclass(slots=True)
+class BacktestPreviewCommand:
+    strategy_key: str
+    strategy_version: int | None
+    timeframe: str
+    start_date: datetime
+    end_date: datetime
+    initial_cash: float
+    fee_rate: float
+    portfolio: BacktestPortfolioConfig
+    research: BacktestResearchConfig
 
 
 @dataclass(slots=True)

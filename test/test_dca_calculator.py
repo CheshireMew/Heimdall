@@ -2,7 +2,8 @@ import unittest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
-from app.contracts.dto.market import MarketIndexHistoryResponse, build_ohlcv_points
+from app.contracts.dto.market import MarketIndexHistoryResponse
+from app.contracts.market_history import build_ohlcv_point_payloads
 
 from app.services.market.kline_range_loader import OhlcvRangeResult
 from app.services.tools.dca_service import DCAService as DCACalculator
@@ -91,7 +92,7 @@ class TestValueAveraging(unittest.TestCase):
             pricing_currency="USD",
             is_close_only=False,
             count=3,
-            data=build_ohlcv_points([
+            data=build_ohlcv_point_payloads([
                 [1704067200000, 100.0, 100.0, 100.0, 100.0, 0],
                 [1704153600000, 110.0, 110.0, 110.0, 110.0, 0],
                 [1704240000000, 120.0, 120.0, 120.0, 120.0, 0],

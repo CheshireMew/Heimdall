@@ -13,11 +13,11 @@ from app.contracts.backtest_run import (
     ensure_paper_runtime_state,
     parse_run_metadata,
 )
-from app.application.backtest.ports import BacktestReportBuilder, BacktestRunMutations, BacktestRunReader
+from app.application.backtest.ports import BacktestReportBuilder, BacktestRunReader, PaperRunWriter
 from app.application.factors.ports import FactorPaperPersistence, FactorResearchProvider, FactorSignalCore
 from app.domain.backtest.strategy_support import blank_strategy_version_config_model
 from app.application.paper_run_lifecycle import PaperRunController, PaperRunHost, PaperRunHostedService
-from app.infra.executor import run_sync
+from app.infra.executor import run_compute
 from app.contracts.factor import FactorExecutionConfig
 from app.domain.factors.signal_execution_core import FactorSignalContext
 from config import settings
@@ -32,7 +32,7 @@ class FactorPaperRunManager(PaperRunHostedService):
         report_builder: BacktestReportBuilder,
         execution_core: FactorSignalCore,
         persistence_service: FactorPaperPersistence,
-        run_mutations: BacktestRunMutations,
+        paper_runs: PaperRunWriter,
         activate_created_runs: bool,
     ) -> None:
         self.factor_service = factor_service
@@ -40,13 +40,13 @@ class FactorPaperRunManager(PaperRunHostedService):
         self.report_builder = report_builder
         self.execution_core = execution_core
         self.persistence_service = persistence_service
-        self.run_mutations = run_mutations
+        self.paper_runs = paper_runs
         self.activate_created_runs = activate_created_runs
         self.paper_host = PaperRunHost(
             PaperRunController(
                 engine=FACTOR_BLEND_PAPER_ENGINE,
                 run_repository=run_repository,
-                run_mutations=run_mutations,
+                paper_runs=paper_runs,
                 runtime_state=self._stoppable_runtime_state,
                 tick=self._tick,
                 interval_seconds=lambda: float(settings.WS_UPDATE_INTERVAL),
@@ -55,13 +55,13 @@ class FactorPaperRunManager(PaperRunHostedService):
         )
 
     async def start_run(self, config: FactorExecutionConfig) -> dict:
-        run_id = await run_sync(lambda: self._create_run(config))
+        run_id = await run_compute(lambda: self._create_run(config))
         if self.activate_created_runs:
             self._activate_created_run(run_id)
         return {"success": True, "run_id": run_id, "message": "因子模拟盘已启动"}
 
     def _tick(self, run_id: int) -> bool:
-        run = self.run_mutations.get_running_paper_run(run_id=run_id, engine=FACTOR_BLEND_PAPER_ENGINE)
+        run = self.paper_runs.get_running_paper_run(run_id=run_id, engine=FACTOR_BLEND_PAPER_ENGINE)
         if not run:
             return False
         metadata = run.metadata
@@ -185,7 +185,7 @@ class FactorPaperRunManager(PaperRunHostedService):
                 },
             }
         ).model_dump()
-        return self.run_mutations.create_run(
+        return self.paper_runs.create_run(
             symbol=request_payload["symbol"],
             timeframe=request_payload["timeframe"],
             start_date=now,

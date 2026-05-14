@@ -9,7 +9,7 @@ from app.domain.market.index_catalog import (
     get_index_instrument,
     get_supported_index_symbols,
 )
-from app.infra.executor import run_sync
+from app.infra.executor import run_compute, run_external_io
 from app.services.market.history_ranges import collect_missing_ranges
 from app.services.market.index_history_sources import IndexFetchResult, IndexHistorySources
 from app.services.persistence_ports import KlineStorePort
@@ -85,7 +85,7 @@ class IndexDataService:
         ]
 
     async def list_indexes_async(self) -> list[MarketIndexRecord]:
-        return await run_sync(self.list_indexes)
+        return await run_compute(self.list_indexes)
 
     def get_instrument(self, symbol: str) -> IndexInstrument | None:
         return get_index_instrument(symbol)
@@ -121,7 +121,7 @@ class IndexDataService:
         start_date: str,
         end_date: str | None = None,
     ) -> MarketIndexHistoryRecord:
-        return await run_sync(
+        return await run_external_io(
             lambda: self.get_history(
                 symbol=symbol,
                 timeframe=timeframe,
@@ -163,7 +163,7 @@ class IndexDataService:
         start_date: str,
         end_date: str | None = None,
     ) -> MarketIndexHistoryRecord:
-        return await run_sync(
+        return await run_external_io(
             lambda: self.get_pricing_history(
                 symbol=symbol,
                 timeframe=timeframe,
@@ -178,7 +178,7 @@ class IndexDataService:
         return replace(result, data=latest_data)
 
     async def get_latest_async(self, *, symbol: str) -> MarketIndexHistoryRecord:
-        return await run_sync(lambda: self.get_latest(symbol=symbol))
+        return await run_external_io(lambda: self.get_latest(symbol=symbol))
 
     def get_latest_pricing(self, *, symbol: str) -> MarketIndexHistoryRecord:
         result = self.get_pricing_history(symbol=symbol, timeframe="1d", start_date=self._latest_window_start())
@@ -186,7 +186,7 @@ class IndexDataService:
         return replace(result, data=latest_data)
 
     async def get_latest_pricing_async(self, *, symbol: str) -> MarketIndexHistoryRecord:
-        return await run_sync(lambda: self.get_latest_pricing(symbol=symbol))
+        return await run_external_io(lambda: self.get_latest_pricing(symbol=symbol))
 
     def _get_series_history(
         self,

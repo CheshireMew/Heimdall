@@ -7,7 +7,8 @@ from fastapi import APIRouter, Depends, Query, Request
 from app.dependencies import runtime_dependency
 from app.runtime_refs import MARKET_INDEX_DATA_SERVICE
 from app.rate_limit import limiter
-from app.contracts.dto.market import MarketIndexHistoryResponse, MarketIndexResponse, build_ohlcv_points
+from app.contracts.dto.market import MarketIndexHistoryResponse, MarketIndexResponse
+from app.contracts.market_history import build_ohlcv_point_payloads
 from config import settings
 
 
@@ -42,7 +43,7 @@ def _index_history_response(record: Any) -> MarketIndexHistoryResponse:
         pricing_currency=record.pricing_currency,
         is_close_only=record.is_close_only,
         count=record.count,
-        data=build_ohlcv_points([item.as_row() for item in record.data]),
+        data=build_ohlcv_point_payloads([item.as_row() for item in record.data]),
     )
 
 

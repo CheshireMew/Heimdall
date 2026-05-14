@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.services.market.crypto_index_service import CryptoIndexService, ExchangeClose
+from app.services.market.crypto_index_exchange_history import CryptoIndexExchangeHistory, ExchangeClose
+from app.services.market.crypto_index_service import CryptoIndexService
 
 
 def day_ms(year: int, month: int, day: int) -> int:
@@ -39,10 +40,10 @@ class FakeBinanceClient:
 
 @pytest.mark.asyncio
 async def test_binance_history_uses_usdm_when_spot_symbol_is_unavailable():
-    service = CryptoIndexService(cache_service=None)
+    exchange_history = CryptoIndexExchangeHistory()
     client = FakeBinanceClient()
 
-    rows = await service._get_binance_daily_closes(client, "HYPE", 1)
+    rows = await exchange_history.get_binance_daily_closes(client, "HYPE", 1)
 
     assert ["/api/v3/klines" in url for url in client.urls] == [True, False]
     assert ["/fapi/v1/klines" in url for url in client.urls] == [False, True]
@@ -94,8 +95,8 @@ async def test_crypto_index_uses_exchange_history_before_coingecko(monkeypatch):
         raise AssertionError("CoinGecko market_chart should not be called for exchange-covered assets")
 
     monkeypatch.setattr(service, "get_top_market_caps", fake_top_market_caps)
-    monkeypatch.setattr(service, "_get_binance_daily_closes", fake_binance_closes)
-    monkeypatch.setattr(service, "_get_okx_daily_closes", fake_okx_closes)
+    monkeypatch.setattr(service.exchange_history, "get_binance_daily_closes", fake_binance_closes)
+    monkeypatch.setattr(service.exchange_history, "get_okx_daily_closes", fake_okx_closes)
     monkeypatch.setattr(service, "_get_json", fail_coingecko_history)
 
     result = await service.build_index(top_n=2, days=2, base_value=100.0)
@@ -143,7 +144,7 @@ async def test_crypto_index_falls_back_to_coingecko_when_exchange_history_is_una
         return {"market_caps": [[day_ms(2026, 5, 11), 200.0]]}
 
     monkeypatch.setattr(service, "get_top_market_caps", fake_top_market_caps)
-    monkeypatch.setattr(service, "_get_binance_daily_closes", empty_binance_closes)
+    monkeypatch.setattr(service.exchange_history, "get_binance_daily_closes", empty_binance_closes)
     monkeypatch.setattr(service, "_get_json", fake_coingecko_json)
 
     result = await service.build_index(top_n=1, days=1, base_value=100.0)

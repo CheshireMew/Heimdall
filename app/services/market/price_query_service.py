@@ -4,10 +4,14 @@ import asyncio
 from datetime import datetime
 from typing import Any
 
-from app.infra.executor import run_sync
+from app.contracts.market_history import (
+    build_current_price_batch_item_payload,
+    build_current_price_batch_payload,
+    build_current_price_payload,
+)
+from app.infra.executor import run_external_io
 from app.services.market.app_service_support import validate_market_request
 from app.services.market.market_data_service import MarketDataService
-from app.services.market.query_payloads import current_price_response
 from config import settings
 
 
@@ -34,7 +38,7 @@ class MarketPriceQueryService:
                 symbol=symbol,
                 timeframe=timeframe,
             )
-        return current_price_response(
+        return build_current_price_payload(
             symbol=symbol,
             timeframe=timeframe,
             timestamp=datetime.now().isoformat(),
@@ -62,7 +66,7 @@ class MarketPriceQueryService:
                 for symbol in normalized_symbols
             ],
         )
-        return {"timeframe": timeframe, "items": items}
+        return build_current_price_batch_payload(timeframe=timeframe, items=items)
 
     async def _build_current_price_batch_item(
         self,
@@ -77,7 +81,7 @@ class MarketPriceQueryService:
                 symbol=symbol,
                 timeframe=timeframe,
             )
-        return current_price_response(
+        return build_current_price_batch_item_payload(
             symbol=symbol,
             timeframe=timeframe,
             timestamp=datetime.now().isoformat(),
@@ -96,7 +100,7 @@ class MarketPriceQueryService:
         symbol: str,
         timeframe: str,
     ) -> float | None:
-        kline_data = await run_sync(
+        kline_data = await run_external_io(
             lambda: self.market_data_service.get_recent_candles(
                 symbol,
                 timeframe,

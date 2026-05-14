@@ -21,6 +21,36 @@ class BacktestReportBuilder(Protocol):
         ...
 
 
+class BacktestMarketDataReader(Protocol):
+    def load_ohlcv_range(
+        self,
+        symbol: str,
+        timeframe: str,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> Any:
+        ...
+
+
+class BacktestStrategyRuntime(Protocol):
+    def validate_timeframe_compatibility(
+        self,
+        template: str,
+        config: Any,
+        base_timeframe: str,
+    ) -> Any:
+        ...
+
+    def build_frame(
+        self,
+        template: str,
+        config: Any,
+        candles: list[list[float]],
+        timeframe: str,
+    ) -> Any:
+        ...
+
+
 class BacktestRunReader(Protocol):
     def list_runs(self, execution_mode: str = "backtest") -> list[dict[str, Any]]:
         ...
@@ -41,7 +71,7 @@ class BacktestRunReader(Protocol):
         ...
 
 
-class BacktestRunMutations(Protocol):
+class BacktestRunWriter(Protocol):
     def create_run(self, **kwargs: Any) -> int:
         ...
 
@@ -54,6 +84,8 @@ class BacktestRunMutations(Protocol):
     def mark_run_failed(self, *, run_id: int, metadata: dict[str, Any]) -> bool:
         ...
 
+
+class FactorBacktestRunWriter(Protocol):
     def store_completed_rows(
         self,
         *,
@@ -72,6 +104,14 @@ class BacktestRunMutations(Protocol):
     ) -> int:
         ...
 
+
+class PaperRunWriter(Protocol):
+    def create_run(self, **kwargs: Any) -> int:
+        ...
+
+    def get_run(self, run_id: int) -> Any | None:
+        ...
+
     def get_running_paper_run(self, *, run_id: int, engine: str) -> Any | None:
         ...
 
@@ -84,13 +124,15 @@ class BacktestRunMutations(Protocol):
     def list_equity_records(self, run_id: int) -> list[BacktestEquityPointRecord]:
         ...
 
-    def append_factor_paper_increment(self, **kwargs: Any) -> None:
-        ...
-
     def get_paper_run(self, *, run_id: int, engine: str) -> Any | None:
         ...
 
     def set_paper_status(self, **kwargs: Any) -> None:
+        ...
+
+
+class FactorPaperRunWriter(Protocol):
+    def append_factor_paper_increment(self, **kwargs: Any) -> None:
         ...
 
 

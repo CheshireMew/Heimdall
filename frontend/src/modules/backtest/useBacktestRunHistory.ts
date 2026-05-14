@@ -6,6 +6,7 @@ import { backtestApi } from './api'
 import type { BacktestRunMode } from './useBacktestRuns'
 import type { BacktestVersionCompareOption } from './viewTypes'
 
+const PAPER_HISTORY_REFRESH_INTERVAL_MS = 10000
 
 interface BacktestRunTarget {
   id: number
@@ -39,6 +40,10 @@ export const useBacktestRunHistory = ({
   loadChart,
   clearChart,
 }: UseBacktestRunHistoryOptions) => {
+  let paperHistoryPromise: Promise<void> | null = null
+  let paperSelectionRefreshPromise: Promise<void> | null = null
+  let paperRefreshTimer: number | null = null
+
   const fetchHistory = async () => {
     try {
       const res = await backtestApi.listRuns()
@@ -47,18 +52,26 @@ export const useBacktestRunHistory = ({
       compareRunIds.value = compareRunIds.value.filter((item) => validRunIds.has(item))
       const validVersions = new Set(versionCompareOptions.value.map((item) => item.version))
       versionCompareSelections.value = versionCompareSelections.value.filter((item) => validVersions.has(item))
-    } catch (error) {
-      console.error(error)
+    } catch {
+      // Transport failures are logged by the API client; this hook only keeps the last successful list.
+    }
+  }
+
+  const loadPaperHistory = async () => {
+    try {
+      const res = await backtestApi.listPaperRuns()
+      paperHistory.value = res
+    } catch {
+      // Transport failures are logged by the API client; this hook only keeps the last successful list.
     }
   }
 
   const fetchPaperHistory = async () => {
-    try {
-      const res = await backtestApi.listPaperRuns()
-      paperHistory.value = res
-    } catch (error) {
-      console.error(error)
-    }
+    if (paperHistoryPromise) return paperHistoryPromise
+    paperHistoryPromise = loadPaperHistory().finally(() => {
+      paperHistoryPromise = null
+    })
+    return paperHistoryPromise
   }
 
   const loadResult = async (id: number) => {
@@ -153,10 +166,29 @@ export const useBacktestRunHistory = ({
   }
 
   const refreshPaperSelection = async () => {
-    await fetchPaperHistory()
-    if (selectedRunMode.value === 'paper' && selectedRun.value?.id) {
-      await loadPaperResult(selectedRun.value.id)
-    }
+    if (paperSelectionRefreshPromise) return paperSelectionRefreshPromise
+    paperSelectionRefreshPromise = (async () => {
+      await fetchPaperHistory()
+      if (selectedRunMode.value === 'paper' && selectedRun.value?.id) {
+        await loadPaperResult(selectedRun.value.id)
+      }
+    })().finally(() => {
+      paperSelectionRefreshPromise = null
+    })
+    return paperSelectionRefreshPromise
+  }
+
+  const startPaperHistoryPolling = (intervalMs = PAPER_HISTORY_REFRESH_INTERVAL_MS) => {
+    if (paperRefreshTimer !== null) return
+    paperRefreshTimer = window.setInterval(() => {
+      refreshPaperSelection().catch((error) => console.error(error))
+    }, intervalMs)
+  }
+
+  const stopPaperHistoryPolling = () => {
+    if (paperRefreshTimer === null) return
+    window.clearInterval(paperRefreshTimer)
+    paperRefreshTimer = null
   }
 
   return {
@@ -169,6 +201,8 @@ export const useBacktestRunHistory = ({
     stopPaperRun,
     deleteRun,
     refreshPaperSelection,
+    startPaperHistoryPolling,
+    stopPaperHistoryPolling,
   }
 }
 

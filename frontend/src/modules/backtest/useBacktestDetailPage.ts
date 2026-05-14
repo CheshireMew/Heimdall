@@ -16,7 +16,6 @@ export const useBacktestDetailPage = () => {
   const { theme } = useTheme()
   const route = useRoute()
   const router = useRouter()
-  let paperRefreshTimer: number | null = null
 
   const strategies = ref<StrategyDefinitionResponse[]>([])
   const evolutionLoading = ref(false)
@@ -125,9 +124,7 @@ export const useBacktestDetailPage = () => {
   onMounted(async () => {
     await Promise.all([fetchStrategies(), runs.fetchHistory(), runs.fetchPaperHistory()])
     await loadCurrentTarget()
-    paperRefreshTimer = window.setInterval(() => {
-      runs.refreshPaperSelection().catch((error) => console.error(error))
-    }, 10000)
+    runs.startPaperHistoryPolling()
   })
 
   watch(
@@ -138,10 +135,7 @@ export const useBacktestDetailPage = () => {
   )
 
   onBeforeUnmount(() => {
-    if (paperRefreshTimer !== null) {
-      window.clearInterval(paperRefreshTimer)
-      paperRefreshTimer = null
-    }
+    runs.stopPaperHistoryPolling()
   })
 
   const hero = defineReactiveView<BacktestDetailHeroView>({

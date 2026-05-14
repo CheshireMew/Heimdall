@@ -86,21 +86,35 @@ def build_backtest_metadata(
     fee_rate: float,
     portfolio: BacktestPortfolioConfig,
     research: BacktestResearchConfig,
+    preview_id: str | None = None,
+    preview_fingerprint: str | None = None,
+    preview_artifact: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return make_json_safe(
-        {
-            **build_base_metadata(
-                strategy=strategy,
-                symbols=symbols,
-                initial_cash=initial_cash,
-                fee_rate=fee_rate,
-                portfolio_label=symbols[0] if len(symbols) == 1 else f"{len(symbols)} symbols",
-                portfolio=build_portfolio_payload(portfolio),
-            ),
-            "execution_mode": BACKTEST_EXECUTION_MODE,
-            "research": build_research_payload(research),
+    payload = {
+        **build_base_metadata(
+            strategy=strategy,
+            symbols=symbols,
+            initial_cash=initial_cash,
+            fee_rate=fee_rate,
+            portfolio_label=symbols[0] if len(symbols) == 1 else f"{len(symbols)} symbols",
+            portfolio=build_portfolio_payload(portfolio),
+        ),
+        "execution_mode": BACKTEST_EXECUTION_MODE,
+        "research": build_research_payload(research),
+    }
+    if preview_id and preview_fingerprint:
+        artifact = dict(preview_artifact or {})
+        payload["preview"] = {
+            "id": preview_id,
+            "fingerprint": preview_fingerprint,
+            "strategy_key": artifact.get("strategy_key") or strategy.strategy_key,
+            "strategy_version": artifact.get("strategy_version") or strategy.version,
+            "timeframe": artifact.get("timeframe"),
+            "symbols": list(artifact.get("symbols") or symbols),
+            "markers": dict(artifact.get("markers") or {}),
+            "diagnostics": list(artifact.get("diagnostics") or []),
         }
-    )
+    return make_json_safe(payload)
 
 
 def parse_run_metadata(metadata: BaseModel | dict[str, Any] | None) -> BacktestRunMetadata:
@@ -123,7 +137,10 @@ def build_completed_run_metadata(
 ) -> dict[str, Any]:
     payload = parse_run_metadata(metadata).model_dump()
     if result_metadata:
-        payload.update(_dump_model(result_metadata))
+        result_payload = _dump_model(result_metadata)
+        if result_payload.get("preview") is None and payload.get("preview") is not None:
+            result_payload.pop("preview", None)
+        payload.update(result_payload)
     payload["schema_version"] = CURRENT_BACKTEST_RUN_SCHEMA_VERSION
     payload["report"] = _dump_model(report)
     return _validate_run_metadata(payload)

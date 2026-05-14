@@ -29,11 +29,6 @@ export interface SentimentData {
   last_updated: string | null
 }
 
-export interface KlineCacheEntry {
-  data: OhlcvPointResponse[]
-  timestamp: number
-}
-
 export interface SentimentCache {
   value: SentimentData | null
   timestamp: number

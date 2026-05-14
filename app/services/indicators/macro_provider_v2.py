@@ -10,7 +10,7 @@ from typing import List, Dict, Any, Optional
 from .base_provider import BaseIndicatorProvider, logger
 from config import settings
 from app.domain.market.dli_catalog import MACRO_INDICATOR_SOURCES
-from app.infra.executor import run_sync
+from app.infra.executor import run_external_io
 from app.services.fred_api_config_service import get_fred_api_key
 
 
@@ -69,7 +69,7 @@ class MacroProviderV2(BaseIndicatorProvider):
             return None
 
         try:
-            return await run_sync(_get)
+            return await run_external_io(_get)
         except Exception as e:
             logger.error(f"Failed to fetch FRED {series_id}: {e}")
 
@@ -121,7 +121,7 @@ class MacroProviderV2(BaseIndicatorProvider):
             ] or None
 
         try:
-            return await run_sync(_get)
+            return await run_external_io(_get)
         except Exception as e:
             logger.error(f"Failed to fetch Treasury TGA: {e}")
             return None
@@ -144,7 +144,7 @@ class MacroProviderV2(BaseIndicatorProvider):
                     "value": val
                 }
 
-            return await run_sync(_get)
+            return await run_external_io(_get)
 
         except Exception as e:
             logger.error(f"Failed to fetch YFinance {ticker}: {e}")

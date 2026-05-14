@@ -10,7 +10,7 @@ import type { OhlcvPointResponse } from './contracts'
 import { marketApi } from './api'
 import { buildHalvingSnapshot, createDefaultHalvingSnapshot, normalizeHalvingSnapshot } from './pageSnapshots'
 import { parseLocalIsoDate } from '@/utils/localDate'
-import { useMarketStore } from './store'
+import { usePriceHistoryStore } from './priceHistoryStore'
 
 interface HalvingChartRuntime {
   Chart: typeof import('chart.js').Chart
@@ -71,7 +71,7 @@ export function useHalvingPage() {
   const { t } = useI18n()
   const { theme } = useTheme()
   const { displayCurrency, toDisplayAmount, formatMoney } = useMoney()
-  const marketStore = useMarketStore()
+  const priceHistoryStore = usePriceHistoryStore()
   const pageSnapshot = createPersistentPageSnapshot(PAGE_SNAPSHOT_KEYS.halving, normalizeHalvingSnapshot, createDefaultHalvingSnapshot())
   const restoredSnapshot = pageSnapshot.initial
 
@@ -93,16 +93,16 @@ export function useHalvingPage() {
     return Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100).toFixed(1)
   })
   const historyResponse = computed(() => (
-    marketStore.readPriceHistory(HALVING_PRICE_SYMBOL, HALVING_PRICE_TIMEFRAME, HALVING_HISTORY_START_DATE)
+    priceHistoryStore.readPriceHistory(HALVING_PRICE_SYMBOL, HALVING_PRICE_TIMEFRAME, HALVING_HISTORY_START_DATE)
   ))
   const historyData = computed<OhlcvPointResponse[]>(() => (
     (historyResponse.value?.items || []).filter((row) => row.close > 0)
   ))
   const historyError = computed(() => (
-    marketStore.getPriceHistoryError(HALVING_PRICE_SYMBOL, HALVING_PRICE_TIMEFRAME, HALVING_HISTORY_START_DATE)
+    priceHistoryStore.getPriceHistoryError(HALVING_PRICE_SYMBOL, HALVING_PRICE_TIMEFRAME, HALVING_HISTORY_START_DATE)
   ))
   const loading = computed(() => (
-    marketStore.isPriceHistoryLoading(HALVING_PRICE_SYMBOL, HALVING_PRICE_TIMEFRAME, HALVING_HISTORY_START_DATE)
+    priceHistoryStore.isPriceHistoryLoading(HALVING_PRICE_SYMBOL, HALVING_PRICE_TIMEFRAME, HALVING_HISTORY_START_DATE)
     || (!historyResponse.value && !historyError.value)
   ))
 
@@ -336,7 +336,7 @@ export function useHalvingPage() {
 
   const fetchHistoryData = async () => {
     try {
-      const response = await marketStore.getPriceHistory(
+      const response = await priceHistoryStore.getPriceHistory(
         HALVING_PRICE_SYMBOL,
         HALVING_PRICE_TIMEFRAME,
         HALVING_HISTORY_START_DATE,

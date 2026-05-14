@@ -7,7 +7,7 @@ from app.domain.market.trade_setup import TradeSetupEngine, TradeSetupRequest
 from app.services.market.crypto_index_service import CryptoIndexService
 from app.services.market.indicator_service import IndicatorService
 from app.services.market.query_app_service import MarketQueryAppService
-from app.infra.executor import run_sync
+from app.infra.executor import run_database
 
 
 class MarketInsightAppService:
@@ -40,10 +40,10 @@ class MarketInsightAppService:
         category: str | None,
         days: int,
     ) -> list[dict[str, Any]]:
-        return await run_sync(lambda: self.get_indicators(category=category, days=days))
+        return await run_database(lambda: self.get_indicators(category=category, days=days))
 
     async def get_dli_liquidity_async(self, days: int, change_days: int = 30) -> dict[str, Any]:
-        return await run_sync(lambda: self.get_dli_liquidity(days=days, change_days=change_days))
+        return await run_database(lambda: self.get_dli_liquidity(days=days, change_days=change_days))
 
     async def get_crypto_index(self, top_n: int, days: int) -> dict[str, Any]:
         return await self.crypto_index_service.build_index(top_n=top_n, days=days)

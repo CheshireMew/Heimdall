@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from app.application.backtest.ports import BacktestReportBuilder, BacktestRunMutations
+from app.application.backtest.ports import BacktestReportBuilder, FactorBacktestRunWriter
 from app.application.factors.ports import FactorResearchProvider, FactorSignalCore
 from app.contracts.backtest import (
     BacktestPortfolioConfig,
@@ -15,7 +15,7 @@ from app.contracts.backtest import (
 )
 from app.contracts.backtest_run import BACKTEST_EXECUTION_MODE, FACTOR_BLEND_ENGINE, RUN_STATUS_COMPLETED, build_backtest_metadata, parse_run_metadata
 from app.domain.backtest.strategy_support import blank_strategy_version_config_model
-from app.infra.executor import run_sync
+from app.infra.executor import run_compute
 from app.contracts.factor import FactorExecutionConfig
 from app.domain.factors.signal_execution_core import FactorSignalContext
 
@@ -27,12 +27,12 @@ class FactorExecutionService:
         factor_service: FactorResearchProvider,
         report_builder: BacktestReportBuilder,
         execution_core: FactorSignalCore,
-        run_mutations: BacktestRunMutations,
+        factor_backtest_runs: FactorBacktestRunWriter,
     ) -> None:
         self.factor_service = factor_service
         self.report_builder = report_builder
         self.execution_core = execution_core
-        self.run_mutations = run_mutations
+        self.factor_backtest_runs = factor_backtest_runs
 
     def run_backtest(self, config: FactorExecutionConfig) -> int:
         research_run, frame = self.factor_service.build_stored_blend_frame(config.research_run_id)
@@ -139,7 +139,7 @@ class FactorExecutionService:
         )
 
     async def run_backtest_async(self, config: FactorExecutionConfig) -> int:
-        return await run_sync(lambda: self.run_backtest(config))
+        return await run_compute(lambda: self.run_backtest(config))
 
     def _persist_backtest_run(
         self,
@@ -154,7 +154,7 @@ class FactorExecutionService:
         equity_curve: list[BacktestEquityPointRecord],
         metadata: dict[str, Any],
     ) -> int:
-        return self.run_mutations.store_completed_rows(
+        return self.factor_backtest_runs.store_completed_rows(
             symbol=symbol,
             timeframe=timeframe,
             start_date=start_date,

@@ -1,6 +1,36 @@
 // This file is generated from backend FastAPI route contracts.
 // Do not edit manually.
 
+export interface BacktestPreviewResponse {
+  preview_id: string
+  fingerprint: string
+  strategy_key: string
+  strategy_name: string
+  strategy_version: number
+  strategy_template: string
+  timeframe: string
+  symbols: Array<string>
+  start_date: string
+  end_date: string
+  candles?: { [key: string]: Array<OhlcvPointResponse> }
+  markers?: { [key: string]: Array<StrategyPreviewMarkerResponse> }
+  indicator_series?: { [key: string]: Array<StrategyPreviewIndicatorSeriesResponse> }
+  coverage?: { [key: string]: MarketHistoryCoverageResponse }
+  diagnostics?: Array<StrategyPreviewDiagnosticResponse>
+}
+
+export interface BacktestPreviewRequest {
+  strategy_key?: string
+  strategy_version?: number | null
+  timeframe?: string
+  start_date?: string
+  end_date?: string
+  initial_cash?: number
+  fee_rate?: number
+  portfolio?: BacktestPortfolioConfig
+  research?: BacktestResearchConfig
+}
+
 export interface BacktestStartResponse {
   success: boolean
   backtest_id: number
@@ -17,6 +47,8 @@ export interface BacktestStartRequest {
   fee_rate?: number
   portfolio?: BacktestPortfolioConfig
   research?: BacktestResearchConfig
+  preview_id: string
+  approved_fingerprint: string
 }
 
 export interface PaperStartResponse {
@@ -233,6 +265,7 @@ export interface BacktestExecutionMetadataResponse {
   selected_config?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
   raw_stats?: BacktestReportSnapshotResponse | null
   error?: string | null
+  preview?: BacktestPreviewApprovalResponse | null
   execution_mode: "backtest"
   research?: BacktestResearchReportResponse | BacktestResearchConfig | null
   sample_ranges?: BacktestSampleRangesResponse | null
@@ -312,6 +345,17 @@ export interface BacktestPortfolioSummaryResponse {
   position_size_pct?: number
   stake_mode?: "fixed" | "unlimited"
   stake_currency?: string | null
+}
+
+export interface BacktestPreviewApprovalResponse {
+  id: string
+  fingerprint: string
+  strategy_key?: string | null
+  strategy_version?: number | null
+  timeframe?: string | null
+  symbols?: Array<string>
+  markers?: { [key: string]: Array<{ [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }> }
+  diagnostics?: Array<{ [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }>
 }
 
 export interface BacktestReportResponse {
@@ -448,6 +492,25 @@ export interface BacktestTradeResponse {
   id: number
 }
 
+export interface MarketHistoryCoverageResponse {
+  complete: boolean
+  missing_ranges?: Array<MarketHistoryMissingRangeResponse>
+}
+
+export interface MarketHistoryMissingRangeResponse {
+  start_ts: number
+  end_ts: number
+}
+
+export interface OhlcvPointResponse {
+  timestamp: number
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+
 export interface PaginationResponse {
   page: number
   page_size: number
@@ -480,6 +543,7 @@ export interface PaperLiveExecutionMetadataResponse {
   selected_config?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
   raw_stats?: BacktestReportSnapshotResponse | null
   error?: string | null
+  preview?: BacktestPreviewApprovalResponse | null
   execution_mode: "paper_live"
   runtime_state?: BacktestRuntimeStateResponse | null
   paper_live?: BacktestPaperLiveResponse | null
@@ -590,6 +654,36 @@ export interface StrategyPartialExitResponse {
   enabled?: boolean
 }
 
+export interface StrategyPreviewDiagnosticResponse {
+  severity: "info" | "warning" | "critical"
+  title: string
+  message: string
+}
+
+export interface StrategyPreviewIndicatorPointResponse {
+  time: number
+  value: number
+}
+
+export interface StrategyPreviewIndicatorSeriesResponse {
+  symbol: string
+  indicator_id: string
+  output: string
+  label: string
+  points?: Array<StrategyPreviewIndicatorPointResponse>
+}
+
+export interface StrategyPreviewMarkerResponse {
+  symbol: string
+  time: number
+  price: number
+  kind: "long_entry" | "long_exit" | "short_entry" | "short_exit"
+  side: "long" | "short"
+  label: string
+  active_regime?: string | null
+  indicators?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
+}
+
 export interface StrategyPriceSourceResponse {
   kind: "price"
   field?: "open" | "high" | "low" | "close" | "volume"
@@ -629,7 +723,6 @@ export interface StrategyStateBranchResponse {
 }
 
 export interface StrategyTemplateCapabilitiesResponse {
-  signal_runtime?: boolean
   paper?: boolean
   version_editing?: boolean
 }

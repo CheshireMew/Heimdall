@@ -16,6 +16,8 @@ def make_backtest_start_payload() -> dict[str, Any]:
         "days": 180,
         "initial_cash": 100000,
         "fee_rate": 0.1,
+        "preview_id": "preview-101",
+        "approved_fingerprint": "fingerprint-101",
         "portfolio": {
             "symbols": ["BTC/USDT", "ETH/USDT"],
             "max_open_trades": 2,
@@ -147,6 +149,7 @@ def test_full_history_uses_service_level_cache_write(api_harness):
 def test_backtest_mutation_routes_normalize_contracts(api_harness):
     client = api_harness["client"]
 
+    preview_response = client.post("/api/v1/backtest/preview", json=make_backtest_start_payload())
     start_response = client.post("/api/v1/backtest/start", json=make_backtest_start_payload())
     paper_response = client.post("/api/v1/paper/start", json=make_paper_start_payload())
     template_response = client.post("/api/v1/backtest/templates", json=make_template_payload())
@@ -170,6 +173,7 @@ def test_backtest_mutation_routes_normalize_contracts(api_harness):
         json={"version_name": "EMA RSI MACD evolved", "make_default": False},
     )
 
+    assert preview_response.status_code == 200
     assert start_response.status_code == 200
     assert paper_response.status_code == 200
     assert template_response.status_code == 200
@@ -177,6 +181,7 @@ def test_backtest_mutation_routes_normalize_contracts(api_harness):
     assert strategy_response.status_code == 200
     assert evolve_response.status_code == 200
 
+    preview_command = api_harness["backtest_command"].received_commands["preview_backtest"]
     start_command = api_harness["backtest_command"].received_commands["start_backtest"]
     paper_command = api_harness["backtest_command"].received_commands["start_paper_run"]
     template_command = api_harness["backtest_command"].received_commands["create_template"]
@@ -184,7 +189,9 @@ def test_backtest_mutation_routes_normalize_contracts(api_harness):
     strategy_command = api_harness["backtest_command"].received_commands["create_strategy_version"]
     evolve_command = api_harness["backtest_command"].received_commands["evolve_strategy_from_backtest"]
 
+    assert preview_command.portfolio.symbols == ["BTC/USDT", "ETH/USDT"]
     assert start_command.portfolio.symbols == ["BTC/USDT", "ETH/USDT"]
+    assert start_command.preview_id == "preview-101"
     assert start_command.research.optimize_metric == "sharpe"
     assert paper_command.portfolio.max_open_trades == 2
     assert template_command.key == "trend_following_v2"

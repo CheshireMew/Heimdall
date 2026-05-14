@@ -143,28 +143,31 @@ def test_frontend_components_do_not_import_generated_types_directly():
     assert offenders == []
 
 
-def test_market_store_cache_contract_is_stable():
-    source = read_frontend("modules/market/store.ts")
+def test_market_cache_stores_have_resource_boundaries():
+    assert not (FRONTEND_DIR / "modules" / "market" / "store.ts").exists()
+    kline_source = read_frontend("modules/market/klineStore.ts")
+    indicator_source = read_frontend("modules/market/indicatorStore.ts")
 
-    assert "heimdall_market_cache" not in source
-    assert "localStorage" not in source
-    assert "sessionStorage" not in source
-    assert "_readKlineSlice" in source
-    assert "cachedData.length >= limit" in source
-    assert "return this._readKlineSlice(cachedData, limit)" in source
-    assert "10000" in source
-    assert "300000" in source
-    assert "60000" in source
-    assert "marketApi.getLatestKlines" in source
-    assert "marketApi.getIndicators" in source
-    assert "Extreme Greed" in source
+    for source in [kline_source, indicator_source]:
+        assert "localStorage" not in source
+        assert "sessionStorage" not in source
+    assert "readKlineSlice" in kline_source
+    assert "cachedData.length >= limit" in kline_source
+    assert "return this.readKlineSlice(cachedData, limit)" in kline_source
+    assert "MARKET_CACHE_TTL_MS.klineLive" in kline_source
+    assert "MARKET_CACHE_TTL_MS.marketIndicators" in indicator_source
+    assert "MARKET_CACHE_TTL_MS.sentimentFresh" in indicator_source
+    assert "MARKET_CACHE_TTL_MS.sentimentRefresh" in indicator_source
+    assert "marketApi.getLatestKlines" in kline_source
+    assert "marketApi.getIndicators" in indicator_source
+    assert "Extreme Greed" in indicator_source
 
 
 def test_kline_series_does_not_block_crypto_load_on_symbol_catalog():
     source = read_frontend("modules/market/useKlineSeries.ts")
 
     assert "ensureSymbolCatalogLoaded" not in source
-    assert "marketStore.getKlineData(requestSymbol, requestTimeframe, 1000, options)" in source
+    assert "klineStore.getKlineData(requestSymbol, requestTimeframe, 1000, options)" in source
     assert "isIndexSymbol(requestSymbol)" in source
 
 
@@ -241,6 +244,22 @@ def test_market_api_timeout_policy_matches_backend_wait_boundaries():
             rf"apiGet\('{route_name}'[^\n]*timeout: MARKET_API_TIMEOUT_MS\.{timeout_key}",
             source,
         ), route_name
+
+
+def test_backtest_paper_history_polling_has_single_non_overlapping_owner():
+    history_source = read_frontend("modules/backtest/useBacktestRunHistory.ts")
+    page_source = read_frontend("modules/backtest/useBacktestPage.ts")
+    detail_source = read_frontend("modules/backtest/useBacktestDetailPage.ts")
+
+    assert "paperHistoryPromise" in history_source
+    assert "paperSelectionRefreshPromise" in history_source
+    assert "startPaperHistoryPolling" in history_source
+    assert "stopPaperHistoryPolling" in history_source
+    assert "window.setInterval" in history_source
+    assert "window.setInterval" not in page_source
+    assert "window.setInterval" not in detail_source
+    assert "paperRefreshTimer" not in page_source
+    assert "paperRefreshTimer" not in detail_source
 
 
 def test_binance_market_frontend_does_not_persist_server_response_cache():

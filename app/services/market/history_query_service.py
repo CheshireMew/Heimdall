@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from typing import Any, Callable, Literal
+from typing import Callable, Literal
 
-from app.infra.executor import run_sync
+from app.contracts.market_history import (
+    build_kline_tail_payload,
+    build_market_history_batch_payload,
+    build_market_history_payload,
+)
+from app.infra.executor import run_database, run_external_io
 from app.services.market.app_service_support import validate_market_request
 from app.services.market.market_data_service import MarketDataService
-from app.services.market.query_payloads import (
-    market_history_batch_response,
-    market_history_response,
-    ohlcv_points,
-)
 from config import settings
 
 
@@ -26,12 +26,12 @@ class MarketHistoryQueryService:
         timeframe: str,
         end_ts: int,
         limit: int,
-    ) -> dict[str, Any]:
+    ):
         validate_market_request(symbol, timeframe)
-        rows = await run_sync(
+        rows = await run_database(
             lambda: self.market_data_service.get_history_data(symbol, timeframe, end_ts, limit)
         )
-        return market_history_response(symbol=symbol, timeframe=timeframe, rows=rows)
+        return build_market_history_payload(symbol=symbol, timeframe=timeframe, rows=rows)
 
     async def get_recent_klines(
         self,
@@ -39,9 +39,9 @@ class MarketHistoryQueryService:
         symbol: str,
         timeframe: str,
         limit: int,
-    ) -> dict[str, Any]:
+    ):
         validate_market_request(symbol, timeframe)
-        rows = await run_sync(
+        rows = await run_database(
             lambda: self.market_data_service.get_recent_candles(
                 symbol,
                 timeframe,
@@ -49,7 +49,7 @@ class MarketHistoryQueryService:
                 allow_cached_response=True,
             )
         )
-        return market_history_response(symbol=symbol, timeframe=timeframe, rows=rows)
+        return build_market_history_payload(symbol=symbol, timeframe=timeframe, rows=rows)
 
     async def get_live_kline_tail(
         self,
@@ -57,9 +57,9 @@ class MarketHistoryQueryService:
         symbol: str,
         timeframe: str,
         limit: int,
-    ) -> dict[str, Any]:
+    ):
         validate_market_request(symbol, timeframe)
-        kline_data = await run_sync(
+        kline_data = await run_external_io(
             lambda: self.market_data_service.get_recent_candles(
                 symbol,
                 timeframe,
@@ -69,13 +69,13 @@ class MarketHistoryQueryService:
             )
         )
         current_price = kline_data[-1][4] if kline_data else None
-        return {
-            "symbol": symbol,
-            "timeframe": timeframe,
-            "timestamp": datetime.now().isoformat(),
-            "current_price": current_price,
-            "kline_data": ohlcv_points(kline_data),
-        }
+        return build_kline_tail_payload(
+            symbol=symbol,
+            timeframe=timeframe,
+            timestamp=datetime.now().isoformat(),
+            current_price=current_price,
+            rows=kline_data,
+        )
 
     async def get_full_history(
         self,
@@ -85,7 +85,7 @@ class MarketHistoryQueryService:
         start_date: str,
         fetch_policy: Literal["cache_only", "hydrate"] = "hydrate",
         persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
-    ) -> dict[str, Any]:
+    ):
         validate_market_request(symbol, timeframe)
         rows, missing_ranges = await self._load_full_history_rows(
             symbol=symbol,
@@ -94,7 +94,7 @@ class MarketHistoryQueryService:
             fetch_policy=fetch_policy,
             persist_klines=persist_klines,
         )
-        return market_history_response(
+        return build_market_history_payload(
             symbol=symbol,
             timeframe=timeframe,
             rows=rows,
@@ -109,7 +109,7 @@ class MarketHistoryQueryService:
         start_date: str,
         fetch_policy: Literal["cache_only", "hydrate"] = "hydrate",
         persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
-    ) -> dict[str, Any]:
+    ):
         normalized_symbols: list[str] = []
         seen_symbols: set[str] = set()
         for symbol in symbols:
@@ -131,7 +131,7 @@ class MarketHistoryQueryService:
                 for symbol in normalized_symbols
             ],
         )
-        return market_history_batch_response(
+        return build_market_history_batch_payload(
             timeframe=timeframe,
             series_by_symbol=dict(zip(normalized_symbols, series, strict=False)),
         )
@@ -145,7 +145,7 @@ class MarketHistoryQueryService:
         fetch_policy: Literal["cache_only", "hydrate"],
         persist_klines: Callable[[str, str, list[list[float]]], None] | None,
     ) -> tuple[list[list[float]], list[tuple[int, int]]]:
-        return await run_sync(
+        return await run_external_io(
             lambda: self._load_full_history_rows_sync(
                 symbol=symbol,
                 timeframe=timeframe,

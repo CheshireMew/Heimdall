@@ -49,7 +49,7 @@ const createClient = (timeout: number): AxiosInstance => attachInterceptors(
 
 const apiClients = {
     default: createClient(15000),
-    longTask: createClient(0),
+    longTask: createClient(660000),
 } as const
 
 type ApiClientName = keyof typeof apiClients

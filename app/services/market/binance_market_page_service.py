@@ -4,7 +4,7 @@ import asyncio
 import time
 from typing import TYPE_CHECKING, Any
 
-from app.infra.executor import run_sync
+from app.infra.executor import run_compute
 from config import settings
 from utils.logger import logger
 
@@ -106,7 +106,7 @@ class BinanceMarketPageService:
             market_snapshot = await self._load_market_page_snapshot_for_refresh()
             ticker_rows = [item for item in market_snapshot["usdm_ticker"].get("items", [])]
             oi_changes = await self.oi_enricher.load_changes(ticker_rows)
-            board_fields = await run_sync(
+            board_fields = await run_compute(
                 lambda: self.board_builder.build_response_fields(
                     market_snapshot,
                     quote_asset=quote_asset,
@@ -170,7 +170,7 @@ class BinanceMarketPageService:
     async def _build_pending_page_payload(self, key: PageKey) -> dict[str, Any]:
         min_rise_pct, limit, quote_asset = key
         market_snapshot = await self.snapshot_service.get_market_page_snapshot_data()
-        board_fields = await run_sync(
+        board_fields = await run_compute(
             lambda: self.board_builder.build_response_fields(
                 market_snapshot,
                 quote_asset=quote_asset,

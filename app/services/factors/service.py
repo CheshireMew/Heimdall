@@ -7,7 +7,7 @@ from app.domain.market.symbol_catalog import get_supported_crypto_symbols
 from app.exceptions import NotFoundError
 from app.services.market.market_data_service import MarketDataService
 from app.services.persistence_ports import FactorResearchRepositoryPort, IndicatorRepositoryPort
-from app.infra.executor import run_sync
+from app.infra.executor import run_compute, run_database
 
 from .analysis_service import FactorAnalysisService
 from .catalog_service import FactorCatalogService
@@ -46,13 +46,13 @@ class FactorResearchService:
         return self.catalog_service.get_catalog()
 
     async def get_catalog_async(self) -> dict[str, Any]:
-        return await run_sync(self.get_catalog)
+        return await run_database(self.get_catalog)
 
     def list_runs(self, limit: int = 20) -> list[dict[str, Any]]:
         return self.repository.list_research_runs(limit=limit)
 
     async def list_runs_async(self, limit: int = 20) -> list[dict[str, Any]]:
-        return await run_sync(lambda: self.list_runs(limit=limit))
+        return await run_database(lambda: self.list_runs(limit=limit))
 
     def get_run(self, run_id: int) -> dict[str, Any]:
         row = self._get_run_record(run_id)
@@ -61,7 +61,7 @@ class FactorResearchService:
         return row
 
     async def get_run_async(self, run_id: int) -> dict[str, Any]:
-        return await run_sync(lambda: self.get_run(run_id))
+        return await run_database(lambda: self.get_run(run_id))
 
     def build_stored_blend_frame(self, run_id: int):
         run = self._get_run_record(run_id)
@@ -189,7 +189,7 @@ class FactorResearchService:
         categories: list[str] | None = None,
         factor_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        return await run_sync(
+        return await run_compute(
             lambda: self.analyze(
                 symbol=symbol,
                 timeframe=timeframe,

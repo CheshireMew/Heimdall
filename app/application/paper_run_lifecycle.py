@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from app.infra.executor import run_sync
-from app.application.backtest.ports import BacktestRunMutations
+from app.infra.executor import run_database
+from app.application.backtest.ports import PaperRunWriter
 from app.application.run_task_manager import RunTaskManager
 from app.contracts.backtest_run import PAPER_LIVE_EXECUTION_MODE, RUN_STATUS_FAILED, update_paper_metadata
 from utils.time_utils import utc_now_naive
@@ -16,12 +16,12 @@ class PaperRunLifecycle:
         *,
         engine: str,
         run_repository,
-        run_mutations: BacktestRunMutations,
+        paper_runs: PaperRunWriter,
         runtime_state: Callable[[Any], dict[str, Any]],
     ) -> None:
         self.engine = engine
         self.run_repository = run_repository
-        self.run_mutations = run_mutations
+        self.paper_runs = paper_runs
         self.runtime_state = runtime_state
 
     def list_active_run_ids(self) -> list[int]:
@@ -31,11 +31,11 @@ class PaperRunLifecycle:
         )
 
     def mark_stopped(self, run_id: int, status: str, reason: str) -> None:
-        run = self.run_mutations.get_paper_run(run_id=run_id, engine=self.engine)
+        run = self.paper_runs.get_paper_run(run_id=run_id, engine=self.engine)
         if run is None:
             return
         now = utc_now_naive()
-        self.run_mutations.set_paper_status(
+        self.paper_runs.set_paper_status(
             run_id=run_id,
             engine=self.engine,
             status=status,
@@ -54,7 +54,7 @@ class PaperRunController:
         *,
         engine: str,
         run_repository,
-        run_mutations: BacktestRunMutations,
+        paper_runs: PaperRunWriter,
         runtime_state: Callable[[Any], dict[str, Any]],
         tick: Callable[[int], bool],
         interval_seconds: Callable[[], float],
@@ -63,7 +63,7 @@ class PaperRunController:
         self.lifecycle = PaperRunLifecycle(
             engine=engine,
             run_repository=run_repository,
-            run_mutations=run_mutations,
+            paper_runs=paper_runs,
             runtime_state=runtime_state,
         )
         self._task_manager = RunTaskManager(
@@ -74,8 +74,8 @@ class PaperRunController:
             error_label=error_label,
         )
 
-    async def restore_active_runs(self) -> None:
-        await self._task_manager.restore_active_runs()
+    async def start_active_run_monitoring(self) -> None:
+        await self._task_manager.start_active_run_monitoring()
 
     async def shutdown(self) -> None:
         await self._task_manager.shutdown()
@@ -97,8 +97,8 @@ class PaperRunHost:
     def __init__(self, controller: PaperRunController) -> None:
         self._controller = controller
 
-    async def restore_active_runs(self) -> None:
-        await self._controller.restore_active_runs()
+    async def start_active_run_monitoring(self) -> None:
+        await self._controller.start_active_run_monitoring()
 
     async def shutdown(self) -> None:
         await self._controller.shutdown()
@@ -107,15 +107,15 @@ class PaperRunHost:
         self._controller.activate_run(run_id)
 
     async def stop_and_cancel_run(self, run_id: int, *, status: str, reason: str) -> None:
-        await run_sync(lambda: self._controller.mark_stopped(run_id, status, reason))
+        await run_database(lambda: self._controller.mark_stopped(run_id, status, reason))
         await self._controller.cancel_run(run_id)
 
 
 class PaperRunHostedService:
     paper_host: PaperRunHost
 
-    async def restore_active_runs(self) -> None:
-        await self.paper_host.restore_active_runs()
+    async def start_active_run_monitoring(self) -> None:
+        await self.paper_host.start_active_run_monitoring()
 
     async def shutdown(self) -> None:
         await self.paper_host.shutdown()

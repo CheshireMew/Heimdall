@@ -237,6 +237,7 @@ import MacroSparkline from '@/components/market/MacroSparkline.vue'
 import { useTheme } from '@/composables/useTheme'
 import { formatPercentile, formatSignedNumber } from '@/modules/format'
 import { useMacroLiquidityPage, type MacroMetricCard } from '@/modules/market'
+import { macroPressureClass, macroScoreToneClass } from '@/modules/market/macroLiquidityPresentation'
 
 const lookbackDays = 365
 const changeDays = ref(30)
@@ -264,11 +265,7 @@ const scorePercentilePosition = computed(() => clampPercent(scorePercentile.valu
 const statusPercentileLabel = computed(() => (
   scorePercentile.value === null ? '--' : `P${Math.round(scorePercentile.value)}`
 ))
-const scoreToneClass = computed(() => {
-  if (scoreTone.value === 'support') return 'text-[#0f6b4f] dark:text-emerald-300'
-  if (scoreTone.value === 'pressure') return 'text-[#c84c28] dark:text-orange-300'
-  return 'text-[#8a6a24] dark:text-amber-300'
-})
+const scoreToneClass = computed(() => macroScoreToneClass(scoreTone.value))
 
 const toneClass = (tone: MacroMetricCard['tone']) => {
   if (tone === 'support') return 'border-[#b8d2c4] bg-[#edf3ee] text-[#0f6b4f] dark:border-emerald-400/40 dark:bg-emerald-400/10 dark:text-emerald-300'
@@ -283,10 +280,7 @@ const sparkColor = (tone: MacroMetricCard['tone']) => {
 }
 
 const formatWeight = (value: number) => `${value.toFixed(2)}%`
-const pressureClass = (value: number | null) => {
-  if (typeof value !== 'number' || Math.abs(value) < 0.001) return 'text-slate-500 dark:text-slate-400'
-  return value >= 0 ? 'text-[#c84c28] dark:text-orange-300' : 'text-[#0f6b4f] dark:text-emerald-300'
-}
+const pressureClass = macroPressureClass
 const lagClass = (value: number | null) => {
   if (typeof value !== 'number') return 'data-lag-pill--stale'
   if (value <= 3) return 'data-lag-pill--fresh'

@@ -151,6 +151,17 @@ class BacktestPaperLiveResponse(BaseModel):
     stop_reason: str | None = None
 
 
+class BacktestPreviewApprovalResponse(BaseModel):
+    id: str
+    fingerprint: str
+    strategy_key: str | None = None
+    strategy_version: int | None = None
+    timeframe: str | None = None
+    symbols: list[str] = Field(default_factory=list)
+    markers: dict[str, list[JsonObject]] = Field(default_factory=dict)
+    diagnostics: list[JsonObject] = Field(default_factory=list)
+
+
 class _BacktestRunMetadataCommonResponse(BaseModel):
     schema_version: int | None = None
     execution_model: str | None = None
@@ -176,6 +187,7 @@ class _BacktestRunMetadataCommonResponse(BaseModel):
     selected_config: JsonObject = Field(default_factory=dict)
     raw_stats: BacktestReportSnapshotResponse | None = None
     error: str | None = None
+    preview: BacktestPreviewApprovalResponse | None = None
 
 
 class BacktestExecutionMetadataResponse(_BacktestRunMetadataCommonResponse):

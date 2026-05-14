@@ -40,7 +40,12 @@
         {{ $t('backtest.report') }} / K线复盘
       </div>
       <div class="h-[420px] relative">
-        <TradingViewChart :data="panel.chartData.candles" :volume-data="panel.chartData.volume" :colors="panel.chartColors" />
+        <TradingViewChart
+          :data="panel.chartData.candles"
+          :volume-data="panel.chartData.volume"
+          :strategy-markers="panel.chartData.markers"
+          :colors="panel.chartColors"
+        />
       </div>
     </div>
   </section>

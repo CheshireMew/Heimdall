@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.exceptions import NotFoundError
 from app.application.backtest.ports import BacktestRunReader, StrategyReader
-from app.infra.executor import run_sync
+from app.infra.executor import run_database
 
 
 class BacktestQueryService:
@@ -18,34 +18,34 @@ class BacktestQueryService:
         self.run_repository = run_repository
 
     async def list_strategies(self) -> list[dict]:
-        return await run_sync(self.strategy_query_service.list_strategies)
+        return await run_database(self.strategy_query_service.list_strategies)
 
     async def list_templates(self) -> list[dict]:
-        return await run_sync(self.strategy_query_service.list_templates)
+        return await run_database(self.strategy_query_service.list_templates)
 
     async def get_editor_contract(self) -> dict:
-        return await run_sync(self.strategy_query_service.get_editor_contract)
+        return await run_database(self.strategy_query_service.get_editor_contract)
 
     async def list_indicators(self) -> list[dict]:
-        return await run_sync(self.strategy_query_service.list_indicators)
+        return await run_database(self.strategy_query_service.list_indicators)
 
     async def list_indicator_engines(self) -> list[dict]:
-        return await run_sync(self.strategy_query_service.list_indicator_engines)
+        return await run_database(self.strategy_query_service.list_indicator_engines)
 
     async def list_runs(self) -> list[dict]:
-        return await run_sync(self.run_repository.list_runs)
+        return await run_database(self.run_repository.list_runs)
 
     async def get_run(self, backtest_id: int, page: int, page_size: int) -> dict:
-        result = await run_sync(lambda: self.run_repository.get_run(backtest_id, page, page_size))
+        result = await run_database(lambda: self.run_repository.get_run(backtest_id, page, page_size))
         if result is None:
             raise NotFoundError("回测记录不存在")
         return result
 
     async def list_paper_runs(self) -> list[dict]:
-        return await run_sync(lambda: self.run_repository.list_runs("paper_live"))
+        return await run_database(lambda: self.run_repository.list_runs("paper_live"))
 
     async def get_paper_run(self, run_id: int, page: int, page_size: int) -> dict:
-        result = await run_sync(
+        result = await run_database(
             lambda: self.run_repository.get_run(run_id, page, page_size, "paper_live")
         )
         if result is None:

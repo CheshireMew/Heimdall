@@ -3,11 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from app.contracts.strategy import StrategyIndicatorConfigResponse, StrategyTemplateConfigResponse
-from app.domain.backtest.scripted_template_runtime import (
-    build_scripted_strategy_code,
+from app.domain.backtest.scripted_templates import (
     get_template_runtime,
-    scripted_trade_settings,
-    scripted_warmup_bars,
+    require_scripted_template,
     template_builder_kind,
 )
 from app.domain.backtest.freqtrade_strategy_runtime import (
@@ -35,8 +33,7 @@ class FreqtradeStrategyBuilder:
     def build_code(self, template: str, timeframe: str, config: dict[str, Any] | StrategyTemplateConfigResponse) -> str:
         runtime_contract = get_template_runtime(template)
         if template_builder_kind(runtime_contract) == "scripted":
-            return build_scripted_strategy_code(
-                template=template,
+            return require_scripted_template(template).build_strategy_code(
                 strategy_class_name=self.strategy_class_name,
                 timeframe=timeframe,
             )
@@ -142,7 +139,7 @@ class {self.strategy_class_name}(IStrategy):
         runtime_contract = get_template_runtime(template)
         if template_builder_kind(runtime_contract) == "scripted":
             payload = config.model_dump() if isinstance(config, StrategyTemplateConfigResponse) else config
-            return scripted_warmup_bars(template, payload, timeframe)
+            return require_scripted_template(template).warmup_bars(payload, timeframe)
         payload = config.model_dump() if isinstance(config, StrategyTemplateConfigResponse) else config
         return self.runtime.warmup_bars(template, payload, timeframe)
 
@@ -150,7 +147,7 @@ class {self.strategy_class_name}(IStrategy):
         runtime_contract = get_template_runtime(template)
         if template_builder_kind(runtime_contract) == "scripted":
             payload = config.model_dump() if isinstance(config, StrategyTemplateConfigResponse) else config
-            return scripted_trade_settings(template, payload)
+            return require_scripted_template(template).trade_settings(payload)
         normalized_config = config if isinstance(config, StrategyTemplateConfigResponse) else self.runtime.normalized_config(template, config)
         partial_exits = [item for item in normalized_config.risk.partial_exits if item.enabled]
         order_types = {

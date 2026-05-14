@@ -12,7 +12,7 @@ from app.contracts.backtest import (
 from app.contracts.backtest_result import BacktestReportResponse
 from app.contracts.backtest_run import validate_backtest_run_metadata
 from app.application.backtest.run_service import BacktestRunService
-from app.infra.persistence.backtest.run_mutation_service import BacktestRunMutationService
+from app.infra.persistence.backtest.backtest_run_writer import BacktestRunWriteRepository
 from app.domain.backtest.strategy_support import normalize_strategy_version_config_model
 
 
@@ -90,7 +90,7 @@ def _research() -> BacktestResearchConfig:
 def test_run_service_persists_failed_run_record(db_session, installed_database_runtime):
     service = BacktestRunService(
         execution_engine=_FailingExecutionEngine(),
-        run_mutations=BacktestRunMutationService(database_runtime=installed_database_runtime),
+        run_writer=BacktestRunWriteRepository(database_runtime=installed_database_runtime),
     )
     result = service.run_backtest(
         strategy=_strategy(),
@@ -113,7 +113,7 @@ def test_run_service_persists_failed_run_record(db_session, installed_database_r
 def test_run_service_uses_displayed_range_as_canonical_run_range(db_session, installed_database_runtime):
     service = BacktestRunService(
         execution_engine=_SuccessfulExecutionEngine(),
-        run_mutations=BacktestRunMutationService(database_runtime=installed_database_runtime),
+        run_writer=BacktestRunWriteRepository(database_runtime=installed_database_runtime),
     )
     result = service.run_backtest(
         strategy=_strategy(),
@@ -124,6 +124,16 @@ def test_run_service_uses_displayed_range_as_canonical_run_range(db_session, ins
         timeframe="1h",
         initial_cash=100000.0,
         fee_rate=0.1,
+        preview_id="preview-1",
+        preview_fingerprint="fingerprint-1",
+        preview_artifact={
+            "strategy_key": "demo",
+            "strategy_version": 1,
+            "timeframe": "1h",
+            "symbols": ["BTC/USDT"],
+            "markers": {"BTC/USDT": [{"time": 1710000000000, "kind": "long_entry", "label": "做多入场"}]},
+            "diagnostics": [],
+        },
     )
 
     assert result is not None
@@ -133,3 +143,5 @@ def test_run_service_uses_displayed_range_as_canonical_run_range(db_session, ins
     assert run.start_date == datetime(2024, 5, 14, 9, 35, 59, 999999)
     assert run.end_date == datetime(2024, 6, 1, 23, 59, 59, 999999)
     assert run.metadata_info["sample_ranges"]["requested"]["start"] == "2024-04-01T00:00:00"
+    assert run.metadata_info["preview"]["id"] == "preview-1"
+    assert run.metadata_info["preview"]["markers"]["BTC/USDT"][0]["kind"] == "long_entry"

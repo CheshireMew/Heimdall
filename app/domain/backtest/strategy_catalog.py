@@ -4,7 +4,7 @@ from copy import deepcopy
 from typing import Any
 
 from app.domain.backtest.indicator_engines import INDICATOR_ENGINES
-from app.domain.backtest.scripted_template_runtime import get_template_runtime
+from app.domain.backtest.scripted_templates import get_template_runtime
 from app.domain.backtest.strategy_config_normalizer import (
     blank_strategy_config,
     normalize_indicator_params,

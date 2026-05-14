@@ -10,22 +10,22 @@ import {
 } from '@/modules/format'
 import type { CryptoIndexConstituentResponse, CryptoIndexHistoryPointResponse, CryptoIndexResponse } from './contracts'
 import { buildCryptoIndexSnapshot, createDefaultCryptoIndexSnapshot, normalizeCryptoIndexSnapshot } from './pageSnapshots'
-import { useMarketStore } from './store'
+import { useCryptoIndexStore } from './cryptoIndexStore'
 
 
 export function useCryptoIndexPage() {
   const { theme } = useTheme()
-  const marketStore = useMarketStore()
+  const cryptoIndexStore = useCryptoIndexStore()
   const pageSnapshot = createPersistentPageSnapshot(PAGE_SNAPSHOT_KEYS.cryptoIndex, normalizeCryptoIndexSnapshot, createDefaultCryptoIndexSnapshot())
   const restoredSnapshot = pageSnapshot.initial
 
   const basketSizes = [10, 20, 50]
   const topN = ref(restoredSnapshot.topN)
   const days = ref(restoredSnapshot.days)
-  const data = computed<CryptoIndexResponse | null>(() => marketStore.readCryptoIndex(topN.value, days.value))
-  const error = computed(() => marketStore.getCryptoIndexError(topN.value, days.value))
+  const data = computed<CryptoIndexResponse | null>(() => cryptoIndexStore.readCryptoIndex(topN.value, days.value))
+  const error = computed(() => cryptoIndexStore.getCryptoIndexError(topN.value, days.value))
   const loading = computed(() => (
-    marketStore.isCryptoIndexLoading(topN.value, days.value)
+    cryptoIndexStore.isCryptoIndexLoading(topN.value, days.value)
     || (!data.value && !error.value)
   ))
 
@@ -97,7 +97,7 @@ export function useCryptoIndexPage() {
   ])
 
   const fetchData = async (options: { force?: boolean } = {}) => {
-    await marketStore.getCryptoIndex(topN.value, days.value, options)
+    await cryptoIndexStore.getCryptoIndex(topN.value, days.value, options)
   }
 
   const refresh = async () => {

@@ -42,7 +42,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { createChart, CandlestickSeries, AreaSeries, HistogramSeries, LineStyle } from 'lightweight-charts'
+import { createChart, CandlestickSeries, AreaSeries, HistogramSeries, LineStyle, createSeriesMarkers } from 'lightweight-charts'
 import { useMoney } from '@/composables/useMoney'
 import { formatAdaptivePrice } from '@/modules/format'
 
@@ -76,6 +76,10 @@ const props = defineProps({
   tradeSetup: {
     type: Object,
     default: null
+  },
+  strategyMarkers: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -86,6 +90,7 @@ let chart = null
 let mainSeries = null
 let volumeSeries = null
 let tradePriceLines = []
+let strategyMarkerPlugin = null
 let overlayFrame = 0
 
 const resolvePricePrecision = () => {
@@ -182,6 +187,39 @@ const syncTradeSetup = () => {
     }))
     syncAutoscale()
     scheduleOverlayUpdate()
+}
+
+const markerPosition = (kind) => (kind.includes('entry') ? 'belowBar' : 'aboveBar')
+const markerShape = (kind) => {
+    if (kind === 'long_entry') return 'arrowUp'
+    if (kind === 'short_entry') return 'arrowDown'
+    return 'circle'
+}
+const markerColor = (kind) => {
+    if (kind === 'long_entry') return '#059669'
+    if (kind === 'short_entry') return '#dc2626'
+    if (kind === 'long_exit') return '#0f766e'
+    return '#be123c'
+}
+
+const syncStrategyMarkers = () => {
+    if (!mainSeries) return
+    const markers = (props.strategyMarkers || [])
+        .map(item => ({
+            time: Math.floor(Number(item.time) / 1000),
+            position: item.position || markerPosition(String(item.kind || '')),
+            color: item.color || markerColor(String(item.kind || '')),
+            shape: item.shape || markerShape(String(item.kind || '')),
+            text: item.label || item.kind || '',
+        }))
+        .filter(item => Number.isFinite(item.time))
+        .sort((left, right) => left.time - right.time)
+
+    if (!strategyMarkerPlugin) {
+        strategyMarkerPlugin = createSeriesMarkers(mainSeries, markers)
+        return
+    }
+    strategyMarkerPlugin.setMarkers(markers)
 }
 
 const scheduleOverlayUpdate = () => {
@@ -307,6 +345,7 @@ const initChart = () => {
     syncAutoscale()
     updateData()
     syncTradeSetup()
+    syncStrategyMarkers()
 }
 
 const updateData = () => {
@@ -316,6 +355,7 @@ const updateData = () => {
     if (volumeSeries && props.volumeData.length > 0) volumeSeries.setData(props.volumeData)
     syncAutoscale()
     scheduleOverlayUpdate()
+    syncStrategyMarkers()
 }
 
 // Resize Observer
@@ -356,6 +396,10 @@ onUnmounted(() => {
     if (overlayFrame) cancelAnimationFrame(overlayFrame)
     if (chart) {
         clearTradePriceLines()
+        if (strategyMarkerPlugin) {
+            strategyMarkerPlugin.detach()
+            strategyMarkerPlugin = null
+        }
         chart.remove()
         chart = null
     }
@@ -367,6 +411,7 @@ onUnmounted(() => {
 watch(() => props.data, updateData, { deep: true })
 watch(() => props.volumeData, updateData, { deep: true })
 watch(() => props.tradeSetup, syncTradeSetup, { deep: true })
+watch(() => props.strategyMarkers, syncStrategyMarkers, { deep: true })
 watch(displayCurrency, syncTradeSetup)
 
 watch(() => props.colors, (newColors) => {

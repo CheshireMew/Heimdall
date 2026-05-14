@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from app.application.backtest.ports import BacktestReportBuilder, BacktestRunMutations
+from app.application.backtest.ports import BacktestReportBuilder, FactorPaperRunWriter, PaperRunWriter
 from app.application.factors.ports import FactorSignalCore
 from app.contracts.backtest import BacktestEquityPointRecord, BacktestSignalRecord, BacktestTradeRecord
 from app.contracts.backtest_metadata import BacktestRunMetadataCommon
@@ -15,11 +15,13 @@ class FactorPaperPersistenceService:
     def __init__(
         self,
         *,
-        run_mutations: BacktestRunMutations,
+        paper_runs: PaperRunWriter,
+        factor_paper_runs: FactorPaperRunWriter,
         report_builder: BacktestReportBuilder,
         execution_core: FactorSignalCore,
     ) -> None:
-        self.run_mutations = run_mutations
+        self.paper_runs = paper_runs
+        self.factor_paper_runs = factor_paper_runs
         self.report_builder = report_builder
         self.execution_core = execution_core
 
@@ -36,11 +38,11 @@ class FactorPaperPersistenceService:
         new_equity_points: list[BacktestEquityPointRecord],
         now: datetime,
     ) -> None:
-        run = self.run_mutations.get_run(run_id)
+        run = self.paper_runs.get_run(run_id)
         if run is None:
             raise ValueError(f"因子模拟盘记录不存在: {run_id}")
-        existing_trades = self.run_mutations.list_trade_records(run_id)
-        existing_equity = self.run_mutations.list_equity_records(run_id)
+        existing_trades = self.paper_runs.list_trade_records(run_id)
+        existing_equity = self.paper_runs.list_equity_records(run_id)
         adjusted_equity_points = self._with_running_drawdown(
             existing_equity=existing_equity,
             new_equity_points=new_equity_points,
@@ -66,7 +68,7 @@ class FactorPaperPersistenceService:
             "last_processed": dict(runtime_state.get("last_processed") or {}),
             "positions": {symbol: serialized_position} if serialized_position else {},
         }
-        self.run_mutations.append_factor_paper_increment(
+        self.factor_paper_runs.append_factor_paper_increment(
             run_id=run_id,
             new_signals=new_signals,
             new_trades=new_trades,

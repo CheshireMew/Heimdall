@@ -47,6 +47,15 @@ export interface VolumeData {
   color: string
 }
 
+export interface ChartMarkerData {
+  time: number
+  kind: string
+  label: string
+  color?: string
+  shape?: 'arrowUp' | 'arrowDown' | 'circle' | 'square'
+  position?: 'aboveBar' | 'belowBar' | 'inBar'
+}
+
 export const isStrategyConditionNode = (
   node: StrategyRuleNode | null | undefined,
 ): node is StrategyConditionNodeResponse => node?.node_type === 'condition'

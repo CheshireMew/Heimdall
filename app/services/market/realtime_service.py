@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from app.contracts.market_history import build_realtime_payload
 from config import settings
 from app.domain.market.prompt_engine import PromptEngine
 from app.domain.market.technical_analysis import TechnicalAnalysis
 from app.services.market.market_data_service import MarketDataService
-from app.services.market.query_payloads import realtime_response
 
 
 @dataclass(slots=True)
@@ -77,13 +77,13 @@ class RealtimeService:
         include_type: bool = False,
     ) -> dict[str, Any]:
         closes = [x[4] for x in kline_data]
-        return realtime_response(
+        return build_realtime_payload(
             symbol=symbol,
             timestamp=datetime.now().isoformat(),
             current_price=closes[-1],
             indicators=indicators,
             ai_analysis=ai_analysis,
-            kline_data=kline_data,
+            rows=kline_data,
             timeframe=timeframe,
             include_type=include_type,
         )

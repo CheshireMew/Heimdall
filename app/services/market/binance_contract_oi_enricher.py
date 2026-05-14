@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from app.infra.executor import run_sync
+from app.infra.executor import run_database
 
 from .binance_numbers import safe_float
 from .ttl_cache import TtlMemoryCache
@@ -36,7 +36,7 @@ class BinanceContractOpenInterestEnricher:
             if cached is not None:
                 return symbol, cached
 
-            stored_response = await run_sync(
+            stored_response = await run_database(
                 lambda: self.usdm.get_cached_open_interest_stats(symbol=symbol, period="1h", limit=25)
             )
             summary = self._summarize_open_interest_change(self._items(stored_response))

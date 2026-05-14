@@ -107,6 +107,7 @@ const routeTemplates = {
   list_paper_runs: "/paper/list",
   list_strategies: "/backtest/strategies",
   list_strategy_templates: "/backtest/templates",
+  preview_backtest: "/backtest/preview",
   start_backtest: "/backtest/start",
   start_factor_backtest: "/factor-research/runs/{run_id}/backtest",
   start_factor_paper_run: "/factor-research/runs/{run_id}/paper",
@@ -239,6 +240,7 @@ const endpointQueryContracts = {
   list_paper_runs: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   list_strategies: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   list_strategy_templates: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
+  preview_backtest: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   start_backtest: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   start_factor_backtest: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   start_factor_paper_run: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
@@ -339,6 +341,7 @@ export type ApiRouteResponseMap = {
   list_paper_runs: Array<BacktestTypes.BacktestRunResponse>
   list_strategies: Array<BacktestTypes.StrategyDefinitionResponse>
   list_strategy_templates: Array<BacktestTypes.StrategyTemplateResponse>
+  preview_backtest: BacktestTypes.BacktestPreviewResponse
   start_backtest: BacktestTypes.BacktestStartResponse
   start_factor_backtest: FactorTypes.FactorExecutionResponse
   start_factor_paper_run: FactorTypes.FactorExecutionResponse
@@ -439,6 +442,7 @@ export type ApiRouteBodyMap = {
   list_paper_runs: never
   list_strategies: never
   list_strategy_templates: never
+  preview_backtest: BacktestTypes.BacktestPreviewRequest
   start_backtest: BacktestTypes.BacktestStartRequest
   start_factor_backtest: FactorTypes.FactorExecutionRequest
   start_factor_paper_run: FactorTypes.FactorExecutionRequest
@@ -539,6 +543,7 @@ export type ApiRouteQueryMap = {
   list_paper_runs: never
   list_strategies: never
   list_strategy_templates: never
+  preview_backtest: never
   start_backtest: never
   start_factor_backtest: never
   start_factor_paper_run: never

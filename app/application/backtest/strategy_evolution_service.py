@@ -10,7 +10,7 @@ from app.contracts.backtest_result import (
     BacktestResearchReportResponse,
 )
 from app.application.backtest.ports import BacktestRunReader, StrategyReader, StrategyWriter
-from app.domain.backtest.scripted_template_runtime import template_supports_version_editing
+from app.domain.backtest.scripted_templates import template_supports_version_editing
 from app.domain.backtest.strategy_catalog import get_template_runtime_contract
 from app.domain.backtest.strategy_support import (
     build_strategy_version_response_payload,

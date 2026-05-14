@@ -14,7 +14,11 @@ from app.contracts.strategy import (
     StrategyTemplateConfigResponse,
 )
 from app.domain.market.timeframes import timeframe_to_minutes
-from app.domain.backtest.scripted_template_runtime import get_template_runtime, template_supports_signal_runtime
+from app.domain.backtest.scripted_templates import (
+    get_template_runtime,
+    require_scripted_template,
+    template_builder_kind,
+)
 from app.domain.backtest.indicator_engines import (
     indicator_engine_definition,
 )
@@ -93,8 +97,6 @@ class StrategyRuntime:
         after_timestamp_ms: int | None = None,
     ) -> list[StrategySignalSnapshot]:
         runtime_contract = get_template_runtime(template)
-        if not template_supports_signal_runtime(runtime_contract):
-            raise ValueError("该内置脚本策略当前只支持回测编译，不支持规则快照和模拟盘")
         frame = self.build_frame(template, config, candles, timeframe)
         if frame.empty:
             return []
@@ -127,8 +129,8 @@ class StrategyRuntime:
         timeframe: str,
     ) -> pd.DataFrame:
         runtime_contract = get_template_runtime(template)
-        if not template_supports_signal_runtime(runtime_contract):
-            raise ValueError("该内置脚本策略当前只支持回测编译，不支持规则帧构建")
+        if template_builder_kind(runtime_contract) == "scripted":
+            return require_scripted_template(template).build_signal_frame(candles, timeframe)
         frame = self._base_frame(candles)
         if frame.empty:
             return frame
@@ -148,11 +150,11 @@ class StrategyRuntime:
             if mask is None:
                 continue
             frame.loc[mask, "active_regime"] = branch_key
-            frame["long_entry_signal"] = frame["long_entry_signal"] | (mask & self._evaluate_rule_tree(frame, branch.long_entry))
-            frame["long_exit_signal"] = frame["long_exit_signal"] | (mask & self._evaluate_rule_tree(frame, branch.long_exit))
+            frame["long_entry_signal"] = frame["long_entry_signal"] | (mask & self._evaluate_signal_rule_tree(frame, branch.long_entry))
+            frame["long_exit_signal"] = frame["long_exit_signal"] | (mask & self._evaluate_signal_rule_tree(frame, branch.long_exit))
             if allow_short:
-                frame["short_entry_signal"] = frame["short_entry_signal"] | (mask & self._evaluate_rule_tree(frame, branch.short_entry))
-                frame["short_exit_signal"] = frame["short_exit_signal"] | (mask & self._evaluate_rule_tree(frame, branch.short_exit))
+                frame["short_entry_signal"] = frame["short_entry_signal"] | (mask & self._evaluate_signal_rule_tree(frame, branch.short_entry))
+                frame["short_exit_signal"] = frame["short_exit_signal"] | (mask & self._evaluate_signal_rule_tree(frame, branch.short_exit))
         return frame
 
     def _base_frame(self, candles: list[list[float]]) -> pd.DataFrame:
@@ -256,6 +258,17 @@ class StrategyRuntime:
         for item in evaluated[1:]:
             result = result & item if logic == "and" else result | item
         return result.fillna(False)
+
+    def _evaluate_signal_rule_tree(
+        self,
+        frame: pd.DataFrame,
+        node: StrategyGroupNodeResponse | StrategyConditionNodeResponse,
+    ) -> pd.Series:
+        if not node.enabled:
+            return pd.Series(False, index=frame.index, dtype=bool)
+        if isinstance(node, StrategyGroupNodeResponse) and not [child for child in node.children if child.enabled]:
+            return pd.Series(False, index=frame.index, dtype=bool)
+        return self._evaluate_rule_tree(frame, node)
 
     def _evaluate_condition(self, frame: pd.DataFrame, node: StrategyConditionNodeResponse) -> pd.Series:
         left = self._resolve_source(frame, node.left)

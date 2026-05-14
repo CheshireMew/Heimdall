@@ -4,7 +4,7 @@ from typing import Any, Callable
 
 from app.domain.market.constants import DEFAULT_ATR_PERIOD, DEFAULT_VOLATILITY_PERIOD
 from app.exceptions import ServiceUnavailableError
-from app.infra.executor import run_sync
+from app.infra.executor import run_external_io
 from app.services.market.app_service_support import validate_market_request
 from app.services.market.market_data_service import MarketDataService
 from app.services.market.realtime_service import MarketSnapshot, RealtimeService
@@ -34,7 +34,7 @@ class MarketRealtimeQueryService:
         volatility_period: int = DEFAULT_VOLATILITY_PERIOD,
     ) -> MarketSnapshot:
         validate_market_request(symbol, timeframe)
-        result = await run_sync(
+        result = await run_external_io(
             lambda: self.realtime_service.compute_market_snapshot(
                 self.market_data_service,
                 symbol,

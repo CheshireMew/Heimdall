@@ -53,19 +53,21 @@ class FreqtradeRuleCodegen:
             long_tree = branch.long_entry if signal_kind == "entry" else branch.long_exit
             long_column = "enter_long" if signal_kind == "entry" else "exit_long"
             long_tag = "enter_tag" if signal_kind == "entry" else "exit_tag"
-            long_condition = f"(({branch_masks[branch_key]}) & ({self.compile_rule_tree(long_tree)}))"
-            lines.append(f'        dataframe.loc[{long_condition}, ["{long_column}", "{long_tag}"]] = (1, "{branch_key}_long_{signal_kind}")')
+            if self._signal_tree_enabled(long_tree):
+                long_condition = f"(({branch_masks[branch_key]}) & ({self.compile_rule_tree(long_tree)}))"
+                lines.append(f'        dataframe.loc[{long_condition}, ["{long_column}", "{long_tag}"]] = (1, "{branch_key}_long_{signal_kind}")')
             if not can_short:
                 continue
             short_tree = branch.short_entry if signal_kind == "entry" else branch.short_exit
             short_column = "enter_short" if signal_kind == "entry" else "exit_short"
             short_tag = "enter_short_tag" if signal_kind == "entry" else "exit_short_tag"
             shared_tag = "enter_tag" if signal_kind == "entry" else "exit_tag"
-            short_condition = f"(({branch_masks[branch_key]}) & ({self.compile_rule_tree(short_tree)}))"
-            lines.append(
-                f'        dataframe.loc[{short_condition}, ["{short_column}", "{short_tag}", "{shared_tag}"]] = '
-                f'(1, "{branch_key}_short_{signal_kind}", "{branch_key}_short_{signal_kind}")'
-            )
+            if self._signal_tree_enabled(short_tree):
+                short_condition = f"(({branch_masks[branch_key]}) & ({self.compile_rule_tree(short_tree)}))"
+                lines.append(
+                    f'        dataframe.loc[{short_condition}, ["{short_column}", "{short_tag}", "{shared_tag}"]] = '
+                    f'(1, "{branch_key}_short_{signal_kind}", "{branch_key}_short_{signal_kind}")'
+                )
         if not can_short:
             if signal_kind == "entry":
                 lines = ['        dataframe["enter_short"] = 0', '        dataframe["enter_short_tag"] = None', *lines[2:]]
@@ -148,3 +150,11 @@ class FreqtradeRuleCodegen:
         if bars_ago <= 0:
             return expression
         return f"({expression}).shift({bars_ago})"
+
+    @staticmethod
+    def _signal_tree_enabled(node: StrategyGroupNodeResponse | StrategyConditionNodeResponse) -> bool:
+        if not node.enabled:
+            return False
+        if isinstance(node, StrategyGroupNodeResponse):
+            return any(child.enabled for child in node.children)
+        return True

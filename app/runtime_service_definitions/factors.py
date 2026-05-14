@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from app.runtime import runtime_role_has_target
 from app.runtime_definition import RuntimeBuildContext, RuntimeServiceDefinition
-from app.runtime_lifecycle import restore_paper_runs, shutdown_service
+from app.runtime_lifecycle import start_paper_run_monitoring, shutdown_service
 from app.runtime_refs import (
+    BACKTEST_FACTOR_PAPER_RUN_WRITER,
+    BACKTEST_FACTOR_RUN_WRITER,
+    BACKTEST_PAPER_RUN_WRITER,
     BACKTEST_REPORT_BUILDER,
-    BACKTEST_RUN_MUTATION_SERVICE,
     BACKTEST_RUN_REPOSITORY,
     FACTORS_EXECUTION_SERVICE,
     FACTORS_PAPER_PERSISTENCE_SERVICE,
@@ -42,7 +44,7 @@ def _build_factor_execution_service(ctx: RuntimeBuildContext):
         factor_service=ctx.require(FACTORS_RESEARCH_SERVICE),
         report_builder=ctx.require(BACKTEST_REPORT_BUILDER),
         execution_core=ctx.require(FACTORS_SIGNAL_EXECUTION_CORE),
-        run_mutations=ctx.require(BACKTEST_RUN_MUTATION_SERVICE),
+        factor_backtest_runs=ctx.require(BACKTEST_FACTOR_RUN_WRITER),
     )
 
 
@@ -56,7 +58,8 @@ def _build_factor_paper_persistence_service(ctx: RuntimeBuildContext):
     from app.application.factors.paper_persistence_service import FactorPaperPersistenceService
 
     return FactorPaperPersistenceService(
-        run_mutations=ctx.require(BACKTEST_RUN_MUTATION_SERVICE),
+        paper_runs=ctx.require(BACKTEST_PAPER_RUN_WRITER),
+        factor_paper_runs=ctx.require(BACKTEST_FACTOR_PAPER_RUN_WRITER),
         report_builder=ctx.require(BACKTEST_REPORT_BUILDER),
         execution_core=ctx.require(FACTORS_SIGNAL_EXECUTION_CORE),
     )
@@ -71,7 +74,7 @@ def _build_factor_paper_run_manager(ctx: RuntimeBuildContext):
         report_builder=ctx.require(BACKTEST_REPORT_BUILDER),
         execution_core=ctx.require(FACTORS_SIGNAL_EXECUTION_CORE),
         persistence_service=ctx.require(FACTORS_PAPER_PERSISTENCE_SERVICE),
-        run_mutations=ctx.require(BACKTEST_RUN_MUTATION_SERVICE),
+        paper_runs=ctx.require(BACKTEST_PAPER_RUN_WRITER),
         activate_created_runs=runtime_role_has_target(ctx.role, "background"),
     )
 
@@ -93,7 +96,7 @@ FACTOR_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         FACTORS_EXECUTION_SERVICE,
         frozenset({"api"}),
         _build_factor_execution_service,
-        deps=(FACTORS_RESEARCH_SERVICE, BACKTEST_REPORT_BUILDER, FACTORS_SIGNAL_EXECUTION_CORE, BACKTEST_RUN_MUTATION_SERVICE),
+        deps=(FACTORS_RESEARCH_SERVICE, BACKTEST_REPORT_BUILDER, FACTORS_SIGNAL_EXECUTION_CORE, BACKTEST_FACTOR_RUN_WRITER),
     ),
     RuntimeServiceDefinition(
         FACTORS_SIGNAL_EXECUTION_CORE,
@@ -104,7 +107,7 @@ FACTOR_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         FACTORS_PAPER_PERSISTENCE_SERVICE,
         frozenset({"api", "background"}),
         _build_factor_paper_persistence_service,
-        deps=(BACKTEST_RUN_MUTATION_SERVICE, BACKTEST_REPORT_BUILDER, FACTORS_SIGNAL_EXECUTION_CORE),
+        deps=(BACKTEST_PAPER_RUN_WRITER, BACKTEST_FACTOR_PAPER_RUN_WRITER, BACKTEST_REPORT_BUILDER, FACTORS_SIGNAL_EXECUTION_CORE),
     ),
     RuntimeServiceDefinition(
         FACTORS_PAPER_RUN_MANAGER,
@@ -113,12 +116,12 @@ FACTOR_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         deps=(
             FACTORS_RESEARCH_SERVICE,
             BACKTEST_RUN_REPOSITORY,
-            BACKTEST_RUN_MUTATION_SERVICE,
+            BACKTEST_PAPER_RUN_WRITER,
             BACKTEST_REPORT_BUILDER,
             FACTORS_SIGNAL_EXECUTION_CORE,
             FACTORS_PAPER_PERSISTENCE_SERVICE,
         ),
-        background_start=restore_paper_runs,
+        background_start=start_paper_run_monitoring,
         background_stop=shutdown_service,
         background_start_order=40,
         background_stop_order=20,

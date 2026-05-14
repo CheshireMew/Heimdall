@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import Any
+
+import numpy as np
+import pandas as pd
+import talib.abstract as ta
 
 from app.domain.backtest.freqtrade_exit_codegen import render_threshold_custom_exit
 from app.domain.backtest.freqtrade_strategy_runtime import (
@@ -9,70 +12,30 @@ from app.domain.backtest.freqtrade_strategy_runtime import (
     resolve_freqtrade_strategy_runtime,
 )
 
-
-RULES_TEMPLATE_RUNTIME: dict[str, Any] = {
-    "builder_kind": "rules",
+TEMPLATE_KEY = "btc_regime_pulse_supertrend"
+RUNTIME_CONTRACT: dict[str, Any] = {
+    "builder_kind": "scripted",
     "capabilities": {
-        "signal_runtime": True,
         "paper": True,
-        "version_editing": True,
+        "version_editing": False,
     },
 }
-
-SCRIPTED_TEMPLATE_RUNTIME: dict[str, dict[str, Any]] = {
-    "btc_regime_pulse_supertrend": {
-        "builder_kind": "scripted",
-        "capabilities": {
-            "signal_runtime": False,
-            "paper": True,
-            "version_editing": False,
-        },
-    }
-}
+WARMUP_BARS = 220
 
 
-def get_template_runtime(template: str) -> dict[str, Any]:
-    runtime = SCRIPTED_TEMPLATE_RUNTIME.get(template)
-    if runtime:
-        return deepcopy(runtime)
-    return deepcopy(RULES_TEMPLATE_RUNTIME)
+def build_signal_frame(candles: list[list[float]], timeframe: str) -> pd.DataFrame:
+    return _build_btc_regime_pulse_supertrend_frame(candles, timeframe)
 
 
-def template_builder_kind(runtime: dict[str, Any]) -> str:
-    return str(runtime.get("builder_kind") or "rules")
+def build_strategy_code(*, strategy_class_name: str, timeframe: str) -> str:
+    return _build_btc_regime_pulse_supertrend(strategy_class_name, timeframe)
 
 
-def template_supports_signal_runtime(runtime: dict[str, Any]) -> bool:
-    return bool((runtime.get("capabilities") or {}).get("signal_runtime", True))
+def warmup_bars(_config: dict[str, Any], _timeframe: str) -> int:
+    return WARMUP_BARS
 
 
-def template_supports_paper(runtime: dict[str, Any]) -> bool:
-    return bool((runtime.get("capabilities") or {}).get("paper", True))
-
-
-def template_supports_version_editing(runtime: dict[str, Any]) -> bool:
-    return bool((runtime.get("capabilities") or {}).get("version_editing", True))
-
-
-def is_scripted_template(template: str) -> bool:
-    return template_builder_kind(get_template_runtime(template)) == "scripted"
-
-
-def build_scripted_strategy_code(*, template: str, strategy_class_name: str, timeframe: str) -> str:
-    if template == "btc_regime_pulse_supertrend":
-        return _build_btc_regime_pulse_supertrend(strategy_class_name, timeframe)
-    raise ValueError(f"不支持的脚本化策略模板: {template}")
-
-
-def scripted_warmup_bars(template: str, _config: dict[str, Any], _timeframe: str) -> int:
-    if template == "btc_regime_pulse_supertrend":
-        return 220
-    raise ValueError(f"不支持的脚本化策略模板: {template}")
-
-
-def scripted_trade_settings(template: str, _config: dict[str, Any]) -> dict[str, Any]:
-    if template != "btc_regime_pulse_supertrend":
-        raise ValueError(f"不支持的脚本化策略模板: {template}")
+def trade_settings(_config: dict[str, Any]) -> dict[str, Any]:
     order_types = {
         "entry": "market",
         "exit": "market",
@@ -102,7 +65,7 @@ def _build_btc_regime_pulse_supertrend(strategy_class_name: str, timeframe: str)
         resolve_freqtrade_strategy_runtime(
             can_short=True,
             timeframe=timeframe,
-            startup_candle_count=220,
+            startup_candle_count=WARMUP_BARS,
             risk={
                 "stoploss": -0.99,
                 "trailing": {"enabled": False, "positive": 0.0, "offset": 0.0, "only_offset_reached": True},
@@ -348,3 +311,161 @@ class {strategy_class_name}(IStrategy):
     stop_reason="atr_stop",
     target_reason="rr_target",
 )}"""
+
+
+def _base_signal_frame(candles: list[list[float]]) -> pd.DataFrame:
+    if not candles:
+        return pd.DataFrame(columns=["timestamp", "date", "open", "high", "low", "close", "volume"])
+    frame = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    frame["date"] = pd.to_datetime(frame["timestamp"], unit="ms", utc=True)
+    return frame.sort_values("date").reset_index(drop=True)
+
+
+def _build_btc_regime_pulse_supertrend_frame(candles: list[list[float]], _timeframe: str) -> pd.DataFrame:
+    frame = _base_signal_frame(candles)
+    if frame.empty:
+        return frame
+
+    atr_length = 10
+    base_multiplier = 3.0
+    regime_lookback = 40
+    adx_length = 14
+    adx_threshold = 20
+    trend_ema_length = 50
+    volume_ma_length = 20
+    min_signal_score = 65
+    cooldown_bars = 5
+
+    frame["hl2"] = (frame["high"] + frame["low"]) / 2.0
+    frame["atr"] = ta.ATR(frame, timeperiod=atr_length)
+    frame["atr_safe"] = frame["atr"].fillna(0.001).clip(lower=0.001)
+    frame["atr_ma"] = frame["atr"].rolling(regime_lookback).mean()
+    frame["atr_ratio"] = np.where(frame["atr_ma"] > 0, frame["atr"] / frame["atr_ma"], 1.0)
+    frame["adx"] = ta.ADX(frame, timeperiod=adx_length)
+    frame["regime"] = np.select(
+        [
+            frame["atr_ratio"] > 1.4,
+            (frame["adx"] < adx_threshold) & (frame["atr_ratio"] < 0.9),
+        ],
+        [2, 0],
+        default=1,
+    ).astype(int)
+    frame["adapt_mult"] = np.where(
+        frame["regime"] == 2,
+        base_multiplier * (1.0 + (frame["atr_ratio"] - 1.0).clip(lower=0.0) * 0.4),
+        np.where(frame["regime"] == 0, base_multiplier * 0.85, base_multiplier),
+    )
+    frame["adapt_mult"] = frame["adapt_mult"].clip(lower=base_multiplier * 0.5, upper=base_multiplier * 2.0)
+    frame["upper_base"] = frame["hl2"] + frame["adapt_mult"] * frame["atr"]
+    frame["lower_base"] = frame["hl2"] - frame["adapt_mult"] * frame["atr"]
+
+    st_band: list[float] = []
+    st_dir: list[int] = []
+    prev_dir = 1
+    prev_band = np.nan
+    for row in frame.itertuples():
+        upper_base = float(row.upper_base) if pd.notna(row.upper_base) else float(row.hl2)
+        lower_base = float(row.lower_base) if pd.notna(row.lower_base) else float(row.hl2)
+        band_seed = prev_band if pd.notna(prev_band) else (lower_base if prev_dir == 1 else upper_base)
+        next_dir = prev_dir
+        if prev_dir == 1:
+            next_band = max(lower_base, band_seed)
+            if float(row.close) < next_band:
+                next_dir = -1
+                next_band = upper_base
+        else:
+            next_band = min(upper_base, band_seed)
+            if float(row.close) > next_band:
+                next_dir = 1
+                next_band = lower_base
+        st_band.append(float(next_band))
+        st_dir.append(int(next_dir))
+        prev_band = next_band
+        prev_dir = next_dir
+
+    frame["st_band"] = st_band
+    frame["st_dir"] = st_dir
+    frame["trend_flip_up"] = (frame["st_dir"] == 1) & (frame["st_dir"].shift(1) == -1)
+    frame["trend_flip_down"] = (frame["st_dir"] == -1) & (frame["st_dir"].shift(1) == 1)
+    frame["trend_ema"] = ta.EMA(frame, timeperiod=trend_ema_length)
+    frame["trend_up"] = frame["close"] > frame["trend_ema"]
+    frame["trend_down"] = frame["close"] < frame["trend_ema"]
+    frame["volume_ma"] = ta.SMA(frame["volume"], timeperiod=volume_ma_length)
+    frame["volume_ratio"] = np.where(frame["volume_ma"] > 0, frame["volume"] / frame["volume_ma"], 1.0)
+    frame["prev_band_distance"] = (frame["close"].shift(1) - frame["st_band"].shift(1)).abs() / frame["atr_safe"]
+    frame["ema_distance_atr"] = (frame["close"] - frame["trend_ema"]).abs() / frame["atr_safe"]
+    frame["long_disp_atr"] = (frame["close"] - frame["st_band"]) / frame["atr_safe"]
+    frame["short_disp_atr"] = (frame["st_band"] - frame["close"]) / frame["atr_safe"]
+
+    volume_score = np.select(
+        [frame["volume_ratio"] >= 2.5, frame["volume_ratio"] >= 1.5, frame["volume_ratio"] >= 1.0],
+        [20, 14, 8],
+        default=3,
+    )
+    regime_score = np.select([frame["regime"] == 1, frame["regime"] == 2], [15, 8], default=3)
+    band_distance_score = np.select(
+        [frame["prev_band_distance"] >= 2.0, frame["prev_band_distance"] >= 1.0, frame["prev_band_distance"] >= 0.5],
+        [20, 14, 8],
+        default=3,
+    )
+    long_disp_score = np.select(
+        [frame["long_disp_atr"] >= 1.5, frame["long_disp_atr"] >= 0.8, frame["long_disp_atr"] >= 0.3, frame["long_disp_atr"] > 0],
+        [25, 18, 12, 5],
+        default=0,
+    )
+    short_disp_score = np.select(
+        [frame["short_disp_atr"] >= 1.5, frame["short_disp_atr"] >= 0.8, frame["short_disp_atr"] >= 0.3, frame["short_disp_atr"] > 0],
+        [25, 18, 12, 5],
+        default=0,
+    )
+    long_align_score = np.select(
+        [frame["trend_up"] & (frame["ema_distance_atr"] > 0.5), frame["trend_up"], frame["ema_distance_atr"] < 0.3],
+        [20, 14, 8],
+        default=2,
+    )
+    short_align_score = np.select(
+        [frame["trend_down"] & (frame["ema_distance_atr"] > 0.5), frame["trend_down"], frame["ema_distance_atr"] < 0.3],
+        [20, 14, 8],
+        default=2,
+    )
+    frame["long_score"] = np.rint(volume_score + long_disp_score + long_align_score + regime_score + band_distance_score).clip(0, 100)
+    frame["short_score"] = np.rint(volume_score + short_disp_score + short_align_score + regime_score + band_distance_score).clip(0, 100)
+    frame["long_candidate"] = (
+        frame["trend_flip_up"]
+        & (frame["long_score"] >= min_signal_score)
+        & frame["trend_up"]
+        & (frame["regime"] != 0)
+        & (frame["volume"] > frame["volume_ma"].fillna(np.inf))
+    )
+    frame["short_candidate"] = (
+        frame["trend_flip_down"]
+        & (frame["short_score"] >= min_signal_score)
+        & frame["trend_down"]
+        & (frame["regime"] != 0)
+        & (frame["volume"] > frame["volume_ma"].fillna(np.inf))
+    )
+
+    enter_long = np.zeros(len(frame), dtype=int)
+    enter_short = np.zeros(len(frame), dtype=int)
+    last_entry_index = -9999
+    for index, row in enumerate(frame.itertuples()):
+        if index - last_entry_index <= cooldown_bars:
+            continue
+        if bool(row.long_candidate):
+            enter_long[index] = 1
+            last_entry_index = index
+            continue
+        if bool(row.short_candidate):
+            enter_short[index] = 1
+            last_entry_index = index
+
+    frame["active_regime"] = np.select(
+        [frame["regime"] == 0, frame["regime"] == 2],
+        ["range", "volatile_trend"],
+        default="trend",
+    )
+    frame["long_entry_signal"] = pd.Series(enter_long, index=frame.index).astype(bool)
+    frame["long_exit_signal"] = pd.Series(False, index=frame.index, dtype=bool)
+    frame["short_entry_signal"] = pd.Series(enter_short, index=frame.index).astype(bool)
+    frame["short_exit_signal"] = pd.Series(False, index=frame.index, dtype=bool)
+    return frame

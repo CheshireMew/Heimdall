@@ -14,11 +14,14 @@ import app.background_runtime as background_runtime_module
 from app.exceptions import unhandled_exception_handler
 from app.runtime import AppRuntimeServices
 from app.runtime_refs import (
+    BACKTEST_FACTOR_PAPER_RUN_WRITER,
+    BACKTEST_FACTOR_RUN_WRITER,
     BACKTEST_FREQTRADE_SERVICE,
+    BACKTEST_PAPER_RUN_WRITER,
     BACKTEST_PAPER_RUN_MANAGER,
     BACKTEST_REPORT_BUILDER,
-    BACKTEST_RUN_MUTATION_SERVICE,
     BACKTEST_RUN_REPOSITORY,
+    BACKTEST_RUN_WRITER,
     BACKTEST_STRATEGY_DEFINITION_STORE,
     BACKTEST_STRATEGY_QUERY_SERVICE,
     FACTORS_PAPER_PERSISTENCE_SERVICE,
@@ -42,12 +45,12 @@ from app.runtime_refs import (
 
 
 @pytest.mark.asyncio
-async def test_lifespan_restores_and_stops_managers(monkeypatch):
+async def test_lifespan_monitors_and_stops_managers(monkeypatch):
     events: list[str] = []
 
     class FakeManager:
-        async def restore_active_runs(self):
-            events.append("restore")
+        async def start_active_run_monitoring(self):
+            events.append("monitor")
 
         async def shutdown(self):
             events.append("shutdown")
@@ -113,7 +116,10 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
             MARKET_BINANCE_MARKET_INTEL: binance_market,
             MARKET_BINANCE_MARKET_RESEARCH_STORE: object(),
             BACKTEST_RUN_REPOSITORY: object(),
-            BACKTEST_RUN_MUTATION_SERVICE: object(),
+            BACKTEST_RUN_WRITER: object(),
+            BACKTEST_FACTOR_RUN_WRITER: object(),
+            BACKTEST_PAPER_RUN_WRITER: object(),
+            BACKTEST_FACTOR_PAPER_RUN_WRITER: object(),
             BACKTEST_FREQTRADE_SERVICE: object(),
             BACKTEST_STRATEGY_DEFINITION_STORE: object(),
             BACKTEST_STRATEGY_QUERY_SERVICE: object(),
@@ -141,10 +147,10 @@ async def test_lifespan_restores_and_stops_managers(monkeypatch):
 
     assert events[0] == "inside"
     assert events.index("init_db") < events.index("start_scheduler")
-    assert events.index("snapshot_start") < events.index("restore")
+    assert events.index("snapshot_start") < events.index("monitor")
     assert events.index("snapshot_start") < events.index("binance_market_start")
-    assert events.index("binance_market_start") < events.index("restore")
-    assert events.count("restore") == 2
+    assert events.index("binance_market_start") < events.index("monitor")
+    assert events.count("monitor") == 2
     assert events[-6:] == [
         "binance_market_shutdown",
         "snapshot_shutdown",

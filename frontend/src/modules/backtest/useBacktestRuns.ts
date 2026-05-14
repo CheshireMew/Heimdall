@@ -25,7 +25,7 @@ export const useBacktestRuns = ({
 }: UseBacktestRunsOptions) => {
   const backtestLoading = ref(false)
   const paperLoading = ref(false)
-  const isBusy = computed(() => backtestLoading.value || paperLoading.value)
+  const previewLoading = ref(false)
   const history = ref<BacktestRunResponse[]>([])
   const paperHistory = ref<BacktestRunResponse[]>([])
   const historyMode = ref<'backtest' | 'paper'>('backtest')
@@ -73,16 +73,24 @@ export const useBacktestRuns = ({
         fetchPaperHistory: historyActions.fetchPaperHistory,
       })
     : {
+        previewLoading,
+        strategyPreview: ref(null),
+        previewSymbol: ref(''),
+        previewSymbols: computed(() => []),
+        previewChartData: computed(() => ({ candles: [], volume: [], markers: [] })),
+        previewMarkers: computed(() => []),
+        buildPreviewPayload: () => null,
         buildPayload: () => null,
         buildPaperPayload: () => null,
+        clearPreview: () => undefined,
+        previewBacktest: async () => null,
         startBacktest: async () => null,
         startPaperRun: async () => null,
       }
-
   return {
     backtestLoading,
     paperLoading,
-    isBusy,
+    isBusy: computed(() => backtestLoading.value || paperLoading.value || execution.previewLoading.value),
     history,
     paperHistory,
     historyMode,

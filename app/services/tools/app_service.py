@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from app.infra.cache import RedisService
 from app.domain.market.symbol_catalog import get_supported_crypto_symbols, resolve_market_asset
-from app.infra.executor import run_sync
+from app.infra.executor import run_compute
 from app.contracts.tools import ComparePairsCommand, DCA_STRATEGY_KEYS, SimulateDcaCommand
 from app.services.tools.dca_service import DCAService
 from app.services.tools.pair_compare_service import PairCompareService
@@ -61,7 +61,7 @@ class ToolsAppService:
         if cached:
             return cached
 
-        result = await run_sync(
+        result = await run_compute(
             lambda: self.dca_service.calculate_dca(
                 symbol=command.symbol,
                 start_date_str=start_date_str,
@@ -82,7 +82,7 @@ class ToolsAppService:
     async def compare_pairs(self, command: ComparePairsCommand) -> dict:
         symbol_a, symbol_b = self._validate_compare(command)
         logger.info(f"标的对比请求: {symbol_a} vs {symbol_b}, {command.days}天, {command.timeframe}")
-        result = await run_sync(
+        result = await run_compute(
             lambda: self.pair_compare_service.compare_pairs(symbol_a, symbol_b, command.days, command.timeframe),
         )
         if "error" in result:

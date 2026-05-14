@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 from .base_provider import BaseIndicatorProvider, logger
 from config import settings
-from app.infra.executor import run_sync
+from app.infra.executor import run_external_io
 
 
 class SentimentProvider(BaseIndicatorProvider):
@@ -56,7 +56,7 @@ class SentimentProvider(BaseIndicatorProvider):
                         "value": val
                     }
                 return None
-            res = await run_sync(_get)
+            res = await run_external_io(_get)
             if res:
                 results.append(res)
         except Exception as e:
