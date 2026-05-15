@@ -1,5 +1,5 @@
 import { computed, onActivated, onDeactivated, onUnmounted, ref, watch, type Ref } from 'vue'
-import { marketApi } from './api'
+import { marketHistoryApi, marketIndexApi } from './api'
 import { useKlineStore } from './klineStore'
 import { isIndexSymbol } from './symbolCatalog'
 import { toLocalIsoDate } from '@/utils/localDate'
@@ -60,7 +60,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
       const end = new Date()
       const start = new Date()
       start.setFullYear(end.getFullYear() - 1)
-      const res = await marketApi.getIndexHistory({
+      const res = await marketIndexApi.getIndexHistory({
         symbol: requestSymbol,
         timeframe: '1d',
         start_date: toLocalIsoDate(start),
@@ -86,7 +86,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
     const requestSymbol = symbol.value
     const requestTimeframe = timeframe.value
     if (!isRouteActive || !enabled.value || !requestSymbol || !requestTimeframe || isIndexSymbol(requestSymbol)) return
-    const res = await marketApi.getPriceSeriesTail({
+    const res = await marketHistoryApi.getPriceSeriesTail({
       symbol: requestSymbol,
       timeframe: requestTimeframe,
       limit: LIVE_TAIL_LIMIT,
@@ -130,7 +130,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
         const end = new Date(oldest.timestamp - 24 * 60 * 60 * 1000)
         const start = new Date(end)
         start.setFullYear(end.getFullYear() - 1)
-        const res = await marketApi.getIndexHistory({
+        const res = await marketIndexApi.getIndexHistory({
           symbol: requestSymbol,
           timeframe: '1d',
           start_date: toLocalIsoDate(start),
@@ -146,7 +146,7 @@ export function useKlineSeries(symbol: Ref<string>, timeframe: Ref<string>, opti
         return
       }
 
-      const res = await marketApi.getPriceSeriesWindow({
+      const res = await marketHistoryApi.getPriceSeriesWindow({
         symbol: requestSymbol,
         timeframe: requestTimeframe,
         end_ts: oldest.timestamp,

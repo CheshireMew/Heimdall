@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { marketApi } from './api'
+import { marketHistoryApi } from './api'
 import { useKlineStore } from './klineStore'
 import type { MarketHistoryResponse } from './contracts'
 import { isCacheFresh, MARKET_CACHE_TTL_MS, writeCacheEntry, type CacheEntry } from './cacheTypes'
@@ -58,7 +58,7 @@ export const usePriceHistoryStore = defineStore('priceHistory', {
 
       const request = (async (): Promise<MarketHistoryResponse | null> => {
         try {
-          const response = await marketApi.getPriceHistory({ symbol, timeframe, start_date: startDate })
+          const response = await marketHistoryApi.getPriceHistory({ symbol, timeframe, start_date: startDate })
           if (response) {
             writeCacheEntry(this.priceHistoryCache, key, response)
             if (response.items?.length) {

@@ -5,7 +5,7 @@ import { useTheme } from '@/composables/useTheme'
 import type { MarketSymbolSearchResponse, TradeSetupResponse } from './contracts'
 
 import { ensureSymbolCatalogLoaded, findSymbolCatalogItem, isIndexSymbol } from './symbolCatalog'
-import { marketApi } from './api'
+import { marketInsightApi } from './api'
 import { useKlineSeries } from './useKlineSeries'
 
 export function useDashboardPage() {
@@ -96,7 +96,7 @@ export function useDashboardPage() {
       tradeSetupError.value = decisionMode.value === 'ai' ? 'AI 请求超时，请重试' : '规则分析超时，请重试'
     }, decisionMode.value === 'ai' ? 180000 : 20000)
     try {
-      const response = await marketApi.getTradeSetup({
+      const response = await marketInsightApi.getTradeSetup({
         symbol: currentSymbol.value,
         timeframe: currentTimeframe.value,
         limit: 120,

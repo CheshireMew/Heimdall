@@ -1,12 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime, time, timezone
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.contracts.backtest_defaults import DEFAULT_PORTFOLIO, DEFAULT_RESEARCH
+from app.contracts.json_types import JsonValue
+from app.contracts.strategy import StrategyIndicatorParamResponse, StrategyTemplateConfigResponse
+from app.contracts.backtest_defaults import (
+    DEFAULT_FEE_RATE,
+    DEFAULT_INITIAL_CASH,
+    DEFAULT_PORTFOLIO,
+    DEFAULT_RESEARCH,
+    DEFAULT_STRATEGY_KEY,
+    DEFAULT_TIMEFRAME,
+    default_backtest_dates,
+)
 
 @dataclass(slots=True)
 class StrategyVersionRecord:
@@ -100,81 +110,92 @@ class BacktestExecutionResult:
     metadata: dict[str, Any] | None = None
 
 
-@dataclass(slots=True)
-class BacktestStartCommand:
-    strategy_key: str
-    strategy_version: int | None
-    timeframe: str
-    start_date: datetime
-    end_date: datetime
-    initial_cash: float
-    fee_rate: float
-    portfolio: BacktestPortfolioConfig
-    research: BacktestResearchConfig
+class BacktestPreviewCommand(BaseModel):
+    strategy_key: str = DEFAULT_STRATEGY_KEY
+    strategy_version: int | None = None
+    timeframe: str = DEFAULT_TIMEFRAME
+    start_date: date = Field(default_factory=lambda: default_backtest_dates()[0])
+    end_date: date = Field(default_factory=lambda: default_backtest_dates()[1])
+    initial_cash: float = Field(default=DEFAULT_INITIAL_CASH, gt=0)
+    fee_rate: float = Field(default=DEFAULT_FEE_RATE, ge=0, le=100)
+    portfolio: BacktestPortfolioConfig = Field(default_factory=BacktestPortfolioConfig)
+    research: BacktestResearchConfig = Field(default_factory=BacktestResearchConfig)
+
+    @model_validator(mode="after")
+    def validate_range(self) -> "BacktestPreviewCommand":
+        if self.start_date >= self.end_date:
+            raise ValueError("开始日期必须早于结束日期")
+        if (self.end_date - self.start_date).days < 7:
+            raise ValueError("回测区间至少需要 7 天")
+        if (self.end_date - self.start_date).days > 3650:
+            raise ValueError("回测区间不能超过 3650 天")
+        return self
+
+    @property
+    def start_datetime(self) -> datetime:
+        return datetime.combine(self.start_date, time.min, tzinfo=timezone.utc)
+
+    @property
+    def end_datetime(self) -> datetime:
+        return datetime.combine(self.end_date, time.max, tzinfo=timezone.utc)
+
+
+class BacktestStartCommand(BacktestPreviewCommand):
     preview_id: str
     approved_fingerprint: str
 
-
-@dataclass(slots=True)
-class BacktestPreviewCommand:
-    strategy_key: str
-    strategy_version: int | None
-    timeframe: str
-    start_date: datetime
-    end_date: datetime
-    initial_cash: float
-    fee_rate: float
-    portfolio: BacktestPortfolioConfig
-    research: BacktestResearchConfig
+    def preview_command(self) -> BacktestPreviewCommand:
+        payload = self.model_dump(exclude={"preview_id", "approved_fingerprint"})
+        return BacktestPreviewCommand.model_validate(payload)
 
 
-@dataclass(slots=True)
-class PaperStartCommand:
-    strategy_key: str
-    strategy_version: int | None
-    timeframe: str
-    initial_cash: float
-    fee_rate: float
-    portfolio: BacktestPortfolioConfig
+class PaperStartCommand(BaseModel):
+    strategy_key: str = DEFAULT_STRATEGY_KEY
+    strategy_version: int | None = None
+    timeframe: str = DEFAULT_TIMEFRAME
+    initial_cash: float = Field(default=DEFAULT_INITIAL_CASH, gt=0)
+    fee_rate: float = Field(default=DEFAULT_FEE_RATE, ge=0, le=100)
+    portfolio: BacktestPortfolioConfig = Field(default_factory=BacktestPortfolioConfig)
 
 
-@dataclass(slots=True)
-class CreateIndicatorDefinitionCommand:
+class CreateIndicatorDefinitionCommand(BaseModel):
     key: str
     name: str
     engine_key: str
     description: str | None = None
-    params: list[dict[str, Any]] = field(default_factory=list)
+    params: list[StrategyIndicatorParamResponse] = Field(default_factory=list)
 
 
-@dataclass(slots=True)
-class CreateStrategyTemplateCommand:
+class CreateStrategyTemplateCommand(BaseModel):
     key: str
     name: str
     category: str
     description: str | None = None
-    indicator_keys: list[str] = field(default_factory=list)
-    default_config: dict[str, Any] = field(default_factory=dict)
-    default_parameter_space: dict[str, list[Any]] = field(default_factory=dict)
+    indicator_keys: list[str] = Field(default_factory=list)
+    default_config: StrategyTemplateConfigResponse
+    default_parameter_space: dict[str, list[JsonValue]] = Field(default_factory=dict)
 
 
-@dataclass(slots=True)
-class CreateStrategyVersionCommand:
+class CreateStrategyVersionCommand(BaseModel):
     key: str
     name: str
     template: str
     category: str
     description: str | None = None
-    config: dict[str, Any] = field(default_factory=dict)
-    parameter_space: dict[str, list[Any]] = field(default_factory=dict)
+    config: StrategyTemplateConfigResponse
+    parameter_space: dict[str, list[JsonValue]] = Field(default_factory=dict)
     notes: str | None = None
     make_default: bool = True
 
 
-@dataclass(slots=True)
-class EvolveStrategyFromBacktestCommand:
-    backtest_id: int
+class EvolveStrategyFromBacktestCommand(BaseModel):
+    backtest_id: int | None = None
     version_name: str | None = None
     notes: str | None = None
     make_default: bool = True
     dry_run: bool = False
+
+    def require_backtest_id(self) -> int:
+        if self.backtest_id is None:
+            raise ValueError("缺少回测记录 ID")
+        return self.backtest_id

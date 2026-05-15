@@ -5,6 +5,7 @@ from datetime import datetime
 import pytest
 
 from app.application.backtest.preview_service import BacktestPreviewService
+from app.application.backtest.preview_artifact_store import StoredStrategyPreview
 from app.contracts.backtest import (
     BacktestPortfolioConfig,
     BacktestPreviewCommand,
@@ -24,6 +25,25 @@ class _MarketDataServiceStub:
 
     def load_ohlcv_range(self, *_args, **_kwargs) -> OhlcvRangeResult:
         return OhlcvRangeResult(self.rows, [])
+
+
+class _PreviewArtifactStoreStub:
+    def __init__(self) -> None:
+        self.artifacts: dict[str, StoredStrategyPreview] = {}
+
+    def save(self, preview: StoredStrategyPreview) -> None:
+        self.artifacts[preview.preview_id] = preview
+
+    def get(self, preview_id: str) -> StoredStrategyPreview | None:
+        return self.artifacts.get(preview_id)
+
+
+def _preview_service() -> BacktestPreviewService:
+    return BacktestPreviewService(
+        market_data_service=_MarketDataServiceStub(_rows()),
+        strategy_runtime=StrategyRuntime(),
+        artifact_store=_PreviewArtifactStoreStub(),
+    )
 
 
 def _rows() -> list[list[float]]:
@@ -129,10 +149,7 @@ def _command(symbols: list[str] | None = None) -> BacktestPreviewCommand:
 
 
 def test_preview_service_builds_candle_signal_artifact():
-    service = BacktestPreviewService(
-        market_data_service=_MarketDataServiceStub(_rows()),
-        strategy_runtime=StrategyRuntime(),
-    )
+    service = _preview_service()
 
     artifact = service.build_preview(strategy=_strategy(), command=_command())
 
@@ -144,10 +161,7 @@ def test_preview_service_builds_candle_signal_artifact():
 
 
 def test_preview_service_marks_executable_position_events_only():
-    service = BacktestPreviewService(
-        market_data_service=_MarketDataServiceStub(_rows()),
-        strategy_runtime=StrategyRuntime(),
-    )
+    service = _preview_service()
 
     artifact = service.build_preview(strategy=_strategy_with_always_on_exit(), command=_command())
 
@@ -157,10 +171,7 @@ def test_preview_service_marks_executable_position_events_only():
 
 
 def test_preview_approval_rejects_parameter_drift():
-    service = BacktestPreviewService(
-        market_data_service=_MarketDataServiceStub(_rows()),
-        strategy_runtime=StrategyRuntime(),
-    )
+    service = _preview_service()
     strategy = _strategy()
     artifact = service.build_preview(strategy=strategy, command=_command())
 

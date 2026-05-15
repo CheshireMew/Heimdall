@@ -5,11 +5,12 @@ from pathlib import Path
 
 import pytest
 
-import app.main as main_module
+from app.main import create_app
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT_DIR / "frontend" / "src"
+CONTRACT_APP = create_app("api")
 
 
 def read_frontend(path: str) -> str:
@@ -19,7 +20,7 @@ def read_frontend(path: str) -> str:
 def extract_backend_routes() -> set[str]:
     return {
         route.path
-        for route in main_module.app.routes
+        for route in CONTRACT_APP.routes
         if hasattr(route, "path")
     }
 
@@ -46,7 +47,7 @@ def strip_api_prefix(path: str) -> str:
 def test_frontend_api_paths_match_fastapi_routes():
     backend_routes = {
         route.name: strip_api_prefix(route.path)
-        for route in main_module.app.routes
+        for route in CONTRACT_APP.routes
         if hasattr(route, "path") and getattr(route, "path").startswith("/api/v1")
     }
     generated_routes = read_frontend("api/routes.ts")
@@ -158,8 +159,8 @@ def test_market_cache_stores_have_resource_boundaries():
     assert "MARKET_CACHE_TTL_MS.marketIndicators" in indicator_source
     assert "MARKET_CACHE_TTL_MS.sentimentFresh" in indicator_source
     assert "MARKET_CACHE_TTL_MS.sentimentRefresh" in indicator_source
-    assert "marketApi.getLatestKlines" in kline_source
-    assert "marketApi.getIndicators" in indicator_source
+    assert "marketHistoryApi.getLatestKlines" in kline_source
+    assert "marketInsightApi.getIndicators" in indicator_source
     assert "Extreme Greed" in indicator_source
 
 
@@ -186,7 +187,7 @@ def test_symbol_search_supports_usd_equivalent_cash_assets():
     asset_source = read_frontend("modules/tools/portfolioBalance/assets.ts")
     generator_source = (ROOT_DIR / "scripts" / "generate_frontend_contracts.py").read_text(encoding="utf-8")
 
-    assert "marketApi.getSymbols" in catalog_source
+    assert "marketCatalogApi.getSymbols" in catalog_source
     assert "readCashSymbolPrices" in catalog_source
     assert "baseSymbolCatalog" not in catalog_source
     assert not any(path.name.startswith("generated") and path.name.endswith("Catalog.ts") for path in (FRONTEND_DIR / "modules" / "market").glob("*.ts"))

@@ -20,6 +20,7 @@ from app.domain.backtest.strategy_support import (
     build_strategy_version_response_payload,
 )
 from app.services.backtest.strategy_runtime import StrategyRuntime
+from app.services.backtest.strategy_rule_evaluator import StrategyRuleEvaluator
 from config.settings import AppSettings
 
 
@@ -74,7 +75,6 @@ def test_normalize_strategy_config_rejects_unknown_contract_shape():
 
 
 def test_resolve_branch_masks_gives_trend_priority_over_range():
-    runtime = StrategyRuntime()
     frame = pd.DataFrame(
         {
             "close": [98.0, 104.0, 106.0],
@@ -123,7 +123,7 @@ def test_resolve_branch_masks_gives_trend_priority_over_range():
     }
 
     config_model = normalize_strategy_config_model(config, blank_strategy_config())
-    masks = runtime._resolve_branch_masks(frame, config_model)
+    masks = StrategyRuleEvaluator().resolve_branch_masks(frame, config_model)
 
     assert masks["trend"].tolist() == [False, True, True]
     assert masks["range"].tolist() == [True, False, False]

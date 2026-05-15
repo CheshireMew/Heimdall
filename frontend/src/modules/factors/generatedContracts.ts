@@ -3,7 +3,7 @@
 
 export interface FactorResearchContractResponse {
   research_defaults: FactorResearchRequest
-  execution_defaults: FactorExecutionRequest
+  execution_defaults: FactorExecutionConfig
 }
 
 export interface FactorCatalogResponse {
@@ -65,7 +65,8 @@ export interface FactorExecutionResponse {
   message: string
 }
 
-export interface FactorExecutionRequest {
+export interface FactorExecutionConfig {
+  research_run_id?: number | null
   initial_cash?: number
   fee_rate?: number
   position_size_pct?: number

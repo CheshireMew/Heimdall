@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 
-import { marketApi } from '@/modules/market'
+import { marketHistoryApi } from '@/modules/market'
 import type { CandlestickData, ChartMarkerData, VolumeData } from './contracts'
 import type { BacktestDetailResponse } from './contracts'
 import type { OhlcvPointResponse } from '@/modules/market/contracts'
@@ -20,7 +20,7 @@ export const useBacktestRunChart = () => {
     }
     const startDate = run.start_date.slice(0, 10)
     const endTs = run.end_date ? new Date(run.end_date).getTime() : Date.now()
-    const res = await marketApi.getPriceHistory({
+    const res = await marketHistoryApi.getPriceHistory({
       symbol: targetSymbol,
       timeframe: run.timeframe,
       start_date: startDate,

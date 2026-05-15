@@ -1,14 +1,14 @@
 import { isRecord, readNumber, readString } from '@/composables/pageSnapshot'
 
-import type { DCARequestSchema, ToolsPageContractResponse } from './contracts'
+import type { SimulateDcaCommand, ToolsPageContractResponse } from './contracts'
 
 export interface DcaPageSnapshot {
   config: DcaPageConfig
 }
 
-export type DcaStrategyValue = NonNullable<DCARequestSchema['strategy']> | ''
+export type DcaStrategyValue = NonNullable<SimulateDcaCommand['strategy']> | ''
 
-export type DcaPageConfig = Required<Pick<DCARequestSchema, 'symbol' | 'amount' | 'investment_time' | 'timezone'>> & {
+export type DcaPageConfig = Required<Pick<SimulateDcaCommand, 'symbol' | 'amount' | 'investment_time' | 'timezone'>> & {
   start_date: string
   strategy: DcaStrategyValue
   strategy_params: {

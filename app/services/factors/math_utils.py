@@ -44,6 +44,39 @@ class FactorMath:
             result.append({"date": ts.isoformat(), "value": self.to_float(value)})
         return result
 
+    def build_forward_metric(
+        self,
+        *,
+        horizon: int,
+        timestamps: pd.Series,
+        feature: pd.Series,
+        target: pd.Series,
+        include_target_stats: bool = False,
+        min_sample_size: int | None = None,
+    ) -> dict[str, Any] | None:
+        sample_floor = int(min_sample_size or self.cleaning["min_sample_size"])
+        horizon_frame = pd.DataFrame({"timestamp": timestamps, "feature": feature, "target": target}).dropna()
+        if len(horizon_frame) < sample_floor:
+            return None
+        rolling_corr = self.build_rolling_corr(horizon_frame["timestamp"], horizon_frame["feature"], horizon_frame["target"])
+        quantiles = self.build_quantiles(horizon_frame["feature"], horizon_frame["target"])
+        metric = {
+            "horizon": horizon,
+            "sample_size": int(len(horizon_frame)),
+            "correlation": self.safe_corr(horizon_frame["feature"], horizon_frame["target"]),
+            "rank_correlation": self.safe_corr(horizon_frame["feature"].rank(), horizon_frame["target"].rank()),
+            "ic_mean": self.to_float(pd.Series([item["value"] for item in rolling_corr]).mean() if rolling_corr else 0.0),
+            "ic_std": self.to_float(pd.Series([item["value"] for item in rolling_corr]).std() if rolling_corr else 0.0),
+            "ic_ir": self.information_ratio(rolling_corr),
+            "ic_t_stat": self.t_stat(rolling_corr),
+            "quantile_spread": self.quantile_spread(quantiles),
+            "hit_rate": self.hit_rate(horizon_frame["feature"], horizon_frame["target"]),
+        }
+        if include_target_stats:
+            metric["target_mean"] = self.to_float(horizon_frame["target"].mean())
+            metric["target_std"] = self.to_float(horizon_frame["target"].std())
+        return metric
+
     def rolling_stability(self, overall_corr: float, rolling: list[dict[str, Any]]) -> float:
         if not rolling or overall_corr == 0:
             return 0.0

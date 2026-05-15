@@ -5,7 +5,7 @@ import type {
   FactorCatalogItemResponse,
   FactorCatalogResponse,
   FactorDetailResponse,
-  FactorExecutionRequest,
+  FactorExecutionConfig,
   FactorResearchContractResponse,
   FactorResearchRequest,
   FactorResearchRunListItemResponse,
@@ -14,7 +14,7 @@ import type {
 } from './contracts'
 
 export type FactorResearchForm = Required<FactorResearchRequest>
-export type FactorExecutionForm = Required<FactorExecutionRequest>
+export type FactorExecutionForm = Required<Omit<FactorExecutionConfig, 'research_run_id'>>
 
 export const createEmptyFactorResearchForm = (): FactorResearchForm => ({
   symbol: '',

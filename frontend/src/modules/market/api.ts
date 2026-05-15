@@ -81,15 +81,19 @@ const MARKET_API_TIMEOUT_MS = {
   aiTradeSetup: 180000,
 } as const
 
-export const marketApi = {
+export const marketCatalogApi = {
   getSymbols(): Promise<MarketSymbolSearchResponse[]> {
     return apiGet('list_market_symbols')
   },
+}
 
+export const marketLiveApi = {
   getRealtime(params: GetRealtimeAnalysisQueryParams): Promise<RealtimeResponse> {
     return apiGet('get_realtime_analysis', { query: params, timeout: MARKET_API_TIMEOUT_MS.liveMarket })
   },
+}
 
+export const marketInsightApi = {
   getTradeSetup(params: GetTradeSetupQueryParams & {
     signal?: AbortSignal
   }): Promise<TradeSetupResponse> {
@@ -111,6 +115,12 @@ export const marketApi = {
     return apiGet('get_dli_liquidity', { query: params, timeout: MARKET_API_TIMEOUT_MS.macroLiquidity })
   },
 
+  getCryptoIndex(params: GetCryptoIndexQueryParams): Promise<CryptoIndexResponse> {
+    return apiGet('get_crypto_index', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
+  },
+}
+
+export const marketHistoryApi = {
   getPriceSeriesWindow(params: GetMarketHistoryQueryParams): Promise<MarketHistoryResponse> {
     return apiGet('get_market_history', { query: params, timeout: MARKET_API_TIMEOUT_MS.history })
   },
@@ -138,11 +148,9 @@ export const marketApi = {
   getBatchPriceHistory(params: GetMarketFullHistoryBatchQueryParams): Promise<MarketHistoryBatchResponse> {
     return apiGet('get_market_full_history_batch', { query: params, timeout: MARKET_API_TIMEOUT_MS.history })
   },
+}
 
-  getCryptoIndex(params: GetCryptoIndexQueryParams): Promise<CryptoIndexResponse> {
-    return apiGet('get_crypto_index', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
+export const marketIndexApi = {
   getIndexHistory(params: GetIndexHistoryQueryParams): Promise<MarketIndexHistoryResponse> {
     return apiGet('get_index_history', { query: params, timeout: MARKET_API_TIMEOUT_MS.history })
   },
@@ -150,7 +158,9 @@ export const marketApi = {
   getIndexPricingHistory(params: GetIndexHistoryQueryParams): Promise<MarketIndexHistoryResponse> {
     return apiGet('get_index_pricing_history', { query: params, timeout: MARKET_API_TIMEOUT_MS.history })
   },
+}
 
+export const binanceMarketApi = {
   getBinanceSpotTicker24h(params: GetBinanceSpotTicker24hrQueryParams = {}): Promise<BinanceTickerStatsResponse> {
     return apiGet('get_binance_spot_ticker_24hr', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
   },
@@ -182,7 +192,9 @@ export const marketApi = {
   getBinanceUsdmTopTraderPositions(params: GetBinanceUsdmTopTraderPositionsQueryParams): Promise<BinanceRatioSeriesResponse> {
     return apiGet('get_binance_usdm_top_trader_positions', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
   },
+}
 
+export const binanceWeb3Api = {
   getBinanceWeb3SocialHype(params: GetBinanceWeb3SocialHypeQueryParams): Promise<BinanceWeb3SocialHypeResponse> {
     return apiGet('get_binance_web3_social_hype', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
   },
@@ -222,7 +234,9 @@ export const marketApi = {
   getBinanceWeb3TokenAudit(params: GetBinanceWeb3TokenAuditQueryParams): Promise<BinanceWeb3TokenAuditResponse> {
     return apiGet('get_binance_web3_token_audit', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
   },
+}
 
+export const binanceRwaApi = {
   getBinanceRwaSymbols(params: GetBinanceRwaSymbolsQueryParams = {}): Promise<BinanceRwaSymbolListResponse> {
     return apiGet('get_binance_rwa_symbols', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
   },
@@ -246,7 +260,6 @@ export const marketApi = {
   getBinanceRwaKline(params: GetBinanceRwaKlineQueryParams): Promise<BinanceRwaKlineResponse> {
     return apiGet('get_binance_rwa_kline', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
   },
-
 }
 
 

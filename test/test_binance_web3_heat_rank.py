@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from app.services.market.binance_web3_heat_rank import BinanceWeb3HeatRankComposer
-from app.services.market.binance_web3_ranks import sort_heat_rank_items
+from app.services.market.binance_web3_heat_rank_service import sort_heat_rank_items
 from app.services.market.binance_web3_tokens import BinanceWeb3TokenService
 import app.services.market.binance_web3_tokens as web3_tokens_module
 

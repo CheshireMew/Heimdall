@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 
-import { marketApi } from './api'
+import { marketCatalogApi } from './api'
 import type { MarketSymbolSearchResponse } from './contracts'
 
 const symbols = ref<MarketSymbolSearchResponse[]>([])
@@ -56,7 +56,7 @@ export const ensureSymbolCatalogLoaded = async () => {
   if (loaded) return
   if (loadingPromise) return loadingPromise
   loading.value = true
-  loadingPromise = marketApi.getSymbols()
+  loadingPromise = marketCatalogApi.getSymbols()
     .then((response) => {
       if (Array.isArray(response)) {
         symbols.value = response

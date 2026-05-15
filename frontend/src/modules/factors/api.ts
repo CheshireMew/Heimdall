@@ -2,7 +2,7 @@ import { apiGet, apiPost } from '@/api/request'
 import type {
   FactorCatalogResponse,
   FactorResearchContractResponse,
-  FactorExecutionRequest,
+  FactorExecutionConfig,
   FactorExecutionResponse,
   FactorResearchRequest,
   FactorResearchResponse,
@@ -31,14 +31,14 @@ export const factorApi = {
     return apiGet('get_factor_run', { path: { run_id: runId } })
   },
 
-  startBacktest(runId: number, body: FactorExecutionRequest): Promise<FactorExecutionResponse> {
+  startBacktest(runId: number, body: FactorExecutionConfig): Promise<FactorExecutionResponse> {
     return apiPost('start_factor_backtest', body, {
       client: 'longTask',
       path: { run_id: runId },
     })
   },
 
-  startPaper(runId: number, body: FactorExecutionRequest): Promise<FactorExecutionResponse> {
+  startPaper(runId: number, body: FactorExecutionConfig): Promise<FactorExecutionResponse> {
     return apiPost('start_factor_paper_run', body, {
       client: 'longTask',
       path: { run_id: runId },

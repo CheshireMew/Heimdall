@@ -7,7 +7,7 @@ import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
 import { formatMoney as formatDisplayMoney } from '@/modules/format'
 import type { OhlcvPointResponse } from './contracts'
-import { marketApi } from './api'
+import { marketHistoryApi } from './api'
 import { buildHalvingSnapshot, createDefaultHalvingSnapshot, normalizeHalvingSnapshot } from './pageSnapshots'
 import { parseLocalIsoDate } from '@/utils/localDate'
 import { usePriceHistoryStore } from './priceHistoryStore'
@@ -321,7 +321,7 @@ export function useHalvingPage() {
 
   const refreshCurrentPrice = async () => {
     try {
-      const response = await marketApi.getCurrentPrice({
+      const response = await marketHistoryApi.getCurrentPrice({
         symbol: HALVING_PRICE_SYMBOL,
         timeframe: HALVING_PRICE_TIMEFRAME,
       })

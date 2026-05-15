@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal, Mapping
+from typing import Any, Literal, Mapping, TypeVar
 
 from app.runtime_refs import RuntimeServiceRef
 
 
 RuntimeRole = Literal["all", "api", "background"]
 RuntimeTarget = Literal["api", "background"]
+TService = TypeVar("TService")
 
 
 RUNTIME_ROLE_TARGETS: dict[RuntimeRole, tuple[RuntimeTarget, ...]] = {
@@ -40,13 +41,13 @@ class AppRuntimeServices:
             services.set_service(ref, service)
         return services
 
-    def get_service(self, ref: RuntimeServiceRef) -> Any | None:
+    def get_service(self, ref: RuntimeServiceRef[TService]) -> TService | None:
         return self._services.get(ref)
 
-    def set_service(self, ref: RuntimeServiceRef, service: Any) -> None:
+    def set_service(self, ref: RuntimeServiceRef[TService], service: TService) -> None:
         self._services[ref] = service
 
-    def require_service(self, ref: RuntimeServiceRef) -> Any:
+    def require_service(self, ref: RuntimeServiceRef[TService]) -> TService:
         service = self.get_service(ref)
         if service is None:
             raise RuntimeError(f"Runtime service is not initialized: {ref.key}")

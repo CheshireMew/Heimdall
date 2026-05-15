@@ -202,32 +202,6 @@ class FactorResearchRunDetailResponse(FactorResearchRunListItemResponse):
     details: list[FactorDetailResponse]
 
 
-class FactorExecutionRequest(BaseModel):
-    initial_cash: float = Field(default=100000.0, gt=0)
-    fee_rate: float = Field(default=0.1, ge=0, le=100)
-    position_size_pct: float = Field(default=25.0, gt=0, le=100)
-    stake_mode: Literal["fixed", "unlimited"] = "fixed"
-    entry_threshold: float | None = None
-    exit_threshold: float | None = None
-    stoploss_pct: float = Field(default=-0.08, ge=-1.0, le=0.0)
-    takeprofit_pct: float = Field(default=0.16, ge=0.0, le=10.0)
-    max_hold_bars: int = Field(default=20, ge=1, le=365)
-
-    def to_config(self, research_run_id: int) -> FactorExecutionConfig:
-        return FactorExecutionConfig(
-            research_run_id=research_run_id,
-            initial_cash=self.initial_cash,
-            fee_rate=self.fee_rate,
-            position_size_pct=self.position_size_pct,
-            stake_mode=self.stake_mode,
-            entry_threshold=self.entry_threshold,
-            exit_threshold=self.exit_threshold,
-            stoploss_pct=self.stoploss_pct,
-            takeprofit_pct=self.takeprofit_pct,
-            max_hold_bars=self.max_hold_bars,
-        )
-
-
 class FactorExecutionResponse(BaseModel):
     success: bool
     run_id: int
@@ -236,4 +210,4 @@ class FactorExecutionResponse(BaseModel):
 
 class FactorResearchContractResponse(BaseModel):
     research_defaults: FactorResearchRequest
-    execution_defaults: FactorExecutionRequest
+    execution_defaults: FactorExecutionConfig

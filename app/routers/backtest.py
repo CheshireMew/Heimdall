@@ -3,36 +3,37 @@
 """
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.dependencies import runtime_dependency
 from app.exceptions import NotFoundError
+from app.router_service_ports import BacktestCommandPort, BacktestQueryPort
 from app.runtime_refs import BACKTEST_COMMAND_SERVICE, BACKTEST_QUERY_SERVICE
 from app.rate_limit import limiter
 from app.contracts.dto.backtest import (
     BacktestDetailResponse,
     BacktestDeleteResponse,
-    BacktestPreviewRequest,
     BacktestPreviewResponse,
     BacktestRunResponse,
-    BacktestStartRequest,
     BacktestStartResponse,
-    IndicatorDefinitionCreateRequest,
-    StrategyEvolutionRequest,
     StrategyEvolutionResponse,
     StrategyEditorContractResponse,
     StrategyIndicatorEngineResponse,
     StrategyIndicatorRegistryResponse,
     StrategyDefinitionResponse,
-    StrategyTemplateCreateRequest,
     StrategyTemplateResponse,
-    StrategyVersionCreateRequest,
     StrategyVersionResponse,
-    PaperStartRequest,
     PaperStartResponse,
     PaperStopResponse,
+)
+from app.contracts.backtest import (
+    BacktestPreviewCommand,
+    BacktestStartCommand,
+    CreateIndicatorDefinitionCommand,
+    CreateStrategyTemplateCommand,
+    CreateStrategyVersionCommand,
+    EvolveStrategyFromBacktestCommand,
+    PaperStartCommand,
 )
 from config import settings
 
@@ -45,36 +46,36 @@ backtest_query_dependency = runtime_dependency(BACKTEST_QUERY_SERVICE)
 @limiter.limit(settings.RATE_LIMIT_HEAVY)
 async def preview_backtest(
     request: Request,
-    body: BacktestPreviewRequest,
-    service: Any = Depends(backtest_command_dependency),
+    body: BacktestPreviewCommand,
+    service: BacktestCommandPort = Depends(backtest_command_dependency),
 ):
-    return await service.preview_backtest(body.to_preview_command())
+    return await service.preview_backtest(body)
 
 
 @router.post("/backtest/start", response_model=BacktestStartResponse)
 @limiter.limit(settings.RATE_LIMIT_HEAVY)
 async def start_backtest(
     request: Request,
-    body: BacktestStartRequest,
-    service: Any = Depends(backtest_command_dependency),
+    body: BacktestStartCommand,
+    service: BacktestCommandPort = Depends(backtest_command_dependency),
 ):
-    return await service.start_backtest(body.to_command())
+    return await service.start_backtest(body)
 
 
 @router.post("/paper/start", response_model=PaperStartResponse)
 @limiter.limit(settings.RATE_LIMIT_HEAVY)
 async def start_paper_run(
     request: Request,
-    body: PaperStartRequest,
-    service: Any = Depends(backtest_command_dependency),
+    body: PaperStartCommand,
+    service: BacktestCommandPort = Depends(backtest_command_dependency),
 ):
-    return await service.start_paper_run(body.to_command())
+    return await service.start_paper_run(body)
 
 
 @router.post("/paper/{run_id}/stop", response_model=PaperStopResponse)
 async def stop_paper_run(
     run_id: int,
-    service: Any = Depends(backtest_command_dependency),
+    service: BacktestCommandPort = Depends(backtest_command_dependency),
 ):
     return await service.stop_paper_run(run_id)
 
@@ -82,7 +83,7 @@ async def stop_paper_run(
 @router.delete("/backtest/{backtest_id}", response_model=BacktestDeleteResponse)
 async def delete_backtest(
     backtest_id: int,
-    service: Any = Depends(backtest_command_dependency),
+    service: BacktestCommandPort = Depends(backtest_command_dependency),
 ):
     return await service.delete_backtest(backtest_id)
 
@@ -90,58 +91,58 @@ async def delete_backtest(
 @router.delete("/paper/{run_id}", response_model=BacktestDeleteResponse)
 async def delete_paper_run(
     run_id: int,
-    service: Any = Depends(backtest_command_dependency),
+    service: BacktestCommandPort = Depends(backtest_command_dependency),
 ):
     return await service.delete_paper_run(run_id)
 
 
 @router.get("/backtest/strategies", response_model=list[StrategyDefinitionResponse])
-async def list_strategies(service: Any = Depends(backtest_query_dependency)):
+async def list_strategies(service: BacktestQueryPort = Depends(backtest_query_dependency)):
     return await service.list_strategies()
 
 
 @router.get("/backtest/templates", response_model=list[StrategyTemplateResponse])
-async def list_strategy_templates(service: Any = Depends(backtest_query_dependency)):
+async def list_strategy_templates(service: BacktestQueryPort = Depends(backtest_query_dependency)):
     return await service.list_templates()
 
 
 @router.get("/backtest/editor-contract", response_model=StrategyEditorContractResponse)
-async def get_strategy_editor_contract(service: Any = Depends(backtest_query_dependency)):
+async def get_strategy_editor_contract(service: BacktestQueryPort = Depends(backtest_query_dependency)):
     return await service.get_editor_contract()
 
 
 @router.post("/backtest/templates", response_model=StrategyTemplateResponse)
 async def create_strategy_template(
-    body: StrategyTemplateCreateRequest,
-    service: Any = Depends(backtest_command_dependency),
+    body: CreateStrategyTemplateCommand,
+    service: BacktestCommandPort = Depends(backtest_command_dependency),
 ):
-    return await service.create_template(body.to_command())
+    return await service.create_template(body)
 
 
 @router.get("/backtest/indicators", response_model=list[StrategyIndicatorRegistryResponse])
-async def list_indicators(service: Any = Depends(backtest_query_dependency)):
+async def list_indicators(service: BacktestQueryPort = Depends(backtest_query_dependency)):
     return await service.list_indicators()
 
 
 @router.get("/backtest/indicator-engines", response_model=list[StrategyIndicatorEngineResponse])
-async def list_indicator_engines(service: Any = Depends(backtest_query_dependency)):
+async def list_indicator_engines(service: BacktestQueryPort = Depends(backtest_query_dependency)):
     return await service.list_indicator_engines()
 
 
 @router.post("/backtest/indicators", response_model=StrategyIndicatorRegistryResponse)
 async def create_indicator(
-    body: IndicatorDefinitionCreateRequest,
-    service: Any = Depends(backtest_command_dependency),
+    body: CreateIndicatorDefinitionCommand,
+    service: BacktestCommandPort = Depends(backtest_command_dependency),
 ):
-    return await service.create_indicator(body.to_command())
+    return await service.create_indicator(body)
 
 
 @router.post("/backtest/strategies", response_model=StrategyVersionResponse)
 async def create_strategy_version(
-    body: StrategyVersionCreateRequest,
-    service: Any = Depends(backtest_command_dependency),
+    body: CreateStrategyVersionCommand,
+    service: BacktestCommandPort = Depends(backtest_command_dependency),
 ):
-    return await service.create_strategy_version(body.to_command())
+    return await service.create_strategy_version(body)
 
 
 @router.post("/backtest/{backtest_id}/evolve", response_model=StrategyEvolutionResponse)
@@ -149,14 +150,16 @@ async def create_strategy_version(
 async def evolve_strategy_from_backtest(
     request: Request,
     backtest_id: int,
-    body: StrategyEvolutionRequest,
-    service: Any = Depends(backtest_command_dependency),
+    body: EvolveStrategyFromBacktestCommand,
+    service: BacktestCommandPort = Depends(backtest_command_dependency),
 ):
-    return await service.evolve_strategy_from_backtest(body.to_command(backtest_id))
+    return await service.evolve_strategy_from_backtest(
+        body.model_copy(update={"backtest_id": backtest_id})
+    )
 
 
 @router.get("/backtest/list", response_model=list[BacktestRunResponse])
-async def list_backtests(service: Any = Depends(backtest_query_dependency)):
+async def list_backtests(service: BacktestQueryPort = Depends(backtest_query_dependency)):
     return await service.list_runs()
 
 
@@ -165,7 +168,7 @@ async def get_backtest(
     backtest_id: int,
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
-    service: Any = Depends(backtest_query_dependency),
+    service: BacktestQueryPort = Depends(backtest_query_dependency),
 ):
     result = await service.get_run(backtest_id, page, page_size)
     if result is None:
@@ -174,7 +177,7 @@ async def get_backtest(
 
 
 @router.get("/paper/list", response_model=list[BacktestRunResponse])
-async def list_paper_runs(service: Any = Depends(backtest_query_dependency)):
+async def list_paper_runs(service: BacktestQueryPort = Depends(backtest_query_dependency)):
     return await service.list_paper_runs()
 
 
@@ -183,7 +186,7 @@ async def get_paper_run(
     run_id: int,
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
-    service: Any = Depends(backtest_query_dependency),
+    service: BacktestQueryPort = Depends(backtest_query_dependency),
 ):
     result = await service.get_paper_run(run_id, page, page_size)
     if result is None:

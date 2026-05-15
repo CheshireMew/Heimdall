@@ -354,14 +354,14 @@ export type ApiRouteResponseMap = {
 
 export type ApiRouteBodyMap = {
   analyze_factors: FactorTypes.FactorResearchRequest
-  compare_pairs: ToolsTypes.PairCompareRequestSchema
-  create_indicator: BacktestTypes.IndicatorDefinitionCreateRequest
-  create_strategy_template: BacktestTypes.StrategyTemplateCreateRequest
-  create_strategy_version: BacktestTypes.StrategyVersionCreateRequest
-  dca_simulate: ToolsTypes.DCARequestSchema
+  compare_pairs: ToolsTypes.ComparePairsCommand
+  create_indicator: BacktestTypes.CreateIndicatorDefinitionCommand
+  create_strategy_template: BacktestTypes.CreateStrategyTemplateCommand
+  create_strategy_version: BacktestTypes.CreateStrategyVersionCommand
+  dca_simulate: ToolsTypes.SimulateDcaCommand
   delete_backtest: never
   delete_paper_run: never
-  evolve_strategy_from_backtest: BacktestTypes.StrategyEvolutionRequest
+  evolve_strategy_from_backtest: BacktestTypes.EvolveStrategyFromBacktestCommand
   get_api_status: never
   get_backtest: never
   get_binance_market_contract_detail: never
@@ -442,11 +442,11 @@ export type ApiRouteBodyMap = {
   list_paper_runs: never
   list_strategies: never
   list_strategy_templates: never
-  preview_backtest: BacktestTypes.BacktestPreviewRequest
-  start_backtest: BacktestTypes.BacktestStartRequest
-  start_factor_backtest: FactorTypes.FactorExecutionRequest
-  start_factor_paper_run: FactorTypes.FactorExecutionRequest
-  start_paper_run: BacktestTypes.PaperStartRequest
+  preview_backtest: BacktestTypes.BacktestPreviewCommand
+  start_backtest: BacktestTypes.BacktestStartCommand
+  start_factor_backtest: FactorTypes.FactorExecutionConfig
+  start_factor_paper_run: FactorTypes.FactorExecutionConfig
+  start_paper_run: BacktestTypes.PaperStartCommand
   stop_paper_run: never
   sync_funding_rate_history: never
   update_fred_api_config: ConfigTypes.FredApiConfigUpdateRequest

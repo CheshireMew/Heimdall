@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { marketApi } from './api'
+import { marketInsightApi } from './api'
 import { resolveSentimentBucket } from './sentiment'
 import type { MarketIndicatorResponse, SentimentCache, SentimentData } from './contracts'
 import { isCacheFresh, MARKET_CACHE_TTL_MS, writeCacheEntry, type CacheEntry } from './cacheTypes'
@@ -60,7 +60,7 @@ export const useMarketIndicatorStore = defineStore('marketIndicators', {
 
       const request = (async (): Promise<MarketIndicatorResponse[] | null> => {
         try {
-          const response = await marketApi.getIndicators({ category: category || undefined, days })
+          const response = await marketInsightApi.getIndicators({ category: category || undefined, days })
           const data = Array.isArray(response) ? response : []
           writeCacheEntry(this.indicatorCache, key, data)
           return data

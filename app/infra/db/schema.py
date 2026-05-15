@@ -123,6 +123,24 @@ class BacktestEquityPoint(Base):
         return f"<BacktestEquityPoint(id={self.id}, equity={self.equity})>"
 
 
+class BacktestPreviewArtifact(Base):
+    """Persisted strategy preview approval artifact."""
+    __tablename__ = 'backtest_preview_artifacts'
+
+    preview_id = Column(String(64), primary_key=True)
+    fingerprint = Column(String(128), nullable=False)
+    command_payload = Column(JSON, nullable=False)
+    artifact = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
+
+    __table_args__ = (
+        Index('ix_backtest_preview_created_at', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f"<BacktestPreviewArtifact(preview_id={self.preview_id})>"
+
+
 class StrategyDefinition(Base):
     """策略定义"""
     __tablename__ = 'strategy_definitions'

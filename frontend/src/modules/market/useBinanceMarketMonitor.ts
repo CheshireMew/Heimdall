@@ -9,7 +9,7 @@ import type {
   BinanceTickerStatsItemResponse,
   BinanceTickerStatsResponse,
 } from './contracts'
-import { marketApi } from './api'
+import { binanceMarketApi } from './api'
 import { binanceMarketWarmSnapshot } from './binanceMarketWarmSnapshot'
 import type {
   BinanceMarketSnapshot,
@@ -160,7 +160,7 @@ export function useBinanceMarketMonitor(snapshot: BinanceMarketSnapshot) {
       loading.value = true
       errorState.value = null
       try {
-        const response = await marketApi.getBinanceMarketPage({
+        const response = await binanceMarketApi.getBinanceMarketPage({
           min_rise_pct: requestMinRisePct,
           limit: MARKET_PAGE_LIMIT,
           quote_asset: requestQuoteAsset,

@@ -122,21 +122,22 @@ class FactorPaperRunManager(PaperRunHostedService):
         return True
 
     def _create_run(self, config: FactorExecutionConfig) -> int:
+        research_run_id = config.require_research_run_id()
         factor_service = self.factor_service
-        research_run = factor_service.get_run(config.research_run_id)
+        research_run = factor_service.get_run(research_run_id)
         if not research_run:
             raise ValueError("因子研究记录不存在。")
         request_payload = dict(research_run.get("request") or {})
         blend = dict(research_run.get("blend") or {})
         now = utc_now_naive()
-        _, live_frame = factor_service.build_live_blend_frame(config.research_run_id, end_date=now)
+        _, live_frame = factor_service.build_live_blend_frame(research_run_id, end_date=now)
         timeframe_delta = timeframe_to_timedelta(request_payload["timeframe"])
         closed_frame = live_frame.loc[live_frame["timestamp"].apply(lambda ts: ts + timeframe_delta <= now)] if not live_frame.empty else live_frame
         last_processed = None if closed_frame.empty else int(closed_frame["timestamp"].iloc[-1].timestamp() * 1000)
         strategy = StrategyVersionRecord(
             strategy_key="factor_blend",
             strategy_name="Factor Blend",
-            version=config.research_run_id,
+            version=research_run_id,
             template="factor_blend",
             config=blank_strategy_version_config_model().model_dump(),
         )
@@ -172,7 +173,7 @@ class FactorPaperRunManager(PaperRunHostedService):
         ).model_copy(
             update={
                 "factor_research": {
-                    "run_id": config.research_run_id,
+                    "run_id": research_run_id,
                     "dataset_id": research_run["dataset_id"],
                     "entry_threshold": float(blend.get("entry_threshold", 0.0) if config.entry_threshold is None else config.entry_threshold),
                     "exit_threshold": float(blend.get("exit_threshold", 0.0) if config.exit_threshold is None else config.exit_threshold),

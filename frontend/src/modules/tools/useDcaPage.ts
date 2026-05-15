@@ -6,7 +6,7 @@ import { ensureSymbolCatalogLoaded, isIndexSymbol } from '@/modules/market'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
 import { useUserPreferences } from '@/composables/useUserPreferences'
-import type { DCARequestSchema, DCAResponse } from './contracts'
+import type { DCAResponse, SimulateDcaCommand } from './contracts'
 import { toolsApi } from './api'
 import { buildDcaSnapshot, createDefaultDcaConfig, createEmptyDcaConfig, createEmptyDcaSnapshot, normalizeDcaConfig, normalizeDcaSnapshot } from './pageSnapshots'
 import { createEmptyMarketData, useDcaMarketContext } from './useDcaMarketContext'
@@ -59,7 +59,7 @@ export function useDcaPage() {
     loading.value = true
     try {
       await ensureSymbolCatalogLoaded()
-      const payload: DCARequestSchema = {
+      const payload: SimulateDcaCommand = {
         ...config,
         strategy: config.strategy || undefined,
       }

@@ -14,7 +14,7 @@ from pydantic import BaseModel, TypeAdapter
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from app.main import app
+from app.main import create_app
 
 FRONTEND_API_DIR = REPO_ROOT / "frontend" / "src" / "api"
 TARGET_FILES = ("backtest.ts", "factor.ts", "market.ts", "tools.ts", "config.ts")
@@ -26,6 +26,7 @@ TARGET_PATHS = {
     "config.ts": REPO_ROOT / "frontend" / "src" / "modules" / "system" / "generatedContracts.ts",
 }
 API_PREFIX = "/api/v1"
+CONTRACT_APP = create_app("api")
 TYPE_NAMESPACE_BY_FILE = {
     "backtest.ts": "BacktestTypes",
     "factor.ts": "FactorTypes",
@@ -76,7 +77,7 @@ def main() -> None:
 
 def collect_route_contract_models() -> tuple[RouteContractModel, ...]:
     models: dict[tuple[str, str], RouteContractModel] = {}
-    for route in app.routes:
+    for route in CONTRACT_APP.routes:
         if not isinstance(route, APIRoute):
             continue
         if not route.path.startswith(API_PREFIX):
@@ -95,7 +96,7 @@ def collect_route_contract_models() -> tuple[RouteContractModel, ...]:
 
 def collect_route_query_param_contracts() -> tuple[QueryParamContract, ...]:
     contracts: dict[str, QueryParamContract] = {}
-    for route in app.routes:
+    for route in CONTRACT_APP.routes:
         if not isinstance(route, APIRoute):
             continue
         if not route.path.startswith(API_PREFIX):
@@ -301,7 +302,7 @@ def render_api_routes() -> str:
 def api_v1_routes() -> tuple[APIRoute, ...]:
     return tuple(
         route
-        for route in app.routes
+        for route in CONTRACT_APP.routes
         if isinstance(route, APIRoute) and route.path.startswith(API_PREFIX)
     )
 

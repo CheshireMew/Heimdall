@@ -38,25 +38,15 @@ class FactorDetailService:
             label_column = f"label::{horizon}"
             if label_column not in base.columns:
                 continue
-            horizon_frame = base[["timestamp", "feature", label_column]].rename(columns={label_column: "target"}).dropna()
-            if len(horizon_frame) < int(self.math.cleaning["min_sample_size"]):
+            metric = self.math.build_forward_metric(
+                horizon=horizon,
+                timestamps=base["timestamp"],
+                feature=base["feature"],
+                target=base[label_column],
+                include_target_stats=True,
+            )
+            if metric is None:
                 continue
-            rolling_corr = self.math.build_rolling_corr(horizon_frame["timestamp"], horizon_frame["feature"], horizon_frame["target"])
-            quantiles = self.math.build_quantiles(horizon_frame["feature"], horizon_frame["target"])
-            metric = {
-                "horizon": horizon,
-                "sample_size": int(len(horizon_frame)),
-                "target_mean": self.math.to_float(horizon_frame["target"].mean()),
-                "target_std": self.math.to_float(horizon_frame["target"].std()),
-                "correlation": self.math.safe_corr(horizon_frame["feature"], horizon_frame["target"]),
-                "rank_correlation": self.math.safe_corr(horizon_frame["feature"].rank(), horizon_frame["target"].rank()),
-                "ic_mean": self.math.to_float(pd.Series([item["value"] for item in rolling_corr]).mean() if rolling_corr else 0.0),
-                "ic_std": self.math.to_float(pd.Series([item["value"] for item in rolling_corr]).std() if rolling_corr else 0.0),
-                "ic_ir": self.math.information_ratio(rolling_corr),
-                "ic_t_stat": self.math.t_stat(rolling_corr),
-                "quantile_spread": self.math.quantile_spread(quantiles),
-                "hit_rate": self.math.hit_rate(horizon_frame["feature"], horizon_frame["target"]),
-            }
             forward_metrics.append(metric)
             if horizon == primary_horizon:
                 primary_metric = metric

@@ -2,10 +2,10 @@
 // Do not edit manually.
 
 export interface ToolsPageContractResponse {
-  dca_defaults: DCARequestSchema
+  dca_defaults: SimulateDcaCommand
   dca_strategies: Array<"standard" | "ema_deviation" | "rsi_dynamic" | "ahr999" | "fear_greed" | "value_averaging">
   dca_multiplier_default: number
-  compare_defaults: PairCompareRequestSchema
+  compare_defaults: ComparePairsCommand
 }
 
 export interface DCAResponse {
@@ -30,7 +30,7 @@ export interface DCAResponse {
   profit_pct?: number | null
 }
 
-export interface DCARequestSchema {
+export interface SimulateDcaCommand {
   symbol?: string
   amount?: number
   start_date?: string | null
@@ -38,7 +38,7 @@ export interface DCARequestSchema {
   timezone?: string
   days?: number | null
   strategy?: "standard" | "ema_deviation" | "rsi_dynamic" | "ahr999" | "fear_greed" | "value_averaging"
-  strategy_params?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null } | null
+  strategy_params?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
 }
 
 export interface PairCompareToolResponse {
@@ -52,7 +52,7 @@ export interface PairCompareToolResponse {
   relative_strength?: number | null
 }
 
-export interface PairCompareRequestSchema {
+export interface ComparePairsCommand {
   symbol_a?: string
   symbol_b?: string
   days?: number

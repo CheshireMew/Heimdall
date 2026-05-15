@@ -1,9 +1,9 @@
 import { apiGet, apiPost } from '@/api/request'
 import type {
-  DCARequestSchema,
   DCAResponse,
-  PairCompareRequestSchema,
+  ComparePairsCommand,
   PairCompareToolResponse,
+  SimulateDcaCommand,
   ToolsPageContractResponse,
 } from './contracts'
 
@@ -12,11 +12,11 @@ export const toolsApi = {
     return apiGet('get_tools_contract')
   },
 
-  runSimulation(config: DCARequestSchema): Promise<DCAResponse> {
+  runSimulation(config: SimulateDcaCommand): Promise<DCAResponse> {
     return apiPost('dca_simulate', config)
   },
 
-  comparePairs(params: PairCompareRequestSchema): Promise<PairCompareToolResponse> {
+  comparePairs(params: ComparePairsCommand): Promise<PairCompareToolResponse> {
     return apiPost('compare_pairs', params)
   },
 }

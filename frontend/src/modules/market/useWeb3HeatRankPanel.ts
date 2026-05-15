@@ -9,7 +9,7 @@ import type {
   BinanceWeb3TokenDynamicResponse,
   BinanceWeb3TokenKlineItemResponse,
 } from './contracts'
-import { marketApi } from './api'
+import { binanceWeb3Api } from './api'
 import type { CandlestickData, VolumeData } from './contracts'
 import { web3HeatRankWarmSnapshot } from './web3MarketWarmSnapshot'
 import {
@@ -64,7 +64,7 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
     web3HeatRankBoards.value[web3HeatRankBoardKey(web3Sort.value.field, web3Sort.value.direction)]?.items || []
   ))
 
-  const applyHeatRankPayload = (payload: Awaited<ReturnType<typeof marketApi.getBinanceWeb3HeatRankBoards>>) => {
+  const applyHeatRankPayload = (payload: Awaited<ReturnType<typeof binanceWeb3Api.getBinanceWeb3HeatRankBoards>>) => {
     web3HeatRankBoards.value = payload.boards || {}
   }
 
@@ -89,7 +89,7 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
       web3Loading.value = true
       web3ErrorKey.value = ''
       try {
-        const response = await marketApi.getBinanceWeb3HeatRankBoards({
+        const response = await binanceWeb3Api.getBinanceWeb3HeatRankBoards({
           chain_id: web3ApiChainId(requestChainId),
           size: WEB3_HEAT_RANK_SIZE,
         })
@@ -125,15 +125,15 @@ export function useWeb3HeatRankPanel(chainId: Ref<string>) {
     web3DetailErrorKey.value = ''
     try {
       const [dynamicRes, auditRes, klineRes] = await Promise.all([
-        marketApi.getBinanceWeb3TokenDynamic({
+        binanceWeb3Api.getBinanceWeb3TokenDynamic({
           chain_id: token.chain_id,
           contract_address: token.contract_address,
         }),
-        marketApi.getBinanceWeb3TokenAudit({
+        binanceWeb3Api.getBinanceWeb3TokenAudit({
           binance_chain_id: token.chain_id,
           contract_address: token.contract_address,
         }),
-        marketApi.getBinanceWeb3TokenKline({
+        binanceWeb3Api.getBinanceWeb3TokenKline({
           address: token.contract_address,
           platform: token.platform,
           interval: web3KlineInterval.value,

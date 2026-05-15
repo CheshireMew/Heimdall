@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { marketApi } from './api'
+import { marketInsightApi } from './api'
 import type { CryptoIndexResponse } from './contracts'
 import { isCacheFresh, MARKET_CACHE_TTL_MS, writeCacheEntry, type CacheEntry } from './cacheTypes'
 
@@ -54,7 +54,7 @@ export const useCryptoIndexStore = defineStore('cryptoIndex', {
 
       const request = (async (): Promise<CryptoIndexResponse | null> => {
         try {
-          const response = await marketApi.getCryptoIndex({ top_n: topN, days })
+          const response = await marketInsightApi.getCryptoIndex({ top_n: topN, days })
           if (response) {
             writeCacheEntry(this.cryptoIndexCache, key, response)
             return response

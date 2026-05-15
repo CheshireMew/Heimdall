@@ -1,4 +1,13 @@
-export { marketApi } from './api'
+export {
+  binanceMarketApi,
+  binanceRwaApi,
+  binanceWeb3Api,
+  marketCatalogApi,
+  marketHistoryApi,
+  marketIndexApi,
+  marketInsightApi,
+  marketLiveApi,
+} from './api'
 export { useCryptoIndexStore } from './cryptoIndexStore'
 export { useKlineStore } from './klineStore'
 export { useMacroLiquidityStore } from './macroLiquidityStore'

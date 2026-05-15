@@ -1,7 +1,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 import { formatCompactCurrency, formatPrice, formatSignedPercent } from '@/modules/format'
-import { marketApi } from './api'
+import { binanceRwaApi } from './api'
 import type {
   BinanceRwaDynamicResponse,
   BinanceRwaKlineItemResponse,
@@ -68,10 +68,10 @@ export function useTokenizedSecuritiesPage() {
         contract_address: contractAddress,
       }
       const [metaRes, assetStatusRes, dynamicRes, klineRes] = await Promise.all([
-        marketApi.getBinanceRwaMeta(params),
-        marketApi.getBinanceRwaAssetMarketStatus(params),
-        marketApi.getBinanceRwaDynamic(params),
-        marketApi.getBinanceRwaKline({ ...params, interval: '1d', limit: 120 }),
+        binanceRwaApi.getBinanceRwaMeta(params),
+        binanceRwaApi.getBinanceRwaAssetMarketStatus(params),
+        binanceRwaApi.getBinanceRwaDynamic(params),
+        binanceRwaApi.getBinanceRwaKline({ ...params, interval: '1d', limit: 120 }),
       ])
       meta.value = metaRes
       assetStatus.value = assetStatusRes
@@ -96,8 +96,8 @@ export function useTokenizedSecuritiesPage() {
     error.value = ''
     try {
       const [symbolsRes, marketStatusRes] = await Promise.all([
-        marketApi.getBinanceRwaSymbols({ platform_type: 1 }),
-        marketApi.getBinanceRwaMarketStatus(),
+        binanceRwaApi.getBinanceRwaSymbols({ platform_type: 1 }),
+        binanceRwaApi.getBinanceRwaMarketStatus(),
       ])
       rows.value = symbolsRes?.items || []
       marketStatus.value = marketStatusRes || null

@@ -54,7 +54,7 @@ class BacktestCommandService:
         logger.info(
             f"生成策略预览: strategy={command.strategy_key} v{command.strategy_version or 'default'}, "
             f"symbols={','.join(command.portfolio.symbols)}, tf={command.timeframe}, "
-            f"range=({command.start_date} - {command.end_date})"
+            f"range=({command.start_datetime} - {command.end_datetime})"
         )
         return await run_compute(
             lambda: self.preview_service.build_preview(
@@ -71,22 +71,12 @@ class BacktestCommandService:
             preview_id=command.preview_id,
             approved_fingerprint=command.approved_fingerprint,
             strategy=strategy,
-            command=BacktestPreviewCommand(
-                strategy_key=command.strategy_key,
-                strategy_version=command.strategy_version,
-                timeframe=command.timeframe,
-                start_date=command.start_date,
-                end_date=command.end_date,
-                initial_cash=command.initial_cash,
-                fee_rate=command.fee_rate,
-                portfolio=command.portfolio,
-                research=command.research,
-            ),
+            command=command.preview_command(),
         )
         logger.info(
             f"启动回测: strategy={command.strategy_key} v{command.strategy_version or 'default'}, "
             f"symbols={','.join(command.portfolio.symbols)}, tf={command.timeframe}, "
-            f"range=({command.start_date} - {command.end_date}), "
+            f"range=({command.start_datetime} - {command.end_datetime}), "
             f"本金={command.initial_cash}, 手续费={command.fee_rate}%"
         )
 
@@ -95,8 +85,8 @@ class BacktestCommandService:
                 strategy=strategy,
                 portfolio=command.portfolio,
                 research=command.research,
-                start_date=command.start_date,
-                end_date=command.end_date,
+                start_date=command.start_datetime,
+                end_date=command.end_datetime,
                 timeframe=command.timeframe,
                 initial_cash=command.initial_cash,
                 fee_rate=command.fee_rate,

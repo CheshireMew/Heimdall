@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from app.contracts.json_types import JsonObject
 
 
 DCA_STRATEGY_KEYS = (
@@ -14,21 +17,29 @@ DCA_STRATEGY_KEYS = (
 )
 
 
-@dataclass(slots=True)
-class SimulateDcaCommand:
-    symbol: str
-    amount: float
-    investment_time: str
-    timezone: str
-    strategy: str
+DcaStrategyKey = Literal[
+    "standard",
+    "ema_deviation",
+    "rsi_dynamic",
+    "ahr999",
+    "fear_greed",
+    "value_averaging",
+]
+
+
+class SimulateDcaCommand(BaseModel):
+    symbol: str = "BTC/USDT"
+    amount: float = Field(100.0, gt=0, le=1_000_000)
     start_date: str | None = None
-    days: int | None = None
-    strategy_params: dict[str, Any] = field(default_factory=dict)
+    investment_time: str = "23:00"
+    timezone: str = "Asia/Shanghai"
+    days: int | None = Field(None, gt=0, le=3650)
+    strategy: DcaStrategyKey = "standard"
+    strategy_params: JsonObject = Field(default_factory=dict)
 
 
-@dataclass(slots=True)
-class ComparePairsCommand:
-    symbol_a: str
-    symbol_b: str
-    days: int
-    timeframe: str
+class ComparePairsCommand(BaseModel):
+    symbol_a: str = "BTC"
+    symbol_b: str = "ETH"
+    days: int = Field(7, gt=0, le=3650)
+    timeframe: str = "1h"

@@ -60,25 +60,16 @@ class FactorBlendService:
         forward_metrics = []
         for horizon in forward_horizons:
             label_column = f"label::{horizon}"
-            horizon_frame = composite_series[["timestamp", "composite_score", label_column]].rename(columns={label_column: "target"}).dropna()
-            if len(horizon_frame) < min_sample_size:
-                continue
-            rolling_corr = self.math.build_rolling_corr(horizon_frame["timestamp"], horizon_frame["composite_score"], horizon_frame["target"])
-            quantiles = self.math.build_quantiles(horizon_frame["composite_score"], horizon_frame["target"])
-            forward_metrics.append(
-                {
-                    "horizon": horizon,
-                    "sample_size": int(len(horizon_frame)),
-                    "correlation": self.math.safe_corr(horizon_frame["composite_score"], horizon_frame["target"]),
-                    "rank_correlation": self.math.safe_corr(horizon_frame["composite_score"].rank(), horizon_frame["target"].rank()),
-                    "ic_mean": self.math.to_float(pd.Series([item["value"] for item in rolling_corr]).mean() if rolling_corr else 0.0),
-                    "ic_std": self.math.to_float(pd.Series([item["value"] for item in rolling_corr]).std() if rolling_corr else 0.0),
-                    "ic_ir": self.math.information_ratio(rolling_corr),
-                    "ic_t_stat": self.math.t_stat(rolling_corr),
-                    "quantile_spread": self.math.quantile_spread(quantiles),
-                    "hit_rate": self.math.hit_rate(horizon_frame["composite_score"], horizon_frame["target"]),
-                }
+            metric = self.math.build_forward_metric(
+                horizon=horizon,
+                timestamps=composite_series["timestamp"],
+                feature=composite_series["composite_score"],
+                target=composite_series[label_column],
+                min_sample_size=min_sample_size,
             )
+            if metric is None:
+                continue
+            forward_metrics.append(metric)
 
         primary_quantiles = self.math.build_quantiles(composite_series["composite_score"], composite_series[f"label::{primary_horizon}"])
         normalized = self.math.build_normalized_series(

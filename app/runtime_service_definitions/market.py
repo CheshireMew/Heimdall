@@ -12,7 +12,10 @@ from app.runtime_refs import (
     MARKET_BINANCE_MARKET_INTEL,
     MARKET_BINANCE_MARKET_RESEARCH_STORE,
     MARKET_BINANCE_MARKET_SNAPSHOT,
-    MARKET_BINANCE_WEB3_SERVICE,
+    MARKET_BINANCE_WEB3_HEAT_RANKS,
+    MARKET_BINANCE_WEB3_RANKS,
+    MARKET_BINANCE_WEB3_RWA,
+    MARKET_BINANCE_WEB3_TOKENS,
     MARKET_CRYPTO_INDEX_SERVICE,
     MARKET_DLI_CACHE,
     MARKET_FUNDING_RATE_APP_SERVICE,
@@ -151,11 +154,71 @@ def _build_binance_market_intel(ctx: RuntimeBuildContext):
     )
 
 
-def _build_binance_web3_service(ctx: RuntimeBuildContext):
-    from app.services.market.binance_web3_service import BinanceWeb3Service
+def _build_binance_web3_client(ctx: RuntimeBuildContext, *, base_url: str, namespace: str, user_agent: str):
+    from app.services.market.binance_api_support import BinanceApiSupport
+    from config import settings
 
-    return BinanceWeb3Service(
+    return BinanceApiSupport(
+        base_url=base_url,
+        cache_namespace=namespace,
+        user_agent=user_agent,
         cache_service=ctx.require(INFRA_CACHE_SERVICE),
+    )
+
+
+def _build_binance_web3_ranks(ctx: RuntimeBuildContext):
+    from app.services.market.binance_web3_rank_gateway import BinanceWeb3RankGateway
+    from config import settings
+
+    return BinanceWeb3RankGateway(
+        _build_binance_web3_client(
+            ctx,
+            base_url=settings.BINANCE_WEB3_BASE_URL,
+            namespace="binance:web3",
+            user_agent="binance-web3/2.1 (Skill)",
+        )
+    )
+
+
+def _build_binance_web3_heat_ranks(ctx: RuntimeBuildContext):
+    from app.services.market.binance_web3_heat_rank_service import BinanceWeb3HeatRankService
+
+    return BinanceWeb3HeatRankService(ctx.require(MARKET_BINANCE_WEB3_RANKS))
+
+
+def _build_binance_web3_rwa(ctx: RuntimeBuildContext):
+    from app.services.market.binance_web3_rwa import BinanceRwaService
+    from config import settings
+
+    return BinanceRwaService(
+        _build_binance_web3_client(
+            ctx,
+            base_url=settings.BINANCE_WWW_BASE_URL,
+            namespace="binance:www",
+            user_agent="binance-web3/1.1 (Skill)",
+        )
+    )
+
+
+def _build_binance_web3_tokens(ctx: RuntimeBuildContext):
+    from app.services.market.binance_web3_tokens import BinanceWeb3TokenService
+    from config import settings
+
+    web3_client = _build_binance_web3_client(
+        ctx,
+        base_url=settings.BINANCE_WEB3_BASE_URL,
+        namespace="binance:web3",
+        user_agent="binance-web3/2.1 (Skill)",
+    )
+    kline_client = _build_binance_web3_client(
+        ctx,
+        base_url="https://dquery.sintral.io",
+        namespace="binance:web3:kline",
+        user_agent="binance-web3/1.1 (Skill)",
+    )
+    return BinanceWeb3TokenService(
+        web3_client=web3_client,
+        kline_client=kline_client,
         kline_store=ctx.require(INFRA_KLINE_STORE),
     )
 
@@ -260,9 +323,27 @@ MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         background_stop_order=10,
     ),
     RuntimeServiceDefinition(
-        MARKET_BINANCE_WEB3_SERVICE,
+        MARKET_BINANCE_WEB3_RANKS,
         frozenset({"api"}),
-        _build_binance_web3_service,
+        _build_binance_web3_ranks,
+        deps=(INFRA_CACHE_SERVICE,),
+    ),
+    RuntimeServiceDefinition(
+        MARKET_BINANCE_WEB3_HEAT_RANKS,
+        frozenset({"api"}),
+        _build_binance_web3_heat_ranks,
+        deps=(MARKET_BINANCE_WEB3_RANKS,),
+    ),
+    RuntimeServiceDefinition(
+        MARKET_BINANCE_WEB3_RWA,
+        frozenset({"api"}),
+        _build_binance_web3_rwa,
+        deps=(INFRA_CACHE_SERVICE,),
+    ),
+    RuntimeServiceDefinition(
+        MARKET_BINANCE_WEB3_TOKENS,
+        frozenset({"api"}),
+        _build_binance_web3_tokens,
         deps=(INFRA_CACHE_SERVICE, INFRA_KLINE_STORE),
     ),
 )

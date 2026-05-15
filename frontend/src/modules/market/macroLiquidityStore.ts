@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { marketApi } from './api'
+import { marketInsightApi } from './api'
 import type { DliLiquidityResponse } from './contracts'
 import { isCacheFresh, MARKET_CACHE_TTL_MS, writeCacheEntry, type CacheEntry } from './cacheTypes'
 
@@ -54,7 +54,7 @@ export const useMacroLiquidityStore = defineStore('macroLiquidity', {
 
       const request = (async (): Promise<DliLiquidityResponse | null> => {
         try {
-          const response = await marketApi.getDliLiquidity({ days, change_days: changeDays })
+          const response = await marketInsightApi.getDliLiquidity({ days, change_days: changeDays })
           if (response) {
             writeCacheEntry(this.dliLiquidityCache, key, response)
             return response

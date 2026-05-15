@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { marketApi } from './api'
+import { marketHistoryApi } from './api'
 import type { OhlcvPointResponse } from './contracts'
 import { isCacheFresh, MARKET_CACHE_TTL_MS, writeCacheEntry, type CacheEntry } from './cacheTypes'
 
@@ -71,7 +71,7 @@ export const useKlineStore = defineStore('marketKline', {
       const pending = klineFetchPromises.get(fetchKey)
       const fetchPromise = pending || (async (): Promise<OhlcvPointResponse[] | null> => {
         try {
-          const res = await marketApi.getLatestKlines({ symbol, timeframe, limit })
+          const res = await marketHistoryApi.getLatestKlines({ symbol, timeframe, limit })
           const items = res.items || []
           if (items.length) {
             this.setKlineCache(key, items)

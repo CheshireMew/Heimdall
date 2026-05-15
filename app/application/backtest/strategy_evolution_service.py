@@ -39,9 +39,10 @@ class StrategyEvolutionService:
     def evolve_from_backtest(
         self, command: EvolveStrategyFromBacktestCommand
     ) -> dict:
-        run = self.run_repository.get_run(command.backtest_id, page=1, page_size=1000, execution_mode="backtest")
+        backtest_id = command.require_backtest_id()
+        run = self.run_repository.get_run(backtest_id, page=1, page_size=1000, execution_mode="backtest")
         if run is None:
-            raise ValueError(f"回测记录不存在: {command.backtest_id}")
+            raise ValueError(f"回测记录不存在: {backtest_id}")
         if run.get("status") != "completed":
             raise ValueError("只有已完成的回测才能用于策略进化")
         report_payload = run.get("report")

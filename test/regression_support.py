@@ -1131,7 +1131,19 @@ class StubBinanceMarketService:
         self.page = StubBinanceMarketPageService()
 
 
-class StubBinanceWeb3Service:
+class StubBinanceWeb3RanksService:
+    pass
+
+
+class StubBinanceWeb3HeatRanksService:
+    pass
+
+
+class StubBinanceWeb3RwaService:
+    pass
+
+
+class StubBinanceWeb3TokensService:
     pass
 
 

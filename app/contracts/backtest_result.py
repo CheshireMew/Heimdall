@@ -5,6 +5,14 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field
 
 from app.contracts.backtest import BacktestPortfolioConfig, BacktestResearchConfig
+from app.contracts.backtest_metadata import (
+    BacktestExecutionMetadata,
+    BacktestPaperLiveState,
+    BacktestPaperPosition,
+    BacktestPreviewApproval,
+    BacktestRuntimeState,
+    PaperLiveExecutionMetadata,
+)
 from app.contracts.json_types import JsonObject
 from app.contracts.strategy import StrategyTemplateConfigResponse
 
@@ -121,76 +129,27 @@ class BacktestSampleRangesResponse(BaseModel):
     out_of_sample: BacktestDateRangeResponse | None = None
 
 
-class BacktestPaperPositionResponse(BaseModel):
-    symbol: str
-    side: str = "long"
-    opened_at: str
-    entry_price: float
-    entry_score: float | None = None
-    remaining_amount: float
-    remaining_cost: float
-    highest_price: float
-    lowest_price: float
-    last_price: float
-    taken_partial_ids: list[str] = Field(default_factory=list)
+class BacktestPaperPositionResponse(BacktestPaperPosition):
+    pass
 
 
-class BacktestRuntimeStateResponse(BaseModel):
-    cash_balance: float
-    last_processed: dict[str, int | None] = Field(default_factory=dict)
-    last_synced_end: int | None = None
+class BacktestRuntimeStateResponse(BacktestRuntimeState):
     positions: dict[str, BacktestPaperPositionResponse] = Field(default_factory=dict)
-    held_bars: int = 0
 
 
-class BacktestPaperLiveResponse(BaseModel):
-    cash_balance: float
-    open_positions: int
+class BacktestPaperLiveResponse(BacktestPaperLiveState):
     positions: list[BacktestPaperPositionResponse] = Field(default_factory=list)
-    last_updated: str
-    stop_reason: str | None = None
 
 
-class BacktestPreviewApprovalResponse(BaseModel):
-    id: str
-    fingerprint: str
-    strategy_key: str | None = None
-    strategy_version: int | None = None
-    timeframe: str | None = None
-    symbols: list[str] = Field(default_factory=list)
+class BacktestPreviewApprovalResponse(BacktestPreviewApproval):
     markers: dict[str, list[JsonObject]] = Field(default_factory=dict)
     diagnostics: list[JsonObject] = Field(default_factory=list)
 
 
-class _BacktestRunMetadataCommonResponse(BaseModel):
-    schema_version: int | None = None
-    execution_model: str | None = None
-    engine: str | None = None
-    exchange: str | None = None
-    market_type: str | None = None
-    direction: str | None = None
-    strategy_key: str | None = None
-    strategy_name: str | None = None
-    strategy_version: int | None = None
-    strategy_template: str | None = None
-    strategy_notes: str | None = None
-    symbols: list[str] = Field(default_factory=list)
-    execution_symbols: list[str] = Field(default_factory=list)
-    price_source: str | None = None
-    portfolio_label: str | None = None
-    initial_cash: float | None = None
-    fee_rate: float | None = None
-    fee_ratio: float | None = None
-    timeframe: str | None = None
-    stake_currency: str | None = None
-    portfolio: BacktestPortfolioConfig | None = None
+class BacktestExecutionMetadataResponse(BacktestExecutionMetadata):
     selected_config: JsonObject = Field(default_factory=dict)
     raw_stats: BacktestReportSnapshotResponse | None = None
-    error: str | None = None
     preview: BacktestPreviewApprovalResponse | None = None
-
-
-class BacktestExecutionMetadataResponse(_BacktestRunMetadataCommonResponse):
     execution_mode: Literal["backtest"] = "backtest"
     research: BacktestResearchReportResponse | BacktestResearchConfig | None = None
     sample_ranges: BacktestSampleRangesResponse | None = None
@@ -198,7 +157,10 @@ class BacktestExecutionMetadataResponse(_BacktestRunMetadataCommonResponse):
     factor_research: JsonObject = Field(default_factory=dict)
 
 
-class PaperLiveExecutionMetadataResponse(_BacktestRunMetadataCommonResponse):
+class PaperLiveExecutionMetadataResponse(PaperLiveExecutionMetadata):
+    selected_config: JsonObject = Field(default_factory=dict)
+    raw_stats: BacktestReportSnapshotResponse | None = None
+    preview: BacktestPreviewApprovalResponse | None = None
     execution_mode: Literal["paper_live"] = "paper_live"
     runtime_state: BacktestRuntimeStateResponse | None = None
     paper_live: BacktestPaperLiveResponse | None = None

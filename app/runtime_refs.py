@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Generic, TypeVar
+
+
+TService = TypeVar("TService")
 
 
 @dataclass(frozen=True, slots=True)
-class RuntimeServiceRef:
+class RuntimeServiceRef(Generic[TService]):
     section: str
     name: str
 
@@ -34,7 +38,10 @@ MARKET_INDEX_DATA_SERVICE = RuntimeServiceRef("market", "index_data_service")
 MARKET_BINANCE_MARKET_SNAPSHOT = RuntimeServiceRef("market", "binance_market_snapshot")
 MARKET_BINANCE_MARKET_RESEARCH_STORE = RuntimeServiceRef("market", "binance_market_research_store")
 MARKET_BINANCE_MARKET_INTEL = RuntimeServiceRef("market", "binance_market_intel")
-MARKET_BINANCE_WEB3_SERVICE = RuntimeServiceRef("market", "binance_web3_service")
+MARKET_BINANCE_WEB3_RANKS = RuntimeServiceRef("market", "binance_web3_ranks")
+MARKET_BINANCE_WEB3_HEAT_RANKS = RuntimeServiceRef("market", "binance_web3_heat_ranks")
+MARKET_BINANCE_WEB3_RWA = RuntimeServiceRef("market", "binance_web3_rwa")
+MARKET_BINANCE_WEB3_TOKENS = RuntimeServiceRef("market", "binance_web3_tokens")
 
 TOOLS_SENTIMENT_API_CLIENT = RuntimeServiceRef("tools", "sentiment_api_client")
 TOOLS_SENTIMENT_REPOSITORY = RuntimeServiceRef("tools", "sentiment_repository")
@@ -49,6 +56,7 @@ BACKTEST_FACTOR_RUN_WRITER = RuntimeServiceRef("backtest", "factor_backtest_run_
 BACKTEST_PAPER_RUN_WRITER = RuntimeServiceRef("backtest", "paper_run_writer")
 BACKTEST_FACTOR_PAPER_RUN_WRITER = RuntimeServiceRef("backtest", "factor_paper_run_writer")
 BACKTEST_FREQTRADE_SERVICE = RuntimeServiceRef("backtest", "freqtrade_backtest_service")
+BACKTEST_PREVIEW_ARTIFACT_STORE = RuntimeServiceRef("backtest", "backtest_preview_artifact_store")
 BACKTEST_PREVIEW_SERVICE = RuntimeServiceRef("backtest", "backtest_preview_service")
 BACKTEST_RUN_SERVICE = RuntimeServiceRef("backtest", "backtest_run_service")
 BACKTEST_STRATEGY_DEFINITION_STORE = RuntimeServiceRef("backtest", "strategy_definition_store")

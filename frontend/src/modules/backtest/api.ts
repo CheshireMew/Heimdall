@@ -2,25 +2,25 @@ import { apiDelete, apiGet, apiPost } from '@/api/request'
 import type {
   BacktestDetailResponse,
   BacktestDeleteResponse,
-  BacktestPreviewRequest,
+  BacktestPreviewCommand,
   BacktestPreviewResponse,
   BacktestRunResponse,
-  BacktestStartRequest,
+  BacktestStartCommand,
   BacktestStartResponse,
-  IndicatorDefinitionCreateRequest,
-  PaperStartRequest,
+  CreateIndicatorDefinitionCommand,
+  PaperStartCommand,
   PaperStartResponse,
   PaperStopResponse,
   StrategyEditorContractResponse,
-  StrategyEvolutionRequest,
+  EvolveStrategyFromBacktestCommand,
   StrategyEvolutionResponse,
   StrategyDefinitionResponse,
   StrategyIndicatorEngineResponse,
   StrategyIndicatorRegistryResponse,
   StrategyTemplateResponse,
-  StrategyTemplateCreateRequest,
+  CreateStrategyTemplateCommand,
   StrategyVersionResponse,
-  StrategyVersionCreateRequest,
+  CreateStrategyVersionCommand,
 } from './contracts'
 
 export const backtestApi = {
@@ -28,11 +28,11 @@ export const backtestApi = {
     return apiGet('list_backtests')
   },
 
-  startRun(body: BacktestStartRequest): Promise<BacktestStartResponse> {
+  startRun(body: BacktestStartCommand): Promise<BacktestStartResponse> {
     return apiPost('start_backtest', body, { client: 'longTask' })
   },
 
-  previewRun(body: BacktestPreviewRequest): Promise<BacktestPreviewResponse> {
+  previewRun(body: BacktestPreviewCommand): Promise<BacktestPreviewResponse> {
     return apiPost('preview_backtest', body, { client: 'longTask' })
   },
 
@@ -40,7 +40,7 @@ export const backtestApi = {
     return apiGet('list_paper_runs')
   },
 
-  startPaperRun(body: PaperStartRequest): Promise<PaperStartResponse> {
+  startPaperRun(body: PaperStartCommand): Promise<PaperStartResponse> {
     return apiPost('start_paper_run', body, { client: 'longTask' })
   },
 
@@ -68,7 +68,7 @@ export const backtestApi = {
     return apiGet('get_strategy_editor_contract')
   },
 
-  createTemplate(body: StrategyTemplateCreateRequest): Promise<StrategyTemplateResponse> {
+  createTemplate(body: CreateStrategyTemplateCommand): Promise<StrategyTemplateResponse> {
     return apiPost('create_strategy_template', body)
   },
 
@@ -80,15 +80,15 @@ export const backtestApi = {
     return apiGet('list_indicator_engines')
   },
 
-  createIndicator(body: IndicatorDefinitionCreateRequest): Promise<StrategyIndicatorRegistryResponse> {
+  createIndicator(body: CreateIndicatorDefinitionCommand): Promise<StrategyIndicatorRegistryResponse> {
     return apiPost('create_indicator', body)
   },
 
-  createStrategyVersion(body: StrategyVersionCreateRequest): Promise<StrategyVersionResponse> {
+  createStrategyVersion(body: CreateStrategyVersionCommand): Promise<StrategyVersionResponse> {
     return apiPost('create_strategy_version', body)
   },
 
-  evolveStrategyFromBacktest(backtestId: number, body: StrategyEvolutionRequest): Promise<StrategyEvolutionResponse> {
+  evolveStrategyFromBacktest(backtestId: number, body: EvolveStrategyFromBacktestCommand): Promise<StrategyEvolutionResponse> {
     return apiPost('evolve_strategy_from_backtest', body, {
       client: 'longTask',
       path: { backtest_id: backtestId },

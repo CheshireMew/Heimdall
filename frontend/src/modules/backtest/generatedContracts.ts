@@ -19,7 +19,7 @@ export interface BacktestPreviewResponse {
   diagnostics?: Array<StrategyPreviewDiagnosticResponse>
 }
 
-export interface BacktestPreviewRequest {
+export interface BacktestPreviewCommand {
   strategy_key?: string
   strategy_version?: number | null
   timeframe?: string
@@ -37,7 +37,7 @@ export interface BacktestStartResponse {
   message: string
 }
 
-export interface BacktestStartRequest {
+export interface BacktestStartCommand {
   strategy_key?: string
   strategy_version?: number | null
   timeframe?: string
@@ -57,7 +57,7 @@ export interface PaperStartResponse {
   message: string
 }
 
-export interface PaperStartRequest {
+export interface PaperStartCommand {
   strategy_key?: string
   strategy_version?: number | null
   timeframe?: string
@@ -116,7 +116,7 @@ export interface StrategyEditorContractResponse {
   run_defaults: BacktestRunDefaultsResponse
 }
 
-export interface StrategyTemplateCreateRequest {
+export interface CreateStrategyTemplateCommand {
   key: string
   name: string
   category: string
@@ -145,7 +145,7 @@ export interface StrategyIndicatorEngineResponse {
   params: Array<StrategyIndicatorParamResponse>
 }
 
-export interface IndicatorDefinitionCreateRequest {
+export interface CreateIndicatorDefinitionCommand {
   key: string
   name: string
   engine_key: string
@@ -164,7 +164,7 @@ export interface StrategyVersionResponse {
   runtime: StrategyRunProfileResponse
 }
 
-export interface StrategyVersionCreateRequest {
+export interface CreateStrategyVersionCommand {
   key: string
   name: string
   template: string
@@ -189,7 +189,8 @@ export interface StrategyEvolutionResponse {
   evolved_config: StrategyTemplateConfigResponse
 }
 
-export interface StrategyEvolutionRequest {
+export interface EvolveStrategyFromBacktestCommand {
+  backtest_id?: number | null
   version_name?: string | null
   notes?: string | null
   make_default?: boolean

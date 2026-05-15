@@ -35,7 +35,8 @@ class FactorExecutionService:
         self.factor_backtest_runs = factor_backtest_runs
 
     def run_backtest(self, config: FactorExecutionConfig) -> int:
-        research_run, frame = self.factor_service.build_stored_blend_frame(config.research_run_id)
+        research_run_id = config.require_research_run_id()
+        research_run, frame = self.factor_service.build_stored_blend_frame(research_run_id)
         if frame.empty:
             raise ValueError("研究结果没有可回测的组合分数。")
 
@@ -58,7 +59,7 @@ class FactorExecutionService:
         ]
         context = FactorSignalContext(
             symbol=symbol,
-            research_run_id=config.research_run_id,
+            research_run_id=research_run_id,
             initial_cash=float(config.initial_cash),
             fee_rate=float(config.fee_rate),
             position_size_pct=float(config.position_size_pct),
@@ -89,10 +90,10 @@ class FactorExecutionService:
         strategy = StrategyVersionRecord(
             strategy_key="factor_blend",
             strategy_name="Factor Blend",
-            version=config.research_run_id,
+            version=research_run_id,
             template="factor_blend",
             config=blank_strategy_version_config_model().model_dump(),
-            version_name=f"Research {config.research_run_id}",
+            version_name=f"Research {research_run_id}",
         )
         portfolio = BacktestPortfolioConfig(
             symbols=[symbol],
@@ -113,7 +114,7 @@ class FactorExecutionService:
         ).model_copy(
             update={
                 "factor_research": {
-                    "run_id": config.research_run_id,
+                    "run_id": research_run_id,
                     "dataset_id": research_run.dataset_id,
                     "entry_threshold": entry_threshold,
                     "exit_threshold": exit_threshold,

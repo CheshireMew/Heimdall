@@ -1,4 +1,4 @@
-import { ensureSymbolCatalogLoaded, isIndexSymbol, marketApi, toBaseSymbol } from '@/modules/market'
+import { ensureSymbolCatalogLoaded, isIndexSymbol, marketHistoryApi, marketIndexApi, toBaseSymbol } from '@/modules/market'
 import type { MarketHistoryBatchItemResponse, OhlcvPointResponse } from '@/modules/market/contracts'
 import type { PortfolioBalancePortfolio } from './types'
 
@@ -64,7 +64,7 @@ const rowsToHistory = (rows: OhlcvPointResponse[]): PortfolioHistoryPoint[] => r
 const loadCryptoHistoryMap = async (symbols: string[], startText: string) => {
   const cacheKey = `crypto:${symbols.slice().sort().join(',')}:1d:${startText}`
   return rememberHistoryMap(cacheKey, async () => {
-    const response = await marketApi.getBatchPriceHistory({
+    const response = await marketHistoryApi.getBatchPriceHistory({
       symbols,
       timeframe: '1d',
       start_date: startText,
@@ -82,7 +82,7 @@ const loadCryptoHistoryMap = async (symbols: string[], startText: string) => {
 const loadIndexHistory = async (symbol: string, startText: string) => {
   const cacheKey = `index-pricing:${symbol}:1d:${startText}`
   return rememberHistory(cacheKey, async () => {
-    const response = await marketApi.getIndexPricingHistory({
+    const response = await marketIndexApi.getIndexPricingHistory({
       symbol,
       timeframe: '1d',
       start_date: startText,
@@ -112,7 +112,7 @@ export const fetchPortfolioPriceMap = async (portfolio: PortfolioBalancePortfoli
 
   if (cryptoTargets.length) {
     try {
-      const response = await marketApi.getCurrentPriceBatch({
+      const response = await marketHistoryApi.getCurrentPriceBatch({
         symbols: cryptoTargets.map((item) => item.marketSymbol),
         timeframe: '1d',
       })

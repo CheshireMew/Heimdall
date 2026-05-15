@@ -3,7 +3,7 @@ import type {
   FactorCatalogItemResponse,
   FactorCatalogResponse,
   FactorDetailResponse,
-  FactorExecutionRequest,
+  FactorExecutionConfig,
   FactorResearchRequest,
   FactorResearchRunListItemResponse,
   FactorResearchSummaryResponse,
@@ -33,7 +33,7 @@ export interface FactorResearchSidebarView {
   runs: FactorResearchRunListItemResponse[]
   selectedRunId: number | null
   blend: FactorBlendResponse | null
-  executionForm: FactorExecutionRequest
+  executionForm: Omit<FactorExecutionConfig, 'research_run_id'>
   executionLoading: '' | 'backtest' | 'paper'
   loadRun: (runId: number) => Promise<void>
   startExecution: (mode: 'backtest' | 'paper') => Promise<void>

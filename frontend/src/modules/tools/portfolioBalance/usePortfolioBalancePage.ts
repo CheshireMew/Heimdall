@@ -1,362 +1,81 @@
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { onBeforeUnmount, watch } from 'vue'
 
-import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
-import { backtestApi } from '@/modules/backtest'
 import { toBaseSymbol } from '@/modules/market'
-import { todayLocalIsoDate } from '@/utils/localDate'
-import type { BacktestRunResponse } from '@/modules/backtest/contracts'
-import type { PortfolioBacktestSummary, PortfolioBalancePortfolio } from './types'
 
-import { buildPortfolioBacktestSummary } from './backtest'
-import { fetchPortfolioPriceMap, loadPortfolioBacktestHistory } from './data'
-import {
-  applyLatestMarketPrices,
-  buildPortfolioAssetsFromPaperRun,
-  clearPortfolioHoldings,
-  readPaperRunCashBalance,
-  readPaperRunTotalValue,
-  seedPortfolioHoldingsFromMarket,
-  selectLatestPaperRunForPortfolio,
-} from './holdings'
-import {
-  createPortfolioBalanceAsset,
-  readPortfolioSyntheticPrice,
-} from './assets'
-import { toPortfolioUserError } from './errors'
-import { copyPortfolioInCollection, createPortfolioInCollection, deletePortfolioFromCollection } from './portfolioCrud'
-import {
-  buildPortfolioBalanceSnapshot,
-  createDefaultPortfolioBalanceSnapshot,
-  createPortfolioBalancePortfolio,
-  hasActiveAssets,
-  hasMarketGap,
-  normalizePortfolioBalancePortfolio,
-  normalizePortfolioBalanceSnapshot,
-  touchPortfolio,
-} from './snapshot'
-import { computePortfolioBalancePlan } from './plan'
+import { createPortfolioBalancePageCommands } from './commands'
+import { createPortfolioBalancePageState } from './state'
+import { clearPortfolioHoldings } from './holdings'
+import { hasActiveAssets, hasMarketGap } from './snapshot'
 
 export function usePortfolioBalancePage() {
-  const pageSnapshot = createPersistentPageSnapshot(
-    PAGE_SNAPSHOT_KEYS.portfolioBalance,
-    normalizePortfolioBalanceSnapshot,
-    createDefaultPortfolioBalanceSnapshot(),
-  )
-  const restoredSnapshot = pageSnapshot.initial
-  const fallbackPortfolio = createPortfolioBalancePortfolio()
+  const state = createPortfolioBalancePageState()
+  const commands = createPortfolioBalancePageCommands(state)
 
-  const portfolios = reactive(restoredSnapshot.portfolios)
-  const activePortfolioId = ref(restoredSnapshot.activePortfolioId || portfolios[0]?.id || '')
-  const importLoading = ref(false)
-  const marketLoading = ref(false)
-  const backtestLoading = ref(false)
-  const sourceMessage = ref('')
-  const sourceError = ref('')
-  const lastImportedRun = ref<BacktestRunResponse | null>(null)
+  state.bindSnapshot()
 
-  const activePortfolio = computed(() => portfolios.find((portfolio) => portfolio.id === activePortfolioId.value) || portfolios[0] || null)
-  const assets = computed(() => activePortfolio.value?.assets || [])
-  const strategy = computed(() => activePortfolio.value?.strategy || fallbackPortfolio.strategy)
-  const tracking = computed(() => activePortfolio.value?.tracking || fallbackPortfolio.tracking)
-  const backtest = computed(() => activePortfolio.value?.backtest || fallbackPortfolio.backtest)
-  const backtestResult = computed<PortfolioBacktestSummary | null>(() => activePortfolio.value?.lastBacktestResult || null)
-  const plan = computed(() => computePortfolioBalancePlan(assets.value, strategy.value, tracking.value))
-  const canRemoveAsset = computed(() => assets.value.length > 2)
-
-  let marketRefreshTimer: ReturnType<typeof setTimeout> | null = null
-
-  const clearScheduledMarketRefresh = () => {
-    if (!marketRefreshTimer) return
-    clearTimeout(marketRefreshTimer)
-    marketRefreshTimer = null
-  }
-
-  const resetFeedback = () => {
-    sourceMessage.value = ''
-    sourceError.value = ''
-  }
-
-  const updateActivePortfolio = (updater: (portfolio: PortfolioBalancePortfolio) => void) => {
-    const portfolio = activePortfolio.value
-    if (!portfolio) return
-    updater(portfolio)
-    touchPortfolio(portfolio)
-  }
-
-  const refreshMarketPrices = async () => {
-    const portfolio = activePortfolio.value
-    if (!portfolio) return
-
-    marketLoading.value = true
-    resetFeedback()
-    try {
-      const { priceBySymbol, successCount, failedSymbols } = await fetchPortfolioPriceMap(portfolio)
-      const needsSeed = (
-        portfolio.holdingsSource !== 'paper'
-        && (
-          !portfolio.holdingsInitializedAt
-          || portfolio.seedCapital !== portfolio.tracking.virtualCapital
-          || portfolio.assets.some((asset) => toBaseSymbol(asset.symbol) && asset.units <= 0)
-        )
-      )
-      if (needsSeed) {
-        seedPortfolioHoldingsFromMarket(portfolio, priceBySymbol)
-        sourceMessage.value = failedSymbols.length
-          ? `已初始化 ${successCount} 个，失败: ${failedSymbols.join(', ')}`
-          : `已初始化 ${successCount} 个标的`
-      } else {
-        applyLatestMarketPrices(portfolio, priceBySymbol)
-        sourceMessage.value = failedSymbols.length
-          ? `已刷新 ${successCount} 个，失败: ${failedSymbols.join(', ')}`
-          : `已刷新 ${successCount} 个标的`
-      }
-      touchPortfolio(portfolio)
-    } catch (error: unknown) {
-      sourceError.value = toPortfolioUserError(error, '刷新市场价格失败')
-    } finally {
-      marketLoading.value = false
-    }
-  }
-
-  const scheduleMarketRefresh = (delay = 600) => {
-    clearScheduledMarketRefresh()
-    marketRefreshTimer = setTimeout(async () => {
-      marketRefreshTimer = null
-      const portfolio = activePortfolio.value
-      if (!portfolio || marketLoading.value) return
-      if (!portfolio.assets.some((asset) => toBaseSymbol(asset.symbol))) return
-      await refreshMarketPrices()
-    }, delay)
-  }
-
-  const selectPortfolio = (portfolioId: string) => {
-    activePortfolioId.value = portfolioId
-    resetFeedback()
-  }
-
-  const createPortfolio = () => {
-    activePortfolioId.value = createPortfolioInCollection(portfolios)
-    sourceMessage.value = '已创建新组合'
-    sourceError.value = ''
-  }
-
-  const copyPortfolio = (portfolioId: string) => {
-    const nextPortfolioId = copyPortfolioInCollection(portfolios, portfolioId)
-    if (!nextPortfolioId) return
-    activePortfolioId.value = nextPortfolioId
-    sourceMessage.value = '组合已复制'
-    sourceError.value = ''
-  }
-
-  const deletePortfolio = (portfolioId: string) => {
-    activePortfolioId.value = deletePortfolioFromCollection(portfolios, portfolioId, activePortfolioId.value)
-
-    sourceMessage.value = '组合已删除'
-    sourceError.value = ''
-  }
-
-  const addAsset = () => updateActivePortfolio((portfolio) => {
-    portfolio.assets.push(createPortfolioBalanceAsset())
-  })
-
-  const removeAsset = (assetId: string) => updateActivePortfolio((portfolio) => {
-    if (portfolio.assets.length <= 2) return
-    const index = portfolio.assets.findIndex((asset) => asset.id === assetId)
-    if (index < 0) return
-
-    portfolio.assets.splice(index, 1)
-    if (portfolio.holdingsSource !== 'paper') {
-      clearPortfolioHoldings(portfolio, 'virtual')
-      scheduleMarketRefresh()
-    }
-  })
-
-  const updateAssetSymbol = (assetId: string, rawValue: string) => {
-    let shouldRefresh = false
-    updateActivePortfolio((portfolio) => {
-      const asset = portfolio.assets.find((item) => item.id === assetId)
-      if (!asset) return
-
-      const previousSymbol = toBaseSymbol(asset.symbol)
-      const nextSymbol = toBaseSymbol(rawValue)
-      if (previousSymbol === nextSymbol) return
-
-      asset.symbol = nextSymbol
-      asset.currentPrice = readPortfolioSyntheticPrice(nextSymbol) ?? 0
-      asset.units = 0
-      if (!nextSymbol) {
-        asset.targetWeight = 0
-      }
-
-      clearPortfolioHoldings(portfolio, 'virtual')
-      shouldRefresh = true
-    })
-
-    if (!shouldRefresh) return
-    resetFeedback()
-    scheduleMarketRefresh()
-  }
-
-  const updateAssetTargetWeight = (assetId: string, rawValue: string | number) => updateActivePortfolio((portfolio) => {
-    const asset = portfolio.assets.find((item) => item.id === assetId)
-    if (!asset) return
-
-    const nextWeight = Number(rawValue)
-    asset.targetWeight = Number.isFinite(nextWeight) && nextWeight > 0 ? nextWeight : 0
-    if (portfolio.holdingsSource !== 'paper') {
-      clearPortfolioHoldings(portfolio, 'virtual')
-      scheduleMarketRefresh()
-    }
-  })
-
-  const importLatestPaperHoldings = async () => {
-    importLoading.value = true
-    resetFeedback()
-    try {
-      const response = await backtestApi.listPaperRuns()
-      const targetRun = selectLatestPaperRunForPortfolio(response || [])
-      if (!targetRun) throw new Error('没有找到可导入的模拟盘持仓')
-
-      const importedAssets = buildPortfolioAssetsFromPaperRun(targetRun)
-      if (!importedAssets.length) throw new Error('最近的模拟盘记录里没有持仓')
-
-      updateActivePortfolio((portfolio) => {
-        const previousWeightBySymbol = new Map(
-          portfolio.assets.map((asset) => [toBaseSymbol(asset.symbol), Number(asset.targetWeight) || 0]),
-        )
-        const importedTotalValue = readPaperRunTotalValue(targetRun)
-        const nextAssets = importedAssets.map((asset) => ({
-          ...asset,
-          targetWeight: previousWeightBySymbol.get(toBaseSymbol(asset.symbol)) || 0,
-          seedValue: importedTotalValue > 0 ? Number((asset.units * asset.currentPrice).toFixed(2)) : 0,
-        }))
-
-        portfolio.assets.splice(0, portfolio.assets.length, ...nextAssets)
-        portfolio.holdingsInitializedAt = new Date().toISOString()
-        portfolio.lastPriceUpdatedAt = new Date().toISOString()
-        portfolio.seedCapital = importedTotalValue + readPaperRunCashBalance(targetRun)
-        portfolio.holdingsSource = 'paper'
-        portfolio.tracking.virtualCapital = portfolio.seedCapital
-        portfolio.backtest.initialCapital = portfolio.seedCapital
-        portfolio.tracking.inceptionDate = todayLocalIsoDate()
-      })
-
-      lastImportedRun.value = targetRun
-      sourceMessage.value = `已导入模拟盘 #${targetRun.id}`
-    } catch (error: unknown) {
-      sourceError.value = toPortfolioUserError(error, '导入模拟盘持仓失败')
-    } finally {
-      importLoading.value = false
-    }
-  }
-
-  const runBacktest = async () => {
-    const portfolio = activePortfolio.value
-    if (!portfolio) return
-
-    backtestLoading.value = true
-    resetFeedback()
-    updateActivePortfolio((currentPortfolio) => {
-      currentPortfolio.lastBacktestResult = null
-    })
-    try {
-      const startText = portfolio.backtest.backtestStartDate
-      if (!startText) throw new Error('请先选择回测开始日期')
-
-      const historyBySymbol = await loadPortfolioBacktestHistory(portfolio, startText)
-      const nextResult = buildPortfolioBacktestSummary(
-        historyBySymbol,
-        portfolio.assets,
-        portfolio.strategy,
-        portfolio.backtest,
-        startText,
-      )
-      if (!nextResult) throw new Error('回测样本不足，无法生成结果')
-
-      updateActivePortfolio((currentPortfolio) => {
-        currentPortfolio.lastBacktestResult = nextResult
-      })
-      sourceMessage.value = `已生成 ${nextResult.startDate} 到 ${nextResult.endDate} 的回测结果`
-    } catch (error: unknown) {
-      sourceError.value = toPortfolioUserError(error, '组合回测失败')
-    } finally {
-      backtestLoading.value = false
-    }
-  }
-
-  pageSnapshot.bind(
-    [portfolios, activePortfolioId],
-    () => buildPortfolioBalanceSnapshot({
-      activePortfolioId: activePortfolioId.value,
-      portfolios: portfolios.map((portfolio) => normalizePortfolioBalancePortfolio(portfolio)),
-    }),
-  )
-
-  watch(assets, () => {
-    updateActivePortfolio((portfolio) => {
+  watch(state.assets, () => {
+    state.updateActivePortfolio((portfolio) => {
       if (!portfolio.lastBacktestResult) return
       portfolio.lastBacktestResult = null
     })
   }, { deep: true })
 
-  watch([strategy, tracking, backtest], () => {
-    const portfolio = activePortfolio.value
+  watch([state.strategy, state.tracking, state.backtest], () => {
+    const portfolio = state.activePortfolio.value
     if (!portfolio || !portfolio.lastBacktestResult) return
     portfolio.lastBacktestResult = null
-    touchPortfolio(portfolio)
   }, { deep: true })
 
-  watch(() => tracking.value.virtualCapital, () => {
-    const portfolio = activePortfolio.value
+  watch(() => state.tracking.value.virtualCapital, () => {
+    const portfolio = state.activePortfolio.value
     if (!portfolio || portfolio.holdingsSource === 'paper' || !hasActiveAssets(portfolio)) return
 
-    updateActivePortfolio((currentPortfolio) => {
+    state.updateActivePortfolio((currentPortfolio) => {
       clearPortfolioHoldings(currentPortfolio, 'virtual')
     })
-    scheduleMarketRefresh()
+    commands.scheduleMarketRefresh()
   })
 
-  watch(activePortfolioId, async () => {
-    clearScheduledMarketRefresh()
-    const portfolio = activePortfolio.value
+  watch(state.activePortfolioId, async () => {
+    commands.clearScheduledMarketRefresh()
+    const portfolio = state.activePortfolio.value
     if (!portfolio) return
     if (!portfolio.assets.some((asset) => toBaseSymbol(asset.symbol))) return
     if (!hasMarketGap(portfolio)) return
-    await refreshMarketPrices()
+    await commands.refreshMarketPrices()
   }, { immediate: true })
 
   onBeforeUnmount(() => {
-    clearScheduledMarketRefresh()
+    commands.clearScheduledMarketRefresh()
   })
 
   return {
-    portfolios,
-    activePortfolioId,
-    activePortfolio,
-    assets,
-    strategy,
-    tracking,
-    backtest,
-    plan,
-    canRemoveAsset,
-    importLoading,
-    marketLoading,
-    backtestLoading,
-    sourceMessage,
-    sourceError,
-    lastImportedRun,
-    backtestResult,
-    selectPortfolio,
-    createPortfolio,
-    copyPortfolio,
-    deletePortfolio,
-    addAsset,
-    removeAsset,
-    updateAssetSymbol,
-    updateAssetTargetWeight,
-    importLatestPaperHoldings,
-    refreshMarketPrices,
-    runBacktest,
+    portfolios: state.portfolios,
+    activePortfolioId: state.activePortfolioId,
+    activePortfolio: state.activePortfolio,
+    assets: state.assets,
+    strategy: state.strategy,
+    tracking: state.tracking,
+    backtest: state.backtest,
+    plan: state.plan,
+    canRemoveAsset: state.canRemoveAsset,
+    importLoading: state.importLoading,
+    marketLoading: state.marketLoading,
+    backtestLoading: state.backtestLoading,
+    sourceMessage: state.sourceMessage,
+    sourceError: state.sourceError,
+    lastImportedRun: state.lastImportedRun,
+    backtestResult: state.backtestResult,
+    selectPortfolio: commands.selectPortfolio,
+    createPortfolio: commands.createPortfolio,
+    copyPortfolio: commands.copyPortfolio,
+    deletePortfolio: commands.deletePortfolio,
+    addAsset: commands.addAsset,
+    removeAsset: commands.removeAsset,
+    updateAssetSymbol: commands.updateAssetSymbol,
+    updateAssetTargetWeight: commands.updateAssetTargetWeight,
+    importLatestPaperHoldings: commands.importLatestPaperHoldings,
+    refreshMarketPrices: commands.refreshMarketPrices,
+    runBacktest: commands.runBacktest,
   }
 }
-

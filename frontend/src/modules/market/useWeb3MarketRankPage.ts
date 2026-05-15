@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 
 import { useTheme } from '@/composables/useTheme'
 import { formatAdaptivePrice, formatCompactNumber, formatSignedPercent } from '@/modules/format'
-import { marketApi } from './api'
+import { binanceWeb3Api } from './api'
 import type {
   BinanceWeb3AddressPnlItemResponse,
 } from './contracts'
@@ -62,7 +62,7 @@ export function useWeb3MarketRankPage() {
       errorKey.value = ''
       try {
         const selectedChainId = web3ApiChainId(requestChainId)
-        const pnlRes = await marketApi.getBinanceWeb3AddressPnlRank({ chain_id: selectedChainId || '56', page_size: 10 })
+        const pnlRes = await binanceWeb3Api.getBinanceWeb3AddressPnlRank({ chain_id: selectedChainId || '56', page_size: 10 })
         if (requestKey !== addressPnlRequestKey()) return
         addressPnl.value = pnlRes?.items || []
       } catch (err) {

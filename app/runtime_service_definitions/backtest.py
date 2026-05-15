@@ -8,6 +8,7 @@ from app.runtime_refs import (
     BACKTEST_FACTOR_PAPER_RUN_WRITER,
     BACKTEST_FACTOR_RUN_WRITER,
     BACKTEST_FREQTRADE_SERVICE,
+    BACKTEST_PREVIEW_ARTIFACT_STORE,
     BACKTEST_PREVIEW_SERVICE,
     BACKTEST_PAPER_RUN_WRITER,
     BACKTEST_PAPER_RUN_MANAGER,
@@ -76,7 +77,14 @@ def _build_backtest_preview_service(ctx: RuntimeBuildContext):
     return BacktestPreviewService(
         market_data_service=ctx.require(MARKET_MARKET_DATA_SERVICE),
         strategy_runtime=StrategyRuntime(),
+        artifact_store=ctx.require(BACKTEST_PREVIEW_ARTIFACT_STORE),
     )
+
+
+def _build_backtest_preview_artifact_store(ctx: RuntimeBuildContext):
+    from app.infra.persistence.backtest.preview_artifact_repository import BacktestPreviewArtifactRepository
+
+    return BacktestPreviewArtifactRepository(database_runtime=ctx.require(INFRA_DATABASE_RUNTIME))
 
 
 def _build_strategy_definition_store(ctx: RuntimeBuildContext):
@@ -186,10 +194,16 @@ BACKTEST_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         deps=(BACKTEST_FREQTRADE_SERVICE, BACKTEST_RUN_WRITER),
     ),
     RuntimeServiceDefinition(
+        BACKTEST_PREVIEW_ARTIFACT_STORE,
+        frozenset({"api"}),
+        _build_backtest_preview_artifact_store,
+        deps=(INFRA_DATABASE_RUNTIME,),
+    ),
+    RuntimeServiceDefinition(
         BACKTEST_PREVIEW_SERVICE,
         frozenset({"api"}),
         _build_backtest_preview_service,
-        deps=(MARKET_MARKET_DATA_SERVICE,),
+        deps=(MARKET_MARKET_DATA_SERVICE, BACKTEST_PREVIEW_ARTIFACT_STORE),
     ),
     RuntimeServiceDefinition(
         BACKTEST_STRATEGY_DEFINITION_STORE,

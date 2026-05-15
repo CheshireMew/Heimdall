@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.dependencies import runtime_dependency
+from app.router_service_ports import MarketInsightPort, MarketQueryPort
 from app.runtime_refs import MARKET_INSIGHT_APP_SERVICE, MARKET_QUERY_APP_SERVICE
 from app.rate_limit import limiter
 from app.contracts.dto.market import (
@@ -27,7 +26,7 @@ market_insight_dependency = runtime_dependency(MARKET_INSIGHT_APP_SERVICE)
 async def get_market_indicators(
     category: str | None = Query(None, description="过滤分类, 如 Macro, Onchain, Sentiment, General"),
     days: int = Query(settings.INDICATORS_DEFAULT_DAYS, description="历史数据天数"),
-    service: Any = Depends(market_insight_dependency),
+    service: MarketInsightPort = Depends(market_insight_dependency),
 ):
     return await service.get_indicators_async(category=category, days=days)
 
@@ -36,7 +35,7 @@ async def get_market_indicators(
 async def get_dli_liquidity(
     days: int = Query(settings.INDICATORS_DEFAULT_DAYS, ge=30, le=3650, description="展示历史数据天数"),
     change_days: int = Query(30, ge=1, le=365, description="变化统计周期天数"),
-    service: Any = Depends(market_insight_dependency),
+    service: MarketInsightPort = Depends(market_insight_dependency),
 ):
     return await service.get_dli_liquidity_async(days=days, change_days=change_days)
 
@@ -48,7 +47,7 @@ async def get_technical_metrics(
     limit: int = Query(120, ge=30, le=settings.API_MAX_LIMIT),
     atr_period: int = Query(DEFAULT_ATR_PERIOD, ge=2, le=200),
     volatility_period: int = Query(DEFAULT_VOLATILITY_PERIOD, ge=2, le=365),
-    service: Any = Depends(market_query_dependency),
+    service: MarketQueryPort = Depends(market_query_dependency),
 ):
     return await service.get_technical_metrics(
         symbol=symbol,
@@ -68,7 +67,7 @@ async def get_trade_setup(
     style: str = Query("Scalping"),
     strategy: str = Query("最大收益"),
     mode: str = Query("rules", pattern="^(rules|ai)$"),
-    service: Any = Depends(market_insight_dependency),
+    service: MarketInsightPort = Depends(market_insight_dependency),
 ):
     return await service.get_trade_setup(
         symbol=symbol,
@@ -87,6 +86,6 @@ async def get_crypto_index(
     request: Request,
     top_n: int = Query(20, ge=5, le=100, description="Current top N market cap assets"),
     days: int = Query(90, ge=30, le=365, description="Historical days"),
-    service: Any = Depends(market_insight_dependency),
+    service: MarketInsightPort = Depends(market_insight_dependency),
 ):
     return await service.get_crypto_index(top_n=top_n, days=days)
