@@ -12,8 +12,37 @@ if (!command) {
   process.exit(2)
 }
 
+const isPathLike = (candidate) =>
+  path.isAbsolute(candidate) || candidate.includes('/') || candidate.includes('\\')
+
+const commandExists = (command) => {
+  const result = spawnSync(command, ['--version'], {
+    cwd: repoRoot,
+    stdio: 'ignore',
+    shell: false,
+  })
+  return !result.error
+}
+
+const configuredPython = process.env.HEIMDALL_PYTHON?.trim()
+
+const resolveConfiguredPython = () => {
+  if (!configuredPython) {
+    return null
+  }
+
+  if (isPathLike(configuredPython)) {
+    const runtimePath = path.isAbsolute(configuredPython)
+      ? configuredPython
+      : path.resolve(repoRoot, configuredPython)
+    return existsSync(runtimePath) ? runtimePath : null
+  }
+
+  return commandExists(configuredPython) ? configuredPython : null
+}
+
 const candidates = [
-  process.env.HEIMDALL_PYTHON,
+  resolveConfiguredPython(),
   path.join(repoRoot, 'venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'),
   path.join(repoRoot, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'),
 ].filter(Boolean)
