@@ -41,13 +41,17 @@ const resolveConfiguredPython = () => {
   return commandExists(configuredPython) ? configuredPython : null
 }
 
-const candidates = [
-  resolveConfiguredPython(),
+const localPythonCandidates = [
   path.join(repoRoot, 'venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'),
   path.join(repoRoot, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'),
+]
+
+const candidates = [
+  resolveConfiguredPython(),
+  ...localPythonCandidates.filter((candidate) => existsSync(candidate)),
 ].filter(Boolean)
 
-const python = candidates.find((candidate) => existsSync(candidate))
+const python = candidates[0]
 
 if (!python) {
   console.error(
