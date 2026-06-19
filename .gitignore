@@ -20,6 +20,8 @@ traceback.log
 /.codex_logs/
 /test_tmp_frontend/
 /test_tmp_pytest/
+/test_tmp_pytest*/
+/.heimdall_runtime/
 /frontend/.npm-cache/
 /.pytest_cache/
 /.benchmarks/

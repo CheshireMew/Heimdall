@@ -42,13 +42,19 @@ echo "Stopping Heimdall services..."
 
 TEMP_DIR="$(resolve_runtime_path TEMP_DIR)"
 BACKEND_PID_FILE="$TEMP_DIR/backend.pid"
+BACKGROUND_PID_FILE="$TEMP_DIR/background.pid"
 FRONTEND_PID_FILE="$TEMP_DIR/frontend.pid"
 
 FRONTEND_STOPPED=0
+BACKGROUND_STOPPED=0
 BACKEND_STOPPED=0
 
 if stop_pid_file "$FRONTEND_PID_FILE"; then
     FRONTEND_STOPPED=1
+fi
+
+if stop_pid_file "$BACKGROUND_PID_FILE"; then
+    BACKGROUND_STOPPED=1
 fi
 
 if stop_pid_file "$BACKEND_PID_FILE"; then
@@ -59,6 +65,12 @@ if [ "$FRONTEND_STOPPED" -eq 1 ]; then
     echo "Frontend stopped."
 else
     echo "Frontend was not running."
+fi
+
+if [ "$BACKGROUND_STOPPED" -eq 1 ]; then
+    echo "Background runtime stopped."
+else
+    echo "Background runtime was not running."
 fi
 
 if [ "$BACKEND_STOPPED" -eq 1 ]; then

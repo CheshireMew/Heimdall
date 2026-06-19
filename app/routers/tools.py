@@ -6,7 +6,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 
 from app.dependencies import runtime_dependency
-from app.router_service_ports import ToolsAppPort
+from app.router_ports.tools import ToolsAppPort
 from app.runtime_refs import TOOLS_TOOLS_APP_SERVICE
 from app.rate_limit import limiter
 from app.contracts.dto.tools import (

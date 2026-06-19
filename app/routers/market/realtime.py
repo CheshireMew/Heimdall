@@ -4,7 +4,7 @@ import asyncio
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 
 from app.dependencies import runtime_dependency
-from app.router_service_ports import MarketQueryPort, MarketWebSocketPort
+from app.router_ports.market import MarketQueryPort, MarketWebSocketPort
 from app.runtime_refs import MARKET_QUERY_APP_SERVICE, MARKET_WEBSOCKET_SERVICE
 from app.contracts.dto.market import RealtimeResponse
 from config import settings

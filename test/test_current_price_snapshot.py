@@ -17,11 +17,11 @@ class FakeSnapshot:
 
 class FakeMarketDataService:
     def __init__(self, *, delay_seconds: float = 0.0) -> None:
-        self.tail_calls: list[str] = []
+        self.history_calls: list[str] = []
         self.delay_seconds = delay_seconds
 
-    def get_recent_candles(self, symbol: str, timeframe: str, limit: int, **kwargs):
-        self.tail_calls.append(symbol)
+    def get_history_data(self, symbol: str, timeframe: str, end_ts: int, limit: int):
+        self.history_calls.append(symbol)
         if self.delay_seconds:
             time.sleep(self.delay_seconds)
         return [[1717000000000, 1.0, 2.0, 0.5, 456.0, 1000.0]]
@@ -53,11 +53,11 @@ async def test_current_price_prefers_websocket_snapshot():
     )
 
     assert response["current_price"] == 123.0
-    assert market_data_service.tail_calls == []
+    assert market_data_service.history_calls == []
 
 
 @pytest.mark.asyncio
-async def test_current_price_falls_back_to_kline_tail():
+async def test_current_price_falls_back_to_cached_history():
     market_data_service = FakeMarketDataService()
     service = make_service(FakeSnapshot({"BTC/USDT": None}), market_data_service)
 
@@ -67,7 +67,7 @@ async def test_current_price_falls_back_to_kline_tail():
     )
 
     assert response["current_price"] == 456.0
-    assert market_data_service.tail_calls == ["BTC/USDT"]
+    assert market_data_service.history_calls == ["BTC/USDT"]
 
 
 @pytest.mark.asyncio
@@ -84,8 +84,8 @@ async def test_current_price_batch_uses_shared_snapshot_first_logic():
     assert response["items"][0]["current_price"] == 123.0
     assert response["items"][0]["source"] == "websocket_snapshot"
     assert response["items"][1]["current_price"] == 456.0
-    assert response["items"][1]["source"] == "kline_tail"
-    assert market_data_service.tail_calls == ["ETH/USDT"]
+    assert response["items"][1]["source"] == "cached_history"
+    assert market_data_service.history_calls == ["ETH/USDT"]
 
 
 @pytest.mark.asyncio
@@ -101,6 +101,6 @@ async def test_current_price_batch_runs_fallbacks_concurrently():
     elapsed = time.perf_counter() - started_at
 
     assert [item["symbol"] for item in response["items"]] == ["BTC/USDT", "ETH/USDT"]
-    assert [item["source"] for item in response["items"]] == ["kline_tail", "kline_tail"]
-    assert sorted(market_data_service.tail_calls) == ["BTC/USDT", "ETH/USDT"]
+    assert [item["source"] for item in response["items"]] == ["cached_history", "cached_history"]
+    assert sorted(market_data_service.history_calls) == ["BTC/USDT", "ETH/USDT"]
     assert elapsed < 0.18

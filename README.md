@@ -11,7 +11,7 @@
 - 🌐 **多交易所支持** - 基于 [CCXT](https://github.com/ccxt/ccxt)，支持 Binance、OKX、Bybit 等主流交易所
 - 🎯 **非自动交易** - 专注于"机会发现"和"投资建议"，不涉及自动下单
 - 🧩 **模块化设计** - 高内聚、低耦合，易于扩展和维护
-- 📊 **回测与模拟盘** - 支持策略回测、因子研究和纸面运行
+- 🧰 **轻量工具** - 支持 DCA、币种对比、组合平衡和减半周期观察
 
 ## 🚫 非目标
 
@@ -21,10 +21,24 @@
 
 ## 启动
 
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+推荐使用统一启动脚本。它会分别启动 API、background runtime 和前端开发服务：
+
+```powershell
+.\dev_start.bat
+```
+
+如需手动启动，API 和后台运行时必须分成两个进程：
+
+```powershell
+$env:APP_RUNTIME_ROLE = "api"
+.\venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+
+$env:APP_RUNTIME_ROLE = "background"
+.\venv\Scripts\python.exe scripts\run_background_runtime.py
 
 cd frontend
 npm run dev
+```
 
 构建前端后，后端会直接托管 `frontend/dist`，生产环境只保留这一套入口。
 
@@ -35,7 +49,7 @@ npm run dev
 - Python 3.12.x
 - pip
 - Node.js / npm
-- 项目依赖边界固定为 `freqtrade==2026.3` + `TA-Lib==0.6.8`。
+- Python 技术指标依赖固定使用 `TA-Lib==0.6.8`。
 
 ### 2. 克隆项目
 
@@ -95,10 +109,10 @@ python test/test_technical_analysis.py
 
 ### 启动 Web Dashboard 📊
 
-Heimdall 提供了一个现代化的 Web 界面，基于 **FastAPI** 构建，用于实时市场监控和策略回测。
+Heimdall 提供了一个现代化的 Web 界面，基于 **FastAPI** 构建，用于实时市场监控和轻量投资工具。
 
-```bash
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```powershell
+.\dev_start.bat
 ```
 
 启动后访问: [http://localhost:8000](http://localhost:8000)
@@ -112,10 +126,8 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 - **实时分析**: 查看实时价格、指标 (EMA/RSI/MACD) 和 AI 建议
 - **币种对比**: 专业K线对比工具，支持多周期切换和三图联动
-- **DCA模拟器**: 定投回测分析工具
-- **回测中心**: 可视化运行历史回测，无需写代码
-- **策略编辑器**: 使用统一策略 contract 编辑指标、规则、风控和交易计划
-- **因子研究**: 构建、回测和运行因子组合
+- **DCA模拟器**: 定投历史模拟工具
+- **组合平衡**: 轻量资产配置与再平衡观察
 - **配置管理**: 界面化查看系统参数
 
 ## ⚙️ 配置说明
@@ -165,7 +177,8 @@ Heimdall/
 │   ├── services/            # 应用服务层
 │   ├── domain/              # 纯业务规则与指标计算
 │   ├── infra/               # 数据库、缓存、外部服务
-│   └── schemas/             # 请求/响应 contract，前端类型从这里生成
+│   ├── application/         # 用例编排层
+│   └── contracts/           # 请求/响应 contract，前端类型从这里生成
 ├── config/
 │   └── settings.py          # 全局配置
 ├── frontend/                # Vue + Vite 前端工程
@@ -200,16 +213,17 @@ npm --prefix frontend run typecheck
 npm run build:frontend
 ```
 
-各业务模块的 `generatedContracts.ts` 和 `frontend/src/api/routes.ts` 都由后端 Pydantic schema 生成，不要手写修改。
+各业务模块的 `generatedContracts.ts` 和 `frontend/src/api/routes.ts` 都由后端 Pydantic contract 生成，不要手写修改。
+
+运行时产生的日志和临时文件默认写入项目根目录下的 `.heimdall_runtime/`。这个目录已被 Git 忽略；如需迁移到其他磁盘，可在环境变量中显式配置 `RUNTIME_ROOT_DIR`、`LOG_DIR` 和 `TEMP_DIR`。
+
+原回测、策略编辑、因子研究、模拟盘和 Freqtrade 相关代码已归档到 `archived/research_features/`。该目录只用于保留上下文，不再参与当前应用启动、路由注册或前端导航。
 
 ## 🔧 高级功能
 
-- [x] 历史数据回测 (Backtest)
 - [x] Web Dashboard 可视化界面
-- [x] 策略编辑器
-- [x] 因子研究
-- [x] 纸面运行
 - [x] 后台任务运行时
+- [x] DCA、币种对比、组合平衡
 - [ ] 多渠道通知（邮件 / Telegram / 企业微信）
 
 ## ❓ FAQ
@@ -231,7 +245,7 @@ npm run build:frontend
 
 ### 3. 可以添加自定义技术指标吗？
 
-可以！在 [app/domain/market/technical_analysis.py](E:/Work/Code/Heimdall/app/domain/market/technical_analysis.py) 中添加新的静态方法即可，参考现有的 `calculate_ema` 等实现。
+可以！在 `app/domain/market/technical_analysis.py` 中添加新的静态方法即可，参考现有的 `calculate_ema` 等实现。
 
 ### 4. AI 分析准确吗？
 
@@ -247,7 +261,7 @@ AI 仅提供参考建议，不保证准确性。**加密货币投资有风险，
 
 - **Linux/macOS**: `crontab` 定时任务
 - **Windows**: 任务计划程序
-- **应用后台运行时**: 启动后恢复模拟盘和行情快照任务
+- **应用后台运行时**: 使用 `APP_RUNTIME_ROLE=background` 独立运行 scheduler 和周期性维护任务
 - **Docker**: 容器化部署（规划中）
 
 ## ⚖️ 免责声明

@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.dependencies import runtime_dependency
-from app.router_service_ports import FundingRateAppPort
+from app.router_ports.market import FundingRateAppPort
 from app.runtime_refs import MARKET_FUNDING_RATE_APP_SERVICE
 from app.rate_limit import limiter
 from app.contracts.dto.market import FundingRateHistoryResponse, FundingRateSnapshotResponse, FundingRateSyncResponse

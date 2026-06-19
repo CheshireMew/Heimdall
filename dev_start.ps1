@@ -16,6 +16,7 @@ $apiPort = 8000
 $frontendHost = "127.0.0.1"
 $frontendPort = 4173
 $backendTag = "HEIMDALL_BACKEND_$apiHost`:$apiPort"
+$backgroundTag = "HEIMDALL_BACKGROUND"
 $frontendTag = "HEIMDALL_FRONTEND_$frontendHost`:$frontendPort"
 
 function Get-ProcessLineage {
@@ -133,6 +134,22 @@ function Stop-HeimdallPortListeners {
     }
 }
 
+function Stop-HeimdallTaggedProcesses {
+    param(
+        [string]$Name,
+        [string]$Tag
+    )
+
+    $tagLower = $Tag.ToLowerInvariant()
+    $processes = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        ([string]$_.CommandLine).ToLowerInvariant().Contains($tagLower)
+    }
+    foreach ($process in $processes) {
+        Write-Host "Stopping stale $Name process (PID $($process.ProcessId))..." -ForegroundColor DarkYellow
+        Stop-Process -Id ([int]$process.ProcessId) -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Wait-HeimdallBackendReady {
     param(
         [string]$HostName,
@@ -166,15 +183,24 @@ function Wait-HeimdallBackendReady {
 
 Stop-HeimdallPortListeners -Name "Backend" -Role "backend" -Port $apiPort -Tag $backendTag
 Stop-HeimdallPortListeners -Name "Frontend" -Role "frontend" -Port $frontendPort -Tag $frontendTag
+Stop-HeimdallTaggedProcesses -Name "Background runtime" -Tag $backgroundTag
 
 $backendCommand = @(
     "Set-Location -LiteralPath '$projectRoot'"
     "`$env:HEIMDALL_PROCESS_TAG='$backendTag'"
+    "`$env:APP_RUNTIME_ROLE='api'"
     "`$env:HEIMDALL_API_HOST='$apiHost'"
     "`$env:HEIMDALL_API_PORT='$apiPort'"
     "& '$pythonExe' scripts\\prepare_db.py"
     "if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }"
     "& '$pythonExe' -m uvicorn app.main:app --host $apiHost --reload --reload-dir app --reload-dir config --reload-dir utils --port $apiPort"
+) -join "; "
+
+$backgroundCommand = @(
+    "Set-Location -LiteralPath '$projectRoot'"
+    "`$env:HEIMDALL_PROCESS_TAG='$backgroundTag'"
+    "`$env:APP_RUNTIME_ROLE='background'"
+    "& '$pythonExe' scripts\\run_background_runtime.py"
 ) -join "; "
 
 $frontendCommand = @(
@@ -192,11 +218,15 @@ Start-Process powershell -WorkingDirectory $projectRoot -ArgumentList "-NoExit",
 
 Wait-HeimdallBackendReady -HostName $apiHost -Port $apiPort
 
+Write-Host "Starting background runtime..." -ForegroundColor Green
+Start-Process powershell -WorkingDirectory $projectRoot -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $backgroundCommand
+
 Write-Host "Starting frontend..." -ForegroundColor Green
 Start-Process powershell -WorkingDirectory $frontendRoot -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $frontendCommand
 
 Write-Host ""
 Write-Host "Backend API:  http://${apiHost}:$apiPort" -ForegroundColor Yellow
+Write-Host "Background:   separate worker process" -ForegroundColor Yellow
 Write-Host "Frontend:     http://${frontendHost}:$frontendPort" -ForegroundColor Yellow
 Write-Host "API docs:     http://${apiHost}:$apiPort/docs" -ForegroundColor Yellow
 Write-Host ""

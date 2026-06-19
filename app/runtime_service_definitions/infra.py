@@ -32,10 +32,10 @@ def _build_kline_store(ctx: RuntimeBuildContext):
 INFRA_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
     RuntimeServiceDefinition(INFRA_DATABASE_RUNTIME, frozenset({"api", "background"}), _build_database_runtime),
     RuntimeServiceDefinition(INFRA_CACHE_SERVICE, frozenset({"api", "background"}), _build_cache_service),
-    RuntimeServiceDefinition(INFRA_EXCHANGE_GATEWAY, frozenset({"api", "background"}), _build_exchange_gateway),
+    RuntimeServiceDefinition(INFRA_EXCHANGE_GATEWAY, frozenset({"api"}), _build_exchange_gateway),
     RuntimeServiceDefinition(
         INFRA_KLINE_STORE,
-        frozenset({"api", "background"}),
+        frozenset({"api"}),
         _build_kline_store,
         deps=(INFRA_DATABASE_RUNTIME,),
     ),

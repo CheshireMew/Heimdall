@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from app.infra.db import build_database_runtime
-from app.infra.db.schema import Base
+from app.infra.db.schema_runtime import prepare_db
 from app.services.market.exchange_gateway import ExchangeGateway
 from app.infra.persistence.market.kline_store import KlineStore
 from app.services.market.market_data_service import MarketDataService
@@ -20,7 +20,7 @@ class CachingTestCase(unittest.TestCase):
         self.database_runtime = build_database_runtime(
             AppSettings(DATABASE_URL=f"sqlite:///{database_path.as_posix()}")
         )
-        Base.metadata.create_all(self.database_runtime.engine)
+        prepare_db(self.database_runtime)
         self.provider = MarketDataService(
             exchange_gateway=ExchangeGateway(),
             kline_store=KlineStore(database_runtime=self.database_runtime),

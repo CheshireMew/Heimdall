@@ -7,7 +7,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.exceptions import AppError, app_error_handler, unhandled_exception_handler, value_error_handler
-from app.lifecycle import lifespan, wait_for_background_services
+from app.lifecycle import lifespan
 from app.rate_limit import limiter
 from app.runtime import RuntimeRole
 from app.web import register_app_routes
@@ -37,10 +37,6 @@ def create_app(role: RuntimeRole | None = None) -> FastAPI:
     )
     app.state.runtime_role = resolved_role
     register_app_routes(app, role=resolved_role)
-
-    @app.middleware("http")
-    async def _wait_for_background_services(request, call_next):
-        return await wait_for_background_services(request, call_next)
 
     return app
 

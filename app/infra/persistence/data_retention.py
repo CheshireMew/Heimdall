@@ -1,13 +1,10 @@
 """
-数据保留策略 - 定期清理过期的 Kline 和回测数据
+数据保留策略 - 定期清理过期的 Kline 数据
 """
 from datetime import datetime, timedelta
 
-from sqlalchemy import delete, select
-
 from app.infra.db import DatabaseRuntime
-from app.infra.db.schema import BacktestEquityPoint, BacktestRun, BacktestSignal, BacktestTrade, Kline
-from app.infra.persistence.backtest.run_lifecycle import retention_eligible_run_filters
+from app.infra.db.schema import Kline
 from config import settings
 from utils.logger import logger
 
@@ -15,23 +12,7 @@ from utils.logger import logger
 SHORT_TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h']
 
 
-def _delete_backtest_graph(session, cutoff_dt: datetime) -> int:
-    stale_run_ids = list(
-        session.execute(
-            select(BacktestRun.id).where(*retention_eligible_run_filters(cutoff_dt))
-        ).scalars()
-    )
-    if not stale_run_ids:
-        return 0
-
-    session.execute(delete(BacktestSignal).where(BacktestSignal.backtest_id.in_(stale_run_ids)))
-    session.execute(delete(BacktestTrade).where(BacktestTrade.backtest_id.in_(stale_run_ids)))
-    session.execute(delete(BacktestEquityPoint).where(BacktestEquityPoint.backtest_id.in_(stale_run_ids)))
-    session.execute(delete(BacktestRun).where(BacktestRun.id.in_(stale_run_ids)))
-    return len(stale_run_ids)
-
-
-async def cleanup_old_data(database_runtime: DatabaseRuntime):
+def cleanup_old_data(database_runtime: DatabaseRuntime):
     """定期清理过期数据"""
     session = database_runtime.get_session()
     try:
@@ -42,11 +23,6 @@ async def cleanup_old_data(database_runtime: DatabaseRuntime):
             Kline.timestamp < cutoff_ts
         ).delete(synchronize_session=False)
         logger.info(f"[retention] Deleted {deleted_klines} short-tf klines older than {settings.KLINE_RETENTION_DAYS}d")
-
-        # 2. 清理旧回测及其关联图
-        cutoff_dt = datetime.now() - timedelta(days=settings.BACKTEST_RETENTION_DAYS)
-        deleted_bt = _delete_backtest_graph(session, cutoff_dt)
-        logger.info(f"[retention] Deleted {deleted_bt} old backtests older than {settings.BACKTEST_RETENTION_DAYS}d")
 
         session.commit()
     except Exception as e:

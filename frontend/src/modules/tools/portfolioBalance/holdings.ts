@@ -1,11 +1,7 @@
-import { isPaperLiveMetadata } from '@/modules/backtest'
-import type { BacktestPaperPositionResponse, BacktestRunResponse } from '@/modules/backtest/contracts'
 import type { PortfolioBalancePortfolio, PortfolioHoldingsSource } from './types'
 
 import {
   buildNormalizedPortfolioWeights,
-  createPortfolioBalanceAsset,
-  readPortfolioSyntheticPrice,
 } from './assets'
 import {
   round,
@@ -60,38 +56,3 @@ export const applyLatestMarketPrices = (
   })
   portfolio.lastPriceUpdatedAt = new Date().toISOString()
 }
-
-const readPaperPositions = (run: BacktestRunResponse) => {
-  const positions = isPaperLiveMetadata(run.metadata) ? run.metadata.paper_live?.positions : null
-  return Array.isArray(positions) ? positions : []
-}
-
-const toPortfolioAssetFromPaperPosition = (position: BacktestPaperPositionResponse) => createPortfolioBalanceAsset({
-  symbol: toBaseSymbol(position.symbol),
-  units: sanitizeNumber(position.remaining_amount),
-  currentPrice: sanitizeNumber(position.last_price || position.entry_price || readPortfolioSyntheticPrice(position.symbol)),
-  targetWeight: 0,
-})
-
-export const selectLatestPaperRunForPortfolio = (runs: BacktestRunResponse[]) => {
-  const candidates = [...runs]
-    .filter((run) => readPaperPositions(run).length > 0)
-    .sort((left, right) => new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime())
-
-  const runningCandidate = candidates.find((run) => String(run.status || '').toLowerCase() === 'running')
-  return runningCandidate || candidates[0] || null
-}
-
-export const buildPortfolioAssetsFromPaperRun = (run: BacktestRunResponse) => readPaperPositions(run).map(toPortfolioAssetFromPaperPosition)
-
-export const readPaperRunCashBalance = (run: BacktestRunResponse) => (
-  sanitizeNumber(isPaperLiveMetadata(run.metadata) ? run.metadata.paper_live?.cash_balance : null)
-)
-
-export const readPaperRunTotalValue = (run: BacktestRunResponse) => (
-  round(
-    buildPortfolioAssetsFromPaperRun(run).reduce((sum, asset) => sum + asset.units * asset.currentPrice, 0),
-    2,
-  )
-)
-

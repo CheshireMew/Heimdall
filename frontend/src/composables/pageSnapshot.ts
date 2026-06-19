@@ -9,12 +9,9 @@ export const PAGE_SNAPSHOT_KEYS = {
   dca: 'tools:dca',
   compare: 'tools:compare',
   portfolioBalance: 'tools:portfolio-balance',
-  factorResearch: 'tools:factor-research',
   halving: 'tools:halving',
   cryptoIndex: 'indicators:crypto-index',
   binanceMarket: 'indicators:binance-market',
-  backtest: 'backtest:center',
-  backtestEditor: 'backtest:editor',
 } as const
 
 export const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null

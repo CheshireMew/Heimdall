@@ -1,7 +1,0 @@
-{
-  "provider": "openai",
-  "apiKey": "sk-test-openai",
-  "baseUrl": "https://api.openai.com/v1",
-  "modelId": "gpt-5.2-chat-latest",
-  "reasoningEnabled": false
-}

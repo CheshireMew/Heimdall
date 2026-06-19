@@ -16,11 +16,6 @@ if str(ROOT_DIR) not in sys.path:
 import app.main as main_module
 from app.runtime import AppRuntimeServices
 from app.runtime_refs import (
-    BACKTEST_COMMAND_SERVICE,
-    BACKTEST_QUERY_SERVICE,
-    FACTORS_EXECUTION_SERVICE,
-    FACTORS_PAPER_RUN_MANAGER,
-    FACTORS_RESEARCH_SERVICE,
     INFRA_DATABASE_RUNTIME,
     MARKET_BINANCE_MARKET_INTEL,
     MARKET_BINANCE_WEB3_HEAT_RANKS,
@@ -36,19 +31,14 @@ from app.runtime_refs import (
     TOOLS_TOOLS_APP_SERVICE,
 )
 from app.infra.db import build_database_runtime
-from app.infra.db.schema import Base
+from app.infra.db.schema_runtime import prepare_db
 from config.settings import AppSettings
 from test.regression_support import (
-    StubBacktestCommandService,
-    StubBacktestQueryService,
     StubBinanceMarketService,
     StubBinanceWeb3HeatRanksService,
     StubBinanceWeb3RanksService,
     StubBinanceWeb3RwaService,
     StubBinanceWeb3TokensService,
-    StubFactorExecutionService,
-    StubFactorPaperRunManager,
-    StubFactorResearchService,
     StubFundingRateAppService,
     StubMarketInsightAppService,
     StubMarketQueryAppService,
@@ -113,7 +103,7 @@ class StubFredApiConfigService:
 def installed_database_runtime(tmp_path):
     database_url = f"sqlite:///{(tmp_path / 'test.db').as_posix()}"
     runtime = build_database_runtime(AppSettings(DATABASE_URL=database_url))
-    Base.metadata.create_all(runtime.engine)
+    prepare_db(runtime)
     try:
         yield runtime
     finally:
@@ -161,13 +151,8 @@ def api_harness(installed_database_runtime):
         "binance_web3_heat_ranks": StubBinanceWeb3HeatRanksService(),
         "binance_web3_rwa": StubBinanceWeb3RwaService(),
         "binance_web3_tokens": StubBinanceWeb3TokensService(),
-        "backtest_command": StubBacktestCommandService(),
-        "backtest_query": StubBacktestQueryService(),
         "tools_app": StubToolsAppService(),
         "currency_rate": StubCurrencyRateService(),
-        "factor_research": StubFactorResearchService(),
-        "factor_execution": StubFactorExecutionService(),
-        "factor_paper": StubFactorPaperRunManager(),
         "llm_config": StubLlmConfigService(),
         "fred_api_config": StubFredApiConfigService(),
     }
@@ -183,11 +168,6 @@ def api_harness(installed_database_runtime):
         MARKET_BINANCE_WEB3_RWA: services["binance_web3_rwa"],
         MARKET_BINANCE_WEB3_TOKENS: services["binance_web3_tokens"],
         TOOLS_TOOLS_APP_SERVICE: services["tools_app"],
-        BACKTEST_COMMAND_SERVICE: services["backtest_command"],
-        BACKTEST_QUERY_SERVICE: services["backtest_query"],
-        FACTORS_RESEARCH_SERVICE: services["factor_research"],
-        FACTORS_EXECUTION_SERVICE: services["factor_execution"],
-        FACTORS_PAPER_RUN_MANAGER: services["factor_paper"],
         SYSTEM_CURRENCY_RATE_SERVICE: services["currency_rate"],
         SYSTEM_LLM_CONFIG_SERVICE: services["llm_config"],
         SYSTEM_FRED_API_CONFIG_SERVICE: services["fred_api_config"],

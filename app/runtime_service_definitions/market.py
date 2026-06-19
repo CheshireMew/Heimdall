@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from app.runtime_definition import RuntimeBuildContext, RuntimeServiceDefinition
-from app.runtime_lifecycle import shutdown_service, start_binance_market_page_refresher, start_binance_snapshot
 from app.runtime_refs import (
     INFRA_CACHE_SERVICE,
     INFRA_DATABASE_RUNTIME,
@@ -226,7 +225,7 @@ def _build_binance_web3_tokens(ctx: RuntimeBuildContext):
 MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
     RuntimeServiceDefinition(
         MARKET_MARKET_DATA_SERVICE,
-        frozenset({"api", "background"}),
+        frozenset({"api"}),
         _build_market_data_service,
         deps=(INFRA_EXCHANGE_GATEWAY, INFRA_KLINE_STORE, INFRA_CACHE_SERVICE),
     ),
@@ -251,7 +250,7 @@ MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
     ),
     RuntimeServiceDefinition(
         MARKET_FUNDING_RATE_STORE,
-        frozenset({"api", "background"}),
+        frozenset({"api"}),
         _build_funding_rate_store,
         deps=(INFRA_DATABASE_RUNTIME,),
     ),
@@ -275,7 +274,7 @@ MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
     ),
     RuntimeServiceDefinition(
         MARKET_BINANCE_MARKET_RESEARCH_STORE,
-        frozenset({"api", "background"}),
+        frozenset({"api"}),
         _build_binance_market_research_store,
         deps=(INFRA_DATABASE_RUNTIME,),
     ),
@@ -300,27 +299,19 @@ MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
     ),
     RuntimeServiceDefinition(
         MARKET_BINANCE_MARKET_INTEL,
-        frozenset({"api", "background"}),
+        frozenset({"api"}),
         _build_binance_market_intel,
         deps=(
             INFRA_CACHE_SERVICE,
             MARKET_BINANCE_MARKET_RESEARCH_STORE,
             MARKET_FUNDING_RATE_STORE,
         ),
-        background_start=start_binance_market_page_refresher,
-        background_stop=shutdown_service,
-        background_start_order=25,
-        background_stop_order=5,
     ),
     RuntimeServiceDefinition(
         MARKET_BINANCE_MARKET_SNAPSHOT,
-        frozenset({"api", "background"}),
+        frozenset({"api"}),
         _build_binance_market_snapshot,
         deps=(MARKET_BINANCE_MARKET_INTEL,),
-        background_start=start_binance_snapshot,
-        background_stop=shutdown_service,
-        background_start_order=20,
-        background_stop_order=10,
     ),
     RuntimeServiceDefinition(
         MARKET_BINANCE_WEB3_RANKS,

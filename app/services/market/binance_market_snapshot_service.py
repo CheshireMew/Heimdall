@@ -43,12 +43,15 @@ class BinanceMarketSnapshotService:
         if self._running:
             return
         self._running = True
-        await self.seed(
-            spot_ticker_loader=spot_ticker_loader or self._spot_ticker_loader,
-            usdm_ticker_loader=usdm_ticker_loader or self._usdm_ticker_loader,
-            usdm_mark_loader=usdm_mark_loader or self._usdm_mark_loader,
-        )
         self._tasks = [
+            asyncio.create_task(
+                self.seed(
+                    spot_ticker_loader=spot_ticker_loader or self._spot_ticker_loader,
+                    usdm_ticker_loader=usdm_ticker_loader or self._usdm_ticker_loader,
+                    usdm_mark_loader=usdm_mark_loader or self._usdm_mark_loader,
+                ),
+                name="binance-market-snapshot-seed",
+            ),
             asyncio.create_task(self._run_spot_ticker_loop(), name="binance-spot-ticker-snapshot"),
             asyncio.create_task(self._run_usdm_ticker_loop(), name="binance-usdm-ticker-snapshot"),
             asyncio.create_task(self._run_usdm_mark_loop(), name="binance-usdm-mark-snapshot"),

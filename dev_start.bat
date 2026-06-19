@@ -21,7 +21,7 @@ if not "%EXIT_CODE%"=="0" (
   echo [Heimdall] Launcher failed with exit code %EXIT_CODE%.
   if /i not "%~1"=="--no-pause" pause
 ) else (
-  echo [Heimdall] Launcher finished. Backend and frontend windows were opened.
+  echo [Heimdall] Launcher finished. Backend, background runtime, and frontend windows were opened.
   if "%PAUSE_ON_SUCCESS%"=="1" pause
 )
 

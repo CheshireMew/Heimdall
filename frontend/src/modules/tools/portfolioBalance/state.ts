@@ -1,8 +1,7 @@
 import { computed, reactive, ref } from 'vue'
 
 import { createPersistentPageSnapshot, PAGE_SNAPSHOT_KEYS } from '@/composables/pageSnapshot'
-import type { BacktestRunResponse } from '@/modules/backtest/contracts'
-import type { PortfolioBacktestSummary, PortfolioBalancePortfolio } from './types'
+import type { PortfolioSimulationSummary, PortfolioBalancePortfolio } from './types'
 
 import { computePortfolioBalancePlan } from './plan'
 import {
@@ -25,19 +24,17 @@ export const createPortfolioBalancePageState = () => {
 
   const portfolios = reactive(restoredSnapshot.portfolios) as PortfolioBalancePortfolio[]
   const activePortfolioId = ref(restoredSnapshot.activePortfolioId || portfolios[0]?.id || '')
-  const importLoading = ref(false)
   const marketLoading = ref(false)
-  const backtestLoading = ref(false)
+  const simulationLoading = ref(false)
   const sourceMessage = ref('')
   const sourceError = ref('')
-  const lastImportedRun = ref<BacktestRunResponse | null>(null)
 
   const activePortfolio = computed(() => portfolios.find((portfolio) => portfolio.id === activePortfolioId.value) || portfolios[0] || null)
   const assets = computed(() => activePortfolio.value?.assets || [])
   const strategy = computed(() => activePortfolio.value?.strategy || fallbackPortfolio.strategy)
   const tracking = computed(() => activePortfolio.value?.tracking || fallbackPortfolio.tracking)
-  const backtest = computed(() => activePortfolio.value?.backtest || fallbackPortfolio.backtest)
-  const backtestResult = computed<PortfolioBacktestSummary | null>(() => activePortfolio.value?.lastBacktestResult || null)
+  const simulation = computed(() => activePortfolio.value?.simulation || fallbackPortfolio.simulation)
+  const simulationResult = computed<PortfolioSimulationSummary | null>(() => activePortfolio.value?.lastSimulationResult || null)
   const plan = computed(() => computePortfolioBalancePlan(assets.value, strategy.value, tracking.value))
   const canRemoveAsset = computed(() => assets.value.length > 2)
 
@@ -66,18 +63,16 @@ export const createPortfolioBalancePageState = () => {
   return {
     portfolios,
     activePortfolioId,
-    importLoading,
     marketLoading,
-    backtestLoading,
+    simulationLoading,
     sourceMessage,
     sourceError,
-    lastImportedRun,
     activePortfolio,
     assets,
     strategy,
     tracking,
-    backtest,
-    backtestResult,
+    simulation,
+    simulationResult,
     plan,
     canRemoveAsset,
     resetFeedback,

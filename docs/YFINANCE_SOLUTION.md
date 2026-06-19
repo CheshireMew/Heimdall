@@ -160,7 +160,7 @@ nasdaq_price = res.json()['data'][0]['d'][0]
 - [ ] 1. 申请 FRED API Key
 - [ ] 2. 添加到 .env 文件
 - [ ] 3. 修改 market_cron.py 使用 MacroProviderV2
-- [ ] 4. 测试数据获取：`python -m scripts.test_macro`
+- [ ] 4. 测试数据获取：`python -m scripts.check_macro`
 - [ ] 5. 运行 Cron Job：`python -m app.application.indicators.market_cron`
 - [ ] 6. 验证数据库：`python -m scripts.check_indicators`
 - [ ] 7. 启动服务器测试前端：`python -m uvicorn app.main:app --reload --port 5001`

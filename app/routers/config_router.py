@@ -8,7 +8,12 @@ from fastapi import Depends
 
 from app.dependencies import runtime_dependency
 from app.exceptions import AppError
-from app.router_service_ports import CurrencyRatePort, DatabaseRuntimePort, FredApiConfigPort, LlmConfigPort
+from app.router_ports.config import (
+    CurrencyRatePort,
+    DatabaseRuntimePort,
+    FredApiConfigPort,
+    LlmConfigPort,
+)
 from app.runtime_refs import (
     INFRA_CACHE_SERVICE,
     INFRA_DATABASE_RUNTIME,

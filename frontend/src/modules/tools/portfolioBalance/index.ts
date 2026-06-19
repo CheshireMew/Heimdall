@@ -1,5 +1,5 @@
-export { buildPortfolioBacktestSummary, buildPortfolioSyntheticHistory } from './backtest'
-export { applyLatestMarketPrices, buildPortfolioAssetsFromPaperRun, clearPortfolioHoldings, readPaperRunCashBalance, readPaperRunTotalValue, seedPortfolioHoldingsFromMarket, selectLatestPaperRunForPortfolio } from './holdings'
+export { buildPortfolioSimulationSummary, buildPortfolioSyntheticHistory } from './simulation'
+export { applyLatestMarketPrices, clearPortfolioHoldings, seedPortfolioHoldingsFromMarket } from './holdings'
 export {
   collectPortfolioMarketTargets,
   computePortfolioAssetHoldingValue,

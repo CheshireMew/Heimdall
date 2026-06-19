@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 
 from app.dependencies import runtime_dependency
-from app.router_service_ports import BinanceMarketPort
+from app.router_ports.market import BinanceMarketPort
 from app.runtime_refs import MARKET_BINANCE_MARKET_INTEL
 from app.contracts.dto.binance.page import BinanceMarketPageResponse
 from app.contracts.dto.binance.usdm import BinanceContractResearchDetailResponse

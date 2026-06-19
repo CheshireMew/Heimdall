@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 
 from app.dependencies import runtime_dependency
-from app.router_service_ports import BinanceWeb3RwaPort
+from app.router_ports.market import BinanceWeb3RwaPort
 from app.runtime_refs import MARKET_BINANCE_WEB3_RWA
 from app.contracts.dto.binance.rwa import (
     BinanceRwaDynamicResponse,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 
 from app.dependencies import runtime_dependency
-from app.router_service_ports import BinanceWeb3HeatRanksPort, BinanceWeb3RanksPort
+from app.router_ports.market import BinanceWeb3HeatRanksPort, BinanceWeb3RanksPort
 from app.runtime_refs import MARKET_BINANCE_WEB3_HEAT_RANKS, MARKET_BINANCE_WEB3_RANKS
 from app.contracts.dto.binance.web3 import (
     BinanceWeb3AddressPnlResponse,

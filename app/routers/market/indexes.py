@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.dependencies import runtime_dependency
-from app.router_service_ports import IndexDataPort
+from app.router_ports.market import IndexDataPort
 from app.runtime_refs import MARKET_INDEX_DATA_SERVICE
 from app.rate_limit import limiter
 from app.contracts.dto.market import MarketIndexHistoryResponse, MarketIndexResponse

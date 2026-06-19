@@ -1,5 +1,4 @@
 import asyncio
-import logging
 
 import pytest
 
@@ -7,16 +6,27 @@ from app.services.market_scheduler_runtime import MarketSchedulerRuntime
 
 
 @pytest.mark.asyncio
-async def test_deferred_scheduler_task_logs_and_consumes_callback_exception(caplog):
+async def test_scheduler_start_registers_jobs_without_immediate_work(monkeypatch):
     runtime = MarketSchedulerRuntime(indicator_repository=object(), cleanup_old_data=lambda: None)
+    calls: list[str] = []
 
-    async def fail():
-        raise RuntimeError("boom")
+    async def record_indicator_job():
+        calls.append("indicator")
 
-    with caplog.at_level(logging.ERROR):
-        task = runtime._schedule_deferred_start(fail, delay_seconds=0, task_name="test_task")
-        await task
-        await asyncio.sleep(0)
+    async def record_cleanup_job():
+        calls.append("cleanup")
 
-    assert not runtime._deferred_tasks
-    assert "Deferred scheduler task failed: test_task" in caplog.text
+    monkeypatch.setattr(runtime, "_run_market_indicator_job", record_indicator_job)
+    monkeypatch.setattr(runtime, "_cleanup_old_data", record_cleanup_job)
+
+    runtime.start()
+    await asyncio.sleep(0)
+
+    try:
+        assert calls == []
+        assert {job.id for job in runtime.scheduler.get_jobs()} == {
+            "fetch_market_indicators",
+            "data_retention_cleanup",
+        }
+    finally:
+        await runtime.shutdown()

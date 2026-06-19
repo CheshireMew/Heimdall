@@ -14,21 +14,6 @@ import app.background_runtime as background_runtime_module
 from app.exceptions import unhandled_exception_handler
 from app.runtime import AppRuntimeServices
 from app.runtime_refs import (
-    BACKTEST_FACTOR_PAPER_RUN_WRITER,
-    BACKTEST_FACTOR_RUN_WRITER,
-    BACKTEST_FREQTRADE_SERVICE,
-    BACKTEST_PAPER_RUN_WRITER,
-    BACKTEST_PAPER_RUN_MANAGER,
-    BACKTEST_REPORT_BUILDER,
-    BACKTEST_RUN_REPOSITORY,
-    BACKTEST_RUN_WRITER,
-    BACKTEST_STRATEGY_DEFINITION_STORE,
-    BACKTEST_STRATEGY_QUERY_SERVICE,
-    FACTORS_PAPER_PERSISTENCE_SERVICE,
-    FACTORS_PAPER_RUN_MANAGER,
-    FACTORS_RESEARCH_REPOSITORY,
-    FACTORS_RESEARCH_SERVICE,
-    FACTORS_SIGNAL_EXECUTION_CORE,
     INFRA_CACHE_SERVICE,
     INFRA_DATABASE_RUNTIME,
     INFRA_EXCHANGE_GATEWAY,
@@ -95,7 +80,6 @@ async def test_lifespan_monitors_and_stops_managers(monkeypatch):
             events.append("dispose_db")
 
     paper_manager = FakeManager()
-    factor_manager = FakeManager()
     snapshot = FakeSnapshot()
     binance_market = FakeBinanceMarket()
 
@@ -103,7 +87,7 @@ async def test_lifespan_monitors_and_stops_managers(monkeypatch):
     monkeypatch.setattr(
         lifecycle_module,
         "build_app_runtime_services",
-        lambda: AppRuntimeServices.from_entries({
+        lambda _role=None: AppRuntimeServices.from_entries({
             INFRA_EXCHANGE_GATEWAY: object(),
             INFRA_DATABASE_RUNTIME: FakeDatabaseRuntime(),
             INFRA_KLINE_STORE: object(),
@@ -115,21 +99,6 @@ async def test_lifespan_monitors_and_stops_managers(monkeypatch):
             MARKET_BINANCE_MARKET_SNAPSHOT: snapshot,
             MARKET_BINANCE_MARKET_INTEL: binance_market,
             MARKET_BINANCE_MARKET_RESEARCH_STORE: object(),
-            BACKTEST_RUN_REPOSITORY: object(),
-            BACKTEST_RUN_WRITER: object(),
-            BACKTEST_FACTOR_RUN_WRITER: object(),
-            BACKTEST_PAPER_RUN_WRITER: object(),
-            BACKTEST_FACTOR_PAPER_RUN_WRITER: object(),
-            BACKTEST_FREQTRADE_SERVICE: object(),
-            BACKTEST_STRATEGY_DEFINITION_STORE: object(),
-            BACKTEST_STRATEGY_QUERY_SERVICE: object(),
-            BACKTEST_REPORT_BUILDER: object(),
-            BACKTEST_PAPER_RUN_MANAGER: paper_manager,
-            FACTORS_RESEARCH_REPOSITORY: object(),
-            FACTORS_RESEARCH_SERVICE: object(),
-            FACTORS_SIGNAL_EXECUTION_CORE: object(),
-            FACTORS_PAPER_PERSISTENCE_SERVICE: object(),
-            FACTORS_PAPER_RUN_MANAGER: factor_manager,
             SYSTEM_MARKET_SCHEDULER_RUNTIME: FakeSchedulerRuntime(),
         }),
     )
@@ -139,23 +108,17 @@ async def test_lifespan_monitors_and_stops_managers(monkeypatch):
     monkeypatch.setattr(
         background_runtime_module._ProcessFileLock, "release", lambda self: None
     )
-    async with lifecycle_module.lifespan(main_module.app):
-        events.append("inside")
-        await main_module.app.state.database_task
-        await main_module.app.state.background_services_task
-        await main_module.app.state.background_runtime.wait_until_started()
+    app = main_module.create_app(role="background")
 
-    assert events[0] == "inside"
+    async with lifecycle_module.lifespan(app):
+        events.append("inside")
+        await app.state.background_services_task
+        await app.state.background_runtime.wait_until_started()
+
+    assert events[0] == "init_db"
+    assert events.index("init_db") < events.index("inside")
     assert events.index("init_db") < events.index("start_scheduler")
-    assert events.index("snapshot_start") < events.index("monitor")
-    assert events.index("snapshot_start") < events.index("binance_market_start")
-    assert events.index("binance_market_start") < events.index("monitor")
-    assert events.count("monitor") == 2
-    assert events[-6:] == [
-        "binance_market_shutdown",
-        "snapshot_shutdown",
-        "shutdown",
-        "shutdown",
+    assert events[-2:] == [
         "scheduler_shutdown",
         "dispose_db",
     ]
@@ -198,7 +161,7 @@ def test_root_and_spa_fallback_serve_built_frontend(api_harness, monkeypatch):
         monkeypatch.setattr(web_module, "FRONTEND_INDEX_FILE", index_file)
 
         root_response = api_harness["client"].get("/")
-        route_response = api_harness["client"].get("/backtest")
+        route_response = api_harness["client"].get("/tools/portfolio-balance")
         asset_response = api_harness["client"].get("/assets/app.js")
 
         assert root_response.status_code == 200

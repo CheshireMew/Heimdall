@@ -65,7 +65,6 @@ import { onMounted, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   ChartBarSquareIcon,
-  BeakerIcon,
   ScaleIcon,
   BanknotesIcon,
   ArrowsRightLeftIcon,
@@ -77,7 +76,6 @@ import {
   CubeTransparentIcon,
   LanguageIcon,
   CircleStackIcon,
-  PresentationChartLineIcon
 } from '@heroicons/vue/24/outline'
 import {
   APP_KEEP_ALIVE_ROUTE_NAMES,
@@ -97,7 +95,6 @@ const { loadSymbols } = useSymbolCatalog()
 const keepAliveRoutes = APP_KEEP_ALIVE_ROUTE_NAMES
 const iconMap: Record<AppNavIconName, Component> = {
   ChartBarSquareIcon,
-  BeakerIcon,
   ScaleIcon,
   BanknotesIcon,
   ArrowsRightLeftIcon,
@@ -106,7 +103,6 @@ const iconMap: Record<AppNavIconName, Component> = {
   BuildingLibraryIcon,
   CubeTransparentIcon,
   CircleStackIcon,
-  PresentationChartLineIcon,
 }
 const navSections = APP_NAV_SECTIONS.map((section) => ({
   ...section,

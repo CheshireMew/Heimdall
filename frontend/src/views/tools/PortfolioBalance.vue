@@ -112,10 +112,10 @@
               </div>
               <div class="border border-[#e4ded3] bg-white/80 p-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70">
                 <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  {{ activePortfolio.holdingsSource === 'paper' ? $t('portfolioBalance.holdingsModePaper') : $t('portfolioBalance.virtualCapital', { currency: displayCurrency }) }}
+                  {{ $t('portfolioBalance.virtualCapital', { currency: displayCurrency }) }}
                 </div>
                 <div class="mt-2 text-2xl font-semibold text-emerald-600 dark:text-emerald-300">
-                  {{ activePortfolio.holdingsSource === 'paper' ? $t('portfolioBalance.holdingsModePaperValue') : displayTrackingCapital }}
+                  {{ displayTrackingCapital }}
                 </div>
               </div>
             </div>
@@ -128,15 +128,6 @@
               <h2 class="text-xl font-semibold text-stone-950 dark:text-white">{{ $t('portfolioBalance.configTitle') }}</h2>
             </div>
             <div class="flex flex-wrap gap-3">
-              <button
-                type="button"
-                class="inline-flex items-center justify-center border border-[#b8d2c4] bg-[#edf3ee] px-4 py-2 text-sm font-medium text-[#0f6b4f] transition hover:bg-[#e1ece4] disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-900/50"
-                :disabled="importLoading"
-                @click="importLatestPaperHoldings"
-              >
-                <ArrowDownTrayIcon class="mr-2 h-4 w-4" />
-                {{ importLoading ? $t('portfolioBalance.importing') : $t('portfolioBalance.importPaperHoldings') }}
-              </button>
               <button
                 type="button"
                 class="inline-flex items-center justify-center border border-[#b8d2c4] bg-[#edf3ee] px-4 py-2 text-sm font-medium text-[#0f6b4f] transition hover:bg-[#e1ece4] disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-900/50"
@@ -157,15 +148,12 @@
             </div>
           </div>
 
-          <div v-if="sourceMessage || sourceError || lastImportedRun" class="mt-4 space-y-2 text-sm">
+          <div v-if="sourceMessage || sourceError" class="mt-4 space-y-2 text-sm">
             <div v-if="sourceMessage" class="border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-200">
               {{ sourceMessage }}
             </div>
             <div v-if="sourceError" class="border border-rose-200 bg-rose-50 px-4 py-3 text-rose-800 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-200">
               {{ sourceError }}
-            </div>
-            <div v-if="lastImportedRun" class="border border-stone-200 bg-[#fbfaf7] px-4 py-3 text-stone-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-              {{ $t('portfolioBalance.importSource', { id: lastImportedRun.id, updated: formatDateTime(lastImportedRun.metadata?.paper_live?.last_updated || lastImportedRun.created_at) }) }}
             </div>
           </div>
 
@@ -268,74 +256,74 @@
         <section class="app-panel p-6">
           <div class="flex flex-col gap-3">
             <div class="flex items-center justify-between gap-4">
-              <h2 class="text-xl font-semibold text-stone-950 dark:text-white">{{ $t('portfolioBalance.backtestTitle') }}</h2>
+              <h2 class="text-xl font-semibold text-stone-950 dark:text-white">{{ $t('portfolioBalance.simulationTitle') }}</h2>
               <button
                 type="button"
                 class="inline-flex items-center justify-center border border-[#b8d2c4] bg-[#edf3ee] px-4 py-2 text-sm font-medium text-[#0f6b4f] transition hover:bg-[#e1ece4] disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-900/50"
-                :disabled="backtestLoading"
-                @click="runBacktest"
+                :disabled="simulationLoading"
+                @click="runSimulation"
               >
                 <ArrowPathIcon class="mr-2 h-4 w-4" />
-                {{ backtestLoading ? $t('portfolioBalance.backtesting') : $t('portfolioBalance.backtestRun') }}
+                {{ simulationLoading ? $t('portfolioBalance.simulating') : $t('portfolioBalance.simulationRun') }}
               </button>
             </div>
             <div class="grid gap-4 lg:grid-cols-2">
               <AppDateField
-                v-model="backtest.backtestStartDate"
-                :label="$t('portfolioBalance.backtestStartDate')"
+                v-model="simulation.simulationStartDate"
+                :label="$t('portfolioBalance.simulationStartDate')"
                 :max="today"
               />
               <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.backtestInitialCapital', { currency: displayCurrency }) }}</span>
-                <input v-model.number="displayBacktestInitialCapitalInput" type="number" min="0" step="1000" class="app-control w-full px-4 py-3" />
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.simulationInitialCapital', { currency: displayCurrency }) }}</span>
+                <input v-model.number="displaySimulationInitialCapitalInput" type="number" min="0" step="1000" class="app-control w-full px-4 py-3" />
               </label>
             </div>
           </div>
 
-          <div v-if="backtestResult" class="mt-5 space-y-5">
+          <div v-if="simulationResult" class="mt-5 space-y-5">
             <div class="border border-stone-200 bg-[#fbfaf7] p-4 dark:border-slate-700 dark:bg-slate-900/60">
-              <div class="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">{{ $t('backtest.equityCurve') }}</div>
+              <div class="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">{{ $t('portfolioBalance.equityCurve') }}</div>
               <div class="h-[320px]">
-              <BacktestEquityChart :points="backtestResult.equityCurve" />
+              <PortfolioEquityChart :points="simulationResult.equityCurve" />
               </div>
             </div>
             <div class="grid grid-cols-2 gap-3 xl:grid-cols-8">
               <div class="border border-stone-200 bg-[#fbfaf7] px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60">
-                <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.backtestStartDate') }}</div>
-                <div class="mt-1 font-semibold text-slate-900 dark:text-white">{{ formatDate(backtestResult.startDate) }}</div>
+                <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.simulationStartDate') }}</div>
+                <div class="mt-1 font-semibold text-slate-900 dark:text-white">{{ formatDate(simulationResult.startDate) }}</div>
               </div>
               <div class="border border-stone-200 bg-[#fbfaf7] px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60">
-                <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.backtestEndDate') }}</div>
-                <div class="mt-1 font-semibold text-slate-900 dark:text-white">{{ formatDate(backtestResult.endDate) }}</div>
+                <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.simulationEndDate') }}</div>
+                <div class="mt-1 font-semibold text-slate-900 dark:text-white">{{ formatDate(simulationResult.endDate) }}</div>
               </div>
               <div class="border border-stone-200 bg-[#fbfaf7] px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60">
                 <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.totalReturn') }}</div>
-                <div class="mt-1 font-semibold" :class="returnClass(backtestResult.totalReturnPct)">{{ signedPercent(backtestResult.totalReturnPct) }}</div>
+                <div class="mt-1 font-semibold" :class="returnClass(simulationResult.totalReturnPct)">{{ signedPercent(simulationResult.totalReturnPct) }}</div>
               </div>
               <div class="border border-stone-200 bg-[#fbfaf7] px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60">
                 <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.annualizedReturn') }}</div>
-                <div class="mt-1 font-semibold" :class="returnClass(backtestResult.annualizedReturnPct || 0)">{{ backtestResult.annualizedReturnPct === null ? '--' : signedPercent(backtestResult.annualizedReturnPct) }}</div>
+                <div class="mt-1 font-semibold" :class="returnClass(simulationResult.annualizedReturnPct || 0)">{{ simulationResult.annualizedReturnPct === null ? '--' : signedPercent(simulationResult.annualizedReturnPct) }}</div>
               </div>
               <div class="border border-stone-200 bg-[#fbfaf7] px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60">
                 <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.maxDrawdown') }}</div>
-                <div class="mt-1 font-semibold text-rose-600 dark:text-rose-300">{{ formatPercent(backtestResult.maxDrawdownPct) }}</div>
+                <div class="mt-1 font-semibold text-rose-600 dark:text-rose-300">{{ formatPercent(simulationResult.maxDrawdownPct) }}</div>
               </div>
               <div class="border border-stone-200 bg-[#fbfaf7] px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60">
                 <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.reviewCount') }}</div>
-                <div class="mt-1 font-semibold text-slate-900 dark:text-white">{{ backtestResult.reviewCount }}</div>
+                <div class="mt-1 font-semibold text-slate-900 dark:text-white">{{ simulationResult.reviewCount }}</div>
               </div>
               <div class="border border-stone-200 bg-[#fbfaf7] px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60">
                 <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.outOfBandReviewCount') }}</div>
-                <div class="mt-1 font-semibold text-amber-600 dark:text-amber-300">{{ backtestResult.outOfBandReviewCount }}</div>
+                <div class="mt-1 font-semibold text-amber-600 dark:text-amber-300">{{ simulationResult.outOfBandReviewCount }}</div>
               </div>
               <div class="border border-stone-200 bg-[#fbfaf7] px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60">
                 <div class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('portfolioBalance.rebalanceCount') }}</div>
-                <div class="mt-1 font-semibold text-slate-900 dark:text-white">{{ backtestResult.rebalanceCount }}</div>
+                <div class="mt-1 font-semibold text-slate-900 dark:text-white">{{ simulationResult.rebalanceCount }}</div>
               </div>
             </div>
           </div>
           <div v-else class="mt-5 border border-stone-200 bg-[#fbfaf7] px-4 py-6 text-center text-sm text-stone-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
-            {{ $t('portfolioBalance.noBacktest') }}
+            {{ $t('portfolioBalance.noSimulation') }}
           </div>
         </section>
       </main>
@@ -346,14 +334,14 @@
 
 <script setup>
 import { computed, onMounted } from 'vue'
-import { ArrowDownTrayIcon, ArrowPathIcon, DocumentDuplicateIcon, PlusIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { ArrowPathIcon, DocumentDuplicateIcon, PlusIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import AppDateField from '@/components/AppDateField.vue'
-import BacktestEquityChart from '@/components/BacktestEquityChart.vue'
+import PortfolioEquityChart from '@/components/PortfolioEquityChart.vue'
 import SymbolSearchBox from '@/components/SymbolSearchBox.vue'
 import { usePortfolioBalancePage } from '@/modules/tools'
 import { computePortfolioAssetHoldingValue } from '@/modules/tools/portfolioBalance'
 import { findSymbolCatalogItem, useSymbolCatalog } from '@/modules/market'
-import { formatDate, formatDateTime, formatPercent, formatSignedPercent as signedPercent } from '@/modules/format'
+import { formatDate, formatPercent, formatSignedPercent as signedPercent } from '@/modules/format'
 import { useMoney } from '@/composables/useMoney'
 import { todayLocalIsoDate } from '@/utils/localDate'
 
@@ -364,16 +352,14 @@ const {
   assets,
   strategy,
   tracking,
-  backtest,
+  simulation,
   plan,
   canRemoveAsset,
-  importLoading,
   marketLoading,
-  backtestLoading,
+  simulationLoading,
   sourceMessage,
   sourceError,
-  lastImportedRun,
-  backtestResult,
+  simulationResult,
   selectPortfolio,
   createPortfolio,
   copyPortfolio,
@@ -382,9 +368,8 @@ const {
   removeAsset,
   updateAssetSymbol,
   updateAssetTargetWeight,
-  importLatestPaperHoldings,
   refreshMarketPrices,
-  runBacktest,
+  runSimulation,
 } = usePortfolioBalancePage()
 const { loadSymbols } = useSymbolCatalog()
 const { displayCurrency, formatMoney, formatSignedMoney, formatDisplayNumber, fromDisplayAmount } = useMoney()
@@ -418,10 +403,10 @@ const displayMinTradeAmountInput = computed({
     strategy.value.minTradeAmount = fromDisplayAmount(value, 'USDT') ?? strategy.value.minTradeAmount
   },
 })
-const displayBacktestInitialCapitalInput = computed({
-  get: () => formatDisplayNumber(backtest.value.initialCapital, 'USDT', 2),
+const displaySimulationInitialCapitalInput = computed({
+  get: () => formatDisplayNumber(simulation.value.initialCapital, 'USDT', 2),
   set: (value) => {
-    backtest.value.initialCapital = fromDisplayAmount(value, 'USDT') ?? backtest.value.initialCapital
+    simulation.value.initialCapital = fromDisplayAmount(value, 'USDT') ?? simulation.value.initialCapital
   },
 })
 

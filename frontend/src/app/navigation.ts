@@ -76,17 +76,6 @@ export const APP_ROUTE_DEFINITIONS = [
     nav: { section: 'tools', labelKey: 'nav.compare', icon: 'ScaleIcon' },
   },
   {
-    path: '/tools/factors',
-    name: 'FactorResearch',
-    component: () => import('@/views/tools/FactorResearch.vue'),
-    meta: { title: '因子研究' },
-    nav: {
-      section: 'tools',
-      labelKey: 'nav.factorResearch',
-      icon: 'PresentationChartLineIcon',
-    },
-  },
-  {
     path: '/tools/dca',
     name: 'DCA',
     component: () => import('@/views/tools/DCA.vue'),
@@ -110,22 +99,6 @@ export const APP_ROUTE_DEFINITIONS = [
     component: () => import('@/views/tools/Halving.vue'),
     meta: { title: '减半周期' },
     nav: { section: 'tools', labelKey: 'nav.halving', icon: 'ClockIcon' },
-  },
-  {
-    path: '/backtest',
-    name: 'Backtest',
-    component: () => import('@/views/Backtest.vue'),
-    nav: { section: 'tools', labelKey: 'nav.backtest', icon: 'BeakerIcon' },
-  },
-  {
-    path: '/backtest/editor',
-    name: 'BacktestEditor',
-    component: () => import('@/views/BacktestEditor.vue'),
-  },
-  {
-    path: '/backtest/:mode(runs|paper)/:id(\\d+)',
-    name: 'BacktestDetail',
-    component: () => import('@/views/BacktestDetail.vue'),
   },
   {
     path: '/settings',

@@ -4,10 +4,10 @@ import { createDefaultPortfolioBalanceAssets, createPortfolioBalanceAsset } from
 import { clamp, sanitizeNumber } from './number'
 import { DEFAULT_REVIEW_FREQUENCY, daysAgoIso, todayIso } from './schedule'
 import type {
-  PortfolioBacktestEquityPoint,
-  PortfolioBacktestSummary,
+  PortfolioSimulationEquityPoint,
+  PortfolioSimulationSummary,
   PortfolioBalanceAssetInput,
-  PortfolioBalanceBacktestConfig,
+  PortfolioBalanceSimulationConfig,
   PortfolioBalancePortfolio,
   PortfolioBalanceSnapshot,
   PortfolioBalanceStrategyConfig,
@@ -31,9 +31,9 @@ export const createDefaultPortfolioBalanceTrackingConfig = (): PortfolioBalanceT
   inceptionDate: todayIso(),
 })
 
-export const createDefaultPortfolioBalanceBacktestConfig = (): PortfolioBalanceBacktestConfig => ({
+export const createDefaultPortfolioBalanceSimulationConfig = (): PortfolioBalanceSimulationConfig => ({
   initialCapital: 100000,
-  backtestStartDate: daysAgoIso(365),
+  simulationStartDate: daysAgoIso(365),
 })
 
 export const normalizePortfolioBalanceAsset = (value: unknown): PortfolioBalanceAssetInput => {
@@ -75,17 +75,17 @@ export const normalizePortfolioBalanceTrackingConfig = (value: unknown): Portfol
   }
 }
 
-export const normalizePortfolioBalanceBacktestConfig = (value: unknown): PortfolioBalanceBacktestConfig => {
-  const defaults = createDefaultPortfolioBalanceBacktestConfig()
+export const normalizePortfolioBalanceSimulationConfig = (value: unknown): PortfolioBalanceSimulationConfig => {
+  const defaults = createDefaultPortfolioBalanceSimulationConfig()
   if (!isRecord(value)) return defaults
 
   return {
     initialCapital: sanitizeNumber(value.initialCapital, defaults.initialCapital),
-    backtestStartDate: readString(value.backtestStartDate, defaults.backtestStartDate),
+    simulationStartDate: readString(value.simulationStartDate, defaults.simulationStartDate),
   }
 }
 
-export const normalizePortfolioBacktestEquityPoint = (value: unknown): PortfolioBacktestEquityPoint => {
+export const normalizePortfolioSimulationEquityPoint = (value: unknown): PortfolioSimulationEquityPoint => {
   if (!isRecord(value)) {
     return {
       id: 0,
@@ -105,7 +105,7 @@ export const normalizePortfolioBacktestEquityPoint = (value: unknown): Portfolio
   }
 }
 
-export const normalizePortfolioBacktestSummary = (value: unknown): PortfolioBacktestSummary | null => {
+export const normalizePortfolioSimulationSummary = (value: unknown): PortfolioSimulationSummary | null => {
   if (!isRecord(value)) return null
 
   return {
@@ -120,7 +120,7 @@ export const normalizePortfolioBacktestSummary = (value: unknown): PortfolioBack
     outOfBandReviewCount: Math.max(readNumber(value.outOfBandReviewCount, 0), 0),
     rebalanceCount: Math.max(readNumber(value.rebalanceCount, 0), 0),
     equityCurve: Array.isArray(value.equityCurve)
-      ? value.equityCurve.map((item) => normalizePortfolioBacktestEquityPoint(item))
+      ? value.equityCurve.map((item) => normalizePortfolioSimulationEquityPoint(item))
       : [],
   }
 }
@@ -134,7 +134,7 @@ export const createPortfolioBalancePortfolio = (
 ): PortfolioBalancePortfolio => {
   const timestamp = todayIso()
   const holdingsSource: PortfolioHoldingsSource | null =
-    overrides.holdingsSource === 'virtual' || overrides.holdingsSource === 'paper'
+    overrides.holdingsSource === 'virtual'
       ? overrides.holdingsSource
       : null
 
@@ -146,8 +146,8 @@ export const createPortfolioBalancePortfolio = (
       : createDefaultPortfolioBalanceAssets(),
     strategy: normalizePortfolioBalanceStrategyConfig(overrides.strategy),
     tracking: normalizePortfolioBalanceTrackingConfig(overrides.tracking),
-    backtest: normalizePortfolioBalanceBacktestConfig(overrides.backtest),
-    lastBacktestResult: normalizePortfolioBacktestSummary(overrides.lastBacktestResult),
+    simulation: normalizePortfolioBalanceSimulationConfig(overrides.simulation),
+    lastSimulationResult: normalizePortfolioSimulationSummary(overrides.lastSimulationResult),
     holdingsInitializedAt: typeof overrides.holdingsInitializedAt === 'string' ? overrides.holdingsInitializedAt : null,
     lastPriceUpdatedAt: typeof overrides.lastPriceUpdatedAt === 'string' ? overrides.lastPriceUpdatedAt : null,
     seedCapital: typeof overrides.seedCapital === 'number' ? overrides.seedCapital : null,
@@ -171,11 +171,11 @@ export const copyPortfolioBalancePortfolio = (
   })),
   strategy: { ...source.strategy },
   tracking: { ...source.tracking },
-  backtest: { ...source.backtest },
-  lastBacktestResult: source.lastBacktestResult
+  simulation: { ...source.simulation },
+  lastSimulationResult: source.lastSimulationResult
     ? {
-        ...source.lastBacktestResult,
-        equityCurve: source.lastBacktestResult.equityCurve.map((point) => ({ ...point })),
+        ...source.lastSimulationResult,
+        equityCurve: source.lastSimulationResult.equityCurve.map((point) => ({ ...point })),
       }
     : null,
   holdingsInitializedAt: source.holdingsInitializedAt,
@@ -196,7 +196,7 @@ export const normalizePortfolioBalancePortfolio = (value: unknown): PortfolioBal
 
   const rawHoldingsSource = readString(value.holdingsSource, '')
   const holdingsSource: PortfolioHoldingsSource | null =
-    rawHoldingsSource === 'virtual' || rawHoldingsSource === 'paper'
+    rawHoldingsSource === 'virtual'
       ? rawHoldingsSource
       : null
 
@@ -208,8 +208,8 @@ export const normalizePortfolioBalancePortfolio = (value: unknown): PortfolioBal
       : defaults.assets,
     strategy: normalizePortfolioBalanceStrategyConfig(value.strategy),
     tracking: normalizePortfolioBalanceTrackingConfig(value.tracking),
-    backtest: normalizePortfolioBalanceBacktestConfig(value.backtest),
-    lastBacktestResult: normalizePortfolioBacktestSummary(value.lastBacktestResult),
+    simulation: normalizePortfolioBalanceSimulationConfig(value.simulation),
+    lastSimulationResult: normalizePortfolioSimulationSummary(value.lastSimulationResult),
     holdingsInitializedAt: typeof value.holdingsInitializedAt === 'string' ? value.holdingsInitializedAt : null,
     lastPriceUpdatedAt: typeof value.lastPriceUpdatedAt === 'string' ? value.lastPriceUpdatedAt : null,
     seedCapital: typeof value.seedCapital === 'number' ? value.seedCapital : null,

@@ -31,7 +31,7 @@ def prepare_db(database_runtime: DatabaseRuntime) -> None:
 
 
 def verify_database_schema(database_runtime: DatabaseRuntime) -> None:
-    """应用启动只检查迁移状态，不隐式 create_all/ALTER。"""
+    """应用启动只检查迁移状态，不隐式建表或改表。"""
     from alembic.autogenerate import compare_metadata
     from alembic.runtime.migration import MigrationContext
     from alembic.script import ScriptDirectory
@@ -107,8 +107,6 @@ def _alembic_config(database_url: str):
 
 
 def _version_unmanaged_database(alembic_config, database_runtime: DatabaseRuntime) -> None:
-    from alembic import command
-
     inspector = inspect(database_runtime.engine)
     tables = set(inspector.get_table_names())
     if "alembic_version" in tables:
@@ -116,27 +114,7 @@ def _version_unmanaged_database(alembic_config, database_runtime: DatabaseRuntim
     app_tables = tables - {"sqlite_sequence"}
     if not app_tables:
         return
-    if _schema_has_current_model_columns(inspector):
-        command.stamp(alembic_config, "head")
-        return
-    model_tables = {table.name for table in Base.metadata.sorted_tables}
-    if app_tables.issubset(model_tables):
-        # 历史版本曾由 create_all 和手写 ALTER 共同改表；003 是当前结构补齐迁移，
-        # 因此只要库里全是已知模型表，就交给 003 统一补齐缺表、缺列和索引。
-        command.stamp(alembic_config, "002_widen_kline_symbol")
-        return
-    raise RuntimeError("数据库存在未纳入 Alembic 管理的旧结构，请备份后手动迁移")
-
-
-def _schema_has_current_model_columns(inspector) -> bool:
-    table_names = set(inspector.get_table_names())
-    for table in Base.metadata.sorted_tables:
-        if table.name not in table_names:
-            return False
-        columns = {column["name"] for column in inspector.get_columns(table.name)}
-        if any(column.name not in columns for column in table.columns):
-            return False
-    return True
+    raise RuntimeError("数据库存在未纳入 Alembic 管理的结构，请备份后手动迁移")
 
 
 def _assert_model_tables_present(database_runtime: DatabaseRuntime) -> None:

@@ -101,7 +101,7 @@ cd E:\Work\Code\Heimdall
 python -c "import os; from dotenv import load_dotenv; load_dotenv(); k=os.getenv('FRED_API_KEY'); print('OK: '+k[:8]+'...' if k else 'ERROR: Not configured')"
 
 # 测试2: 测试API连接
-python -m scripts.test_macro
+python -m scripts.check_macro
 ```
 
 **预期输出:**

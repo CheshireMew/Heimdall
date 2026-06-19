@@ -29,7 +29,9 @@ const attachInterceptors = (client: AxiosInstance) => {
             return response
         },
         (error: unknown) => {
-            console.error('API Request Failed:', error)
+            if (!isRequestCanceled(error)) {
+                console.error('API Request Failed:', error)
+            }
             return Promise.reject(error)
         }
     )
@@ -73,6 +75,18 @@ const buildRequestConfig = <TRoute extends ApiRouteName>(name: TRoute, options: 
 }
 
 const resolveClient = <TRoute extends ApiRouteName>(options: ApiOptions<TRoute> = {}) => apiClients[options.client || 'default']
+
+export const isRequestCanceled = (error: unknown): boolean => (
+    axios.isCancel(error)
+    || (
+        axios.isAxiosError(error)
+        && (
+            error.code === 'ERR_CANCELED'
+            || error.message === 'canceled'
+            || error.message === 'Request aborted'
+        )
+    )
+)
 
 export const apiGet = <TRoute extends ApiRouteName>(
     name: TRoute,

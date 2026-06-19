@@ -12,7 +12,6 @@ from app.contracts.market_history import (
 from app.infra.executor import run_database, run_external_io
 from app.services.market.app_service_support import validate_market_request
 from app.services.market.market_data_service import MarketDataService
-from config import settings
 
 
 class MarketHistoryQueryService:
@@ -59,13 +58,13 @@ class MarketHistoryQueryService:
         limit: int,
     ):
         validate_market_request(symbol, timeframe)
-        kline_data = await run_external_io(
-            lambda: self.market_data_service.get_recent_candles(
+        end_ts = int(datetime.now().timestamp() * 1000)
+        kline_data = await run_database(
+            lambda: self.market_data_service.get_history_data(
                 symbol,
                 timeframe,
+                end_ts,
                 limit,
-                allow_cached_response=False,
-                live_max_retries=settings.EXCHANGE_TAIL_MAX_RETRIES,
             )
         )
         current_price = kline_data[-1][4] if kline_data else None

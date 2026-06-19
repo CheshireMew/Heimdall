@@ -1,7 +1,7 @@
 export type PortfolioReviewFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly'
 export type PortfolioSuggestedAction = 'wait' | 'cashflow' | 'full'
 export type PortfolioSuggestedReason = 'on_track' | 'scheduled_review' | 'band_breach' | 'cashflow_first' | 'full_rebalance' | 'below_threshold'
-export type PortfolioHoldingsSource = 'virtual' | 'paper'
+export type PortfolioHoldingsSource = 'virtual'
 
 export interface PortfolioBalanceAssetInput {
   id: string
@@ -23,9 +23,9 @@ export interface PortfolioBalanceTrackingConfig {
   inceptionDate: string
 }
 
-export interface PortfolioBalanceBacktestConfig {
+export interface PortfolioBalanceSimulationConfig {
   initialCapital: number
-  backtestStartDate: string
+  simulationStartDate: string
 }
 
 export interface PortfolioBalancePortfolio {
@@ -34,8 +34,8 @@ export interface PortfolioBalancePortfolio {
   assets: PortfolioBalanceAssetInput[]
   strategy: PortfolioBalanceStrategyConfig
   tracking: PortfolioBalanceTrackingConfig
-  backtest: PortfolioBalanceBacktestConfig
-  lastBacktestResult?: PortfolioBacktestSummary | null
+  simulation: PortfolioBalanceSimulationConfig
+  lastSimulationResult?: PortfolioSimulationSummary | null
   holdingsInitializedAt?: string | null
   lastPriceUpdatedAt?: string | null
   seedCapital?: number | null
@@ -92,7 +92,7 @@ export interface PortfolioBalancePlan {
   assets: PortfolioBalanceAssetPlan[]
 }
 
-export interface PortfolioBacktestSummary {
+export interface PortfolioSimulationSummary {
   startDate: string
   endDate: string
   initialValue: number
@@ -103,10 +103,10 @@ export interface PortfolioBacktestSummary {
   reviewCount: number
   outOfBandReviewCount: number
   rebalanceCount: number
-  equityCurve: PortfolioBacktestEquityPoint[]
+  equityCurve: PortfolioSimulationEquityPoint[]
 }
 
-export interface PortfolioBacktestEquityPoint {
+export interface PortfolioSimulationEquityPoint {
   id: number
   timestamp: string
   equity: number

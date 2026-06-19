@@ -9,10 +9,9 @@ from app.contracts.market_history import (
     build_current_price_batch_payload,
     build_current_price_payload,
 )
-from app.infra.executor import run_external_io
+from app.infra.executor import run_database
 from app.services.market.app_service_support import validate_market_request
 from app.services.market.market_data_service import MarketDataService
-from config import settings
 
 
 class MarketPriceQueryService:
@@ -34,7 +33,7 @@ class MarketPriceQueryService:
         validate_market_request(symbol, timeframe)
         current_price = await self._get_current_price_from_snapshot(symbol)
         if current_price is None:
-            current_price = await self._get_current_price_from_kline_tail(
+            current_price = await self._get_current_price_from_cached_history(
                 symbol=symbol,
                 timeframe=timeframe,
             )
@@ -75,9 +74,9 @@ class MarketPriceQueryService:
         timeframe: str,
     ) -> dict[str, Any]:
         current_price = await self._get_current_price_from_snapshot(symbol)
-        source = "websocket_snapshot" if current_price is not None else "kline_tail"
+        source = "websocket_snapshot" if current_price is not None else "cached_history"
         if current_price is None:
-            current_price = await self._get_current_price_from_kline_tail(
+            current_price = await self._get_current_price_from_cached_history(
                 symbol=symbol,
                 timeframe=timeframe,
             )
@@ -94,19 +93,19 @@ class MarketPriceQueryService:
             return None
         return await self.binance_snapshot_service.get_current_price(symbol)
 
-    async def _get_current_price_from_kline_tail(
+    async def _get_current_price_from_cached_history(
         self,
         *,
         symbol: str,
         timeframe: str,
     ) -> float | None:
-        kline_data = await run_external_io(
-            lambda: self.market_data_service.get_recent_candles(
+        end_ts = int(datetime.now().timestamp() * 1000)
+        kline_data = await run_database(
+            lambda: self.market_data_service.get_history_data(
                 symbol,
                 timeframe,
+                end_ts,
                 1,
-                allow_cached_response=False,
-                live_max_retries=settings.EXCHANGE_TAIL_MAX_RETRIES,
             )
         )
         return kline_data[-1][4] if kline_data else None

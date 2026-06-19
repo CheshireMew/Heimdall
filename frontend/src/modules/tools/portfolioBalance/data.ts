@@ -2,7 +2,7 @@ import { ensureSymbolCatalogLoaded, isIndexSymbol, marketHistoryApi, marketIndex
 import type { MarketHistoryBatchItemResponse, OhlcvPointResponse } from '@/modules/market/contracts'
 import type { PortfolioBalancePortfolio } from './types'
 
-import { buildPortfolioSyntheticHistory } from './backtest'
+import { buildPortfolioSyntheticHistory } from './simulation'
 import { collectPortfolioMarketTargets, readPortfolioSyntheticPrice } from './assets'
 import { localIsoDateDaysAgo, toLocalIsoDate } from '@/utils/localDate'
 
@@ -160,7 +160,7 @@ export const fetchPortfolioPriceMap = async (portfolio: PortfolioBalancePortfoli
   return { priceBySymbol, successCount, failedSymbols }
 }
 
-export const loadPortfolioBacktestHistory = async (
+export const loadPortfolioSimulationHistory = async (
   portfolio: PortfolioBalancePortfolio,
   startText: string,
 ) => {

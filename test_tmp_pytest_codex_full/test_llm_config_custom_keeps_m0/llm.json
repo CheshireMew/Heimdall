@@ -1,7 +1,0 @@
-{
-  "provider": "custom",
-  "apiKey": "local-key",
-  "baseUrl": "http://localhost:11434/v1",
-  "modelId": "qwen-local",
-  "reasoningEnabled": false
-}

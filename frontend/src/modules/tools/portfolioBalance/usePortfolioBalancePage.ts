@@ -15,20 +15,20 @@ export function usePortfolioBalancePage() {
 
   watch(state.assets, () => {
     state.updateActivePortfolio((portfolio) => {
-      if (!portfolio.lastBacktestResult) return
-      portfolio.lastBacktestResult = null
+      if (!portfolio.lastSimulationResult) return
+      portfolio.lastSimulationResult = null
     })
   }, { deep: true })
 
-  watch([state.strategy, state.tracking, state.backtest], () => {
+  watch([state.strategy, state.tracking, state.simulation], () => {
     const portfolio = state.activePortfolio.value
-    if (!portfolio || !portfolio.lastBacktestResult) return
-    portfolio.lastBacktestResult = null
+    if (!portfolio || !portfolio.lastSimulationResult) return
+    portfolio.lastSimulationResult = null
   }, { deep: true })
 
   watch(() => state.tracking.value.virtualCapital, () => {
     const portfolio = state.activePortfolio.value
-    if (!portfolio || portfolio.holdingsSource === 'paper' || !hasActiveAssets(portfolio)) return
+    if (!portfolio || !hasActiveAssets(portfolio)) return
 
     state.updateActivePortfolio((currentPortfolio) => {
       clearPortfolioHoldings(currentPortfolio, 'virtual')
@@ -56,16 +56,14 @@ export function usePortfolioBalancePage() {
     assets: state.assets,
     strategy: state.strategy,
     tracking: state.tracking,
-    backtest: state.backtest,
+    simulation: state.simulation,
     plan: state.plan,
     canRemoveAsset: state.canRemoveAsset,
-    importLoading: state.importLoading,
     marketLoading: state.marketLoading,
-    backtestLoading: state.backtestLoading,
+    simulationLoading: state.simulationLoading,
     sourceMessage: state.sourceMessage,
     sourceError: state.sourceError,
-    lastImportedRun: state.lastImportedRun,
-    backtestResult: state.backtestResult,
+    simulationResult: state.simulationResult,
     selectPortfolio: commands.selectPortfolio,
     createPortfolio: commands.createPortfolio,
     copyPortfolio: commands.copyPortfolio,
@@ -74,8 +72,7 @@ export function usePortfolioBalancePage() {
     removeAsset: commands.removeAsset,
     updateAssetSymbol: commands.updateAssetSymbol,
     updateAssetTargetWeight: commands.updateAssetTargetWeight,
-    importLatestPaperHoldings: commands.importLatestPaperHoldings,
     refreshMarketPrices: commands.refreshMarketPrices,
-    runBacktest: commands.runBacktest,
+    runSimulation: commands.runSimulation,
   }
 }

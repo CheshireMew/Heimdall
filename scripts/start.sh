@@ -153,6 +153,7 @@ start_backend() {
         "$PYTHON_EXE" scripts/prepare_db.py >> "$log_path" 2>&1
         HEIMDALL_API_HOST="$API_HOST" \
         HEIMDALL_API_PORT="$API_PORT" \
+        APP_RUNTIME_ROLE=api \
         PYTHONIOENCODING=utf-8 \
         PYTHONUTF8=1 \
         exec "$PYTHON_EXE" -m uvicorn app.main:app \
@@ -165,6 +166,19 @@ start_backend() {
             --reload-exclude "logs/*" \
             --reload-exclude "frontend/dist/*" \
             --port "$API_PORT" >> "$log_path" 2>&1
+    ) &
+    printf '%s\n' "$!"
+}
+
+start_background() {
+    local log_path="$1"
+
+    (
+        cd "$PROJECT_ROOT"
+        APP_RUNTIME_ROLE=background \
+        PYTHONIOENCODING=utf-8 \
+        PYTHONUTF8=1 \
+        exec "$PYTHON_EXE" scripts/run_background_runtime.py >> "$log_path" 2>&1
     ) &
     printf '%s\n' "$!"
 }
@@ -216,21 +230,52 @@ ensure_service_running() {
     printf '%s|%s\n' "$new_pid" "started"
 }
 
+ensure_background_running() {
+    local pid_file="$1"
+    local log_path="$2"
+    local tracked_pid
+    local new_pid
+
+    tracked_pid="$(read_pid_file "$pid_file")"
+    if [ -n "${tracked_pid:-}" ] && process_is_alive "$tracked_pid"; then
+        printf '%s|%s\n' "$tracked_pid" "reused"
+        return 0
+    fi
+
+    stop_tracked_service "$pid_file"
+    new_pid="$(start_background "$log_path")"
+    sleep 1
+    if ! process_is_alive "$new_pid"; then
+        echo "Background runtime startup failed. PID=$new_pid" >&2
+        if [ -f "$log_path" ]; then
+            tail -n 40 "$log_path" >&2 || true
+        fi
+        return 1
+    fi
+
+    write_pid_file "$pid_file" "$new_pid"
+    printf '%s|%s\n' "$new_pid" "started"
+}
+
 echo "Launching Heimdall development environment..."
 
 LOG_DIR="$(resolve_runtime_path LOG_DIR)"
 TEMP_DIR="$(resolve_runtime_path TEMP_DIR)"
 BACKEND_LOG="$LOG_DIR/backend.log"
+BACKGROUND_LOG="$LOG_DIR/background.log"
 FRONTEND_LOG="$LOG_DIR/frontend.log"
 BACKEND_PID_FILE="$TEMP_DIR/backend.pid"
+BACKGROUND_PID_FILE="$TEMP_DIR/background.pid"
 FRONTEND_PID_FILE="$TEMP_DIR/frontend.pid"
 
 ensure_directory "$LOG_DIR"
 ensure_directory "$TEMP_DIR"
 ensure_file "$BACKEND_LOG"
+ensure_file "$BACKGROUND_LOG"
 ensure_file "$FRONTEND_LOG"
 
 backend_result=""
+background_result=""
 frontend_result=""
 
 cleanup_on_failure() {
@@ -238,6 +283,12 @@ cleanup_on_failure() {
         kill "${frontend_result%%|*}" 2>/dev/null || true
         wait "${frontend_result%%|*}" 2>/dev/null || true
         clear_pid_file "$FRONTEND_PID_FILE"
+    fi
+
+    if [ -n "${background_result:-}" ] && [[ "$background_result" == *"|started" ]]; then
+        kill "${background_result%%|*}" 2>/dev/null || true
+        wait "${background_result%%|*}" 2>/dev/null || true
+        clear_pid_file "$BACKGROUND_PID_FILE"
     fi
 
     if [ -n "${backend_result:-}" ] && [[ "$backend_result" == *"|started" ]]; then
@@ -250,11 +301,14 @@ cleanup_on_failure() {
 trap cleanup_on_failure ERR
 
 backend_result="$(ensure_service_running "Backend" "$BACKEND_PID_FILE" "$API_PORT" "http://${API_HOST}:$API_PORT/health" "$BACKEND_LOG" start_backend)"
+background_result="$(ensure_background_running "$BACKGROUND_PID_FILE" "$BACKGROUND_LOG")"
 frontend_result="$(ensure_service_running "Frontend" "$FRONTEND_PID_FILE" "$FRONTEND_PORT" "http://${FRONTEND_HOST}:$FRONTEND_PORT/" "$FRONTEND_LOG" start_frontend)"
 
 backend_pid="${backend_result%%|*}"
+background_pid="${background_result%%|*}"
 frontend_pid="${frontend_result%%|*}"
 backend_state="${backend_result##*|}"
+background_state="${background_result##*|}"
 frontend_state="${frontend_result##*|}"
 
 if [ "$backend_state" = "started" ]; then
@@ -269,11 +323,19 @@ else
     echo "Frontend already running. PID $frontend_pid"
 fi
 
+if [ "$background_state" = "started" ]; then
+    echo "Background runtime started. PID $background_pid"
+else
+    echo "Background runtime already running. PID $background_pid"
+fi
+
 echo "Backend PID:  $backend_pid"
+echo "Background PID: $background_pid"
 echo "Frontend PID: $frontend_pid"
 echo "Backend API:  http://${API_HOST}:$API_PORT"
 echo "Frontend:     http://${FRONTEND_HOST}:$FRONTEND_PORT"
 echo "API docs:     http://${API_HOST}:$API_PORT/docs"
 echo "Backend log:  $BACKEND_LOG"
+echo "Background log: $BACKGROUND_LOG"
 echo "Frontend log: $FRONTEND_LOG"
 echo "Stop command: scripts/stop.sh"

@@ -1,6 +1,5 @@
 from app.services.llm_config_service import LlmConfigService
 from config import settings
-from config.settings import BASE_DIR
 
 
 def test_llm_config_deepseek_reasoning_switch_updates_model(tmp_path):
@@ -75,5 +74,5 @@ def test_llm_config_presets_include_glm_and_minimax():
     assert "minimax" in preset_ids
 
 
-def test_llm_config_default_path_is_outside_repo():
-    assert not settings.LLM_CONFIG_PATH.resolve().is_relative_to(BASE_DIR.resolve())
+def test_llm_config_default_path_is_under_runtime_root():
+    assert settings.LLM_CONFIG_PATH.resolve().is_relative_to(settings.RUNTIME_ROOT_DIR.resolve())

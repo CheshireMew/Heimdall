@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 
 from app.domain.market.symbol_catalog import get_usd_equivalent_symbols
+from app.infra.executor import run_external_io
 from config import settings
 from utils.logger import logger
 
@@ -37,31 +38,59 @@ class CurrencyRateService:
     def __init__(self) -> None:
         self._cache: dict[str, Any] | None = None
         self._expires_at: datetime | None = None
+        self._refresh_task = None
 
     async def get_rates(self) -> dict[str, Any]:
         now = datetime.now(timezone.utc)
         if self._cache and self._expires_at and self._expires_at > now:
             return self._cache
 
-        payload = await self._fetch_rates(now)
-        self._cache = payload
-        self._expires_at = now + timedelta(seconds=max(settings.CURRENCY_RATES_TTL, 60))
-        return payload
+        if self._cache is None:
+            self._cache = self._build_fallback_payload(now)
+            self._expires_at = now + timedelta(seconds=60)
 
-    async def _fetch_rates(self, now: datetime) -> dict[str, Any]:
+        self._request_refresh()
+        return self._cache
+
+    def _request_refresh(self) -> None:
+        import asyncio
+
+        if self._refresh_task is not None and not self._refresh_task.done():
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        self._refresh_task = loop.create_task(self._refresh_rates())
+
+    async def _refresh_rates(self) -> None:
+        now = datetime.now(timezone.utc)
+        try:
+            payload = await run_external_io(lambda: self._fetch_live_rates(now))
+        except Exception as exc:
+            logger.warning(f"Currency rate refresh failed, keeping cached rates: {exc}")
+            return
+        self._cache = payload
+        ttl = settings.CURRENCY_RATES_TTL if not payload.get("is_fallback") else 60
+        self._expires_at = now + timedelta(seconds=max(ttl, 60))
+
+    def _build_fallback_payload(self, now: datetime) -> dict[str, Any]:
         supported_codes = self._supported_codes()
-        fallback = self._build_payload(
+        return self._build_payload(
             rates={code: FALLBACK_RATES_PER_USD[code] for code in supported_codes},
             updated_at=now,
             source="fallback",
             is_fallback=True,
         )
 
+    def _fetch_live_rates(self, now: datetime) -> dict[str, Any]:
+        supported_codes = self._supported_codes()
+        fallback = self._build_fallback_payload(now)
         try:
-            async with httpx.AsyncClient(timeout=settings.CURRENCY_RATES_TIMEOUT) as client:
-                response = await client.get(settings.CURRENCY_RATES_URL)
-                response.raise_for_status()
-                data = response.json()
+            with httpx.Client(timeout=settings.CURRENCY_RATES_TIMEOUT) as client:
+                response = client.get(settings.CURRENCY_RATES_URL)
+            response.raise_for_status()
+            data = response.json()
         except Exception as exc:
             logger.warning(f"Currency rate fetch failed, using fallback rates: {exc}")
             return fallback

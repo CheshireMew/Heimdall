@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.dependencies import runtime_dependency
-from app.router_service_ports import MarketInsightPort, MarketQueryPort
+from app.router_ports.market import MarketInsightPort, MarketQueryPort
 from app.runtime_refs import MARKET_INSIGHT_APP_SERVICE, MARKET_QUERY_APP_SERVICE
 from app.rate_limit import limiter
 from app.contracts.dto.market import (

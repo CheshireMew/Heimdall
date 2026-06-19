@@ -1,6 +1,5 @@
 from app.services.fred_api_config_service import FredApiConfigService
 from config import settings
-from config.settings import BASE_DIR
 
 
 def test_fred_api_config_reads_env_fallback(tmp_path, monkeypatch):
@@ -27,5 +26,5 @@ def test_fred_api_config_save_overrides_env_and_updates_runtime(tmp_path, monkey
     assert settings.FRED_API_KEY == "fred-saved-key"
 
 
-def test_fred_config_default_path_is_outside_repo():
-    assert not settings.FRED_CONFIG_PATH.resolve().is_relative_to(BASE_DIR.resolve())
+def test_fred_config_default_path_is_under_runtime_root():
+    assert settings.FRED_CONFIG_PATH.resolve().is_relative_to(settings.RUNTIME_ROOT_DIR.resolve())

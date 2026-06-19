@@ -6,6 +6,7 @@ import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.application.indicators.market_cron import MarketIndicatorCronJob
+from app.infra.executor import run_background
 from app.services.persistence_ports import DataRetentionCleanup, IndicatorRepositoryPort
 from app.services.market.dli_cache import DliLiquidityCache
 from config import settings
@@ -23,52 +24,25 @@ class MarketSchedulerRuntime:
     ) -> None:
         self._cleanup_old_data_callback = cleanup_old_data
         self.scheduler = AsyncIOScheduler()
-        self._deferred_tasks: set[asyncio.Task[None]] = set()
         self._job = MarketIndicatorCronJob(
             repository=indicator_repository,
             providers=_build_indicator_providers(),
             dli_cache=dli_cache,
         )
 
-    def _schedule_deferred_start(self, callback, *, delay_seconds: float, task_name: str) -> asyncio.Task[None]:
-        async def _runner() -> None:
-            try:
-                await asyncio.sleep(delay_seconds)
-                await callback()
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                logging.getLogger().exception("Deferred scheduler task failed: %s", task_name)
-
-        task = asyncio.create_task(_runner(), name=f"market_scheduler:{task_name}")
-        self._deferred_tasks.add(task)
-        task.add_done_callback(self._deferred_tasks.discard)
-        return task
-
     def start(self) -> None:
         if self.scheduler.running:
             logger.info("Market Indicator Scheduler already running, skip duplicate start.")
             return
 
-        # 避免首轮后台任务与 API 启动争抢导入和网络资源。
-        self._schedule_deferred_start(
-            self._job.run,
-            delay_seconds=15.0,
-            task_name="fetch_market_indicators",
-        )
         self.scheduler.add_job(
-            self._job.run,
+            self._run_market_indicator_job,
             'interval',
             hours=settings.MARKET_CRON_INTERVAL_HOURS,
             id='fetch_market_indicators',
             replace_existing=True,
         )
 
-        self._schedule_deferred_start(
-            self._cleanup_old_data,
-            delay_seconds=30.0,
-            task_name="data_retention_cleanup",
-        )
         self.scheduler.add_job(
             self._cleanup_old_data,
             'interval',
@@ -80,20 +54,13 @@ class MarketSchedulerRuntime:
         self.scheduler.start()
         logger.info(f"Market Indicator Scheduler Started. Fetching every {settings.MARKET_CRON_INTERVAL_HOURS} hours.")
 
+    async def _run_market_indicator_job(self) -> None:
+        await run_background(lambda: asyncio.run(self._job.run()))
+
     async def _cleanup_old_data(self) -> None:
-        result = self._cleanup_old_data_callback()
-        if asyncio.iscoroutine(result):
-            await result
+        await run_background(self._cleanup_old_data_callback)
 
     async def shutdown(self) -> None:
-        if self._deferred_tasks:
-            tasks = list(self._deferred_tasks)
-            self._deferred_tasks.clear()
-            for task in tasks:
-                if not task.done():
-                    task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-
         if self.scheduler.running:
             self.scheduler.shutdown()
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -13,10 +12,7 @@ DATA_DIR = BASE_DIR / "data"
 
 
 def _default_runtime_root() -> Path:
-    local_appdata = os.getenv("LOCALAPPDATA")
-    if local_appdata:
-        return Path(local_appdata) / "Heimdall"
-    return Path.home() / ".heimdall"
+    return BASE_DIR / ".heimdall_runtime"
 
 
 class AppSettings(BaseSettings):
@@ -65,7 +61,7 @@ class AppSettings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
     FRONTEND_DEV_PORT: int = 4173
-    APP_RUNTIME_ROLE: str = "all"
+    APP_RUNTIME_ROLE: str = "api"
 
     RATE_LIMIT_DEFAULT: str = "60/minute"
     RATE_LIMIT_HEAVY: str = "10/minute"
@@ -157,16 +153,11 @@ class AppSettings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     KLINE_RETENTION_DAYS: int = 365
-    BACKTEST_RETENTION_DAYS: int = 90
-    BACKTEST_INITIAL_CASH: float = 100000.0
-    BACKTEST_DEFAULT_FEE_RATE: float = 0.1
 
     RUNTIME_ROOT_DIR: Path = Field(default_factory=_default_runtime_root)
     LOG_DIR: Path = Field(default_factory=lambda: _default_runtime_root() / "logs")
     TEMP_DIR: Path = Field(default_factory=lambda: _default_runtime_root() / "tmp")
     BACKGROUND_RUNTIME_LOCK_PATH: Path = Field(default_factory=lambda: _default_runtime_root() / "runtime" / "background.lock")
-    FREQTRADE_BACKTEST_TIMEOUT_SECONDS: int = 600
-    FREQTRADE_WORKSPACE_DIR: Path = Field(default_factory=lambda: _default_runtime_root() / "freqtrade")
     LLM_CONFIG_PATH: Path = Field(default_factory=lambda: _default_runtime_root() / "config" / "llm_provider_config.json")
     FRED_CONFIG_PATH: Path = Field(default_factory=lambda: _default_runtime_root() / "config" / "fred_api_config.json")
     BLOCKING_DATABASE_MAX_WORKERS: int = 8

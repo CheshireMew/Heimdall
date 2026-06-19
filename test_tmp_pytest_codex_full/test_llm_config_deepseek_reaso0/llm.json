@@ -1,7 +1,0 @@
-{
-  "provider": "deepseek",
-  "apiKey": "sk-test-deepseek",
-  "baseUrl": "https://api.deepseek.com/v1",
-  "modelId": "deepseek-reasoner",
-  "reasoningEnabled": true
-}

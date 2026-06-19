@@ -17,10 +17,8 @@ sys.path.insert(0, str(REPO_ROOT))
 from app.main import create_app
 
 FRONTEND_API_DIR = REPO_ROOT / "frontend" / "src" / "api"
-TARGET_FILES = ("backtest.ts", "factor.ts", "market.ts", "tools.ts", "config.ts")
+TARGET_FILES = ("market.ts", "tools.ts", "config.ts")
 TARGET_PATHS = {
-    "backtest.ts": REPO_ROOT / "frontend" / "src" / "modules" / "backtest" / "generatedContracts.ts",
-    "factor.ts": REPO_ROOT / "frontend" / "src" / "modules" / "factors" / "generatedContracts.ts",
     "market.ts": REPO_ROOT / "frontend" / "src" / "modules" / "market" / "generatedContracts.ts",
     "tools.ts": REPO_ROOT / "frontend" / "src" / "modules" / "tools" / "generatedContracts.ts",
     "config.ts": REPO_ROOT / "frontend" / "src" / "modules" / "system" / "generatedContracts.ts",
@@ -28,8 +26,6 @@ TARGET_PATHS = {
 API_PREFIX = "/api/v1"
 CONTRACT_APP = create_app("api")
 TYPE_NAMESPACE_BY_FILE = {
-    "backtest.ts": "BacktestTypes",
-    "factor.ts": "FactorTypes",
     "market.ts": "MarketTypes",
     "tools.ts": "ToolsTypes",
     "config.ts": "ConfigTypes",
@@ -165,10 +161,6 @@ def extract_pydantic_models(annotation: Any) -> tuple[type[BaseModel], ...]:
 
 def resolve_route_target_file(route: APIRoute) -> str:
     path = route.path
-    if path.startswith("/api/v1/factor-research"):
-        return "factor.ts"
-    if path.startswith("/api/v1/backtest") or path.startswith("/api/v1/paper"):
-        return "backtest.ts"
     if path.startswith("/api/v1/tools"):
         return "tools.ts"
     if (
@@ -205,8 +197,6 @@ def render_api_routes() -> str:
         "// This file is generated from backend FastAPI route contracts.",
         "// Do not edit manually.",
         "",
-        "import type * as BacktestTypes from '../modules/backtest/contracts'",
-        "import type * as FactorTypes from '../modules/factors/contracts'",
         "import type * as MarketTypes from '../modules/market/contracts'",
         "import type * as ToolsTypes from '../modules/tools/contracts'",
         "import type * as ConfigTypes from '../modules/system/contracts'",

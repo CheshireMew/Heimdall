@@ -1,8 +1,6 @@
 // This file is generated from backend FastAPI route contracts.
 // Do not edit manually.
 
-import type * as BacktestTypes from '../modules/backtest/contracts'
-import type * as FactorTypes from '../modules/factors/contracts'
 import type * as MarketTypes from '../modules/market/contracts'
 import type * as ToolsTypes from '../modules/tools/contracts'
 import type * as ConfigTypes from '../modules/system/contracts'
@@ -18,17 +16,9 @@ const fillRoute = (template: string, params: RouteParams = {}) => template.repla
 })
 
 const routeTemplates = {
-  analyze_factors: "/factor-research/analyze",
   compare_pairs: "/tools/compare_pairs",
-  create_indicator: "/backtest/indicators",
-  create_strategy_template: "/backtest/templates",
-  create_strategy_version: "/backtest/strategies",
   dca_simulate: "/tools/dca_simulate",
-  delete_backtest: "/backtest/{backtest_id}",
-  delete_paper_run: "/paper/{run_id}",
-  evolve_strategy_from_backtest: "/backtest/{backtest_id}/evolve",
   get_api_status: "/status",
-  get_backtest: "/backtest/{backtest_id}",
   get_binance_market_contract_detail: "/binance/market/contract_detail",
   get_binance_market_page: "/binance/market/page",
   get_binance_rwa_asset_market_status: "/binance/rwa/asset_market_status",
@@ -76,9 +66,6 @@ const routeTemplates = {
   get_current_price: "/price/current",
   get_current_price_batch: "/price/current/batch",
   get_dli_liquidity: "/indicators/dli",
-  get_factor_catalog: "/factor-research/catalog",
-  get_factor_contract: "/factor-research/contract",
-  get_factor_run: "/factor-research/runs/{run_id}",
   get_fred_api_config: "/fred-api-config",
   get_funding_rate_history: "/funding-rate/history",
   get_index_history: "/indexes/history",
@@ -92,27 +79,12 @@ const routeTemplates = {
   get_market_full_history_batch: "/full_history/batch",
   get_market_history: "/history",
   get_market_indicators: "/indicators",
-  get_paper_run: "/paper/{run_id}",
   get_realtime_analysis: "/realtime",
-  get_strategy_editor_contract: "/backtest/editor-contract",
   get_technical_metrics: "/technical-metrics",
   get_tools_contract: "/tools/contract",
   get_trade_setup: "/trade-setup",
-  list_backtests: "/backtest/list",
-  list_factor_runs: "/factor-research/runs",
-  list_indicator_engines: "/backtest/indicator-engines",
-  list_indicators: "/backtest/indicators",
   list_market_indexes: "/indexes",
   list_market_symbols: "/symbols",
-  list_paper_runs: "/paper/list",
-  list_strategies: "/backtest/strategies",
-  list_strategy_templates: "/backtest/templates",
-  preview_backtest: "/backtest/preview",
-  start_backtest: "/backtest/start",
-  start_factor_backtest: "/factor-research/runs/{run_id}/backtest",
-  start_factor_paper_run: "/factor-research/runs/{run_id}/paper",
-  start_paper_run: "/paper/start",
-  stop_paper_run: "/paper/{run_id}/stop",
   sync_funding_rate_history: "/funding-rate/sync",
   update_fred_api_config: "/fred-api-config",
   update_llm_config: "/llm-config",
@@ -151,17 +123,9 @@ export const serializeEndpointQuery = (name: ApiRouteName, params: ApiQueryShape
 }
 
 const endpointQueryContracts = {
-  analyze_factors: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   compare_pairs: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  create_indicator: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  create_strategy_template: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  create_strategy_version: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   dca_simulate: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  delete_backtest: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  delete_paper_run: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  evolve_strategy_from_backtest: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_api_status: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_backtest: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_market_contract_detail: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_market_page: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_rwa_asset_market_status: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
@@ -209,9 +173,6 @@ const endpointQueryContracts = {
   get_current_price: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_current_price_batch: {"repeatedKeys": ["symbols"], "aliases": {}} as EndpointQueryContract,
   get_dli_liquidity: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_factor_catalog: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_factor_contract: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_factor_run: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_fred_api_config: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_funding_rate_history: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_index_history: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
@@ -225,44 +186,21 @@ const endpointQueryContracts = {
   get_market_full_history_batch: {"repeatedKeys": ["symbols"], "aliases": {}} as EndpointQueryContract,
   get_market_history: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_market_indicators: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_paper_run: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_realtime_analysis: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_strategy_editor_contract: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_technical_metrics: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_tools_contract: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_trade_setup: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  list_backtests: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  list_factor_runs: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  list_indicator_engines: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  list_indicators: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   list_market_indexes: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   list_market_symbols: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  list_paper_runs: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  list_strategies: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  list_strategy_templates: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  preview_backtest: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  start_backtest: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  start_factor_backtest: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  start_factor_paper_run: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  start_paper_run: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  stop_paper_run: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   sync_funding_rate_history: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   update_fred_api_config: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   update_llm_config: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
 } as const
 
 export type ApiRouteResponseMap = {
-  analyze_factors: FactorTypes.FactorResearchResponse
   compare_pairs: ToolsTypes.PairCompareToolResponse
-  create_indicator: BacktestTypes.StrategyIndicatorRegistryResponse
-  create_strategy_template: BacktestTypes.StrategyTemplateResponse
-  create_strategy_version: BacktestTypes.StrategyVersionResponse
   dca_simulate: ToolsTypes.DCAResponse
-  delete_backtest: BacktestTypes.BacktestDeleteResponse
-  delete_paper_run: BacktestTypes.BacktestDeleteResponse
-  evolve_strategy_from_backtest: BacktestTypes.StrategyEvolutionResponse
   get_api_status: MarketTypes.ApiStatusResponse
-  get_backtest: BacktestTypes.BacktestDetailResponse
   get_binance_market_contract_detail: MarketTypes.BinanceContractResearchDetailResponse
   get_binance_market_page: MarketTypes.BinanceMarketPageResponse
   get_binance_rwa_asset_market_status: MarketTypes.BinanceRwaMarketStatusResponse
@@ -310,9 +248,6 @@ export type ApiRouteResponseMap = {
   get_current_price: MarketTypes.CurrentPriceResponse
   get_current_price_batch: MarketTypes.CurrentPriceBatchResponse
   get_dli_liquidity: MarketTypes.DliLiquidityResponse
-  get_factor_catalog: FactorTypes.FactorCatalogResponse
-  get_factor_contract: FactorTypes.FactorResearchContractResponse
-  get_factor_run: FactorTypes.FactorResearchRunDetailResponse
   get_fred_api_config: ConfigTypes.FredApiConfigResponse
   get_funding_rate_history: MarketTypes.FundingRateHistoryResponse
   get_index_history: MarketTypes.MarketIndexHistoryResponse
@@ -326,44 +261,21 @@ export type ApiRouteResponseMap = {
   get_market_full_history_batch: MarketTypes.MarketHistoryBatchResponse
   get_market_history: MarketTypes.MarketHistoryResponse
   get_market_indicators: Array<MarketTypes.MarketIndicatorResponse>
-  get_paper_run: BacktestTypes.BacktestDetailResponse
   get_realtime_analysis: MarketTypes.RealtimeResponse
-  get_strategy_editor_contract: BacktestTypes.StrategyEditorContractResponse
   get_technical_metrics: MarketTypes.TechnicalMetricsResponse
   get_tools_contract: ToolsTypes.ToolsPageContractResponse
   get_trade_setup: MarketTypes.TradeSetupResponse
-  list_backtests: Array<BacktestTypes.BacktestRunResponse>
-  list_factor_runs: Array<FactorTypes.FactorResearchRunListItemResponse>
-  list_indicator_engines: Array<BacktestTypes.StrategyIndicatorEngineResponse>
-  list_indicators: Array<BacktestTypes.StrategyIndicatorRegistryResponse>
   list_market_indexes: Array<MarketTypes.MarketIndexResponse>
   list_market_symbols: Array<MarketTypes.MarketSymbolSearchResponse>
-  list_paper_runs: Array<BacktestTypes.BacktestRunResponse>
-  list_strategies: Array<BacktestTypes.StrategyDefinitionResponse>
-  list_strategy_templates: Array<BacktestTypes.StrategyTemplateResponse>
-  preview_backtest: BacktestTypes.BacktestPreviewResponse
-  start_backtest: BacktestTypes.BacktestStartResponse
-  start_factor_backtest: FactorTypes.FactorExecutionResponse
-  start_factor_paper_run: FactorTypes.FactorExecutionResponse
-  start_paper_run: BacktestTypes.PaperStartResponse
-  stop_paper_run: BacktestTypes.PaperStopResponse
   sync_funding_rate_history: MarketTypes.FundingRateSyncResponse
   update_fred_api_config: ConfigTypes.FredApiConfigResponse
   update_llm_config: ConfigTypes.LlmProviderConfigResponse
 }
 
 export type ApiRouteBodyMap = {
-  analyze_factors: FactorTypes.FactorResearchRequest
   compare_pairs: ToolsTypes.ComparePairsCommand
-  create_indicator: BacktestTypes.CreateIndicatorDefinitionCommand
-  create_strategy_template: BacktestTypes.CreateStrategyTemplateCommand
-  create_strategy_version: BacktestTypes.CreateStrategyVersionCommand
   dca_simulate: ToolsTypes.SimulateDcaCommand
-  delete_backtest: never
-  delete_paper_run: never
-  evolve_strategy_from_backtest: BacktestTypes.EvolveStrategyFromBacktestCommand
   get_api_status: never
-  get_backtest: never
   get_binance_market_contract_detail: never
   get_binance_market_page: never
   get_binance_rwa_asset_market_status: never
@@ -411,9 +323,6 @@ export type ApiRouteBodyMap = {
   get_current_price: never
   get_current_price_batch: never
   get_dli_liquidity: never
-  get_factor_catalog: never
-  get_factor_contract: never
-  get_factor_run: never
   get_fred_api_config: never
   get_funding_rate_history: never
   get_index_history: never
@@ -427,44 +336,21 @@ export type ApiRouteBodyMap = {
   get_market_full_history_batch: never
   get_market_history: never
   get_market_indicators: never
-  get_paper_run: never
   get_realtime_analysis: never
-  get_strategy_editor_contract: never
   get_technical_metrics: never
   get_tools_contract: never
   get_trade_setup: never
-  list_backtests: never
-  list_factor_runs: never
-  list_indicator_engines: never
-  list_indicators: never
   list_market_indexes: never
   list_market_symbols: never
-  list_paper_runs: never
-  list_strategies: never
-  list_strategy_templates: never
-  preview_backtest: BacktestTypes.BacktestPreviewCommand
-  start_backtest: BacktestTypes.BacktestStartCommand
-  start_factor_backtest: FactorTypes.FactorExecutionConfig
-  start_factor_paper_run: FactorTypes.FactorExecutionConfig
-  start_paper_run: BacktestTypes.PaperStartCommand
-  stop_paper_run: never
   sync_funding_rate_history: never
   update_fred_api_config: ConfigTypes.FredApiConfigUpdateRequest
   update_llm_config: ConfigTypes.LlmProviderConfigUpdateRequest
 }
 
 export type ApiRouteQueryMap = {
-  analyze_factors: never
   compare_pairs: never
-  create_indicator: never
-  create_strategy_template: never
-  create_strategy_version: never
   dca_simulate: never
-  delete_backtest: never
-  delete_paper_run: never
-  evolve_strategy_from_backtest: never
   get_api_status: never
-  get_backtest: BacktestTypes.GetBacktestQueryParams
   get_binance_market_contract_detail: MarketTypes.GetBinanceMarketContractDetailQueryParams
   get_binance_market_page: MarketTypes.GetBinanceMarketPageQueryParams
   get_binance_rwa_asset_market_status: MarketTypes.GetBinanceRwaAssetMarketStatusQueryParams
@@ -512,9 +398,6 @@ export type ApiRouteQueryMap = {
   get_current_price: MarketTypes.GetCurrentPriceQueryParams
   get_current_price_batch: MarketTypes.GetCurrentPriceBatchQueryParams
   get_dli_liquidity: MarketTypes.GetDliLiquidityQueryParams
-  get_factor_catalog: never
-  get_factor_contract: never
-  get_factor_run: never
   get_fred_api_config: never
   get_funding_rate_history: MarketTypes.GetFundingRateHistoryQueryParams
   get_index_history: MarketTypes.GetIndexHistoryQueryParams
@@ -528,27 +411,12 @@ export type ApiRouteQueryMap = {
   get_market_full_history_batch: MarketTypes.GetMarketFullHistoryBatchQueryParams
   get_market_history: MarketTypes.GetMarketHistoryQueryParams
   get_market_indicators: MarketTypes.GetMarketIndicatorsQueryParams
-  get_paper_run: BacktestTypes.GetPaperRunQueryParams
   get_realtime_analysis: MarketTypes.GetRealtimeAnalysisQueryParams
-  get_strategy_editor_contract: never
   get_technical_metrics: MarketTypes.GetTechnicalMetricsQueryParams
   get_tools_contract: never
   get_trade_setup: MarketTypes.GetTradeSetupQueryParams
-  list_backtests: never
-  list_factor_runs: FactorTypes.ListFactorRunsQueryParams
-  list_indicator_engines: never
-  list_indicators: never
   list_market_indexes: never
   list_market_symbols: never
-  list_paper_runs: never
-  list_strategies: never
-  list_strategy_templates: never
-  preview_backtest: never
-  start_backtest: never
-  start_factor_backtest: never
-  start_factor_paper_run: never
-  start_paper_run: never
-  stop_paper_run: never
   sync_funding_rate_history: MarketTypes.SyncFundingRateHistoryQueryParams
   update_fred_api_config: never
   update_llm_config: never

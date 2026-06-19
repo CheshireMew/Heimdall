@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.dependencies import runtime_dependency
-from app.router_service_ports import MarketQueryPort
+from app.router_ports.market import MarketQueryPort
 from app.runtime_refs import MARKET_QUERY_APP_SERVICE
 from app.rate_limit import limiter
 from app.contracts.dto.market import (
