@@ -8,10 +8,8 @@
     "indicators": "市场指标",
     "macro": "宏观经济",
     "marketSignals": "市场信号",
-    "cryptoIndex": "加密指数",
     "binanceMarket": "币安市场",
     "web3Rank": "Web3 榜单",
-    "tokenizedSecurities": "代币化美股",
     "tokenResearch": "Token 研究",
     "tools": "工具箱",
     "compare": "币种对比",
@@ -252,24 +250,6 @@
       "verified": "已验证",
       "unverified": "未验证"
     }
-  },
-  "cryptoIndex": {
-    "eyebrow": "Market Breadth",
-    "title": "加密市值指数",
-    "subtitle": "基于当前市值前 N 币种构建固定篮子市值加权指数，用来近似观察加密市场核心资产的整体强弱。",
-    "topN": "篮子范围",
-    "historyDays": "历史区间",
-    "loading": "加载中...",
-    "refresh": "刷新",
-    "chartTitle": "固定篮子指数曲线",
-    "methodologyFallback": "fixed-basket-market-cap-weighted",
-    "base": "基准",
-    "tableTitle": "市值前 N 币种",
-    "tableSubtitle": "榜单使用当前市值排名，指数使用同一篮子回溯历史市值进行聚合。",
-    "asset": "资产",
-    "price": "价格",
-    "marketCap": "市值",
-    "weight": "权重"
   },
   "compare": {
     "symbolA": "币种 A",

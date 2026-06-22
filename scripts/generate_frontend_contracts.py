@@ -182,7 +182,6 @@ def resolve_route_target_file(route: APIRoute) -> str:
         "/api/v1/indicators",
         "/api/v1/technical-metrics",
         "/api/v1/trade-setup",
-        "/api/v1/crypto_index",
         "/api/v1/indexes",
         "/api/v1/funding-rate",
         "/api/v1/binance/",

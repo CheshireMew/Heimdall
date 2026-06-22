@@ -12,6 +12,9 @@ from app.infra.db.schema import Base
 from config.settings import AppSettings
 
 
+ALEMBIC_VERSION_NUM_LIMIT = 32
+
+
 @pytest.fixture
 def isolated_db(monkeypatch, tmp_path):
     engines = []
@@ -54,6 +57,18 @@ def test_prepare_db_initializes_empty_sqlite(isolated_db):
     expected = ScriptDirectory.from_config(schema_runtime._alembic_config(runtime.database_url)).get_current_head()
     assert current == expected
     schema_runtime.verify_database_schema(runtime)
+
+
+def test_alembic_revision_ids_fit_version_table():
+    script = ScriptDirectory.from_config(schema_runtime._alembic_config("sqlite:///:memory:"))
+
+    too_long = [
+        revision.revision
+        for revision in script.walk_revisions()
+        if len(revision.revision) > ALEMBIC_VERSION_NUM_LIMIT
+    ]
+
+    assert too_long == []
 
 
 def test_prepare_db_drops_archived_research_tables_from_previous_head(isolated_db):

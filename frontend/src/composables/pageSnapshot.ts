@@ -10,7 +10,6 @@ export const PAGE_SNAPSHOT_KEYS = {
   compare: 'tools:compare',
   portfolioBalance: 'tools:portfolio-balance',
   halving: 'tools:halving',
-  cryptoIndex: 'indicators:crypto-index',
   binanceMarket: 'indicators:binance-market',
 } as const
 

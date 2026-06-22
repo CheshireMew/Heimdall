@@ -349,6 +349,24 @@ const initChart = () => {
 }
 
 const updateData = () => {
+    if (!mainSeries && chart) {
+        if (props.chartType === 'area') {
+            mainSeries = chart.addSeries(AreaSeries, {
+                lineColor: '#2962FF', topColor: '#2962FF', bottomColor: 'rgba(41, 98, 255, 0.28)',
+                priceFormat: buildMainPriceFormat(),
+            })
+        } else {
+            mainSeries = chart.addSeries(CandlestickSeries, {
+                upColor: props.colors.upColor,
+                downColor: props.colors.downColor,
+                borderVisible: false,
+                wickUpColor: props.colors.upColor,
+                wickDownColor: props.colors.downColor,
+                priceFormat: buildMainPriceFormat(),
+            })
+        }
+        syncTradeSetup()
+    }
     syncVolumeSeries()
     syncMainPriceFormat()
     if (mainSeries && props.data.length > 0) mainSeries.setData(props.data)

@@ -37,13 +37,6 @@ export const APP_ROUTE_DEFINITIONS = [
     nav: { section: 'indicators', labelKey: 'nav.marketSignals', icon: 'CubeTransparentIcon' },
   },
   {
-    path: '/indicators/crypto-index',
-    name: 'CryptoIndex',
-    component: () => import('@/views/indicators/CryptoIndex.vue'),
-    meta: { title: '加密指数' },
-    nav: { section: 'indicators', labelKey: 'nav.cryptoIndex', icon: 'CircleStackIcon' },
-  },
-  {
     path: '/indicators/binance-market',
     name: 'BinanceMarket',
     component: () => import('@/views/indicators/BinanceMarket.vue'),
@@ -56,17 +49,6 @@ export const APP_ROUTE_DEFINITIONS = [
     component: () => import('@/views/indicators/Web3MarketRank.vue'),
     meta: { title: 'Web3 榜单' },
     nav: { section: 'indicators', labelKey: 'nav.web3Rank', icon: 'CubeTransparentIcon' },
-  },
-  {
-    path: '/indicators/tokenized-securities',
-    name: 'TokenizedSecurities',
-    component: () => import('@/views/indicators/TokenizedSecurities.vue'),
-    meta: { title: '代币化美股' },
-    nav: {
-      section: 'indicators',
-      labelKey: 'nav.tokenizedSecurities',
-      icon: 'BuildingLibraryIcon',
-    },
   },
   {
     path: '/tools/compare',

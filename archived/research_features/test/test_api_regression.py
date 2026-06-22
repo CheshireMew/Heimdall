@@ -110,7 +110,6 @@ def make_factor_execution_payload() -> dict[str, Any]:
         ("get", "/api/v1/funding-rate/history", {"params": {"symbol": "BTCUSDT"}}, lambda data: data["count"] == 1),
         ("get", "/api/v1/technical-metrics", {"params": {"symbol": "BTC/USDT"}}, lambda data: data["sample_size"] == 120),
         ("get", "/api/v1/trade-setup", {"params": {"symbol": "BTC/USDT", "timeframe": "1h"}}, lambda data: data["setup"]["side"] == "long"),
-        ("get", "/api/v1/crypto_index", {}, lambda data: data["constituents"][0]["symbol"] == "BTC"),
         ("post", "/api/v1/tools/dca_simulate", {"json": {"symbol": "BTC/USDT", "amount": 100}}, lambda data: data["profit_pct"] == 23.33),
         ("post", "/api/v1/tools/compare_pairs", {"json": {"symbol_a": "BTC", "symbol_b": "ETH", "days": 30, "timeframe": "1d"}}, lambda data: data["relative_strength"] == 1.12),
         ("get", "/api/v1/backtest/strategies", {}, lambda data: data[0]["key"] == "ema_rsi_macd"),

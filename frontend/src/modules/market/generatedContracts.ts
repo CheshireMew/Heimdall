@@ -179,18 +179,6 @@ export interface TradeSetupResponse {
   source: string
 }
 
-export interface CryptoIndexResponse {
-  top_n: number
-  days: number
-  base_value: number
-  constituents: Array<CryptoIndexConstituentResponse>
-  history: Array<CryptoIndexHistoryPointResponse>
-  summary?: CryptoIndexSummaryResponse | null
-  is_partial?: boolean
-  resolved_constituents_count?: number | null
-  missing_symbols?: Array<string>
-}
-
 export interface BinanceMarketPageResponse {
   exchange: string
   quote_asset: string
@@ -371,59 +359,6 @@ export interface BinanceWeb3HeatRankBoardsResponse {
   size: number
   boards?: { [key: string]: BinanceWeb3HeatRankResponse }
   formula?: { [key: string]: Array<string> }
-}
-
-export interface BinanceRwaSymbolListResponse {
-  source: string
-  items?: Array<BinanceRwaSymbolItemResponse>
-}
-
-export interface BinanceRwaMetaResponse {
-  source: string
-  token_id?: string | null
-  name?: string | null
-  symbol?: string | null
-  ticker?: string | null
-  chain_id?: string | null
-  chain_name?: string | null
-  contract_address?: string | null
-  decimals?: number | null
-  icon_url?: string | null
-  daily_attestation_report_url?: string | null
-  monthly_attestation_report_url?: string | null
-  company_info?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
-  description?: string | null
-}
-
-export interface BinanceRwaMarketStatusResponse {
-  source: string
-  openState?: boolean | null
-  reasonCode?: string | null
-  reasonMsg?: string | null
-  nextOpen?: string | null
-  nextClose?: string | null
-  nextOpenTime?: number | null
-  nextCloseTime?: number | null
-  marketStatus?: string | null
-}
-
-export interface BinanceRwaDynamicResponse {
-  source: string
-  symbol?: string | null
-  ticker?: string | null
-  token_info?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
-  stock_info?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
-  status_info?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
-  limit_info?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
-}
-
-export interface BinanceRwaKlineResponse {
-  source: string
-  chain_id: string
-  contract_address: string
-  interval: string
-  decimals?: number | null
-  items?: Array<BinanceRwaKlineItemResponse>
 }
 
 export interface BinanceWeb3TokenDynamicResponse {
@@ -677,24 +612,6 @@ export interface BinanceRatioItemResponse {
   timestamp?: number | null
 }
 
-export interface BinanceRwaKlineItemResponse {
-  open_time?: number | null
-  open?: number | null
-  high?: number | null
-  low?: number | null
-  close?: number | null
-  close_time?: number | null
-}
-
-export interface BinanceRwaSymbolItemResponse {
-  chain_id?: string | null
-  contract_address?: string | null
-  symbol?: string | null
-  ticker?: string | null
-  type?: number | null
-  multiplier?: number | null
-}
-
 export interface BinanceSymbolSummaryResponse {
   symbol?: string | null
   status?: string | null
@@ -852,36 +769,6 @@ export interface BinanceWeb3TokenKlineItemResponse {
   trade_count?: number | null
 }
 
-export interface CryptoIndexConstituentResponse {
-  id: string
-  symbol: string
-  name: string
-  image?: string | null
-  rank?: number | null
-  price?: number | null
-  market_cap?: number | null
-  market_cap_change_24h_pct?: number | null
-  price_change_24h_pct?: number | null
-  volume_24h?: number | null
-}
-
-export interface CryptoIndexHistoryPointResponse {
-  date: string
-  timestamp: number
-  market_cap: number
-  index_value: number
-}
-
-export interface CryptoIndexSummaryResponse {
-  current_basket_market_cap: number
-  current_index_value: number
-  basket_change_24h_pct: number
-  btc_weight_pct: number
-  eth_weight_pct: number
-  common_start_date: string
-  methodology: string
-}
-
 export interface CurrentPriceBatchItemResponse {
   symbol: string
   timeframe: string
@@ -1002,34 +889,6 @@ export interface GetBinanceMarketPageQueryParams {
   min_rise_pct?: number
   limit?: number
   quote_asset?: string
-}
-
-export interface GetBinanceRwaAssetMarketStatusQueryParams {
-  chain_id: string
-  contract_address: string
-}
-
-export interface GetBinanceRwaDynamicQueryParams {
-  chain_id: string
-  contract_address: string
-}
-
-export interface GetBinanceRwaKlineQueryParams {
-  chain_id: string
-  contract_address: string
-  interval?: string
-  limit?: number
-  start_time?: number | null
-  end_time?: number | null
-}
-
-export interface GetBinanceRwaMetaQueryParams {
-  chain_id: string
-  contract_address: string
-}
-
-export interface GetBinanceRwaSymbolsQueryParams {
-  platform_type?: number | null
 }
 
 export interface GetBinanceSpotAggTradesQueryParams {
@@ -1208,11 +1067,6 @@ export interface GetBinanceWeb3UnifiedTokenRankQueryParams {
   order_asc?: boolean
   page?: number
   size?: number
-}
-
-export interface GetCryptoIndexQueryParams {
-  top_n?: number
-  days?: number
 }
 
 export interface GetCurrentFundingRateQueryParams {

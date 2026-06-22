@@ -92,7 +92,7 @@ def test_page_snapshot_registry_and_helpers_are_stable():
     source = read_frontend("composables/pageSnapshot.ts")
 
     assert "const PAGE_SNAPSHOT_PREFIX = 'heimdall_page_snapshot:'" in source
-    for key in ["dca", "compare", "factorResearch", "halving", "cryptoIndex", "backtest", "backtestEditor"]:
+    for key in ["dca", "compare", "factorResearch", "halving", "backtest", "backtestEditor"]:
         assert re.search(rf"\b{key}:", source), key
     assert "readStringArray" in source
     assert "readEnum" in source
@@ -236,10 +236,8 @@ def test_market_api_timeout_policy_matches_backend_wait_boundaries():
         ("get_latest_klines", "liveMarket"),
         ("get_kline_tail", "liveMarket"),
         ("get_current_price", "liveMarket"),
-        ("get_crypto_index", "externalMarket"),
         ("get_binance_market_page", "externalMarket"),
         ("get_binance_web3_heat_rank", "externalMarket"),
-        ("get_binance_rwa_kline", "externalMarket"),
     ]:
         assert re.search(
             rf"apiGet\('{route_name}'[^\n]*timeout: MARKET_API_TIMEOUT_MS\.{timeout_key}",

@@ -5,6 +5,7 @@ import { FALLBACK_LOCALE, resolveInitialLocale } from './config'
 
 const i18n = createI18n({
   legacy: false,
+  globalInjection: true,
   locale: resolveInitialLocale(),
   fallbackLocale: FALLBACK_LOCALE,
   messages: {

@@ -9,7 +9,6 @@ export const MARKET_CACHE_TTL_MS = {
   sentimentFresh: 300_000,
   sentimentRefresh: 60_000,
   macroLiquidity: 300_000,
-  cryptoIndex: 900_000,
   priceHistory: 1_800_000,
 } as const
 

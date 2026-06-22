@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 
 from app.dependencies import runtime_dependency
 from app.router_ports.market import MarketInsightPort, MarketQueryPort
 from app.runtime_refs import MARKET_INSIGHT_APP_SERVICE, MARKET_QUERY_APP_SERVICE
-from app.rate_limit import limiter
 from app.contracts.dto.market import (
-    CryptoIndexResponse,
     DliLiquidityResponse,
     MarketIndicatorResponse,
     TechnicalMetricsResponse,
@@ -80,12 +78,3 @@ async def get_trade_setup(
     )
 
 
-@router.get("/crypto_index", response_model=CryptoIndexResponse)
-@limiter.limit(settings.RATE_LIMIT_HEAVY)
-async def get_crypto_index(
-    request: Request,
-    top_n: int = Query(20, ge=5, le=100, description="Current top N market cap assets"),
-    days: int = Query(90, ge=30, le=365, description="Historical days"),
-    service: MarketInsightPort = Depends(market_insight_dependency),
-):
-    return await service.get_crypto_index(top_n=top_n, days=days)

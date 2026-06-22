@@ -6,11 +6,6 @@ import type {
   BinanceMarketPageResponse,
   BinancePriceTickerResponse,
   BinanceRatioSeriesResponse,
-  BinanceRwaDynamicResponse,
-  BinanceRwaKlineResponse,
-  BinanceRwaMarketStatusResponse,
-  BinanceRwaMetaResponse,
-  BinanceRwaSymbolListResponse,
   BinanceTickerStatsResponse,
   BinanceWeb3HeatRankBoardsResponse,
   BinanceWeb3AddressPnlResponse,
@@ -31,16 +26,10 @@ import type {
   MarketHistoryBatchResponse,
   DliLiquidityResponse,
   MarketIndicatorResponse,
-  CryptoIndexResponse,
   MarketIndexHistoryResponse,
   MarketSymbolSearchResponse,
   GetBinanceMarketContractDetailQueryParams,
   GetBinanceMarketPageQueryParams,
-  GetBinanceRwaAssetMarketStatusQueryParams,
-  GetBinanceRwaDynamicQueryParams,
-  GetBinanceRwaKlineQueryParams,
-  GetBinanceRwaMetaQueryParams,
-  GetBinanceRwaSymbolsQueryParams,
   GetBinanceSpotPriceQueryParams,
   GetBinanceSpotTicker24hrQueryParams,
   GetBinanceUsdmMarkPriceQueryParams,
@@ -57,7 +46,6 @@ import type {
   GetBinanceWeb3TokenDynamicQueryParams,
   GetBinanceWeb3TokenKlineQueryParams,
   GetBinanceWeb3UnifiedTokenRankQueryParams,
-  GetCryptoIndexQueryParams,
   GetCurrentPriceBatchQueryParams,
   GetCurrentPriceQueryParams,
   GetIndexHistoryQueryParams,
@@ -113,10 +101,6 @@ export const marketInsightApi = {
 
   getDliLiquidity(params: GetDliLiquidityQueryParams): Promise<DliLiquidityResponse> {
     return apiGet('get_dli_liquidity', { query: params, timeout: MARKET_API_TIMEOUT_MS.macroLiquidity })
-  },
-
-  getCryptoIndex(params: GetCryptoIndexQueryParams): Promise<CryptoIndexResponse> {
-    return apiGet('get_crypto_index', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
   },
 }
 
@@ -235,31 +219,3 @@ export const binanceWeb3Api = {
     return apiGet('get_binance_web3_token_audit', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
   },
 }
-
-export const binanceRwaApi = {
-  getBinanceRwaSymbols(params: GetBinanceRwaSymbolsQueryParams = {}): Promise<BinanceRwaSymbolListResponse> {
-    return apiGet('get_binance_rwa_symbols', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
-  getBinanceRwaMeta(params: GetBinanceRwaMetaQueryParams): Promise<BinanceRwaMetaResponse> {
-    return apiGet('get_binance_rwa_meta', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
-  getBinanceRwaMarketStatus(): Promise<BinanceRwaMarketStatusResponse> {
-    return apiGet('get_binance_rwa_market_status', { timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
-  getBinanceRwaAssetMarketStatus(params: GetBinanceRwaAssetMarketStatusQueryParams): Promise<BinanceRwaMarketStatusResponse> {
-    return apiGet('get_binance_rwa_asset_market_status', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
-  getBinanceRwaDynamic(params: GetBinanceRwaDynamicQueryParams): Promise<BinanceRwaDynamicResponse> {
-    return apiGet('get_binance_rwa_dynamic', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
-  getBinanceRwaKline(params: GetBinanceRwaKlineQueryParams): Promise<BinanceRwaKlineResponse> {
-    return apiGet('get_binance_rwa_kline', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-}
-
-

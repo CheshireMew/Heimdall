@@ -8,10 +8,8 @@
     "indicators": "Indicators",
     "macro": "Macro",
     "marketSignals": "Market Signals",
-    "cryptoIndex": "Crypto Index",
     "binanceMarket": "Binance Market",
     "web3Rank": "Web3 Ranks",
-    "tokenizedSecurities": "Token Stocks",
     "tokenResearch": "Token Research",
     "tools": "Tools",
     "compare": "Compare",
@@ -252,24 +250,6 @@
       "verified": "Verified",
       "unverified": "Unverified"
     }
-  },
-  "cryptoIndex": {
-    "eyebrow": "Market Breadth",
-    "title": "Crypto Market Cap Index",
-    "subtitle": "A fixed-basket, market-cap weighted index built from the current top-N assets to approximate the core crypto market.",
-    "topN": "Basket",
-    "historyDays": "History",
-    "loading": "Loading...",
-    "refresh": "Refresh",
-    "chartTitle": "Fixed Basket Index",
-    "methodologyFallback": "fixed-basket-market-cap-weighted",
-    "base": "Base",
-    "tableTitle": "Top N Market Cap Assets",
-    "tableSubtitle": "The leaderboard uses current rankings, and the index replays the same basket through historical market caps.",
-    "asset": "Asset",
-    "price": "Price",
-    "marketCap": "Market Cap",
-    "weight": "Weight"
   },
   "compare": {
     "symbolA": "Symbol A",

@@ -13,9 +13,7 @@ from app.runtime_refs import (
     MARKET_BINANCE_MARKET_SNAPSHOT,
     MARKET_BINANCE_WEB3_HEAT_RANKS,
     MARKET_BINANCE_WEB3_RANKS,
-    MARKET_BINANCE_WEB3_RWA,
     MARKET_BINANCE_WEB3_TOKENS,
-    MARKET_CRYPTO_INDEX_SERVICE,
     MARKET_DLI_CACHE,
     MARKET_FUNDING_RATE_APP_SERVICE,
     MARKET_FUNDING_RATE_SERVICE,
@@ -93,12 +91,6 @@ def _build_funding_rate_app_service(ctx: RuntimeBuildContext):
     return FundingRateAppService(funding_rate_service=ctx.require(MARKET_FUNDING_RATE_SERVICE))
 
 
-def _build_crypto_index_service(ctx: RuntimeBuildContext):
-    from app.services.market.crypto_index_service import CryptoIndexService
-
-    return CryptoIndexService(cache_service=ctx.require(INFRA_CACHE_SERVICE))
-
-
 def _build_market_query_app_service(ctx: RuntimeBuildContext):
     from app.services.market.query_app_service import MarketQueryAppService
 
@@ -115,7 +107,6 @@ def _build_market_insight_app_service(ctx: RuntimeBuildContext):
 
     return MarketInsightAppService(
         indicator_service=ctx.require(MARKET_INDICATOR_SERVICE),
-        crypto_index_service=ctx.require(MARKET_CRYPTO_INDEX_SERVICE),
         market_query_service=ctx.require(MARKET_QUERY_APP_SERVICE),
         llm_client_factory=_build_llm_client_factory(ctx.require(SYSTEM_LLM_CONFIG_SERVICE)),
     )
@@ -183,20 +174,6 @@ def _build_binance_web3_heat_ranks(ctx: RuntimeBuildContext):
     from app.services.market.binance_web3_heat_rank_service import BinanceWeb3HeatRankService
 
     return BinanceWeb3HeatRankService(ctx.require(MARKET_BINANCE_WEB3_RANKS))
-
-
-def _build_binance_web3_rwa(ctx: RuntimeBuildContext):
-    from app.services.market.binance_web3_rwa import BinanceRwaService
-    from config import settings
-
-    return BinanceRwaService(
-        _build_binance_web3_client(
-            ctx,
-            base_url=settings.BINANCE_WWW_BASE_URL,
-            namespace="binance:www",
-            user_agent="binance-web3/1.1 (Skill)",
-        )
-    )
 
 
 def _build_binance_web3_tokens(ctx: RuntimeBuildContext):
@@ -267,12 +244,6 @@ MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         deps=(MARKET_FUNDING_RATE_SERVICE,),
     ),
     RuntimeServiceDefinition(
-        MARKET_CRYPTO_INDEX_SERVICE,
-        frozenset({"api"}),
-        _build_crypto_index_service,
-        deps=(INFRA_CACHE_SERVICE,),
-    ),
-    RuntimeServiceDefinition(
         MARKET_BINANCE_MARKET_RESEARCH_STORE,
         frozenset({"api"}),
         _build_binance_market_research_store,
@@ -288,7 +259,7 @@ MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         MARKET_INSIGHT_APP_SERVICE,
         frozenset({"api"}),
         _build_market_insight_app_service,
-        deps=(MARKET_INDICATOR_SERVICE, MARKET_CRYPTO_INDEX_SERVICE, MARKET_QUERY_APP_SERVICE, SYSTEM_LLM_CONFIG_SERVICE),
+        deps=(MARKET_INDICATOR_SERVICE, MARKET_QUERY_APP_SERVICE, SYSTEM_LLM_CONFIG_SERVICE),
     ),
     RuntimeServiceDefinition(MARKET_WEBSOCKET_SERVICE, frozenset({"api"}), _build_market_websocket_service),
     RuntimeServiceDefinition(
@@ -324,12 +295,6 @@ MARKET_SERVICE_DEFINITIONS: tuple[RuntimeServiceDefinition, ...] = (
         frozenset({"api"}),
         _build_binance_web3_heat_ranks,
         deps=(MARKET_BINANCE_WEB3_RANKS,),
-    ),
-    RuntimeServiceDefinition(
-        MARKET_BINANCE_WEB3_RWA,
-        frozenset({"api"}),
-        _build_binance_web3_rwa,
-        deps=(INFRA_CACHE_SERVICE,),
     ),
     RuntimeServiceDefinition(
         MARKET_BINANCE_WEB3_TOKENS,

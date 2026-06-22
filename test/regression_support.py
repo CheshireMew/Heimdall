@@ -272,62 +272,6 @@ def make_trade_setup_response() -> dict:
     }
 
 
-def make_crypto_index_response() -> dict:
-    return {
-        "top_n": 20,
-        "days": 90,
-        "base_value": 1000.0,
-        "constituents": [
-            {
-                "id": "bitcoin",
-                "symbol": "BTC",
-                "name": "Bitcoin",
-                "image": None,
-                "rank": 1,
-                "price": 68000.0,
-                "market_cap": 1_200_000_000_000.0,
-                "market_cap_change_24h_pct": 1.2,
-                "price_change_24h_pct": 1.6,
-                "volume_24h": 30_000_000_000.0,
-            }
-        ],
-        "history": [
-            {
-                "date": "2025-06-01",
-                "timestamp": 1717200000000,
-                "market_cap": 1_500_000_000_000.0,
-                "index_value": 1142.3,
-            }
-        ],
-        "summary": {
-            "current_basket_market_cap": 1_500_000_000_000.0,
-            "current_index_value": 1142.3,
-            "basket_change_24h_pct": 1.4,
-            "btc_weight_pct": 52.0,
-            "eth_weight_pct": 18.0,
-            "common_start_date": "2025-03-03",
-            "methodology": "Market-cap weighted basket",
-        },
-        "is_partial": False,
-        "resolved_constituents_count": 20,
-        "missing_symbols": [],
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class StubMarketQueryAppService:
     valid_symbols = ["BTC/USDT", "ETH/USDT"]
     valid_timeframes = ["1h", "4h", "1d"]
@@ -405,9 +349,6 @@ class StubMarketInsightAppService:
     async def get_trade_setup(self, **kwargs):
         return make_trade_setup_response()
 
-    async def get_crypto_index(self, **kwargs):
-        return make_crypto_index_response()
-
 
 class StubFundingRateAppService:
     async def get_current_funding_rate(self, symbol: str):
@@ -455,10 +396,6 @@ class StubBinanceWeb3RanksService:
 
 
 class StubBinanceWeb3HeatRanksService:
-    pass
-
-
-class StubBinanceWeb3RwaService:
     pass
 
 

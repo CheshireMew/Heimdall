@@ -21,12 +21,6 @@ const routeTemplates = {
   get_api_status: "/status",
   get_binance_market_contract_detail: "/binance/market/contract_detail",
   get_binance_market_page: "/binance/market/page",
-  get_binance_rwa_asset_market_status: "/binance/rwa/asset_market_status",
-  get_binance_rwa_dynamic: "/binance/rwa/dynamic",
-  get_binance_rwa_kline: "/binance/rwa/kline",
-  get_binance_rwa_market_status: "/binance/rwa/market_status",
-  get_binance_rwa_meta: "/binance/rwa/meta",
-  get_binance_rwa_symbols: "/binance/rwa/symbols",
   get_binance_spot_agg_trades: "/binance/spot/agg_trades",
   get_binance_spot_book_ticker: "/binance/spot/book_ticker",
   get_binance_spot_depth: "/binance/spot/depth",
@@ -60,7 +54,6 @@ const routeTemplates = {
   get_binance_web3_token_kline: "/binance/web3/token_kline",
   get_binance_web3_unified_token_rank: "/binance/web3/unified_token_rank",
   get_config: "/config",
-  get_crypto_index: "/crypto_index",
   get_currencies: "/currencies",
   get_current_funding_rate: "/funding-rate/current",
   get_current_price: "/price/current",
@@ -128,12 +121,6 @@ const endpointQueryContracts = {
   get_api_status: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_market_contract_detail: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_market_page: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_rwa_asset_market_status: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_rwa_dynamic: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_rwa_kline: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_rwa_market_status: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_rwa_meta: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_rwa_symbols: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_spot_agg_trades: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_spot_book_ticker: {"repeatedKeys": ["symbols"], "aliases": {}} as EndpointQueryContract,
   get_binance_spot_depth: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
@@ -167,7 +154,6 @@ const endpointQueryContracts = {
   get_binance_web3_token_kline: {"repeatedKeys": [], "aliases": {"from_time": "from", "to_time": "to"}} as EndpointQueryContract,
   get_binance_web3_unified_token_rank: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_config: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_crypto_index: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_currencies: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_current_funding_rate: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_current_price: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
@@ -203,12 +189,6 @@ export type ApiRouteResponseMap = {
   get_api_status: MarketTypes.ApiStatusResponse
   get_binance_market_contract_detail: MarketTypes.BinanceContractResearchDetailResponse
   get_binance_market_page: MarketTypes.BinanceMarketPageResponse
-  get_binance_rwa_asset_market_status: MarketTypes.BinanceRwaMarketStatusResponse
-  get_binance_rwa_dynamic: MarketTypes.BinanceRwaDynamicResponse
-  get_binance_rwa_kline: MarketTypes.BinanceRwaKlineResponse
-  get_binance_rwa_market_status: MarketTypes.BinanceRwaMarketStatusResponse
-  get_binance_rwa_meta: MarketTypes.BinanceRwaMetaResponse
-  get_binance_rwa_symbols: MarketTypes.BinanceRwaSymbolListResponse
   get_binance_spot_agg_trades: MarketTypes.BinanceTradeListResponse
   get_binance_spot_book_ticker: MarketTypes.BinanceBookTickerResponse
   get_binance_spot_depth: MarketTypes.BinanceOrderBookResponse
@@ -242,7 +222,6 @@ export type ApiRouteResponseMap = {
   get_binance_web3_token_kline: MarketTypes.BinanceWeb3TokenKlineResponse
   get_binance_web3_unified_token_rank: MarketTypes.BinanceWeb3UnifiedTokenRankResponse
   get_config: ConfigTypes.SystemConfigResponse
-  get_crypto_index: MarketTypes.CryptoIndexResponse
   get_currencies: ConfigTypes.CurrencyRatesResponse
   get_current_funding_rate: MarketTypes.FundingRateSnapshotResponse
   get_current_price: MarketTypes.CurrentPriceResponse
@@ -278,12 +257,6 @@ export type ApiRouteBodyMap = {
   get_api_status: never
   get_binance_market_contract_detail: never
   get_binance_market_page: never
-  get_binance_rwa_asset_market_status: never
-  get_binance_rwa_dynamic: never
-  get_binance_rwa_kline: never
-  get_binance_rwa_market_status: never
-  get_binance_rwa_meta: never
-  get_binance_rwa_symbols: never
   get_binance_spot_agg_trades: never
   get_binance_spot_book_ticker: never
   get_binance_spot_depth: never
@@ -317,7 +290,6 @@ export type ApiRouteBodyMap = {
   get_binance_web3_token_kline: never
   get_binance_web3_unified_token_rank: never
   get_config: never
-  get_crypto_index: never
   get_currencies: never
   get_current_funding_rate: never
   get_current_price: never
@@ -353,12 +325,6 @@ export type ApiRouteQueryMap = {
   get_api_status: never
   get_binance_market_contract_detail: MarketTypes.GetBinanceMarketContractDetailQueryParams
   get_binance_market_page: MarketTypes.GetBinanceMarketPageQueryParams
-  get_binance_rwa_asset_market_status: MarketTypes.GetBinanceRwaAssetMarketStatusQueryParams
-  get_binance_rwa_dynamic: MarketTypes.GetBinanceRwaDynamicQueryParams
-  get_binance_rwa_kline: MarketTypes.GetBinanceRwaKlineQueryParams
-  get_binance_rwa_market_status: never
-  get_binance_rwa_meta: MarketTypes.GetBinanceRwaMetaQueryParams
-  get_binance_rwa_symbols: MarketTypes.GetBinanceRwaSymbolsQueryParams
   get_binance_spot_agg_trades: MarketTypes.GetBinanceSpotAggTradesQueryParams
   get_binance_spot_book_ticker: MarketTypes.GetBinanceSpotBookTickerQueryParams
   get_binance_spot_depth: MarketTypes.GetBinanceSpotDepthQueryParams
@@ -392,7 +358,6 @@ export type ApiRouteQueryMap = {
   get_binance_web3_token_kline: MarketTypes.GetBinanceWeb3TokenKlineQueryParams
   get_binance_web3_unified_token_rank: MarketTypes.GetBinanceWeb3UnifiedTokenRankQueryParams
   get_config: never
-  get_crypto_index: MarketTypes.GetCryptoIndexQueryParams
   get_currencies: never
   get_current_funding_rate: MarketTypes.GetCurrentFundingRateQueryParams
   get_current_price: MarketTypes.GetCurrentPriceQueryParams
