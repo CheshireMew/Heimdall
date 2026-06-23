@@ -6,8 +6,6 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 
 from app.dependencies import runtime_dependency
-from app.router_ports.tools import ToolsAppPort
-from app.runtime_refs import TOOLS_TOOLS_APP_SERVICE
 from app.rate_limit import limiter
 from app.contracts.dto.tools import (
     DCAResponse,
@@ -19,7 +17,7 @@ from config import settings
 
 
 router = APIRouter()
-tools_app_dependency = runtime_dependency(TOOLS_TOOLS_APP_SERVICE)
+tools_app_dependency = runtime_dependency("tools_app_service")
 
 
 @router.get("/contract", response_model=ToolsPageContractResponse)
@@ -37,7 +35,7 @@ async def get_tools_contract():
 async def dca_simulate(
     request: Request,
     body: SimulateDcaCommand,
-    service: ToolsAppPort = Depends(tools_app_dependency),
+    service = Depends(tools_app_dependency),
 ):
     return await service.simulate_dca(body)
 
@@ -47,6 +45,6 @@ async def dca_simulate(
 async def compare_pairs(
     request: Request,
     body: ComparePairsCommand,
-    service: ToolsAppPort = Depends(tools_app_dependency),
+    service = Depends(tools_app_dependency),
 ):
     return await service.compare_pairs(body)

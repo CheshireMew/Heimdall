@@ -19,13 +19,11 @@ class MacroProviderV2(BaseIndicatorProvider):
     宏观经济指标提供者（多源版本）
     数据源优先级：
     1. FRED API (官方数据，最稳定)
-    2. Alpha Vantage (备用)
-    3. YFinance (最后选择)
+    2. YFinance (fallback)
     """
 
     def __init__(self):
         super().__init__()
-        self.av_api_key = settings.ALPHA_VANTAGE_API_KEY
 
     @property
     def fred_api_key(self) -> str:

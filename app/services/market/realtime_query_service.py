@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from app.domain.market.constants import DEFAULT_ATR_PERIOD, DEFAULT_VOLATILITY_PERIOD
 from app.exceptions import ServiceUnavailableError
 from app.infra.executor import run_external_io
 from app.services.market.app_service_support import validate_market_request
@@ -30,8 +29,6 @@ class MarketRealtimeQueryService:
         symbol: str,
         timeframe: str,
         limit: int,
-        atr_period: int = DEFAULT_ATR_PERIOD,
-        volatility_period: int = DEFAULT_VOLATILITY_PERIOD,
     ) -> MarketSnapshot:
         validate_market_request(symbol, timeframe)
         result = await run_external_io(
@@ -40,8 +37,6 @@ class MarketRealtimeQueryService:
                 symbol,
                 timeframe,
                 limit,
-                atr_period=atr_period,
-                volatility_period=volatility_period,
             )
         )
         if not result:
@@ -119,33 +114,3 @@ class MarketRealtimeQueryService:
             ai_analysis=ai_analysis,
             include_type=True,
         )
-
-    async def get_technical_metrics(
-        self,
-        *,
-        symbol: str,
-        timeframe: str,
-        limit: int,
-        atr_period: int,
-        volatility_period: int,
-    ) -> dict[str, Any]:
-        snapshot = await self.load_snapshot(
-            symbol=symbol,
-            timeframe=timeframe,
-            limit=limit,
-            atr_period=atr_period,
-            volatility_period=volatility_period,
-        )
-        kline_data = snapshot.kline_data
-        indicators = snapshot.indicators
-        current_price = kline_data[-1][4]
-        return {
-            "symbol": symbol,
-            "timeframe": timeframe,
-            "sample_size": len(kline_data),
-            "current_price": current_price,
-            "atr": indicators["atr"],
-            "atr_pct": indicators["atr_pct"],
-            "realized_volatility_pct": indicators["realized_volatility_pct"],
-            "annualized_volatility_pct": indicators["annualized_volatility_pct"],
-        }

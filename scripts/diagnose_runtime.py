@@ -1,0 +1,64 @@
+from __future__ import annotations
+
+import argparse
+import asyncio
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from app.runtime import build_app_runtime_services
+from config import settings
+
+
+async def check_external_sources() -> None:
+    print("\nExternal data sources")
+
+    from app.services.indicators.crypto_gold_provider import CryptoGoldProvider
+    from app.services.indicators.macro_provider_v2 import MacroProviderV2
+    from app.services.indicators.onchain_provider import OnchainProvider
+    from app.services.indicators.sentiment_provider import SentimentProvider
+
+    checks = [
+        ("FRED US10Y", lambda: MacroProviderV2()._fetch_fred_api("DGS10", "US10Y_CHECK") if settings.FRED_API_KEY else None),
+        ("YFinance ^TNX", lambda: MacroProviderV2()._fetch_yfinance_ticker("^TNX", "US10Y_CHECK")),
+        ("Binance PAXG", lambda: CryptoGoldProvider()._fetch_gold_price()),
+        ("Mempool.space", lambda: OnchainProvider()._fetch_mempool_data()),
+        ("Fear & Greed", lambda: SentimentProvider()._fetch_fear_greed_index()),
+    ]
+
+    for label, factory in checks:
+        try:
+            task = factory()
+            if task is None:
+                print(f"  [skip] {label}: missing config")
+                continue
+            result = await task
+            status = "ok" if result else "empty"
+            print(f"  [{status}] {label}")
+        except Exception as exc:
+            print(f"  [fail] {label}: {exc}")
+
+
+async def main() -> None:
+    parser = argparse.ArgumentParser(description="Diagnose Heimdall runtime dependencies.")
+    parser.add_argument("--external", action="store_true", help="also call public market data APIs")
+    args = parser.parse_args()
+
+    services = build_app_runtime_services("api")
+    try:
+        print("Runtime")
+        print(f"  database: {services.database_runtime.engine.dialect.name} ({services.database_runtime.source})")
+        print(f"  cache: {type(services.cache_service).__name__}")
+        print(f"  market query: {type(services.market_query_service).__name__}")
+        print(f"  tools: {type(services.tools_app_service).__name__}")
+        if args.external:
+            await check_external_sources()
+    finally:
+        services.dispose()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

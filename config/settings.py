@@ -34,7 +34,6 @@ class AppSettings(BaseSettings):
     AI_MODEL: str = "deepseek-chat"
 
     FRED_API_KEY: str = ""
-    ALPHA_VANTAGE_API_KEY: str = ""
 
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
@@ -111,21 +110,9 @@ class AppSettings(BaseSettings):
     FRED_API_URL: str = "https://api.stlouisfed.org/fred/series/observations"
     FRED_REQUEST_TIMEOUT: int = 15
     YFINANCE_REQUEST_DELAY: int = 2
-    COINGECKO_BASE_URL: str = "https://api.coingecko.com/api/v3"
-    COINGECKO_API_KEY: str = ""
-    COINGECKO_TIMEOUT: float = 20.0
-    COINGECKO_MAX_CONCURRENCY: int = 3
-    COINGECKO_MAX_RETRIES: int = 2
-    COINGECKO_RETRY_DELAY: float = 2.0
-    COINGECKO_REQUEST_GAP: float = 1.0
-    COINGECKO_CACHE_TTL: int = 900
-
     BINANCE_PUBLIC_BASE_URL: str = "https://api.binance.com"
     BINANCE_FUTURES_USDM_BASE_URL: str = "https://fapi.binance.com"
-    BINANCE_FUTURES_COINM_BASE_URL: str = "https://dapi.binance.com"
     BINANCE_WEB3_BASE_URL: str = "https://web3.binance.com"
-    BINANCE_WWW_BASE_URL: str = "https://www.binance.com"
-    OKX_PUBLIC_BASE_URL: str = "https://www.okx.com"
     BINANCE_PUBLIC_TIMEOUT: float = 20.0
     BINANCE_PUBLIC_CACHE_TTL: int = 120
     BINANCE_PUBLIC_MAX_RETRIES: int = 2

@@ -15,20 +15,6 @@ if str(ROOT_DIR) not in sys.path:
 
 import app.main as main_module
 from app.runtime import AppRuntimeServices
-from app.runtime_refs import (
-    INFRA_DATABASE_RUNTIME,
-    MARKET_BINANCE_MARKET_INTEL,
-    MARKET_BINANCE_WEB3_HEAT_RANKS,
-    MARKET_BINANCE_WEB3_RANKS,
-    MARKET_BINANCE_WEB3_TOKENS,
-    MARKET_FUNDING_RATE_APP_SERVICE,
-    MARKET_INSIGHT_APP_SERVICE,
-    MARKET_QUERY_APP_SERVICE,
-    SYSTEM_CURRENCY_RATE_SERVICE,
-    SYSTEM_FRED_API_CONFIG_SERVICE,
-    SYSTEM_LLM_CONFIG_SERVICE,
-    TOOLS_TOOLS_APP_SERVICE,
-)
 from app.infra.db import build_database_runtime
 from app.infra.db.schema_runtime import prepare_db
 from config.settings import AppSettings
@@ -37,7 +23,6 @@ from test.regression_support import (
     StubBinanceWeb3HeatRanksService,
     StubBinanceWeb3RanksService,
     StubBinanceWeb3TokensService,
-    StubFundingRateAppService,
     StubMarketInsightAppService,
     StubMarketQueryAppService,
     StubToolsAppService,
@@ -143,7 +128,6 @@ def api_harness(installed_database_runtime):
     services = {
         "market_query_app": StubMarketQueryAppService(),
         "market_insight_app": StubMarketInsightAppService(),
-        "funding_rate_app": StubFundingRateAppService(),
         "binance_market_service": StubBinanceMarketService(),
         "binance_web3_ranks": StubBinanceWeb3RanksService(),
         "binance_web3_heat_ranks": StubBinanceWeb3HeatRanksService(),
@@ -154,20 +138,20 @@ def api_harness(installed_database_runtime):
         "fred_api_config": StubFredApiConfigService(),
     }
     app = main_module.app
-    app.state.runtime_services = AppRuntimeServices.from_entries({
-        INFRA_DATABASE_RUNTIME: installed_database_runtime,
-        MARKET_QUERY_APP_SERVICE: services["market_query_app"],
-        MARKET_INSIGHT_APP_SERVICE: services["market_insight_app"],
-        MARKET_FUNDING_RATE_APP_SERVICE: services["funding_rate_app"],
-        MARKET_BINANCE_MARKET_INTEL: services["binance_market_service"],
-        MARKET_BINANCE_WEB3_RANKS: services["binance_web3_ranks"],
-        MARKET_BINANCE_WEB3_HEAT_RANKS: services["binance_web3_heat_ranks"],
-        MARKET_BINANCE_WEB3_TOKENS: services["binance_web3_tokens"],
-        TOOLS_TOOLS_APP_SERVICE: services["tools_app"],
-        SYSTEM_CURRENCY_RATE_SERVICE: services["currency_rate"],
-        SYSTEM_LLM_CONFIG_SERVICE: services["llm_config"],
-        SYSTEM_FRED_API_CONFIG_SERVICE: services["fred_api_config"],
-    })
+    app.state.runtime_services = AppRuntimeServices(
+        database_runtime=installed_database_runtime,
+        cache_service=object(),
+        market_query_service=services["market_query_app"],
+        market_insight_service=services["market_insight_app"],
+        binance_market_intel=services["binance_market_service"],
+        binance_web3_ranks=services["binance_web3_ranks"],
+        binance_web3_heat_ranks=services["binance_web3_heat_ranks"],
+        binance_web3_tokens=services["binance_web3_tokens"],
+        tools_app_service=services["tools_app"],
+        currency_rate_service=services["currency_rate"],
+        llm_config_service=services["llm_config"],
+        fred_api_config_service=services["fred_api_config"],
+    )
     app.state.database_error = None
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = noop_lifespan

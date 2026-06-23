@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from .binance_api_support import BinanceApiSupport, compact_query, encode_symbol_list
 from app.services.persistence_ports import BinanceMarketResearchStorePort
-from .binance_market_normalizers import normalize_kline_response, normalize_levels, normalize_ticker_item, normalize_trade
-from .binance_numbers import to_float
+from .binance_market_normalizers import normalize_kline_response, normalize_ticker_item
 from .binance_research_series import BinanceResearchSeriesLoader
 
 
@@ -17,40 +16,6 @@ class BinanceSpotMarketService:
             get_json=client.get_json,
         )
 
-    async def get_exchange_info(
-        self,
-        *,
-        symbols: list[str] | None = None,
-        permissions: list[str] | None = None,
-        symbol_status: str | None = None,
-    ) -> dict[str, object]:
-        params = compact_query(
-            {
-                "symbols": encode_symbol_list(symbols),
-                "permissions": encode_symbol_list(permissions),
-                "symbolStatus": symbol_status,
-            }
-        )
-        payload = await self.client.get_json("/api/v3/exchangeInfo", params=params, ttl=300)
-        return {
-            "exchange": "binance",
-            "market": "spot",
-            "timezone": payload.get("timezone"),
-            "server_time": payload.get("serverTime"),
-            "symbols": [
-                {
-                    "symbol": item.get("symbol"),
-                    "status": item.get("status"),
-                    "base_asset": item.get("baseAsset"),
-                    "quote_asset": item.get("quoteAsset"),
-                    "price_precision": item.get("quotePrecision"),
-                    "quantity_precision": item.get("baseAssetPrecision"),
-                    "permissions": list(item.get("permissions") or []),
-                }
-                for item in payload.get("symbols", [])
-            ],
-        }
-
     async def get_ticker_24hr(self, *, symbols: list[str] | None = None) -> dict[str, object]:
         payload = await self.client.get_json(
             "/api/v3/ticker/24hr",
@@ -63,123 +28,6 @@ class BinanceSpotMarketService:
             "market": "spot",
             "items": [normalize_ticker_item(item) for item in items],
         }
-
-    async def get_ticker_window(
-        self,
-        *,
-        symbols: list[str] | None = None,
-        window_size: str | None = None,
-    ) -> dict[str, object]:
-        payload = await self.client.get_json(
-            "/api/v3/ticker",
-            params=compact_query(
-                {
-                    "symbols": encode_symbol_list(symbols),
-                    "windowSize": window_size,
-                }
-            ),
-            ttl=30,
-        )
-        items = payload if isinstance(payload, list) else [payload]
-        return {
-            "exchange": "binance",
-            "market": "spot",
-            "items": [normalize_ticker_item(item) for item in items],
-        }
-
-    async def get_price(self, *, symbols: list[str] | None = None) -> dict[str, object]:
-        payload = await self.client.get_json(
-            "/api/v3/ticker/price",
-            params=compact_query({"symbols": encode_symbol_list(symbols)}),
-            ttl=10,
-        )
-        items = payload if isinstance(payload, list) else [payload]
-        return {
-            "exchange": "binance",
-            "market": "spot",
-            "items": [
-                {
-                    "symbol": item.get("symbol"),
-                    "price": to_float(item.get("price")),
-                }
-                for item in items
-            ],
-        }
-
-    async def get_book_ticker(self, *, symbols: list[str] | None = None) -> dict[str, object]:
-        payload = await self.client.get_json(
-            "/api/v3/ticker/bookTicker",
-            params=compact_query({"symbols": encode_symbol_list(symbols)}),
-            ttl=10,
-        )
-        items = payload if isinstance(payload, list) else [payload]
-        return {
-            "exchange": "binance",
-            "market": "spot",
-            "items": [
-                {
-                    "symbol": item.get("symbol"),
-                    "bid_price": to_float(item.get("bidPrice")),
-                    "bid_qty": to_float(item.get("bidQty")),
-                    "ask_price": to_float(item.get("askPrice")),
-                    "ask_qty": to_float(item.get("askQty")),
-                }
-                for item in items
-            ],
-        }
-
-    async def get_depth(self, *, symbol: str, limit: int = 20) -> dict[str, object]:
-        payload = await self.client.get_json(
-            "/api/v3/depth",
-            params={"symbol": symbol.upper(), "limit": limit},
-            ttl=5,
-        )
-        return {
-            "exchange": "binance",
-            "market": "spot",
-            "symbol": symbol.upper(),
-            "last_update_id": payload.get("lastUpdateId"),
-            "bids": normalize_levels(payload.get("bids") or []),
-            "asks": normalize_levels(payload.get("asks") or []),
-        }
-
-    async def get_trades(self, *, symbol: str, limit: int = 50) -> dict[str, object]:
-        symbol_key = symbol.upper()
-        return await self._load_trade_series(
-            endpoint="/api/v3/trades",
-            params={"symbol": symbol_key, "limit": limit},
-            series="trades",
-            symbol=symbol_key,
-            limit=limit,
-            aggregate=False,
-        )
-
-    async def get_agg_trades(
-        self,
-        *,
-        symbol: str,
-        limit: int = 50,
-        start_time: int | None = None,
-        end_time: int | None = None,
-    ) -> dict[str, object]:
-        symbol_key = symbol.upper()
-        return await self._load_trade_series(
-            endpoint="/api/v3/aggTrades",
-            params=compact_query(
-                {
-                    "symbol": symbol_key,
-                    "limit": limit,
-                    "startTime": start_time,
-                    "endTime": end_time,
-                }
-            ),
-            series="agg_trades",
-            symbol=symbol_key,
-            limit=limit,
-            aggregate=True,
-            start_time=start_time,
-            end_time=end_time,
-        )
 
     async def get_klines(
         self,
@@ -217,35 +65,3 @@ class BinanceSpotMarketService:
             response_fields={"symbol": symbol_key, "interval": interval},
         )
 
-    async def _load_trade_series(
-        self,
-        *,
-        endpoint: str,
-        params: dict,
-        series: str,
-        symbol: str,
-        limit: int,
-        aggregate: bool,
-        start_time: int | None = None,
-        end_time: int | None = None,
-    ) -> dict[str, object]:
-        return await self.research_series.load(
-            endpoint=endpoint,
-            params=params,
-            normalizer=lambda market, payload: {
-                "exchange": "binance",
-                "market": market,
-                "symbol": symbol,
-                "items": [normalize_trade(item, aggregate=aggregate) for item in payload],
-            },
-            series=series,
-            symbol=symbol,
-            period="",
-            limit=limit,
-            start_time=start_time,
-            end_time=end_time,
-            timestamp_key="time",
-            item_key_key="id",
-            response_fields={"symbol": symbol},
-            ttl=5,
-        )

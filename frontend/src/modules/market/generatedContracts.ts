@@ -92,38 +92,6 @@ export interface MarketIndexHistoryResponse {
   data?: Array<OhlcvPointResponse>
 }
 
-export interface FundingRateSnapshotResponse {
-  exchange: string
-  market_type: string
-  symbol: string
-  funding_rate: number | null
-  funding_rate_pct: number | null
-  mark_price?: number | null
-  index_price?: number | null
-  interest_rate?: number | null
-  next_funding_time?: string | null
-  collected_at: string
-}
-
-export interface FundingRateSyncResponse {
-  exchange: string
-  market_type: string
-  symbol: string
-  fetched: number
-  inserted: number
-  total: number
-  start_date: string
-  end_date: string
-}
-
-export interface FundingRateHistoryResponse {
-  exchange: string
-  market_type: string
-  symbol: string
-  count: number
-  items: Array<FundingRateHistoryPointResponse>
-}
-
 export interface MarketIndicatorResponse {
   indicator_id: string
   name: string
@@ -156,17 +124,6 @@ export interface DliLiquidityResponse {
   history?: Array<DliHistoryPointResponse>
   indicators?: Array<MarketIndicatorResponse>
   alerts?: Array<string>
-}
-
-export interface TechnicalMetricsResponse {
-  symbol: string
-  timeframe: string
-  sample_size: number
-  current_price: number
-  atr?: number | null
-  atr_pct?: number | null
-  realized_volatility_pct?: number | null
-  annualized_volatility_pct?: number | null
 }
 
 export interface TradeSetupResponse {
@@ -204,136 +161,6 @@ export interface BinanceContractResearchDetailResponse {
   top_trader_positions: BinanceRatioSeriesResponse
 }
 
-export interface BinanceExchangeInfoResponse {
-  exchange: string
-  market: string
-  timezone?: string | null
-  server_time?: number | null
-  symbols?: Array<BinanceSymbolSummaryResponse>
-}
-
-export interface BinanceTickerStatsResponse {
-  exchange: string
-  market: string
-  items?: Array<BinanceTickerStatsItemResponse>
-}
-
-export interface BinancePriceTickerResponse {
-  exchange: string
-  market: string
-  items?: Array<BinancePriceTickerItemResponse>
-}
-
-export interface BinanceBookTickerResponse {
-  exchange: string
-  market: string
-  items?: Array<BinanceBookTickerItemResponse>
-}
-
-export interface BinanceOrderBookResponse {
-  exchange: string
-  market: string
-  symbol: string
-  last_update_id?: number | null
-  bids?: Array<BinanceOrderBookLevelResponse>
-  asks?: Array<BinanceOrderBookLevelResponse>
-}
-
-export interface BinanceTradeListResponse {
-  exchange: string
-  market: string
-  symbol: string
-  items?: Array<BinanceTradeItemResponse>
-}
-
-export interface BinanceKlineResponse {
-  exchange: string
-  market: string
-  symbol: string
-  interval: string
-  items?: Array<BinanceKlineItemResponse>
-}
-
-export interface BinanceMarkPriceResponse {
-  exchange: string
-  market: string
-  items?: Array<BinanceMarkPriceItemResponse>
-}
-
-export interface BinanceFundingInfoResponse {
-  exchange: string
-  market: string
-  items?: Array<BinanceFundingInfoItemResponse>
-}
-
-export interface BinanceFundingHistoryListResponse {
-  exchange: string
-  market: string
-  items?: Array<BinanceFundingHistoryItemResponse>
-}
-
-export interface BinanceOpenInterestSnapshotResponse {
-  exchange: string
-  market: string
-  symbol?: string | null
-  pair?: string | null
-  open_interest?: number | null
-  contract_type?: string | null
-  time?: number | null
-}
-
-export interface BinanceOpenInterestStatsResponse {
-  exchange: string
-  market: string
-  items?: Array<BinanceOpenInterestStatItemResponse>
-}
-
-export interface BinanceRatioSeriesResponse {
-  exchange: string
-  market: string
-  items?: Array<BinanceRatioItemResponse>
-}
-
-export interface BinanceTakerVolumeResponse {
-  exchange: string
-  market: string
-  items?: Array<BinanceTakerVolumeItemResponse>
-}
-
-export interface BinanceBasisResponse {
-  exchange: string
-  market: string
-  items?: Array<BinanceBasisItemResponse>
-}
-
-export interface BinanceWeb3SocialHypeResponse {
-  source: string
-  leaderboard: string
-  items?: Array<BinanceWeb3SocialHypeItemResponse>
-}
-
-export interface BinanceWeb3UnifiedTokenRankResponse {
-  source: string
-  leaderboard: string
-  rank_type: number
-  page: number
-  size: number
-  total?: number | null
-  items?: Array<BinanceWeb3RankItemResponse>
-}
-
-export interface BinanceWeb3SmartMoneyInflowResponse {
-  source: string
-  leaderboard: string
-  items?: Array<BinanceWeb3SmartMoneyInflowItemResponse>
-}
-
-export interface BinanceWeb3MemeRankResponse {
-  source: string
-  leaderboard: string
-  items?: Array<BinanceWeb3MemeRankItemResponse>
-}
-
 export interface BinanceWeb3AddressPnlResponse {
   source: string
   leaderboard: string
@@ -341,15 +168,6 @@ export interface BinanceWeb3AddressPnlResponse {
   size: number
   pages?: number | null
   items?: Array<BinanceWeb3AddressPnlItemResponse>
-}
-
-export interface BinanceWeb3HeatRankResponse {
-  source: string
-  leaderboard: string
-  chain_id: string
-  size: number
-  items?: Array<BinanceWeb3HeatRankItemResponse>
-  formula?: { [key: string]: Array<string> }
 }
 
 export interface BinanceWeb3HeatRankBoardsResponse {
@@ -433,12 +251,10 @@ export interface BinanceBasisItemResponse {
   timestamp?: number | null
 }
 
-export interface BinanceBookTickerItemResponse {
-  symbol?: string | null
-  bid_price?: number | null
-  bid_qty?: number | null
-  ask_price?: number | null
-  ask_qty?: number | null
+export interface BinanceBasisResponse {
+  exchange: string
+  market: string
+  items?: Array<BinanceBasisItemResponse>
 }
 
 export interface BinanceBreakoutMonitorItemResponse {
@@ -531,45 +347,6 @@ export interface BinanceForceOrderResponse {
   items?: Array<BinanceForceOrderItemResponse>
 }
 
-export interface BinanceFundingHistoryItemResponse {
-  symbol?: string | null
-  funding_rate?: number | null
-  mark_price?: number | null
-  funding_time?: number | null
-}
-
-export interface BinanceFundingInfoItemResponse {
-  symbol?: string | null
-  adjusted_funding_rate_cap?: number | null
-  adjusted_funding_rate_floor?: number | null
-  funding_interval_hours?: number | null
-  disclaimer?: boolean
-}
-
-export interface BinanceKlineItemResponse {
-  open_time?: number | null
-  open?: number | null
-  high?: number | null
-  low?: number | null
-  close?: number | null
-  volume?: number | null
-  close_time?: number | null
-  quote_volume?: number | null
-  trade_count?: number | null
-}
-
-export interface BinanceMarkPriceItemResponse {
-  symbol?: string | null
-  pair?: string | null
-  mark_price?: number | null
-  index_price?: number | null
-  estimated_settle_price?: number | null
-  last_funding_rate?: number | null
-  next_funding_time?: number | null
-  interest_rate?: number | null
-  time?: number | null
-}
-
 export interface BinanceMarketPageRefreshStatusResponse {
   snapshot_ready?: boolean
   boards_ready?: boolean
@@ -591,14 +368,10 @@ export interface BinanceOpenInterestStatItemResponse {
   timestamp?: number | null
 }
 
-export interface BinanceOrderBookLevelResponse {
-  price?: number | null
-  qty?: number | null
-}
-
-export interface BinancePriceTickerItemResponse {
-  symbol?: string | null
-  price?: number | null
+export interface BinanceOpenInterestStatsResponse {
+  exchange: string
+  market: string
+  items?: Array<BinanceOpenInterestStatItemResponse>
 }
 
 export interface BinanceRatioItemResponse {
@@ -612,16 +385,10 @@ export interface BinanceRatioItemResponse {
   timestamp?: number | null
 }
 
-export interface BinanceSymbolSummaryResponse {
-  symbol?: string | null
-  status?: string | null
-  pair?: string | null
-  contract_type?: string | null
-  base_asset?: string | null
-  quote_asset?: string | null
-  price_precision?: number | null
-  quantity_precision?: number | null
-  permissions?: Array<string>
+export interface BinanceRatioSeriesResponse {
+  exchange: string
+  market: string
+  items?: Array<BinanceRatioItemResponse>
 }
 
 export interface BinanceTakerVolumeItemResponse {
@@ -633,6 +400,12 @@ export interface BinanceTakerVolumeItemResponse {
   buy_vol_value?: number | null
   sell_vol_value?: number | null
   timestamp?: number | null
+}
+
+export interface BinanceTakerVolumeResponse {
+  exchange: string
+  market: string
+  items?: Array<BinanceTakerVolumeItemResponse>
 }
 
 export interface BinanceTickerStatsItemResponse {
@@ -652,13 +425,10 @@ export interface BinanceTickerStatsItemResponse {
   count?: number | null
 }
 
-export interface BinanceTradeItemResponse {
-  id?: number | null
-  price?: number | null
-  qty?: number | null
-  quote_qty?: number | null
-  time?: number | null
-  is_buyer_maker?: boolean
+export interface BinanceTickerStatsResponse {
+  exchange: string
+  market: string
+  items?: Array<BinanceTickerStatsItemResponse>
 }
 
 export interface BinanceWeb3AddressPnlItemResponse {
@@ -692,71 +462,13 @@ export interface BinanceWeb3HeatRankItemResponse {
   summary?: string | null
 }
 
-export interface BinanceWeb3MemeRankItemResponse {
-  symbol?: string | null
-  chain_id?: string | null
-  contract_address?: string | null
-  rank?: number | null
-  score?: number | null
-  logo_url?: string | null
-  price?: number | null
-  price_change_pct?: number | null
-  market_cap?: number | null
-  liquidity?: number | null
-  volume?: number | null
-  holders?: number | null
-  unique_trader_bn?: number | null
-}
-
-export interface BinanceWeb3RankItemResponse {
-  symbol?: string | null
-  chain_id?: string | null
-  contract_address?: string | null
-  icon_url?: string | null
-  price?: number | null
-  market_cap?: number | null
-  liquidity?: number | null
-  holders?: number | null
-  launch_time?: number | null
-  percent_change_1h?: number | null
-  percent_change_24h?: number | null
-  volume_1h?: number | null
-  volume_4h?: number | null
-  volume_24h?: number | null
-  count_1h?: number | null
-  count_24h?: number | null
-  unique_trader_1h?: number | null
-  unique_trader_24h?: number | null
-  kyc_holders?: number | null
-  audit_info?: { [key: string]: string | number | boolean | Array<string | number | boolean | null> | { [key: string]: string | number | boolean | null } | Array<{ [key: string]: string | number | boolean | null }> | { [key: string]: Array<string | number | boolean | null> } | null }
-}
-
-export interface BinanceWeb3SmartMoneyInflowItemResponse {
-  symbol?: string | null
-  chain_id?: string | null
-  contract_address?: string | null
-  logo_url?: string | null
-  price?: number | null
-  market_cap?: number | null
-  liquidity?: number | null
-  volume?: number | null
-  price_change_pct?: number | null
-  holders?: number | null
-  traders?: number | null
-  inflow?: number | null
-  risk_level?: number | null
-}
-
-export interface BinanceWeb3SocialHypeItemResponse {
-  symbol?: string | null
-  chain_id?: string | null
-  contract_address?: string | null
-  logo_url?: string | null
-  market_cap?: number | null
-  price_change_pct?: number | null
-  social_hype?: number | null
-  sentiment?: string | null
-  summary?: string | null
+export interface BinanceWeb3HeatRankResponse {
+  source: string
+  leaderboard: string
+  chain_id: string
+  size: number
+  items?: Array<BinanceWeb3HeatRankItemResponse>
+  formula?: { [key: string]: Array<string> }
 }
 
 export interface BinanceWeb3TokenKlineItemResponse {
@@ -810,13 +522,6 @@ export interface DliThresholdsResponse {
   p80: number
   source: string
   sample_size: number
-}
-
-export interface FundingRateHistoryPointResponse {
-  funding_time: string
-  funding_rate: number
-  funding_rate_pct: number
-  mark_price?: number | null
 }
 
 export interface IndicatorHistoryPoint {
@@ -891,118 +596,6 @@ export interface GetBinanceMarketPageQueryParams {
   quote_asset?: string
 }
 
-export interface GetBinanceSpotAggTradesQueryParams {
-  symbol: string
-  limit?: number
-  start_time?: number | null
-  end_time?: number | null
-}
-
-export interface GetBinanceSpotBookTickerQueryParams {
-  symbols?: Array<string> | null
-}
-
-export interface GetBinanceSpotDepthQueryParams {
-  symbol: string
-  limit?: number
-}
-
-export interface GetBinanceSpotExchangeInfoQueryParams {
-  symbols?: Array<string> | null
-  permissions?: Array<string> | null
-  symbol_status?: string | null
-}
-
-export interface GetBinanceSpotKlinesQueryParams {
-  symbol: string
-  interval: string
-  limit?: number
-  start_time?: number | null
-  end_time?: number | null
-}
-
-export interface GetBinanceSpotPriceQueryParams {
-  symbols?: Array<string> | null
-}
-
-export interface GetBinanceSpotTicker24hrQueryParams {
-  symbols?: Array<string> | null
-}
-
-export interface GetBinanceSpotTickerWindowQueryParams {
-  symbols?: Array<string> | null
-  window_size?: string | null
-}
-
-export interface GetBinanceSpotTradesQueryParams {
-  symbol: string
-  limit?: number
-}
-
-export interface GetBinanceSpotUiKlinesQueryParams {
-  symbol: string
-  interval: string
-  limit?: number
-  start_time?: number | null
-  end_time?: number | null
-}
-
-export interface GetBinanceUsdmBasisQueryParams {
-  pair: string
-  contract_type: string
-  period: string
-  limit?: number
-}
-
-export interface GetBinanceUsdmFundingHistoryQueryParams {
-  symbol?: string | null
-  limit?: number
-  start_time?: number | null
-  end_time?: number | null
-}
-
-export interface GetBinanceUsdmLongShortRatioQueryParams {
-  symbol: string
-  period: string
-  limit?: number
-}
-
-export interface GetBinanceUsdmMarkPriceQueryParams {
-  symbol?: string | null
-}
-
-export interface GetBinanceUsdmOpenInterestQueryParams {
-  symbol: string
-}
-
-export interface GetBinanceUsdmOpenInterestStatsQueryParams {
-  symbol: string
-  period: string
-  limit?: number
-}
-
-export interface GetBinanceUsdmTakerVolumeQueryParams {
-  symbol: string
-  period: string
-  limit?: number
-}
-
-export interface GetBinanceUsdmTicker24hrQueryParams {
-  symbol?: string | null
-}
-
-export interface GetBinanceUsdmTopTraderAccountsQueryParams {
-  symbol: string
-  period: string
-  limit?: number
-}
-
-export interface GetBinanceUsdmTopTraderPositionsQueryParams {
-  symbol: string
-  period: string
-  limit?: number
-}
-
 export interface GetBinanceWeb3AddressPnlRankQueryParams {
   chain_id: string
   period?: string
@@ -1014,29 +607,6 @@ export interface GetBinanceWeb3AddressPnlRankQueryParams {
 export interface GetBinanceWeb3HeatRankBoardsQueryParams {
   chain_id?: string | null
   size?: number
-}
-
-export interface GetBinanceWeb3HeatRankQueryParams {
-  chain_id?: string | null
-  size?: number
-}
-
-export interface GetBinanceWeb3MemeRankQueryParams {
-  chain_id?: string
-}
-
-export interface GetBinanceWeb3SmartMoneyInflowQueryParams {
-  chain_id: string
-  period?: string
-  tag_type?: number
-}
-
-export interface GetBinanceWeb3SocialHypeQueryParams {
-  chain_id: string
-  target_language?: string
-  time_range?: number
-  sentiment?: string
-  social_language?: string
 }
 
 export interface GetBinanceWeb3TokenAuditQueryParams {
@@ -1059,20 +629,6 @@ export interface GetBinanceWeb3TokenKlineQueryParams {
   pm?: string | null
 }
 
-export interface GetBinanceWeb3UnifiedTokenRankQueryParams {
-  rank_type?: number
-  chain_id?: string | null
-  period?: number
-  sort_by?: number
-  order_asc?: boolean
-  page?: number
-  size?: number
-}
-
-export interface GetCurrentFundingRateQueryParams {
-  symbol: string
-}
-
 export interface GetCurrentPriceBatchQueryParams {
   symbols: Array<string>
   timeframe?: string
@@ -1086,13 +642,6 @@ export interface GetCurrentPriceQueryParams {
 export interface GetDliLiquidityQueryParams {
   days?: number
   change_days?: number
-}
-
-export interface GetFundingRateHistoryQueryParams {
-  symbol: string
-  start_date?: string | null
-  end_date?: string | null
-  limit?: number | null
 }
 
 export interface GetIndexHistoryQueryParams {
@@ -1113,14 +662,6 @@ export interface GetKlineTailQueryParams {
   symbol: string
   timeframe: string
   limit?: number
-}
-
-export interface GetLatestIndexPricingQueryParams {
-  symbol: string
-}
-
-export interface GetLatestIndexQueryParams {
-  symbol: string
 }
 
 export interface GetLatestKlinesQueryParams {
@@ -1161,14 +702,6 @@ export interface GetRealtimeAnalysisQueryParams {
   limit?: number | null
 }
 
-export interface GetTechnicalMetricsQueryParams {
-  symbol: string
-  timeframe?: string
-  limit?: number
-  atr_period?: number
-  volatility_period?: number
-}
-
 export interface GetTradeSetupQueryParams {
   symbol: string
   timeframe?: string
@@ -1177,10 +710,4 @@ export interface GetTradeSetupQueryParams {
   style?: string
   strategy?: string
   mode?: string
-}
-
-export interface SyncFundingRateHistoryQueryParams {
-  symbol: string
-  start_date?: string
-  end_date?: string | null
 }

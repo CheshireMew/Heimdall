@@ -5,7 +5,6 @@ import pytest
 from app.services.market.binance_usdm_market import BinanceUsdmMarketService
 from app.services.market.binance_spot_market import BinanceSpotMarketService
 from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
-from app.infra.persistence.market.funding_rate_store import FundingRateStore
 
 
 class FakeBinanceClient:
@@ -21,17 +20,14 @@ class FakeBinanceClient:
         return response
 
 
-def make_service(installed_database_runtime, responses: list[object]) -> tuple[BinanceUsdmMarketService, BinanceMarketResearchStore, FundingRateStore]:
+def make_service(installed_database_runtime, responses: list[object]) -> tuple[BinanceUsdmMarketService, BinanceMarketResearchStore]:
     research_store = BinanceMarketResearchStore(database_runtime=installed_database_runtime)
-    funding_rate_store = FundingRateStore(database_runtime=installed_database_runtime)
     return (
         BinanceUsdmMarketService(
             FakeBinanceClient(responses),
             research_store=research_store,
-            funding_rate_store=funding_rate_store,
         ),
         research_store,
-        funding_rate_store,
     )
 
 
@@ -45,7 +41,7 @@ def make_spot_service(installed_database_runtime, responses: list[object]) -> tu
 
 @pytest.mark.asyncio
 async def test_usdm_open_interest_stats_are_persisted_and_read_back(installed_database_runtime):
-    service, research_store, _ = make_service(
+    service, research_store = make_service(
         installed_database_runtime,
         [
             [
@@ -133,7 +129,7 @@ async def test_usdm_derivative_research_series_are_persisted_and_read_back(
     raw_item,
     stored_field,
 ):
-    service, research_store, _ = make_service(
+    service, research_store = make_service(
         installed_database_runtime,
         [[raw_item], RuntimeError("upstream unavailable")],
     )
@@ -159,7 +155,7 @@ async def test_usdm_derivative_research_series_are_persisted_and_read_back(
 
 @pytest.mark.asyncio
 async def test_usdm_klines_keep_full_binance_payload_in_research_store(installed_database_runtime):
-    service, research_store, _ = make_service(
+    service, research_store = make_service(
         installed_database_runtime,
         [
             [
@@ -195,7 +191,7 @@ async def test_usdm_klines_keep_full_binance_payload_in_research_store(installed
 
 @pytest.mark.asyncio
 async def test_usdm_contract_research_detail_collects_derivative_series(installed_database_runtime):
-    service, _, _ = make_service(
+    service, _ = make_service(
         installed_database_runtime,
         [
             [{"symbol": "BTCUSDT", "sumOpenInterest": "100", "sumOpenInterestValue": "6800000", "timestamp": 1717000000000}],
@@ -218,36 +214,6 @@ async def test_usdm_contract_research_detail_collects_derivative_series(installe
     assert detail["long_short_ratio"]["items"][0]["long_short_ratio"] == 1.1
     assert detail["top_trader_accounts"]["items"][0]["long_short_ratio"] == 1.2
     assert detail["top_trader_positions"]["items"][0]["long_short_ratio"] == 1.3
-
-
-@pytest.mark.asyncio
-async def test_usdm_funding_history_uses_funding_rate_store_as_canonical_source(installed_database_runtime):
-    service, _, funding_rate_store = make_service(
-        installed_database_runtime,
-        [
-            [
-                {
-                    "symbol": "BTCUSDT",
-                    "fundingRate": "0.0001",
-                    "markPrice": "68000.5",
-                    "fundingTime": 1717000000000,
-                }
-            ],
-            RuntimeError("upstream unavailable"),
-        ],
-    )
-
-    first = await service.get_funding_history(symbol="btcusdt", limit=10)
-
-    stored = funding_rate_store.list_history(exchange="binance", market_type="usdm", symbol="BTCUSDT")
-    assert len(stored) == 1
-    assert first["items"][0]["funding_rate"] == 0.0001
-
-    second = await service.get_funding_history(symbol="BTCUSDT", limit=10)
-
-    assert len(second["items"]) == 1
-    assert second["items"][0]["funding_time"] == 1717000000000
-    assert second["items"][0]["mark_price"] == 68000.5
 
 
 @pytest.mark.asyncio
@@ -284,62 +250,3 @@ async def test_spot_klines_keep_full_binance_payload_in_research_store(installed
     assert second["items"][0]["close_time"] == 1717003599999
 
 
-@pytest.mark.parametrize(
-    ("method_name", "kwargs", "series", "raw_item"),
-    [
-        (
-            "get_trades",
-            {"symbol": "BTCUSDT", "limit": 1},
-            "trades",
-            {
-                "id": 10001,
-                "price": "68050.0",
-                "qty": "0.25",
-                "quoteQty": "17012.5",
-                "time": 1717000000123,
-                "isBuyerMaker": True,
-            },
-        ),
-        (
-            "get_agg_trades",
-            {"symbol": "BTCUSDT", "limit": 1, "start_time": 1717000000000, "end_time": 1717000001000},
-            "agg_trades",
-            {
-                "a": 20002,
-                "p": "68055.0",
-                "q": "0.30",
-                "T": 1717000000456,
-                "m": False,
-            },
-        ),
-    ],
-)
-@pytest.mark.asyncio
-async def test_spot_trade_series_use_trade_id_identity_and_database_readback(
-    installed_database_runtime,
-    method_name,
-    kwargs,
-    series,
-    raw_item,
-):
-    service, research_store = make_spot_service(
-        installed_database_runtime,
-        [[raw_item], RuntimeError("upstream unavailable")],
-    )
-
-    first = await getattr(service, method_name)(**kwargs)
-
-    stored = research_store.list_items(
-        market="spot",
-        series=series,
-        symbol="BTCUSDT",
-        start_time=kwargs.get("start_time"),
-        end_time=kwargs.get("end_time"),
-        limit=10,
-    )
-    assert stored[0]["id"] == first["items"][0]["id"]
-    assert stored[0]["time"] == first["items"][0]["time"]
-
-    second = await getattr(service, method_name)(**kwargs)
-
-    assert second["items"][0]["id"] == first["items"][0]["id"]

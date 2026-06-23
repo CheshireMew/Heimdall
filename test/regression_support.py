@@ -114,51 +114,6 @@ def make_dli_liquidity_response() -> dict:
     }
 
 
-def make_funding_rate_snapshot() -> dict:
-    return {
-        "exchange": "binance",
-        "market_type": "perpetual",
-        "symbol": "BTCUSDT",
-        "funding_rate": 0.0001,
-        "funding_rate_pct": 0.01,
-        "mark_price": 68000.0,
-        "index_price": 67980.0,
-        "interest_rate": 0.0003,
-        "next_funding_time": "2025-06-01T16:00:00",
-        "collected_at": "2025-06-01T12:00:00",
-    }
-
-
-def make_funding_rate_history() -> dict:
-    return {
-        "exchange": "binance",
-        "market_type": "perpetual",
-        "symbol": "BTCUSDT",
-        "count": 1,
-        "items": [
-            {
-                "funding_time": "2025-06-01T08:00:00",
-                "funding_rate": 0.0001,
-                "funding_rate_pct": 0.01,
-                "mark_price": 67500.0,
-            }
-        ],
-    }
-
-
-def make_funding_rate_sync_response() -> dict:
-    return {
-        "exchange": "binance",
-        "market_type": "perpetual",
-        "symbol": "BTCUSDT",
-        "fetched": 50,
-        "inserted": 50,
-        "total": 50,
-        "start_date": "2025-01-01",
-        "end_date": "2025-01-10",
-    }
-
-
 def make_binance_breakout_monitor_response() -> dict:
     return {
         "exchange": "binance",
@@ -232,19 +187,6 @@ def make_binance_breakout_monitor_response() -> dict:
                 "reasons": ["价格仍压在强势区间上沿"],
             },
         ],
-    }
-
-
-def make_technical_metrics_response() -> dict:
-    return {
-        "symbol": "BTC/USDT",
-        "timeframe": "1d",
-        "sample_size": 120,
-        "current_price": 68000.0,
-        "atr": 2100.0,
-        "atr_pct": 0.03,
-        "realized_volatility_pct": 0.14,
-        "annualized_volatility_pct": 0.48,
     }
 
 
@@ -326,9 +268,6 @@ class StubMarketQueryAppService:
             rows=klines,
         )
 
-    async def get_technical_metrics(self, **kwargs):
-        return make_technical_metrics_response()
-
     async def get_live_kline_tail(self, **kwargs):
         return {
             "symbol": kwargs.get("symbol", "BTC/USDT"),
@@ -348,17 +287,6 @@ class StubMarketInsightAppService:
 
     async def get_trade_setup(self, **kwargs):
         return make_trade_setup_response()
-
-
-class StubFundingRateAppService:
-    async def get_current_funding_rate(self, symbol: str):
-        return make_funding_rate_snapshot()
-
-    async def sync_funding_rate_history(self, **kwargs):
-        return make_funding_rate_sync_response()
-
-    async def get_funding_rate_history(self, **kwargs):
-        return make_funding_rate_history()
 
 
 class StubBinanceMarketPageService:

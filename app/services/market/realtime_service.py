@@ -6,6 +6,7 @@ from typing import Any
 
 from app.contracts.market_history import build_realtime_payload
 from config import settings
+from app.domain.market.constants import DEFAULT_ATR_PERIOD, DEFAULT_VOLATILITY_PERIOD
 from app.domain.market.prompt_engine import PromptEngine
 from app.domain.market.technical_analysis import TechnicalAnalysis
 from app.services.market.market_data_service import MarketDataService
@@ -25,8 +26,8 @@ class RealtimeService:
         timeframe: str,
         limit: int,
         *,
-        atr_period: int,
-        volatility_period: int,
+        atr_period: int = DEFAULT_ATR_PERIOD,
+        volatility_period: int = DEFAULT_VOLATILITY_PERIOD,
     ) -> MarketSnapshot | None:
         kline_data = market_data_service.get_recent_candles(symbol, timeframe, limit=limit)
         if not kline_data:

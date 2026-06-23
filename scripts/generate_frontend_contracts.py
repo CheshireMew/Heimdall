@@ -180,10 +180,8 @@ def resolve_route_target_file(route: APIRoute) -> str:
         "/api/v1/price/",
         "/api/v1/full_history",
         "/api/v1/indicators",
-        "/api/v1/technical-metrics",
         "/api/v1/trade-setup",
         "/api/v1/indexes",
-        "/api/v1/funding-rate",
         "/api/v1/binance/",
     )
     if any(path == prefix or path.startswith(prefix) for prefix in market_prefixes):

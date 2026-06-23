@@ -1,22 +1,12 @@
 import { apiGet } from '@/api/request'
 import type {
   BinanceContractResearchDetailResponse,
-  BinanceExchangeInfoResponse,
-  BinanceMarkPriceResponse,
   BinanceMarketPageResponse,
-  BinancePriceTickerResponse,
-  BinanceRatioSeriesResponse,
-  BinanceTickerStatsResponse,
   BinanceWeb3HeatRankBoardsResponse,
   BinanceWeb3AddressPnlResponse,
-  BinanceWeb3HeatRankResponse,
-  BinanceWeb3MemeRankResponse,
-  BinanceWeb3SmartMoneyInflowResponse,
-  BinanceWeb3SocialHypeResponse,
   BinanceWeb3TokenAuditResponse,
   BinanceWeb3TokenDynamicResponse,
   BinanceWeb3TokenKlineResponse,
-  BinanceWeb3UnifiedTokenRankResponse,
   CurrentPriceBatchResponse,
   CurrentPriceResponse,
   RealtimeResponse,
@@ -30,22 +20,11 @@ import type {
   MarketSymbolSearchResponse,
   GetBinanceMarketContractDetailQueryParams,
   GetBinanceMarketPageQueryParams,
-  GetBinanceSpotPriceQueryParams,
-  GetBinanceSpotTicker24hrQueryParams,
-  GetBinanceUsdmMarkPriceQueryParams,
-  GetBinanceUsdmTicker24hrQueryParams,
-  GetBinanceUsdmTopTraderAccountsQueryParams,
-  GetBinanceUsdmTopTraderPositionsQueryParams,
   GetBinanceWeb3AddressPnlRankQueryParams,
   GetBinanceWeb3HeatRankBoardsQueryParams,
-  GetBinanceWeb3HeatRankQueryParams,
-  GetBinanceWeb3MemeRankQueryParams,
-  GetBinanceWeb3SmartMoneyInflowQueryParams,
-  GetBinanceWeb3SocialHypeQueryParams,
   GetBinanceWeb3TokenAuditQueryParams,
   GetBinanceWeb3TokenDynamicQueryParams,
   GetBinanceWeb3TokenKlineQueryParams,
-  GetBinanceWeb3UnifiedTokenRankQueryParams,
   GetCurrentPriceBatchQueryParams,
   GetCurrentPriceQueryParams,
   GetIndexHistoryQueryParams,
@@ -145,10 +124,6 @@ export const marketIndexApi = {
 }
 
 export const binanceMarketApi = {
-  getBinanceSpotTicker24h(params: GetBinanceSpotTicker24hrQueryParams = {}): Promise<BinanceTickerStatsResponse> {
-    return apiGet('get_binance_spot_ticker_24hr', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
   getBinanceMarketContractDetail(params: GetBinanceMarketContractDetailQueryParams): Promise<BinanceContractResearchDetailResponse> {
     return apiGet('get_binance_market_contract_detail', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
   },
@@ -156,51 +131,11 @@ export const binanceMarketApi = {
   getBinanceMarketPage(params: GetBinanceMarketPageQueryParams = {}): Promise<BinanceMarketPageResponse> {
     return apiGet('get_binance_market_page', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
   },
-
-  getBinanceSpotPrice(params: GetBinanceSpotPriceQueryParams = {}): Promise<BinancePriceTickerResponse> {
-    return apiGet('get_binance_spot_price', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
-  getBinanceUsdmTicker24h(params: GetBinanceUsdmTicker24hrQueryParams = {}): Promise<BinanceTickerStatsResponse> {
-    return apiGet('get_binance_usdm_ticker_24hr', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
-  getBinanceUsdmMarkPrice(params: GetBinanceUsdmMarkPriceQueryParams = {}): Promise<BinanceMarkPriceResponse> {
-    return apiGet('get_binance_usdm_mark_price', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
-  getBinanceUsdmTopTraderAccounts(params: GetBinanceUsdmTopTraderAccountsQueryParams): Promise<BinanceRatioSeriesResponse> {
-    return apiGet('get_binance_usdm_top_trader_accounts', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
-  getBinanceUsdmTopTraderPositions(params: GetBinanceUsdmTopTraderPositionsQueryParams): Promise<BinanceRatioSeriesResponse> {
-    return apiGet('get_binance_usdm_top_trader_positions', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
 }
 
 export const binanceWeb3Api = {
-  getBinanceWeb3SocialHype(params: GetBinanceWeb3SocialHypeQueryParams): Promise<BinanceWeb3SocialHypeResponse> {
-    return apiGet('get_binance_web3_social_hype', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
-  getBinanceWeb3UnifiedTokenRank(params: GetBinanceWeb3UnifiedTokenRankQueryParams): Promise<BinanceWeb3UnifiedTokenRankResponse> {
-    return apiGet('get_binance_web3_unified_token_rank', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
-  getBinanceWeb3SmartMoneyInflow(params: GetBinanceWeb3SmartMoneyInflowQueryParams): Promise<BinanceWeb3SmartMoneyInflowResponse> {
-    return apiGet('get_binance_web3_smart_money_inflow', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
-  getBinanceWeb3MemeRank(params: GetBinanceWeb3MemeRankQueryParams = {}): Promise<BinanceWeb3MemeRankResponse> {
-    return apiGet('get_binance_web3_meme_rank', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
   getBinanceWeb3AddressPnlRank(params: GetBinanceWeb3AddressPnlRankQueryParams): Promise<BinanceWeb3AddressPnlResponse> {
     return apiGet('get_binance_web3_address_pnl_rank', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
-  },
-
-  getBinanceWeb3HeatRank(params: GetBinanceWeb3HeatRankQueryParams = {}): Promise<BinanceWeb3HeatRankResponse> {
-    return apiGet('get_binance_web3_heat_rank', { query: params, timeout: MARKET_API_TIMEOUT_MS.externalMarket })
   },
 
   getBinanceWeb3HeatRankBoards(params: GetBinanceWeb3HeatRankBoardsQueryParams = {}): Promise<BinanceWeb3HeatRankBoardsResponse> {

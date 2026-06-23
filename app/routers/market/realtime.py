@@ -4,16 +4,14 @@ import asyncio
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 
 from app.dependencies import runtime_dependency
-from app.router_ports.market import MarketQueryPort, MarketWebSocketPort
-from app.runtime_refs import MARKET_QUERY_APP_SERVICE, MARKET_WEBSOCKET_SERVICE
 from app.contracts.dto.market import RealtimeResponse
 from config import settings
 from utils.logger import logger
 
 
 router = APIRouter(tags=["Market Data"])
-market_query_dependency = runtime_dependency(MARKET_QUERY_APP_SERVICE)
-market_websocket_dependency = runtime_dependency(MARKET_WEBSOCKET_SERVICE)
+market_query_dependency = runtime_dependency("market_query_service")
+market_websocket_dependency = runtime_dependency("market_websocket_service")
 
 
 @router.get("/realtime", response_model=RealtimeResponse)
@@ -21,7 +19,7 @@ async def get_realtime_analysis(
     symbol: str = Query(..., description="交易对，如 BTC/USDT"),
     timeframe: str | None = Query(default=None),
     limit: int | None = Query(default=None, ge=1, le=settings.API_MAX_LIMIT),
-    service: MarketQueryPort = Depends(market_query_dependency),
+    service = Depends(market_query_dependency),
 ):
     return await service.get_realtime(
         symbol=symbol,
@@ -33,8 +31,8 @@ async def get_realtime_analysis(
 @router.websocket("/ws/realtime")
 async def websocket_realtime(
     websocket: WebSocket,
-    service: MarketQueryPort = Depends(market_query_dependency),
-    websocket_service: MarketWebSocketPort = Depends(market_websocket_dependency),
+    service = Depends(market_query_dependency),
+    websocket_service = Depends(market_websocket_dependency),
 ):
     await websocket.accept()
     try:

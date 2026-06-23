@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Literal, Mapping, TypeVar
+from dataclasses import dataclass
+from typing import Any, Literal
 
-from app.runtime_refs import RuntimeServiceRef
+from config import settings
 
 
 RuntimeRole = Literal["all", "api", "background"]
 RuntimeTarget = Literal["api", "background"]
-TService = TypeVar("TService")
-
 
 RUNTIME_ROLE_TARGETS: dict[RuntimeRole, tuple[RuntimeTarget, ...]] = {
     "all": ("api", "background"),
@@ -28,27 +26,237 @@ def runtime_role_has_target(role: RuntimeRole, target: RuntimeTarget) -> bool:
 
 @dataclass(slots=True)
 class AppRuntimeServices:
-    _services: dict[RuntimeServiceRef, Any] = field(default_factory=dict)
+    database_runtime: Any
+    cache_service: Any
+    exchange_gateway: Any | None = None
+    kline_store: Any | None = None
+    market_data_service: Any | None = None
+    realtime_service: Any | None = None
+    market_indicator_repository: Any | None = None
+    dli_cache: Any | None = None
+    indicator_service: Any | None = None
+    market_query_service: Any | None = None
+    market_insight_service: Any | None = None
+    market_websocket_service: Any | None = None
+    index_data_service: Any | None = None
+    binance_market_research_store: Any | None = None
+    binance_market_intel: Any | None = None
+    binance_market_snapshot: Any | None = None
+    binance_web3_ranks: Any | None = None
+    binance_web3_heat_ranks: Any | None = None
+    binance_web3_tokens: Any | None = None
+    sentiment_api_client: Any | None = None
+    sentiment_repository: Any | None = None
+    sentiment_service: Any | None = None
+    dca_service: Any | None = None
+    pair_compare_service: Any | None = None
+    tools_app_service: Any | None = None
+    currency_rate_service: Any | None = None
+    llm_config_service: Any | None = None
+    fred_api_config_service: Any | None = None
+    market_scheduler_runtime: Any | None = None
 
-    @classmethod
-    def empty(cls) -> AppRuntimeServices:
-        return cls()
-
-    @classmethod
-    def from_entries(cls, entries: Mapping[RuntimeServiceRef, Any]) -> AppRuntimeServices:
-        services = cls.empty()
-        for ref, service in entries.items():
-            services.set_service(ref, service)
-        return services
-
-    def get_service(self, ref: RuntimeServiceRef[TService]) -> TService | None:
-        return self._services.get(ref)
-
-    def set_service(self, ref: RuntimeServiceRef[TService], service: TService) -> None:
-        self._services[ref] = service
-
-    def require_service(self, ref: RuntimeServiceRef[TService]) -> TService:
-        service = self.get_service(ref)
+    def require(self, name: str) -> Any:
+        service = getattr(self, name, None)
         if service is None:
-            raise RuntimeError(f"Runtime service is not initialized: {ref.key}")
+            raise RuntimeError(f"Runtime service is not initialized: {name}")
         return service
+
+    def dispose(self) -> None:
+        self.database_runtime.dispose()
+
+
+API_REQUIRED_SERVICES = (
+    "database_runtime",
+    "cache_service",
+    "exchange_gateway",
+    "kline_store",
+    "market_data_service",
+    "realtime_service",
+    "market_indicator_repository",
+    "dli_cache",
+    "indicator_service",
+    "market_query_service",
+    "market_insight_service",
+    "market_websocket_service",
+    "index_data_service",
+    "binance_market_research_store",
+    "binance_market_intel",
+    "binance_market_snapshot",
+    "binance_web3_ranks",
+    "binance_web3_heat_ranks",
+    "binance_web3_tokens",
+    "sentiment_api_client",
+    "sentiment_repository",
+    "sentiment_service",
+    "dca_service",
+    "pair_compare_service",
+    "tools_app_service",
+    "currency_rate_service",
+    "llm_config_service",
+    "fred_api_config_service",
+)
+BACKGROUND_REQUIRED_SERVICES = (
+    "database_runtime",
+    "cache_service",
+    "market_indicator_repository",
+    "dli_cache",
+    "market_scheduler_runtime",
+)
+
+
+def _llm_client_factory(llm_config_service):
+    from app.infra.llm_client import LLMClient
+
+    return lambda: LLMClient(llm_config=llm_config_service.read_effective_config())
+
+
+def build_app_runtime_services(role: RuntimeRole | None = None) -> AppRuntimeServices:
+    resolved_role = role or settings.APP_RUNTIME_ROLE
+
+    from app.infra.cache import build_cache_service
+    from app.infra.db import build_database_runtime
+
+    database_runtime = build_database_runtime(settings)
+    cache_service = build_cache_service(settings)
+    services = AppRuntimeServices(database_runtime=database_runtime, cache_service=cache_service)
+
+    if runtime_role_has_target(resolved_role, "background") or runtime_role_has_target(resolved_role, "api"):
+        from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
+        from app.services.market.dli_cache import DliLiquidityCache
+
+        services.market_indicator_repository = MarketIndicatorRepository(database_runtime=database_runtime)
+        services.dli_cache = DliLiquidityCache(cache_service=cache_service)
+
+    if runtime_role_has_target(resolved_role, "api"):
+        from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
+        from app.infra.persistence.market.kline_store import KlineStore
+        from app.infra.persistence.sentiment_repository import SentimentRepository
+        from app.services.currency_service import CurrencyRateService
+        from app.services.fred_api_config_service import FredApiConfigService
+        from app.services.llm_config_service import LlmConfigService
+        from app.services.market.binance_api_support import BinanceApiSupport
+        from app.services.market.binance_market_intel_service import BinanceMarketIntelService
+        from app.services.market.binance_web3_heat_rank_service import BinanceWeb3HeatRankService
+        from app.services.market.binance_web3_rank_gateway import BinanceWeb3RankGateway
+        from app.services.market.binance_web3_tokens import BinanceWeb3TokenService
+        from app.services.market.exchange_gateway import ExchangeGateway
+        from app.services.market.index_data_service import IndexDataService
+        from app.services.market.indicator_service import IndicatorService
+        from app.services.market.insight_app_service import MarketInsightAppService
+        from app.services.market.market_data_service import MarketDataService
+        from app.services.market.query_app_service import MarketQueryAppService
+        from app.services.market.realtime_service import RealtimeService
+        from app.services.market.websocket_service import MarketWebSocketService
+        from app.services.sentiment_client import SentimentApiClient
+        from app.services.sentiment_service import SentimentService
+        from app.services.tools.app_service import ToolsAppService
+        from app.services.tools.dca_service import DCAService
+        from app.services.tools.pair_compare_service import PairCompareService
+
+        services.exchange_gateway = ExchangeGateway(exchange_id=settings.EXCHANGE_ID)
+        services.kline_store = KlineStore(database_runtime=database_runtime)
+        services.market_data_service = MarketDataService(
+            exchange_gateway=services.exchange_gateway,
+            kline_store=services.kline_store,
+            cache_service=cache_service,
+        )
+        services.realtime_service = RealtimeService()
+        services.indicator_service = IndicatorService(
+            repository=services.require("market_indicator_repository"),
+            dli_cache=services.require("dli_cache"),
+        )
+        services.currency_rate_service = CurrencyRateService()
+        services.llm_config_service = LlmConfigService()
+        services.fred_api_config_service = FredApiConfigService()
+        services.binance_market_research_store = BinanceMarketResearchStore(database_runtime=database_runtime)
+        services.binance_market_intel = BinanceMarketIntelService(
+            research_store=services.binance_market_research_store,
+            cache_service=cache_service,
+        )
+        services.binance_market_snapshot = services.binance_market_intel.snapshot_service
+        services.market_query_service = MarketQueryAppService(
+            market_data_service=services.market_data_service,
+            realtime_service=services.realtime_service,
+            binance_snapshot_service=services.binance_market_snapshot,
+            llm_client_factory=_llm_client_factory(services.llm_config_service),
+        )
+        services.market_insight_service = MarketInsightAppService(
+            indicator_service=services.indicator_service,
+            market_query_service=services.market_query_service,
+            llm_client_factory=_llm_client_factory(services.llm_config_service),
+        )
+        services.market_websocket_service = MarketWebSocketService()
+        services.index_data_service = IndexDataService(kline_store=services.kline_store)
+        services.binance_web3_ranks = BinanceWeb3RankGateway(
+            BinanceApiSupport(
+                base_url=settings.BINANCE_WEB3_BASE_URL,
+                cache_namespace="binance:web3",
+                user_agent="binance-web3/2.1 (Skill)",
+                cache_service=cache_service,
+            )
+        )
+        services.binance_web3_heat_ranks = BinanceWeb3HeatRankService(services.binance_web3_ranks)
+        services.binance_web3_tokens = BinanceWeb3TokenService(
+            web3_client=BinanceApiSupport(
+                base_url=settings.BINANCE_WEB3_BASE_URL,
+                cache_namespace="binance:web3",
+                user_agent="binance-web3/2.1 (Skill)",
+                cache_service=cache_service,
+            ),
+            kline_client=BinanceApiSupport(
+                base_url="https://dquery.sintral.io",
+                cache_namespace="binance:web3:kline",
+                user_agent="binance-web3/1.1 (Skill)",
+                cache_service=cache_service,
+            ),
+            kline_store=services.kline_store,
+        )
+        services.sentiment_api_client = SentimentApiClient(settings.SENTIMENT_API_URL)
+        services.sentiment_repository = SentimentRepository(database_runtime=database_runtime)
+        services.sentiment_service = SentimentService(
+            client=services.sentiment_api_client,
+            repository=services.sentiment_repository,
+        )
+        services.dca_service = DCAService(
+            market_data_service=services.market_data_service,
+            sentiment_service=services.sentiment_service,
+            index_data_service=services.index_data_service,
+        )
+        services.pair_compare_service = PairCompareService(
+            market_data_service=services.market_data_service,
+            index_data_service=services.index_data_service,
+        )
+        services.tools_app_service = ToolsAppService(
+            dca_service=services.dca_service,
+            pair_compare_service=services.pair_compare_service,
+            cache_service=cache_service,
+        )
+
+    if runtime_role_has_target(resolved_role, "background"):
+        from app.infra.persistence.data_retention import cleanup_old_data
+        from app.services.market_scheduler_runtime import MarketSchedulerRuntime
+
+        services.market_scheduler_runtime = MarketSchedulerRuntime(
+            indicator_repository=services.require("market_indicator_repository"),
+            cleanup_old_data=lambda: cleanup_old_data(database_runtime),
+            dli_cache=services.require("dli_cache"),
+        )
+
+    validate_runtime_services(services, resolved_role)
+    return services
+
+
+def missing_required_services(services: AppRuntimeServices, role: RuntimeRole = "all") -> list[str]:
+    required = []
+    if runtime_role_has_target(role, "api"):
+        required.extend(API_REQUIRED_SERVICES)
+    if runtime_role_has_target(role, "background"):
+        required.extend(BACKGROUND_REQUIRED_SERVICES)
+    return [name for name in dict.fromkeys(required) if getattr(services, name, None) is None]
+
+
+def validate_runtime_services(services: AppRuntimeServices, role: RuntimeRole = "all") -> None:
+    missing = missing_required_services(services, role)
+    if missing:
+        raise RuntimeError(f"Runtime services missing: {', '.join(missing)}")

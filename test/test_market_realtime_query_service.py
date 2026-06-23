@@ -1,6 +1,5 @@
 import pytest
 
-from app.domain.market.constants import DEFAULT_ATR_PERIOD, DEFAULT_VOLATILITY_PERIOD
 from app.services.market.realtime_query_service import MarketRealtimeQueryService
 from app.services.market.realtime_service import MarketSnapshot, RealtimeService
 
@@ -15,9 +14,6 @@ class RecordingRealtimeService:
         symbol,
         timeframe,
         limit,
-        *,
-        atr_period,
-        volatility_period,
     ):
         self.calls.append(
             {
@@ -25,8 +21,6 @@ class RecordingRealtimeService:
                 "symbol": symbol,
                 "timeframe": timeframe,
                 "limit": limit,
-                "atr_period": atr_period,
-                "volatility_period": volatility_period,
             }
         )
         return MarketSnapshot(kline_data=[[1, 2, 3, 1, 2, 10]], indicators={})
@@ -48,7 +42,7 @@ class FakeMarketDataService:
 
 
 @pytest.mark.asyncio
-async def test_load_snapshot_resolves_default_indicator_periods():
+async def test_load_snapshot_delegates_request_without_indicator_period_overrides():
     realtime_service = RecordingRealtimeService()
     market_data_service = object()
     service = MarketRealtimeQueryService(
@@ -65,8 +59,6 @@ async def test_load_snapshot_resolves_default_indicator_periods():
             "symbol": "BTC/USDT",
             "timeframe": "1d",
             "limit": 100,
-            "atr_period": DEFAULT_ATR_PERIOD,
-            "volatility_period": DEFAULT_VOLATILITY_PERIOD,
         }
     ]
 

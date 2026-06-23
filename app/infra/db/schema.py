@@ -11,28 +11,6 @@ from utils.time_utils import utc_now_naive
 Base = declarative_base()
 
 
-class FundingRate(Base):
-    """合约资金费率历史缓存"""
-    __tablename__ = 'funding_rates'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    exchange = Column(String(20), nullable=False, default='binance')
-    market_type = Column(String(20), nullable=False, default='usdm')
-    symbol = Column(String(30), nullable=False)
-    funding_time = Column(DateTime, nullable=False)
-    funding_rate = Column(Float, nullable=False)
-    mark_price = Column(Float, nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive, nullable=False)
-
-    __table_args__ = (
-        Index('ix_funding_rate_symbol_time', 'exchange', 'market_type', 'symbol', 'funding_time', unique=True),
-        Index('ix_funding_rate_symbol_lookup', 'symbol', 'funding_time'),
-    )
-
-    def __repr__(self):
-        return f"<FundingRate(symbol={self.symbol}, funding_time={self.funding_time}, funding_rate={self.funding_rate})>"
-
-
 class BinanceMarketResearchSeries(Base):
     """Binance historical research series persisted after normalization."""
     __tablename__ = 'binance_market_research_series'

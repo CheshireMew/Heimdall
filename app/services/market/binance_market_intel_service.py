@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from config import settings
-from app.services.persistence_ports import CacheServicePort, BinanceMarketResearchStorePort, FundingRateStorePort
+from app.services.persistence_ports import CacheServicePort, BinanceMarketResearchStorePort
 
 from .binance_api_support import BinanceApiSupport
 from .binance_market_page_service import BinanceMarketPageService
@@ -14,7 +14,6 @@ class BinanceMarketIntelService:
         self,
         *,
         research_store: BinanceMarketResearchStorePort,
-        funding_rate_store: FundingRateStorePort,
         snapshot_service: BinanceMarketSnapshotService | None = None,
         cache_service: CacheServicePort | None = None,
     ) -> None:
@@ -34,7 +33,6 @@ class BinanceMarketIntelService:
         self.usdm = BinanceUsdmMarketService(
             usdm_client,
             research_store=research_store,
-            funding_rate_store=funding_rate_store,
         )
         self.snapshot_service = snapshot_service or BinanceMarketSnapshotService(
             spot_ticker_loader=self.spot.get_ticker_24hr,

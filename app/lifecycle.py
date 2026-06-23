@@ -5,8 +5,7 @@ from contextlib import asynccontextmanager
 
 from app.background_runtime import BackgroundRuntimeController, BackgroundRuntimeStatus
 from app.runtime import AppRuntimeServices, RuntimeRole, runtime_role_has_target
-from app.runtime_builder import build_app_runtime_services
-from app.runtime_refs import INFRA_DATABASE_RUNTIME
+from app.runtime import build_app_runtime_services
 from config import settings
 
 
@@ -23,7 +22,7 @@ def _init_db(database_runtime) -> None:
 
 
 async def _init_db_async(app) -> None:
-    database_runtime = app.state.runtime_services.require_service(INFRA_DATABASE_RUNTIME)
+    database_runtime = app.state.runtime_services.require("database_runtime")
     await asyncio.to_thread(_init_db, database_runtime)
 
 
@@ -48,9 +47,8 @@ async def _shutdown_background_services(app) -> None:
 
 def _dispose_runtime_services(app) -> None:
     runtime_services = getattr(app.state, "runtime_services", None)
-    database_runtime = runtime_services.get_service(INFRA_DATABASE_RUNTIME) if runtime_services is not None else None
-    if database_runtime is not None:
-        database_runtime.dispose()
+    if runtime_services is not None:
+        runtime_services.dispose()
 
 
 async def _cancel_task(task: asyncio.Task | None) -> None:

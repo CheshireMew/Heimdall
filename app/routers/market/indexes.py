@@ -5,8 +5,6 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.dependencies import runtime_dependency
-from app.router_ports.market import IndexDataPort
-from app.runtime_refs import MARKET_INDEX_DATA_SERVICE
 from app.rate_limit import limiter
 from app.contracts.dto.market import MarketIndexHistoryResponse, MarketIndexResponse
 from app.contracts.market_history import build_ohlcv_point_payloads
@@ -14,7 +12,7 @@ from config import settings
 
 
 router = APIRouter(tags=["Market Data"])
-index_data_dependency = runtime_dependency(MARKET_INDEX_DATA_SERVICE)
+index_data_dependency = runtime_dependency("index_data_service")
 
 
 def _index_response(record: Any) -> MarketIndexResponse:
@@ -50,7 +48,7 @@ def _index_history_response(record: Any) -> MarketIndexHistoryResponse:
 
 @router.get("/indexes", response_model=list[MarketIndexResponse])
 async def list_market_indexes(
-    service: IndexDataPort = Depends(index_data_dependency),
+    service = Depends(index_data_dependency),
 ):
     return [_index_response(record) for record in await service.list_indexes_async()]
 
@@ -63,7 +61,7 @@ async def get_index_history(
     timeframe: str = Query("1d", description="第一版仅支持 1d"),
     start_date: str = Query("2010-01-01", description="Start Date YYYY-MM-DD"),
     end_date: str | None = Query(None, description="End Date YYYY-MM-DD"),
-    service: IndexDataPort = Depends(index_data_dependency),
+    service = Depends(index_data_dependency),
 ):
     return _index_history_response(
         await service.get_history_async(
@@ -75,16 +73,6 @@ async def get_index_history(
     )
 
 
-@router.get("/indexes/latest", response_model=MarketIndexHistoryResponse)
-@limiter.limit(settings.RATE_LIMIT_HISTORY)
-async def get_latest_index(
-    request: Request,
-    symbol: str = Query(..., description="指数 symbol, 如 US_SP500 或 CN_CSI300"),
-    service: IndexDataPort = Depends(index_data_dependency),
-):
-    return _index_history_response(await service.get_latest_async(symbol=symbol))
-
-
 @router.get("/indexes/pricing/history", response_model=MarketIndexHistoryResponse)
 @limiter.limit(settings.RATE_LIMIT_HISTORY)
 async def get_index_pricing_history(
@@ -93,7 +81,7 @@ async def get_index_pricing_history(
     timeframe: str = Query("1d", description="第一版仅支持 1d"),
     start_date: str = Query("2010-01-01", description="Start Date YYYY-MM-DD"),
     end_date: str | None = Query(None, description="End Date YYYY-MM-DD"),
-    service: IndexDataPort = Depends(index_data_dependency),
+    service = Depends(index_data_dependency),
 ):
     return _index_history_response(
         await service.get_pricing_history_async(
@@ -105,11 +93,3 @@ async def get_index_pricing_history(
     )
 
 
-@router.get("/indexes/pricing/latest", response_model=MarketIndexHistoryResponse)
-@limiter.limit(settings.RATE_LIMIT_HISTORY)
-async def get_latest_index_pricing(
-    request: Request,
-    symbol: str = Query(..., description="指数 symbol, 如 US_SP500 或 CN_CSI300"),
-    service: IndexDataPort = Depends(index_data_dependency),
-):
-    return _index_history_response(await service.get_latest_pricing_async(symbol=symbol))

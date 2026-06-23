@@ -7,7 +7,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from app.runtime import AppRuntimeServices, RuntimeRole, runtime_role_has_target
-from app.runtime_builder import background_start_definitions, background_stop_definitions, validate_runtime_services
+from app.runtime import validate_runtime_services
 from config import settings
 
 
@@ -127,10 +127,7 @@ class BackgroundRuntimeController:
     async def _bootstrap(self) -> None:
         try:
             validate_runtime_services(self.runtime_services, "background")
-            for definition in background_start_definitions():
-                service = self.runtime_services.require_service(definition.ref)
-                assert definition.background_start is not None
-                await definition.background_start(service, self.runtime_services)
+            self.runtime_services.require("market_scheduler_runtime").start()
             self._state = BackgroundRuntimeState(status=BackgroundRuntimeStatus.READY, owner=True)
         except asyncio.CancelledError:
             raise
@@ -140,9 +137,6 @@ class BackgroundRuntimeController:
             _logger().error(f"后台运行时启动失败: {exc}", exc_info=True)
 
     async def _shutdown_runtime_services(self) -> None:
-        for definition in background_stop_definitions():
-            service = self.runtime_services.get_service(definition.ref)
-            if service is None:
-                continue
-            assert definition.background_stop is not None
-            await definition.background_stop(service, self.runtime_services)
+        service = self.runtime_services.market_scheduler_runtime
+        if service is not None:
+            await service.shutdown()

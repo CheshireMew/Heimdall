@@ -13,20 +13,6 @@ import app.web as web_module
 import app.background_runtime as background_runtime_module
 from app.exceptions import unhandled_exception_handler
 from app.runtime import AppRuntimeServices
-from app.runtime_refs import (
-    INFRA_CACHE_SERVICE,
-    INFRA_DATABASE_RUNTIME,
-    INFRA_EXCHANGE_GATEWAY,
-    INFRA_KLINE_STORE,
-    MARKET_BINANCE_MARKET_INTEL,
-    MARKET_BINANCE_MARKET_RESEARCH_STORE,
-    MARKET_BINANCE_MARKET_SNAPSHOT,
-    MARKET_FUNDING_RATE_STORE,
-    MARKET_DLI_CACHE,
-    MARKET_INDICATOR_REPOSITORY,
-    MARKET_MARKET_DATA_SERVICE,
-    SYSTEM_MARKET_SCHEDULER_RUNTIME,
-)
 
 
 @pytest.mark.asyncio
@@ -87,20 +73,19 @@ async def test_lifespan_monitors_and_stops_managers(monkeypatch):
     monkeypatch.setattr(
         lifecycle_module,
         "build_app_runtime_services",
-        lambda _role=None: AppRuntimeServices.from_entries({
-            INFRA_EXCHANGE_GATEWAY: object(),
-            INFRA_DATABASE_RUNTIME: FakeDatabaseRuntime(),
-            INFRA_KLINE_STORE: object(),
-            INFRA_CACHE_SERVICE: object(),
-            MARKET_MARKET_DATA_SERVICE: object(),
-            MARKET_INDICATOR_REPOSITORY: object(),
-            MARKET_DLI_CACHE: object(),
-            MARKET_FUNDING_RATE_STORE: object(),
-            MARKET_BINANCE_MARKET_SNAPSHOT: snapshot,
-            MARKET_BINANCE_MARKET_INTEL: binance_market,
-            MARKET_BINANCE_MARKET_RESEARCH_STORE: object(),
-            SYSTEM_MARKET_SCHEDULER_RUNTIME: FakeSchedulerRuntime(),
-        }),
+        lambda _role=None: AppRuntimeServices(
+            database_runtime=FakeDatabaseRuntime(),
+            cache_service=object(),
+            exchange_gateway=object(),
+            kline_store=object(),
+            market_data_service=object(),
+            market_indicator_repository=object(),
+            dli_cache=object(),
+            binance_market_snapshot=snapshot,
+            binance_market_intel=binance_market,
+            binance_market_research_store=object(),
+            market_scheduler_runtime=FakeSchedulerRuntime(),
+        ),
     )
     monkeypatch.setattr(
         background_runtime_module._ProcessFileLock, "acquire", lambda self: True

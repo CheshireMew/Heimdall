@@ -5,18 +5,16 @@ import time
 
 import pytest
 
-from app.contracts.dto.binance.common import BinanceKlineResponse, BinanceTickerStatsResponse
+from app.contracts.dto.binance.common import BinanceTickerStatsResponse
 from app.contracts.dto.binance.usdm import BinanceMarkPriceResponse, BinanceOpenInterestStatsResponse
 from app.services.market import binance_contract_oi_enricher as oi_enricher_module
 from app.services.market.binance_market_intel_service import BinanceMarketIntelService
 from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
-from app.infra.persistence.market.funding_rate_store import FundingRateStore
 
 
 def make_market_intel_service(installed_database_runtime) -> BinanceMarketIntelService:
     return BinanceMarketIntelService(
         research_store=BinanceMarketResearchStore(database_runtime=installed_database_runtime),
-        funding_rate_store=FundingRateStore(database_runtime=installed_database_runtime),
     )
 
 
@@ -80,10 +78,10 @@ async def test_market_breakout_monitor_unifies_and_scores_candidates(monkeypatch
         })
 
     async def fake_spot_klines(**kwargs):
-        return BinanceKlineResponse.model_validate({"exchange": "binance", "market": "spot", "symbol": "DOGEUSDT", "interval": "15m", "items": make_breakout_klines(0.12)})
+        return {"exchange": "binance", "market": "spot", "symbol": "DOGEUSDT", "interval": "15m", "items": make_breakout_klines(0.12)}
 
     async def fake_usdm_klines(**kwargs):
-        return BinanceKlineResponse.model_validate({"exchange": "binance", "market": "usdm", "symbol": "SUIUSDT", "interval": "15m", "items": make_breakout_klines(1.35)})
+        return {"exchange": "binance", "market": "usdm", "symbol": "SUIUSDT", "interval": "15m", "items": make_breakout_klines(1.35)}
 
     monkeypatch.setattr(service.spot, "get_ticker_24hr", fake_spot_ticker_24hr)
     monkeypatch.setattr(service.usdm, "get_ticker_24hr", fake_usdm_ticker_24hr)
@@ -133,7 +131,7 @@ async def test_market_page_payload_returns_partial_data_when_a_source_fails(monk
         })
 
     async def fake_spot_klines(**kwargs):
-        return BinanceKlineResponse.model_validate({"exchange": "binance", "market": "spot", "symbol": "DOGEUSDT", "interval": "15m", "items": make_breakout_klines(0.12)})
+        return {"exchange": "binance", "market": "spot", "symbol": "DOGEUSDT", "interval": "15m", "items": make_breakout_klines(0.12)}
 
     monkeypatch.setattr(service.spot, "get_ticker_24hr", fake_spot_ticker_24hr)
     monkeypatch.setattr(service.usdm, "get_ticker_24hr", fake_usdm_ticker_24hr)
@@ -237,13 +235,13 @@ async def test_market_page_request_is_not_blocked_by_background_oi_cache_reads(m
         })
 
     async def fake_klines(**kwargs):
-        return BinanceKlineResponse.model_validate({
+        return {
             "exchange": "binance",
             "market": "usdm",
             "symbol": kwargs.get("symbol", "AUSDT"),
             "interval": kwargs.get("interval", "15m"),
             "items": make_breakout_klines(1.0),
-        })
+        }
 
     def slow_cached_open_interest_stats(**kwargs):
         loop.call_soon_threadsafe(cached_read_started.set)
@@ -309,13 +307,13 @@ async def test_market_page_payload_reuses_background_snapshot(monkeypatch, insta
     async def fake_spot_klines(**kwargs):
         nonlocal kline_calls
         kline_calls += 1
-        return BinanceKlineResponse.model_validate({
+        return {
             "exchange": "binance",
             "market": "spot",
             "symbol": "DOGEUSDT",
             "interval": kwargs.get("interval", "15m"),
             "items": make_breakout_klines(0.12),
-        })
+        }
 
     monkeypatch.setattr(service.spot, "get_ticker_24hr", fake_spot_ticker_24hr)
     monkeypatch.setattr(service.usdm, "get_ticker_24hr", fake_usdm_ticker_24hr)
@@ -381,13 +379,13 @@ async def test_market_page_payload_returns_prebuilt_sorted_boards(monkeypatch, i
         return BinanceOpenInterestStatsResponse.model_validate({"exchange": "binance", "market": "usdm", "items": items})
 
     async def fake_klines(**kwargs):
-        return BinanceKlineResponse.model_validate({
+        return {
             "exchange": "binance",
             "market": kwargs.get("market", "spot"),
             "symbol": kwargs.get("symbol", "HIGHUSDT"),
             "interval": kwargs.get("interval", "15m"),
             "items": make_breakout_klines(1.0),
-        })
+        }
 
     monkeypatch.setattr(service.spot, "get_ticker_24hr", fake_spot_ticker_24hr)
     monkeypatch.setattr(service.usdm, "get_ticker_24hr", fake_usdm_ticker_24hr)

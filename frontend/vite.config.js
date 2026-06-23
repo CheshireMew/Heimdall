@@ -55,10 +55,7 @@ export default defineConfig({
             ) {
               return 'vue-vendor'
             }
-            if (
-              id.includes('@heroicons') ||
-              id.includes('lucide-vue-next')
-            ) {
+            if (id.includes('@heroicons')) {
               return 'icons-vendor'
             }
             return 'vendor'

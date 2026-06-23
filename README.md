@@ -217,8 +217,6 @@ npm run build:frontend
 
 运行时产生的日志和临时文件默认写入项目根目录下的 `.heimdall_runtime/`。这个目录已被 Git 忽略；如需迁移到其他磁盘，可在环境变量中显式配置 `RUNTIME_ROOT_DIR`、`LOG_DIR` 和 `TEMP_DIR`。
 
-原回测、策略编辑、因子研究、模拟盘和 Freqtrade 相关代码已归档到 `archived/research_features/`。该目录只用于保留上下文，不再参与当前应用启动、路由注册或前端导航。
-
 ## 🔧 高级功能
 
 - [x] Web Dashboard 可视化界面

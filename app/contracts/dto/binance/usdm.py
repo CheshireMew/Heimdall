@@ -20,43 +20,6 @@ class BinanceMarkPriceResponse(BaseModel):
     items: list[BinanceMarkPriceItemResponse] = Field(default_factory=list)
 
 
-class BinanceFundingInfoItemResponse(BaseModel):
-    symbol: str | None = None
-    adjusted_funding_rate_cap: float | None = None
-    adjusted_funding_rate_floor: float | None = None
-    funding_interval_hours: int | None = None
-    disclaimer: bool = False
-
-
-class BinanceFundingInfoResponse(BaseModel):
-    exchange: str
-    market: str
-    items: list[BinanceFundingInfoItemResponse] = Field(default_factory=list)
-
-
-class BinanceFundingHistoryItemResponse(BaseModel):
-    symbol: str | None = None
-    funding_rate: float | None = None
-    mark_price: float | None = None
-    funding_time: int | None = None
-
-
-class BinanceFundingHistoryListResponse(BaseModel):
-    exchange: str
-    market: str
-    items: list[BinanceFundingHistoryItemResponse] = Field(default_factory=list)
-
-
-class BinanceOpenInterestSnapshotResponse(BaseModel):
-    exchange: str
-    market: str
-    symbol: str | None = None
-    pair: str | None = None
-    open_interest: float | None = None
-    contract_type: str | None = None
-    time: int | None = None
-
-
 class BinanceOpenInterestStatItemResponse(BaseModel):
     symbol: str | None = None
     pair: str | None = None

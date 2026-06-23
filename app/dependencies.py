@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from starlette.requests import HTTPConnection
 
 from app.runtime import AppRuntimeServices
-from app.runtime_refs import RuntimeServiceRef
 
 TService = TypeVar("TService")
+
 
 def get_runtime_services(connection: HTTPConnection) -> AppRuntimeServices:
     runtime_services = getattr(connection.app.state, "runtime_services", None)
@@ -17,10 +17,9 @@ def get_runtime_services(connection: HTTPConnection) -> AppRuntimeServices:
     return cast(AppRuntimeServices, runtime_services)
 
 
-def runtime_dependency(ref: RuntimeServiceRef[TService]) -> Callable[[HTTPConnection], TService]:
-    def dependency(connection: HTTPConnection) -> TService:
-        runtime_services = get_runtime_services(connection)
-        return runtime_services.require_service(ref)
+def runtime_dependency(name: str) -> Callable[[HTTPConnection], Any]:
+    def dependency(connection: HTTPConnection) -> Any:
+        return get_runtime_services(connection).require(name)
 
-    dependency.__name__ = f"runtime_dependency__{ref.section}__{ref.name}"
+    dependency.__name__ = f"runtime_dependency__{name}"
     return dependency

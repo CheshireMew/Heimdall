@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from app.domain.market.index_catalog import (
     INDEX_CATALOG,
@@ -63,7 +63,7 @@ class MarketIndexHistoryRecord:
 class IndexDataService:
     def __init__(
         self,
-        kline_store: KlineStore,
+        kline_store: KlineStorePort,
         history_sources: IndexHistorySources | None = None,
     ) -> None:
         self.kline_store = kline_store
@@ -171,22 +171,6 @@ class IndexDataService:
                 end_date=end_date,
             )
         )
-
-    def get_latest(self, *, symbol: str) -> MarketIndexHistoryRecord:
-        result = self.get_history(symbol=symbol, timeframe="1d", start_date=self._latest_window_start())
-        latest_data = result.data[-1:] if result.data else []
-        return replace(result, data=latest_data)
-
-    async def get_latest_async(self, *, symbol: str) -> MarketIndexHistoryRecord:
-        return await run_external_io(lambda: self.get_latest(symbol=symbol))
-
-    def get_latest_pricing(self, *, symbol: str) -> MarketIndexHistoryRecord:
-        result = self.get_pricing_history(symbol=symbol, timeframe="1d", start_date=self._latest_window_start())
-        latest_data = result.data[-1:] if result.data else []
-        return replace(result, data=latest_data)
-
-    async def get_latest_pricing_async(self, *, symbol: str) -> MarketIndexHistoryRecord:
-        return await run_external_io(lambda: self.get_latest_pricing(symbol=symbol))
 
     def _get_series_history(
         self,
@@ -361,5 +345,3 @@ class IndexDataService:
     def _to_ms(self, value: datetime) -> int:
         return int(value.timestamp() * 1000)
 
-    def _latest_window_start(self) -> str:
-        return (datetime.now(timezone.utc) - timedelta(days=370)).strftime("%Y-%m-%d")

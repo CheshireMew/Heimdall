@@ -21,51 +21,20 @@ const routeTemplates = {
   get_api_status: "/status",
   get_binance_market_contract_detail: "/binance/market/contract_detail",
   get_binance_market_page: "/binance/market/page",
-  get_binance_spot_agg_trades: "/binance/spot/agg_trades",
-  get_binance_spot_book_ticker: "/binance/spot/book_ticker",
-  get_binance_spot_depth: "/binance/spot/depth",
-  get_binance_spot_exchange_info: "/binance/spot/exchange_info",
-  get_binance_spot_klines: "/binance/spot/klines",
-  get_binance_spot_price: "/binance/spot/price",
-  get_binance_spot_ticker_24hr: "/binance/spot/ticker_24hr",
-  get_binance_spot_ticker_window: "/binance/spot/ticker_window",
-  get_binance_spot_trades: "/binance/spot/trades",
-  get_binance_spot_ui_klines: "/binance/spot/ui_klines",
-  get_binance_usdm_basis: "/binance/futures/usdm/basis",
-  get_binance_usdm_exchange_info: "/binance/futures/usdm/exchange_info",
-  get_binance_usdm_funding_history: "/binance/futures/usdm/funding_history",
-  get_binance_usdm_funding_info: "/binance/futures/usdm/funding_info",
-  get_binance_usdm_long_short_ratio: "/binance/futures/usdm/long_short_ratio",
-  get_binance_usdm_mark_price: "/binance/futures/usdm/mark_price",
-  get_binance_usdm_open_interest: "/binance/futures/usdm/open_interest",
-  get_binance_usdm_open_interest_stats: "/binance/futures/usdm/open_interest_stats",
-  get_binance_usdm_taker_volume: "/binance/futures/usdm/taker_volume",
-  get_binance_usdm_ticker_24hr: "/binance/futures/usdm/ticker_24hr",
-  get_binance_usdm_top_trader_accounts: "/binance/futures/usdm/top_trader_accounts",
-  get_binance_usdm_top_trader_positions: "/binance/futures/usdm/top_trader_positions",
   get_binance_web3_address_pnl_rank: "/binance/web3/address_pnl_rank",
-  get_binance_web3_heat_rank: "/binance/web3/heat_rank",
   get_binance_web3_heat_rank_boards: "/binance/web3/heat_rank_boards",
-  get_binance_web3_meme_rank: "/binance/web3/meme_rank",
-  get_binance_web3_smart_money_inflow: "/binance/web3/smart_money_inflow",
-  get_binance_web3_social_hype: "/binance/web3/social_hype",
   get_binance_web3_token_audit: "/binance/web3/token_audit",
   get_binance_web3_token_dynamic: "/binance/web3/token_dynamic",
   get_binance_web3_token_kline: "/binance/web3/token_kline",
-  get_binance_web3_unified_token_rank: "/binance/web3/unified_token_rank",
   get_config: "/config",
   get_currencies: "/currencies",
-  get_current_funding_rate: "/funding-rate/current",
   get_current_price: "/price/current",
   get_current_price_batch: "/price/current/batch",
   get_dli_liquidity: "/indicators/dli",
   get_fred_api_config: "/fred-api-config",
-  get_funding_rate_history: "/funding-rate/history",
   get_index_history: "/indexes/history",
   get_index_pricing_history: "/indexes/pricing/history",
   get_kline_tail: "/klines/tail",
-  get_latest_index: "/indexes/latest",
-  get_latest_index_pricing: "/indexes/pricing/latest",
   get_latest_klines: "/klines/latest",
   get_llm_config: "/llm-config",
   get_market_full_history: "/full_history",
@@ -73,12 +42,10 @@ const routeTemplates = {
   get_market_history: "/history",
   get_market_indicators: "/indicators",
   get_realtime_analysis: "/realtime",
-  get_technical_metrics: "/technical-metrics",
   get_tools_contract: "/tools/contract",
   get_trade_setup: "/trade-setup",
   list_market_indexes: "/indexes",
   list_market_symbols: "/symbols",
-  sync_funding_rate_history: "/funding-rate/sync",
   update_fred_api_config: "/fred-api-config",
   update_llm_config: "/llm-config",
 } as const
@@ -121,51 +88,20 @@ const endpointQueryContracts = {
   get_api_status: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_market_contract_detail: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_market_page: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_spot_agg_trades: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_spot_book_ticker: {"repeatedKeys": ["symbols"], "aliases": {}} as EndpointQueryContract,
-  get_binance_spot_depth: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_spot_exchange_info: {"repeatedKeys": ["symbols", "permissions"], "aliases": {}} as EndpointQueryContract,
-  get_binance_spot_klines: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_spot_price: {"repeatedKeys": ["symbols"], "aliases": {}} as EndpointQueryContract,
-  get_binance_spot_ticker_24hr: {"repeatedKeys": ["symbols"], "aliases": {}} as EndpointQueryContract,
-  get_binance_spot_ticker_window: {"repeatedKeys": ["symbols"], "aliases": {}} as EndpointQueryContract,
-  get_binance_spot_trades: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_spot_ui_klines: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_usdm_basis: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_usdm_exchange_info: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_usdm_funding_history: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_usdm_funding_info: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_usdm_long_short_ratio: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_usdm_mark_price: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_usdm_open_interest: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_usdm_open_interest_stats: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_usdm_taker_volume: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_usdm_ticker_24hr: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_usdm_top_trader_accounts: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_usdm_top_trader_positions: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_web3_address_pnl_rank: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_web3_heat_rank: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_web3_heat_rank_boards: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_web3_meme_rank: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_web3_smart_money_inflow: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_binance_web3_social_hype: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_web3_token_audit: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_web3_token_dynamic: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_binance_web3_token_kline: {"repeatedKeys": [], "aliases": {"from_time": "from", "to_time": "to"}} as EndpointQueryContract,
-  get_binance_web3_unified_token_rank: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_config: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_currencies: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_current_funding_rate: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_current_price: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_current_price_batch: {"repeatedKeys": ["symbols"], "aliases": {}} as EndpointQueryContract,
   get_dli_liquidity: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_fred_api_config: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_funding_rate_history: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_index_history: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_index_pricing_history: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_kline_tail: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_latest_index: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_latest_index_pricing: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_latest_klines: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_llm_config: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_market_full_history: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
@@ -173,12 +109,10 @@ const endpointQueryContracts = {
   get_market_history: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_market_indicators: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_realtime_analysis: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  get_technical_metrics: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_tools_contract: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   get_trade_setup: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   list_market_indexes: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   list_market_symbols: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
-  sync_funding_rate_history: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   update_fred_api_config: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
   update_llm_config: {"repeatedKeys": [], "aliases": {}} as EndpointQueryContract,
 } as const
@@ -189,51 +123,20 @@ export type ApiRouteResponseMap = {
   get_api_status: MarketTypes.ApiStatusResponse
   get_binance_market_contract_detail: MarketTypes.BinanceContractResearchDetailResponse
   get_binance_market_page: MarketTypes.BinanceMarketPageResponse
-  get_binance_spot_agg_trades: MarketTypes.BinanceTradeListResponse
-  get_binance_spot_book_ticker: MarketTypes.BinanceBookTickerResponse
-  get_binance_spot_depth: MarketTypes.BinanceOrderBookResponse
-  get_binance_spot_exchange_info: MarketTypes.BinanceExchangeInfoResponse
-  get_binance_spot_klines: MarketTypes.BinanceKlineResponse
-  get_binance_spot_price: MarketTypes.BinancePriceTickerResponse
-  get_binance_spot_ticker_24hr: MarketTypes.BinanceTickerStatsResponse
-  get_binance_spot_ticker_window: MarketTypes.BinanceTickerStatsResponse
-  get_binance_spot_trades: MarketTypes.BinanceTradeListResponse
-  get_binance_spot_ui_klines: MarketTypes.BinanceKlineResponse
-  get_binance_usdm_basis: MarketTypes.BinanceBasisResponse
-  get_binance_usdm_exchange_info: MarketTypes.BinanceExchangeInfoResponse
-  get_binance_usdm_funding_history: MarketTypes.BinanceFundingHistoryListResponse
-  get_binance_usdm_funding_info: MarketTypes.BinanceFundingInfoResponse
-  get_binance_usdm_long_short_ratio: MarketTypes.BinanceRatioSeriesResponse
-  get_binance_usdm_mark_price: MarketTypes.BinanceMarkPriceResponse
-  get_binance_usdm_open_interest: MarketTypes.BinanceOpenInterestSnapshotResponse
-  get_binance_usdm_open_interest_stats: MarketTypes.BinanceOpenInterestStatsResponse
-  get_binance_usdm_taker_volume: MarketTypes.BinanceTakerVolumeResponse
-  get_binance_usdm_ticker_24hr: MarketTypes.BinanceTickerStatsResponse
-  get_binance_usdm_top_trader_accounts: MarketTypes.BinanceRatioSeriesResponse
-  get_binance_usdm_top_trader_positions: MarketTypes.BinanceRatioSeriesResponse
   get_binance_web3_address_pnl_rank: MarketTypes.BinanceWeb3AddressPnlResponse
-  get_binance_web3_heat_rank: MarketTypes.BinanceWeb3HeatRankResponse
   get_binance_web3_heat_rank_boards: MarketTypes.BinanceWeb3HeatRankBoardsResponse
-  get_binance_web3_meme_rank: MarketTypes.BinanceWeb3MemeRankResponse
-  get_binance_web3_smart_money_inflow: MarketTypes.BinanceWeb3SmartMoneyInflowResponse
-  get_binance_web3_social_hype: MarketTypes.BinanceWeb3SocialHypeResponse
   get_binance_web3_token_audit: MarketTypes.BinanceWeb3TokenAuditResponse
   get_binance_web3_token_dynamic: MarketTypes.BinanceWeb3TokenDynamicResponse
   get_binance_web3_token_kline: MarketTypes.BinanceWeb3TokenKlineResponse
-  get_binance_web3_unified_token_rank: MarketTypes.BinanceWeb3UnifiedTokenRankResponse
   get_config: ConfigTypes.SystemConfigResponse
   get_currencies: ConfigTypes.CurrencyRatesResponse
-  get_current_funding_rate: MarketTypes.FundingRateSnapshotResponse
   get_current_price: MarketTypes.CurrentPriceResponse
   get_current_price_batch: MarketTypes.CurrentPriceBatchResponse
   get_dli_liquidity: MarketTypes.DliLiquidityResponse
   get_fred_api_config: ConfigTypes.FredApiConfigResponse
-  get_funding_rate_history: MarketTypes.FundingRateHistoryResponse
   get_index_history: MarketTypes.MarketIndexHistoryResponse
   get_index_pricing_history: MarketTypes.MarketIndexHistoryResponse
   get_kline_tail: MarketTypes.KlineTailResponse
-  get_latest_index: MarketTypes.MarketIndexHistoryResponse
-  get_latest_index_pricing: MarketTypes.MarketIndexHistoryResponse
   get_latest_klines: MarketTypes.MarketHistoryResponse
   get_llm_config: ConfigTypes.LlmProviderConfigResponse
   get_market_full_history: MarketTypes.MarketHistoryResponse
@@ -241,12 +144,10 @@ export type ApiRouteResponseMap = {
   get_market_history: MarketTypes.MarketHistoryResponse
   get_market_indicators: Array<MarketTypes.MarketIndicatorResponse>
   get_realtime_analysis: MarketTypes.RealtimeResponse
-  get_technical_metrics: MarketTypes.TechnicalMetricsResponse
   get_tools_contract: ToolsTypes.ToolsPageContractResponse
   get_trade_setup: MarketTypes.TradeSetupResponse
   list_market_indexes: Array<MarketTypes.MarketIndexResponse>
   list_market_symbols: Array<MarketTypes.MarketSymbolSearchResponse>
-  sync_funding_rate_history: MarketTypes.FundingRateSyncResponse
   update_fred_api_config: ConfigTypes.FredApiConfigResponse
   update_llm_config: ConfigTypes.LlmProviderConfigResponse
 }
@@ -257,51 +158,20 @@ export type ApiRouteBodyMap = {
   get_api_status: never
   get_binance_market_contract_detail: never
   get_binance_market_page: never
-  get_binance_spot_agg_trades: never
-  get_binance_spot_book_ticker: never
-  get_binance_spot_depth: never
-  get_binance_spot_exchange_info: never
-  get_binance_spot_klines: never
-  get_binance_spot_price: never
-  get_binance_spot_ticker_24hr: never
-  get_binance_spot_ticker_window: never
-  get_binance_spot_trades: never
-  get_binance_spot_ui_klines: never
-  get_binance_usdm_basis: never
-  get_binance_usdm_exchange_info: never
-  get_binance_usdm_funding_history: never
-  get_binance_usdm_funding_info: never
-  get_binance_usdm_long_short_ratio: never
-  get_binance_usdm_mark_price: never
-  get_binance_usdm_open_interest: never
-  get_binance_usdm_open_interest_stats: never
-  get_binance_usdm_taker_volume: never
-  get_binance_usdm_ticker_24hr: never
-  get_binance_usdm_top_trader_accounts: never
-  get_binance_usdm_top_trader_positions: never
   get_binance_web3_address_pnl_rank: never
-  get_binance_web3_heat_rank: never
   get_binance_web3_heat_rank_boards: never
-  get_binance_web3_meme_rank: never
-  get_binance_web3_smart_money_inflow: never
-  get_binance_web3_social_hype: never
   get_binance_web3_token_audit: never
   get_binance_web3_token_dynamic: never
   get_binance_web3_token_kline: never
-  get_binance_web3_unified_token_rank: never
   get_config: never
   get_currencies: never
-  get_current_funding_rate: never
   get_current_price: never
   get_current_price_batch: never
   get_dli_liquidity: never
   get_fred_api_config: never
-  get_funding_rate_history: never
   get_index_history: never
   get_index_pricing_history: never
   get_kline_tail: never
-  get_latest_index: never
-  get_latest_index_pricing: never
   get_latest_klines: never
   get_llm_config: never
   get_market_full_history: never
@@ -309,12 +179,10 @@ export type ApiRouteBodyMap = {
   get_market_history: never
   get_market_indicators: never
   get_realtime_analysis: never
-  get_technical_metrics: never
   get_tools_contract: never
   get_trade_setup: never
   list_market_indexes: never
   list_market_symbols: never
-  sync_funding_rate_history: never
   update_fred_api_config: ConfigTypes.FredApiConfigUpdateRequest
   update_llm_config: ConfigTypes.LlmProviderConfigUpdateRequest
 }
@@ -325,51 +193,20 @@ export type ApiRouteQueryMap = {
   get_api_status: never
   get_binance_market_contract_detail: MarketTypes.GetBinanceMarketContractDetailQueryParams
   get_binance_market_page: MarketTypes.GetBinanceMarketPageQueryParams
-  get_binance_spot_agg_trades: MarketTypes.GetBinanceSpotAggTradesQueryParams
-  get_binance_spot_book_ticker: MarketTypes.GetBinanceSpotBookTickerQueryParams
-  get_binance_spot_depth: MarketTypes.GetBinanceSpotDepthQueryParams
-  get_binance_spot_exchange_info: MarketTypes.GetBinanceSpotExchangeInfoQueryParams
-  get_binance_spot_klines: MarketTypes.GetBinanceSpotKlinesQueryParams
-  get_binance_spot_price: MarketTypes.GetBinanceSpotPriceQueryParams
-  get_binance_spot_ticker_24hr: MarketTypes.GetBinanceSpotTicker24hrQueryParams
-  get_binance_spot_ticker_window: MarketTypes.GetBinanceSpotTickerWindowQueryParams
-  get_binance_spot_trades: MarketTypes.GetBinanceSpotTradesQueryParams
-  get_binance_spot_ui_klines: MarketTypes.GetBinanceSpotUiKlinesQueryParams
-  get_binance_usdm_basis: MarketTypes.GetBinanceUsdmBasisQueryParams
-  get_binance_usdm_exchange_info: never
-  get_binance_usdm_funding_history: MarketTypes.GetBinanceUsdmFundingHistoryQueryParams
-  get_binance_usdm_funding_info: never
-  get_binance_usdm_long_short_ratio: MarketTypes.GetBinanceUsdmLongShortRatioQueryParams
-  get_binance_usdm_mark_price: MarketTypes.GetBinanceUsdmMarkPriceQueryParams
-  get_binance_usdm_open_interest: MarketTypes.GetBinanceUsdmOpenInterestQueryParams
-  get_binance_usdm_open_interest_stats: MarketTypes.GetBinanceUsdmOpenInterestStatsQueryParams
-  get_binance_usdm_taker_volume: MarketTypes.GetBinanceUsdmTakerVolumeQueryParams
-  get_binance_usdm_ticker_24hr: MarketTypes.GetBinanceUsdmTicker24hrQueryParams
-  get_binance_usdm_top_trader_accounts: MarketTypes.GetBinanceUsdmTopTraderAccountsQueryParams
-  get_binance_usdm_top_trader_positions: MarketTypes.GetBinanceUsdmTopTraderPositionsQueryParams
   get_binance_web3_address_pnl_rank: MarketTypes.GetBinanceWeb3AddressPnlRankQueryParams
-  get_binance_web3_heat_rank: MarketTypes.GetBinanceWeb3HeatRankQueryParams
   get_binance_web3_heat_rank_boards: MarketTypes.GetBinanceWeb3HeatRankBoardsQueryParams
-  get_binance_web3_meme_rank: MarketTypes.GetBinanceWeb3MemeRankQueryParams
-  get_binance_web3_smart_money_inflow: MarketTypes.GetBinanceWeb3SmartMoneyInflowQueryParams
-  get_binance_web3_social_hype: MarketTypes.GetBinanceWeb3SocialHypeQueryParams
   get_binance_web3_token_audit: MarketTypes.GetBinanceWeb3TokenAuditQueryParams
   get_binance_web3_token_dynamic: MarketTypes.GetBinanceWeb3TokenDynamicQueryParams
   get_binance_web3_token_kline: MarketTypes.GetBinanceWeb3TokenKlineQueryParams
-  get_binance_web3_unified_token_rank: MarketTypes.GetBinanceWeb3UnifiedTokenRankQueryParams
   get_config: never
   get_currencies: never
-  get_current_funding_rate: MarketTypes.GetCurrentFundingRateQueryParams
   get_current_price: MarketTypes.GetCurrentPriceQueryParams
   get_current_price_batch: MarketTypes.GetCurrentPriceBatchQueryParams
   get_dli_liquidity: MarketTypes.GetDliLiquidityQueryParams
   get_fred_api_config: never
-  get_funding_rate_history: MarketTypes.GetFundingRateHistoryQueryParams
   get_index_history: MarketTypes.GetIndexHistoryQueryParams
   get_index_pricing_history: MarketTypes.GetIndexPricingHistoryQueryParams
   get_kline_tail: MarketTypes.GetKlineTailQueryParams
-  get_latest_index: MarketTypes.GetLatestIndexQueryParams
-  get_latest_index_pricing: MarketTypes.GetLatestIndexPricingQueryParams
   get_latest_klines: MarketTypes.GetLatestKlinesQueryParams
   get_llm_config: never
   get_market_full_history: MarketTypes.GetMarketFullHistoryQueryParams
@@ -377,12 +214,10 @@ export type ApiRouteQueryMap = {
   get_market_history: MarketTypes.GetMarketHistoryQueryParams
   get_market_indicators: MarketTypes.GetMarketIndicatorsQueryParams
   get_realtime_analysis: MarketTypes.GetRealtimeAnalysisQueryParams
-  get_technical_metrics: MarketTypes.GetTechnicalMetricsQueryParams
   get_tools_contract: never
   get_trade_setup: MarketTypes.GetTradeSetupQueryParams
   list_market_indexes: never
   list_market_symbols: never
-  sync_funding_rate_history: MarketTypes.SyncFundingRateHistoryQueryParams
   update_fred_api_config: never
   update_llm_config: never
 }

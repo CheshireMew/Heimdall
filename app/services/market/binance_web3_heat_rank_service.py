@@ -48,22 +48,6 @@ class BinanceWeb3HeatRankService:
             copy_value=deepcopy,
         )
 
-    async def get_web3_heat_rank(
-        self,
-        *,
-        chain_id: str | None = None,
-        size: int = 30,
-    ) -> dict[str, Any]:
-        boards = await self.get_web3_heat_rank_boards(chain_id=chain_id, size=size)
-        return boards["boards"].get("heat_score_desc") or {
-            "source": boards["source"],
-            "leaderboard": "web3_heat_rank",
-            "chain_id": boards["chain_id"],
-            "size": boards["size"],
-            "items": [],
-            "formula": boards["formula"],
-        }
-
     async def get_web3_heat_rank_boards(
         self,
         *,
