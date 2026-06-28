@@ -28,6 +28,7 @@ import type {
   GetCurrentPriceBatchQueryParams,
   GetCurrentPriceQueryParams,
   GetIndexHistoryQueryParams,
+  GetIndexPricingHistoryQueryParams,
   GetKlineTailQueryParams,
   GetLatestKlinesQueryParams,
   GetMarketFullHistoryBatchQueryParams,
@@ -118,7 +119,7 @@ export const marketIndexApi = {
     return apiGet('get_index_history', { query: params, timeout: MARKET_API_TIMEOUT_MS.history })
   },
 
-  getIndexPricingHistory(params: GetIndexHistoryQueryParams): Promise<MarketIndexHistoryResponse> {
+  getIndexPricingHistory(params: GetIndexPricingHistoryQueryParams): Promise<MarketIndexHistoryResponse> {
     return apiGet('get_index_pricing_history', { query: params, timeout: MARKET_API_TIMEOUT_MS.history })
   },
 }

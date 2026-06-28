@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from app.contracts.dto.market import RealtimeResponse
 from app.exceptions import ServiceUnavailableError
 from app.infra.executor import run_external_io
 from app.services.market.app_service_support import validate_market_request
@@ -49,7 +50,7 @@ class MarketRealtimeQueryService:
         symbol: str,
         timeframe: str | None,
         limit: int | None,
-    ) -> dict[str, Any]:
+    ) -> RealtimeResponse:
         resolved_timeframe = timeframe or settings.TIMEFRAME
         resolved_limit = limit or settings.LIMIT
         try:
@@ -74,7 +75,7 @@ class MarketRealtimeQueryService:
                 ai_analysis = await self.realtime_service.maybe_run_ai(llm_client, symbol, kline_data, indicators)
             except Exception as exc:
                 logger.warning(f"AI 分析失败: {exc}")
-        return self.realtime_service.build_response_payload(
+        return self.realtime_service.build_response(
             symbol,
             resolved_timeframe,
             kline_data,
@@ -89,7 +90,7 @@ class MarketRealtimeQueryService:
         timeframe: str,
         limit: int,
         use_ai: bool,
-    ) -> dict[str, Any]:
+    ) -> RealtimeResponse:
         snapshot = await self.load_snapshot(
             symbol=symbol,
             timeframe=timeframe,
@@ -106,7 +107,7 @@ class MarketRealtimeQueryService:
                     ai_analysis = await self.realtime_service.maybe_run_ai(llm_client, symbol, kline_data, indicators)
                 except Exception as exc:
                     logger.warning(f"WS AI 分析失败: {exc}")
-        return self.realtime_service.build_response_payload(
+        return self.realtime_service.build_response(
             symbol,
             timeframe,
             kline_data,

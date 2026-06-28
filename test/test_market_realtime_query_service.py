@@ -70,7 +70,7 @@ async def test_get_realtime_uses_default_periods_with_real_snapshot_service():
         realtime_service=RealtimeService(),
     )
 
-    response = await service.get_realtime(symbol="BTC/USDT", timeframe="1d", limit=100)
+    response = (await service.get_realtime(symbol="BTC/USDT", timeframe="1d", limit=100)).model_dump()
 
     assert response["symbol"] == "BTC/USDT"
     assert response["timeframe"] == "1d"

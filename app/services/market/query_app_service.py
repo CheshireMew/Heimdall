@@ -2,6 +2,14 @@ from __future__ import annotations
 
 from typing import Any, Callable, Literal
 
+from app.contracts.dto.market import (
+    CurrentPriceBatchResponse,
+    CurrentPriceResponse,
+    KlineTailResponse,
+    MarketHistoryBatchResponse,
+    MarketHistoryResponse,
+    RealtimeResponse,
+)
 from app.services.market.app_service_support import VALID_MARKET_SYMBOLS, VALID_MARKET_TIMEFRAMES
 from app.services.market.history_query_service import MarketHistoryQueryService
 from app.services.market.market_data_service import MarketDataService
@@ -51,7 +59,7 @@ class MarketQueryAppService:
         symbol: str,
         timeframe: str | None,
         limit: int | None,
-    ) -> dict[str, Any]:
+    ) -> RealtimeResponse:
         return await self.realtime.get_realtime(symbol=symbol, timeframe=timeframe, limit=limit)
 
     async def get_realtime_ws_payload(
@@ -61,7 +69,7 @@ class MarketQueryAppService:
         timeframe: str,
         limit: int,
         use_ai: bool,
-    ) -> dict[str, Any]:
+    ) -> RealtimeResponse:
         return await self.realtime.get_realtime_ws_payload(
             symbol=symbol,
             timeframe=timeframe,
@@ -76,7 +84,7 @@ class MarketQueryAppService:
         timeframe: str,
         end_ts: int,
         limit: int,
-    ) -> dict[str, Any]:
+    ) -> MarketHistoryResponse:
         return await self.history.get_history(symbol=symbol, timeframe=timeframe, end_ts=end_ts, limit=limit)
 
     async def get_recent_klines(
@@ -85,7 +93,7 @@ class MarketQueryAppService:
         symbol: str,
         timeframe: str,
         limit: int,
-    ) -> dict[str, Any]:
+    ) -> MarketHistoryResponse:
         return await self.history.get_recent_klines(symbol=symbol, timeframe=timeframe, limit=limit)
 
     async def get_live_kline_tail(
@@ -94,7 +102,7 @@ class MarketQueryAppService:
         symbol: str,
         timeframe: str,
         limit: int,
-    ) -> dict[str, Any]:
+    ) -> KlineTailResponse:
         return await self.history.get_live_kline_tail(symbol=symbol, timeframe=timeframe, limit=limit)
 
     async def get_current_price(
@@ -102,7 +110,7 @@ class MarketQueryAppService:
         *,
         symbol: str,
         timeframe: str,
-    ) -> dict[str, Any]:
+    ) -> CurrentPriceResponse:
         return await self.prices.get_current_price(symbol=symbol, timeframe=timeframe)
 
     async def get_current_price_batch(
@@ -110,7 +118,7 @@ class MarketQueryAppService:
         *,
         symbols: list[str],
         timeframe: str,
-    ) -> dict[str, Any]:
+    ) -> CurrentPriceBatchResponse:
         return await self.prices.get_current_price_batch(symbols=symbols, timeframe=timeframe)
 
     async def get_full_history(
@@ -121,7 +129,7 @@ class MarketQueryAppService:
         start_date: str,
         fetch_policy: Literal["cache_only", "hydrate"] = "hydrate",
         persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
-    ) -> dict[str, Any]:
+    ) -> MarketHistoryResponse:
         return await self.history.get_full_history(
             symbol=symbol,
             timeframe=timeframe,
@@ -138,7 +146,7 @@ class MarketQueryAppService:
         start_date: str,
         fetch_policy: Literal["cache_only", "hydrate"] = "hydrate",
         persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
-    ) -> dict[str, Any]:
+    ) -> MarketHistoryBatchResponse:
         return await self.history.get_full_history_batch(
             symbols=symbols,
             timeframe=timeframe,

@@ -2,12 +2,13 @@ import { defineStore } from 'pinia'
 import { marketHistoryApi } from './api'
 import type { OhlcvPointResponse } from './contracts'
 import { isCacheFresh, MARKET_CACHE_TTL_MS, writeCacheEntry, type CacheEntry } from './cacheTypes'
+import { createResourceCache } from './resourceCache'
 
 interface KlineState {
   klineCache: Record<string, CacheEntry<OhlcvPointResponse[]>>
 }
 
-const klineFetchPromises = new Map<string, Promise<OhlcvPointResponse[] | null>>()
+const klineResource = createResourceCache()
 
 export const useKlineStore = defineStore('marketKline', {
   state: (): KlineState => ({
@@ -67,24 +68,21 @@ export const useKlineStore = defineStore('marketKline', {
         }
       }
 
-      const fetchKey = `${key}:${limit}`
-      const pending = klineFetchPromises.get(fetchKey)
-      const fetchPromise = pending || (async (): Promise<OhlcvPointResponse[] | null> => {
-        try {
+      const fetchPromise = klineResource.load({
+        cache: this.klineCache,
+        key,
+        pendingKey: `${key}:limit:${limit}`,
+        ttlMs: MARKET_CACHE_TTL_MS.klineLive,
+        force: true,
+        load: async () => {
           const res = await marketHistoryApi.getLatestKlines({ symbol, timeframe, limit })
           const items = res.items || []
-          if (items.length) {
-            this.setKlineCache(key, items)
-            return this.readKlineSlice(items, limit)
-          }
-        } catch (e) {
-          console.error('Kline fetch failed', e)
-        } finally {
-          klineFetchPromises.delete(fetchKey)
-        }
-        return null
-      })()
-      if (!pending) klineFetchPromises.set(fetchKey, fetchPromise)
+          return items.length ? items : null
+        },
+        onLoadError: (error) => {
+          console.error('Kline fetch failed', error)
+        },
+      }).then((data) => this.readKlineSlice(data, limit))
 
       if (cachedData && !forceRefresh) {
         fetchPromise.then(() => {})

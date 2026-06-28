@@ -47,10 +47,10 @@ async def test_current_price_prefers_websocket_snapshot():
     market_data_service = FakeMarketDataService()
     service = make_service(FakeSnapshot({"BTC/USDT": 123.0}), market_data_service)
 
-    response = await service.get_current_price(
+    response = (await service.get_current_price(
         symbol="BTC/USDT",
         timeframe="1d",
-    )
+    )).model_dump()
 
     assert response["current_price"] == 123.0
     assert market_data_service.history_calls == []
@@ -61,10 +61,10 @@ async def test_current_price_falls_back_to_cached_history():
     market_data_service = FakeMarketDataService()
     service = make_service(FakeSnapshot({"BTC/USDT": None}), market_data_service)
 
-    response = await service.get_current_price(
+    response = (await service.get_current_price(
         symbol="BTC/USDT",
         timeframe="1d",
-    )
+    )).model_dump()
 
     assert response["current_price"] == 456.0
     assert market_data_service.history_calls == ["BTC/USDT"]
@@ -75,10 +75,10 @@ async def test_current_price_batch_uses_shared_snapshot_first_logic():
     market_data_service = FakeMarketDataService()
     service = make_service(FakeSnapshot({"BTC/USDT": 123.0, "ETH/USDT": None}), market_data_service)
 
-    response = await service.get_current_price_batch(
+    response = (await service.get_current_price_batch(
         symbols=["BTC/USDT", "ETH/USDT", "BTC/USDT"],
         timeframe="1d",
-    )
+    )).model_dump()
 
     assert [item["symbol"] for item in response["items"]] == ["BTC/USDT", "ETH/USDT"]
     assert response["items"][0]["current_price"] == 123.0
@@ -94,10 +94,10 @@ async def test_current_price_batch_runs_fallbacks_concurrently():
     service = make_service(FakeSnapshot({"BTC/USDT": None, "ETH/USDT": None}), market_data_service)
 
     started_at = time.perf_counter()
-    response = await service.get_current_price_batch(
+    response = (await service.get_current_price_batch(
         symbols=["BTC/USDT", "ETH/USDT"],
         timeframe="1d",
-    )
+    )).model_dump()
     elapsed = time.perf_counter() - started_at
 
     assert [item["symbol"] for item in response["items"]] == ["BTC/USDT", "ETH/USDT"]

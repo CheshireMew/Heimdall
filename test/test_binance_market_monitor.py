@@ -89,7 +89,7 @@ async def test_market_breakout_monitor_unifies_and_scores_candidates(monkeypatch
     monkeypatch.setattr(service.spot, "get_klines", fake_spot_klines)
     monkeypatch.setattr(service.usdm, "get_klines", fake_usdm_klines)
 
-    page = await service.page.refresh_page_payload((5.0, 10, "USDT"))
+    page = (await service.page.refresh_page((5.0, 10, "USDT"))).model_dump()
     response = page["monitor"]
 
     assert response["summary"]["monitored_count"] == 2
@@ -138,7 +138,7 @@ async def test_market_page_payload_returns_partial_data_when_a_source_fails(monk
     monkeypatch.setattr(service.usdm, "get_mark_price", fake_usdm_mark_price)
     monkeypatch.setattr(service.spot, "get_klines", fake_spot_klines)
 
-    response = (await service.page.refresh_page_payload((5.0, 24, "USDT")))
+    response = (await service.page.refresh_page((5.0, 24, "USDT"))).model_dump()
 
     assert response["load_errors"] == ["U本位24H"]
     assert response["spot_boards"]["price_change_pct_desc"]["items"]
@@ -191,9 +191,9 @@ async def test_market_page_request_reads_snapshot_without_expensive_refresh(monk
     monkeypatch.setattr(service.usdm, "get_open_interest_stats", fail_if_called)
 
     response = (await asyncio.wait_for(
-        service.page.get_page_payload(min_rise_pct=5.0, limit=24, quote_asset="USDT"),
+        service.page.get_page(min_rise_pct=5.0, limit=24, quote_asset="USDT"),
         timeout=0.2,
-    ))
+    )).model_dump()
 
     assert response["refresh_status"]["monitor_ready"] is False
     assert response["spot_boards"]["price_change_pct_desc"]["items"][0]["symbol"] == "DOGEUSDT"
@@ -263,13 +263,14 @@ async def test_market_page_request_is_not_blocked_by_background_oi_cache_reads(m
     monkeypatch.setattr(service.usdm, "get_cached_open_interest_stats", slow_cached_open_interest_stats)
     monkeypatch.setattr(service.usdm, "get_klines", fake_klines)
 
-    refresh_task = asyncio.create_task(service.page.refresh_page_payload((5.0, 24, "USDT")))
+    refresh_task = asyncio.create_task(service.page.refresh_page((5.0, 24, "USDT")))
     await asyncio.wait_for(cached_read_started.wait(), timeout=1.0)
 
     response = await asyncio.wait_for(
-        service.page.get_page_payload(min_rise_pct=7.0, limit=24, quote_asset="USDT"),
+        service.page.get_page(min_rise_pct=7.0, limit=24, quote_asset="USDT"),
         timeout=0.2,
     )
+    response = response.model_dump()
 
     await asyncio.wait_for(refresh_task, timeout=2.0)
     assert response["refresh_status"]["monitor_ready"] is False
@@ -320,9 +321,9 @@ async def test_market_page_payload_reuses_background_snapshot(monkeypatch, insta
     monkeypatch.setattr(service.usdm, "get_mark_price", fake_usdm_mark_price)
     monkeypatch.setattr(service.spot, "get_klines", fake_spot_klines)
 
-    await service.page.refresh_page_payload((5.0, 24, "USDT"))
-    first = (await service.page.get_page_payload(min_rise_pct=5.0, limit=24, quote_asset="USDT"))
-    second = (await service.page.get_page_payload(min_rise_pct=5.0, limit=24, quote_asset="USDT"))
+    await service.page.refresh_page((5.0, 24, "USDT"))
+    first = (await service.page.get_page(min_rise_pct=5.0, limit=24, quote_asset="USDT")).model_dump()
+    second = (await service.page.get_page(min_rise_pct=5.0, limit=24, quote_asset="USDT")).model_dump()
 
     assert kline_calls == 2
     assert first["updated_at"] == second["updated_at"]
@@ -394,7 +395,7 @@ async def test_market_page_payload_returns_prebuilt_sorted_boards(monkeypatch, i
     monkeypatch.setattr(service.spot, "get_klines", fake_klines)
     monkeypatch.setattr(service.usdm, "get_klines", fake_klines)
 
-    response = (await service.page.refresh_page_payload((5.0, 2, "USDT")))
+    response = (await service.page.refresh_page((5.0, 2, "USDT"))).model_dump()
 
     assert [item["symbol"] for item in response["spot_boards"]["price_change_pct_desc"]["items"][:2]] == ["HIGHUSDT", "LOWUSDT"]
     assert [item["symbol"] for item in response["spot_boards"]["price_change_pct_asc"]["items"][:2]] == ["LOWUSDT", "HIGHUSDT"]
@@ -447,9 +448,9 @@ async def test_market_page_payload_does_not_wait_unbounded_for_oi_enrichment(mon
     monkeypatch.setattr(service.usdm, "get_open_interest_stats", slow_open_interest_stats)
 
     response = (await asyncio.wait_for(
-        service.page.refresh_page_payload((50.0, 2, "USDT")),
+        service.page.refresh_page((50.0, 2, "USDT")),
         timeout=0.5,
-    ))
+    )).model_dump()
 
     rows = response["contract_boards"]["price_change_pct_desc"]["items"]
     assert [item["symbol"] for item in rows] == ["AUSDT", "BUSDT"]

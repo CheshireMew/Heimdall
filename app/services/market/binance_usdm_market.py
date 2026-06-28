@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from app.contracts.dto.binance.usdm import BinanceContractResearchDetailResponse
 from .binance_api_support import BinanceApiSupport, compact_query
 from .binance_market_normalizers import (
     normalize_basis,
@@ -207,9 +208,9 @@ class BinanceUsdmMarketService:
         symbol: str,
         period: str = "1h",
         limit: int = 72,
-    ) -> dict[str, object]:
+    ) -> BinanceContractResearchDetailResponse:
         symbol_key = symbol.upper()
-        return {
+        return BinanceContractResearchDetailResponse.model_validate({
             "exchange": "binance",
             "market": "usdm",
             "symbol": symbol_key,
@@ -221,7 +222,7 @@ class BinanceUsdmMarketService:
             "long_short_ratio": (await self._safe_series(self.get_long_short_ratio, symbol=symbol_key, period=period, limit=limit)),
             "top_trader_accounts": (await self._safe_series(self.get_top_trader_accounts, symbol=symbol_key, period=period, limit=limit)),
             "top_trader_positions": (await self._safe_series(self.get_top_trader_positions, symbol=symbol_key, period=period, limit=limit)),
-        }
+        })
 
     async def _safe_series(self, loader: Callable[..., Any], **kwargs):
         try:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from app.contracts.dto.market import DliLiquidityResponse, MarketIndicatorResponse, TradeSetupResponse
 from app.domain.market.prompt_engine import PromptEngine
 from app.domain.market.trade_setup import TradeSetupEngine, TradeSetupRequest
 from app.services.market.indicator_service import IndicatorService
@@ -26,20 +27,20 @@ class MarketInsightAppService:
         self,
         category: str | None,
         days: int,
-    ) -> list[dict[str, Any]]:
+    ) -> list[MarketIndicatorResponse]:
         return self.indicator_service.get_indicators(category=category, days=days)
 
-    def get_dli_liquidity(self, days: int, change_days: int = 30) -> dict[str, Any]:
+    def get_dli_liquidity(self, days: int, change_days: int = 30) -> DliLiquidityResponse:
         return self.indicator_service.get_dli_liquidity(days=days, change_days=change_days)
 
     async def get_indicators_async(
         self,
         category: str | None,
         days: int,
-    ) -> list[dict[str, Any]]:
+    ) -> list[MarketIndicatorResponse]:
         return await run_database(lambda: self.get_indicators(category=category, days=days))
 
-    async def get_dli_liquidity_async(self, days: int, change_days: int = 30) -> dict[str, Any]:
+    async def get_dli_liquidity_async(self, days: int, change_days: int = 30) -> DliLiquidityResponse:
         return await run_database(lambda: self.get_dli_liquidity(days=days, change_days=change_days))
 
     async def get_trade_setup(
@@ -52,7 +53,7 @@ class MarketInsightAppService:
         style: str,
         strategy: str,
         mode: str,
-    ) -> dict[str, Any]:
+    ) -> TradeSetupResponse:
         if mode not in {"rules", "ai"}:
             raise ValueError("无效判断方式。可选: rules, ai")
 

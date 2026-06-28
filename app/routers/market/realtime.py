@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import asyncio
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from fastapi import Depends, Query, WebSocket, WebSocketDisconnect
 
-from app.dependencies import runtime_dependency
+from app.contracts.frontend import FrontendContractRouter
+from app.dependencies import get_market_query_service, get_market_websocket_service
 from app.contracts.dto.market import RealtimeResponse
 from config import settings
 from utils.logger import logger
 
 
-router = APIRouter(tags=["Market Data"])
-market_query_dependency = runtime_dependency("market_query_service")
-market_websocket_dependency = runtime_dependency("market_websocket_service")
+router = FrontendContractRouter(frontend_contract_target="market", tags=["Market Data"])
 
 
 @router.get("/realtime", response_model=RealtimeResponse)
@@ -19,7 +18,7 @@ async def get_realtime_analysis(
     symbol: str = Query(..., description="交易对，如 BTC/USDT"),
     timeframe: str | None = Query(default=None),
     limit: int | None = Query(default=None, ge=1, le=settings.API_MAX_LIMIT),
-    service = Depends(market_query_dependency),
+    service = Depends(get_market_query_service),
 ):
     return await service.get_realtime(
         symbol=symbol,
@@ -31,8 +30,8 @@ async def get_realtime_analysis(
 @router.websocket("/ws/realtime")
 async def websocket_realtime(
     websocket: WebSocket,
-    service = Depends(market_query_dependency),
-    websocket_service = Depends(market_websocket_dependency),
+    service = Depends(get_market_query_service),
+    websocket_service = Depends(get_market_websocket_service),
 ):
     await websocket.accept()
     try:
@@ -47,11 +46,7 @@ async def websocket_realtime(
                 limit=params["limit"],
                 use_ai=params["use_ai"],
             )
-            if not payload:
-                await websocket.send_json({"type": "error", "message": "no data"})
-                await asyncio.sleep(settings.WS_UPDATE_INTERVAL)
-                continue
-            await websocket.send_json(payload)
+            await websocket.send_json(payload.model_dump(mode="json"))
             await asyncio.sleep(settings.WS_UPDATE_INTERVAL)
     except WebSocketDisconnect:
         logger.info("客户端断开实时推送")

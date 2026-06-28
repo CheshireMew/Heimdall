@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import Depends, Query, Request
 
-from app.dependencies import runtime_dependency
+from app.contracts.frontend import FrontendContractRouter
+from app.dependencies import get_index_data_service
 from app.rate_limit import limiter
 from app.contracts.dto.market import MarketIndexHistoryResponse, MarketIndexResponse
-from app.contracts.market_history import build_ohlcv_point_payloads
+from app.contracts.market_history import build_ohlcv_points
 from config import settings
 
 
-router = APIRouter(tags=["Market Data"])
-index_data_dependency = runtime_dependency("index_data_service")
+router = FrontendContractRouter(frontend_contract_target="market", tags=["Market Data"])
 
 
 def _index_response(record: Any) -> MarketIndexResponse:
@@ -42,13 +42,13 @@ def _index_history_response(record: Any) -> MarketIndexHistoryResponse:
         pricing_currency=record.pricing_currency,
         is_close_only=record.is_close_only,
         count=record.count,
-        data=build_ohlcv_point_payloads([item.as_row() for item in record.data]),
+        data=build_ohlcv_points([item.as_row() for item in record.data]),
     )
 
 
 @router.get("/indexes", response_model=list[MarketIndexResponse])
 async def list_market_indexes(
-    service = Depends(index_data_dependency),
+    service = Depends(get_index_data_service),
 ):
     return [_index_response(record) for record in await service.list_indexes_async()]
 
@@ -61,7 +61,7 @@ async def get_index_history(
     timeframe: str = Query("1d", description="第一版仅支持 1d"),
     start_date: str = Query("2010-01-01", description="Start Date YYYY-MM-DD"),
     end_date: str | None = Query(None, description="End Date YYYY-MM-DD"),
-    service = Depends(index_data_dependency),
+    service = Depends(get_index_data_service),
 ):
     return _index_history_response(
         await service.get_history_async(
@@ -81,7 +81,7 @@ async def get_index_pricing_history(
     timeframe: str = Query("1d", description="第一版仅支持 1d"),
     start_date: str = Query("2010-01-01", description="Start Date YYYY-MM-DD"),
     end_date: str | None = Query(None, description="End Date YYYY-MM-DD"),
-    service = Depends(index_data_dependency),
+    service = Depends(get_index_data_service),
 ):
     return _index_history_response(
         await service.get_pricing_history_async(

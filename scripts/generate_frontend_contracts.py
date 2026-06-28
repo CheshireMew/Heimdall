@@ -14,6 +14,8 @@ from pydantic import BaseModel, TypeAdapter
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
+from app.contracts.frontend import frontend_contract_filename, frontend_contract_target
+from app.contracts.dto.errors import ApiErrorResponse
 from app.main import create_app
 
 FRONTEND_API_DIR = REPO_ROOT / "frontend" / "src" / "api"
@@ -69,6 +71,7 @@ def main() -> None:
         )
         TARGET_PATHS[filename].write_text(content, encoding="utf-8")
     (FRONTEND_API_DIR / "routes.ts").write_text(render_api_routes(), encoding="utf-8")
+    (FRONTEND_API_DIR / "errors.ts").write_text(render_file([ApiErrorResponse], []), encoding="utf-8")
 
 
 def collect_route_contract_models() -> tuple[RouteContractModel, ...]:
@@ -160,33 +163,7 @@ def extract_pydantic_models(annotation: Any) -> tuple[type[BaseModel], ...]:
 
 
 def resolve_route_target_file(route: APIRoute) -> str:
-    path = route.path
-    if path.startswith("/api/v1/tools"):
-        return "tools.ts"
-    if (
-        path.startswith("/api/v1/config")
-        or path.startswith("/api/v1/currencies")
-        or path.startswith("/api/v1/llm-config")
-        or path.startswith("/api/v1/fred-api-config")
-    ):
-        return "config.ts"
-    market_prefixes = (
-        "/api/v1/status",
-        "/api/v1/symbols",
-        "/api/v1/realtime",
-        "/api/v1/ws/realtime",
-        "/api/v1/history",
-        "/api/v1/klines/",
-        "/api/v1/price/",
-        "/api/v1/full_history",
-        "/api/v1/indicators",
-        "/api/v1/trade-setup",
-        "/api/v1/indexes",
-        "/api/v1/binance/",
-    )
-    if any(path == prefix or path.startswith(prefix) for prefix in market_prefixes):
-        return "market.ts"
-    raise RuntimeError(f"API route has no frontend contract target: {route.name} {path}")
+    return frontend_contract_filename(frontend_contract_target(route))
 
 
 def render_api_routes() -> str:

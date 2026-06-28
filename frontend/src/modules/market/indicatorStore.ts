@@ -2,7 +2,8 @@ import { defineStore } from 'pinia'
 import { marketInsightApi } from './api'
 import { resolveSentimentBucket } from './sentiment'
 import type { MarketIndicatorResponse, SentimentCache, SentimentData } from './contracts'
-import { isCacheFresh, MARKET_CACHE_TTL_MS, writeCacheEntry, type CacheEntry } from './cacheTypes'
+import { isCacheFresh, MARKET_CACHE_TTL_MS, type CacheEntry } from './cacheTypes'
+import { createResourceCache } from './resourceCache'
 
 interface MarketIndicatorState {
   sentimentCache: SentimentCache
@@ -11,7 +12,7 @@ interface MarketIndicatorState {
   indicatorErrors: Record<string, string>
 }
 
-const indicatorFetchPromises = new Map<string, Promise<MarketIndicatorResponse[] | null>>()
+const indicatorResource = createResourceCache()
 const indicatorKey = (category: string | null | undefined, days: number) => `category:${category || 'all'}:days:${days}`
 
 export const useMarketIndicatorStore = defineStore('marketIndicators', {
@@ -48,34 +49,27 @@ export const useMarketIndicatorStore = defineStore('marketIndicators', {
       options: { force?: boolean } = {},
     ): Promise<MarketIndicatorResponse[] | null> {
       const key = this.getMarketIndicatorsCacheKey(category, days)
-      if (!options.force && isCacheFresh(this.indicatorCache[key], MARKET_CACHE_TTL_MS.marketIndicators)) {
-        return this.indicatorCache[key].data
-      }
-
-      const pending = indicatorFetchPromises.get(key)
-      if (pending) return pending
-
-      this.indicatorLoading[key] = true
-      this.indicatorErrors[key] = ''
-
-      const request = (async (): Promise<MarketIndicatorResponse[] | null> => {
-        try {
+      return indicatorResource.load({
+        cache: this.indicatorCache,
+        key,
+        ttlMs: MARKET_CACHE_TTL_MS.marketIndicators,
+        force: options.force,
+        load: async () => {
           const response = await marketInsightApi.getIndicators({ category: category || undefined, days })
-          const data = Array.isArray(response) ? response : []
-          writeCacheEntry(this.indicatorCache, key, data)
-          return data
-        } catch (e) {
-          console.error('Market indicators fetch failed', e)
-          this.indicatorErrors[key] = '市场指标数据加载失败'
-        } finally {
+          return Array.isArray(response) ? response : []
+        },
+        onLoadStart: () => {
+          this.indicatorLoading[key] = true
+          this.indicatorErrors[key] = ''
+        },
+        onLoadEnd: () => {
           this.indicatorLoading[key] = false
-          indicatorFetchPromises.delete(key)
-        }
-        return this.indicatorCache[key]?.data || null
-      })()
-
-      indicatorFetchPromises.set(key, request)
-      return request
+        },
+        onLoadError: (error) => {
+          console.error('Market indicators fetch failed', error)
+          this.indicatorErrors[key] = '市场指标数据加载失败'
+        },
+      })
     },
 
     async getSentiment(): Promise<SentimentData | null> {

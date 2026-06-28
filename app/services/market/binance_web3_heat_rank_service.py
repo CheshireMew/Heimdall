@@ -4,6 +4,7 @@ import asyncio
 from copy import deepcopy
 from typing import Any
 
+from app.contracts.dto.binance.web3 import BinanceWeb3HeatRankBoardsResponse
 from .binance_numbers import to_int
 from .binance_web3_heat_rank import BinanceWeb3HeatRankComposer
 from .binance_web3_rank_gateway import BinanceWeb3RankGateway
@@ -43,7 +44,7 @@ class BinanceWeb3HeatRankService:
     def __init__(self, rank_gateway: BinanceWeb3RankGateway) -> None:
         self.rank_gateway = rank_gateway
         self.heat_rank_composer = BinanceWeb3HeatRankComposer()
-        self._boards_cache: TtlMemoryCache[tuple[str | None, int], dict[str, Any]] = TtlMemoryCache(
+        self._boards_cache: TtlMemoryCache[tuple[str | None, int], BinanceWeb3HeatRankBoardsResponse] = TtlMemoryCache(
             HEAT_RANK_BOARDS_CACHE_TTL_SECONDS,
             copy_value=deepcopy,
         )
@@ -53,7 +54,7 @@ class BinanceWeb3HeatRankService:
         *,
         chain_id: str | None = None,
         size: int = 30,
-    ) -> dict[str, Any]:
+    ) -> BinanceWeb3HeatRankBoardsResponse:
         resolved_chain_id = normalize_web3_chain_id(chain_id)
         response_chain_id = resolved_chain_id or WEB3_ALL_CHAINS_ID
         cache_key = (resolved_chain_id, int(size))
@@ -74,14 +75,14 @@ class BinanceWeb3HeatRankService:
             for field in ("heat_score", "percent_change_24h", "market_cap", "liquidity")
             for direction in ("desc", "asc")
         }
-        response = {
+        response = BinanceWeb3HeatRankBoardsResponse.model_validate({
             "source": "binance-web3",
             "leaderboard": "web3_heat_rank_boards",
             "chain_id": response_chain_id,
             "size": size,
             "boards": boards,
             "formula": formula,
-        }
+        })
         self._boards_cache.set(cache_key, response)
         return response
 

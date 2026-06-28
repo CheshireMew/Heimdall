@@ -98,8 +98,8 @@ async def test_web3_token_kline_persists_to_kline_store_before_reusing_network(m
         kline_store=kline_store,
     )
 
-    first = await service.get_kline(address="0xToken", platform="bsc", interval="15min", limit=2)
-    second = await service.get_kline(address="0xToken", platform="bsc", interval="15min", limit=2)
+    first = (await service.get_kline(address="0xToken", platform="bsc", interval="15min", limit=2)).model_dump()
+    second = (await service.get_kline(address="0xToken", platform="bsc", interval="15min", limit=2)).model_dump()
 
     assert [item["close"] for item in first["items"]] == [0.000129, 0.0001297]
     assert [item["close"] for item in second["items"]] == [0.000129, 0.0001297]

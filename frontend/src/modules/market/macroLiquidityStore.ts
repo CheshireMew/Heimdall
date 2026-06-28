@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { marketInsightApi } from './api'
 import type { DliLiquidityResponse } from './contracts'
-import { isCacheFresh, MARKET_CACHE_TTL_MS, writeCacheEntry, type CacheEntry } from './cacheTypes'
+import { MARKET_CACHE_TTL_MS, type CacheEntry } from './cacheTypes'
+import { createResourceCache } from './resourceCache'
 
 interface MacroLiquidityState {
   dliLiquidityCache: Record<string, CacheEntry<DliLiquidityResponse>>
@@ -9,7 +10,7 @@ interface MacroLiquidityState {
   dliLiquidityErrors: Record<string, string>
 }
 
-const dliLiquidityFetchPromises = new Map<string, Promise<DliLiquidityResponse | null>>()
+const dliLiquidityResource = createResourceCache()
 const dliLiquidityKey = (days: number, changeDays: number) => `days:${days}:change_days:${changeDays}`
 
 export const useMacroLiquidityStore = defineStore('macroLiquidity', {
@@ -42,35 +43,24 @@ export const useMacroLiquidityStore = defineStore('macroLiquidity', {
       options: { force?: boolean } = {},
     ): Promise<DliLiquidityResponse | null> {
       const key = this.getDliLiquidityCacheKey(days, changeDays)
-      if (!options.force && isCacheFresh(this.dliLiquidityCache[key], MARKET_CACHE_TTL_MS.macroLiquidity)) {
-        return this.dliLiquidityCache[key].data
-      }
-
-      const pending = dliLiquidityFetchPromises.get(key)
-      if (pending) return pending
-
-      this.dliLiquidityLoading[key] = true
-      this.dliLiquidityErrors[key] = ''
-
-      const request = (async (): Promise<DliLiquidityResponse | null> => {
-        try {
-          const response = await marketInsightApi.getDliLiquidity({ days, change_days: changeDays })
-          if (response) {
-            writeCacheEntry(this.dliLiquidityCache, key, response)
-            return response
-          }
-        } catch (e) {
-          console.error('DLI liquidity fetch failed', e)
-          this.dliLiquidityErrors[key] = '宏观流动性数据加载失败'
-        } finally {
+      return dliLiquidityResource.load({
+        cache: this.dliLiquidityCache,
+        key,
+        ttlMs: MARKET_CACHE_TTL_MS.macroLiquidity,
+        force: options.force,
+        load: () => marketInsightApi.getDliLiquidity({ days, change_days: changeDays }),
+        onLoadStart: () => {
+          this.dliLiquidityLoading[key] = true
+          this.dliLiquidityErrors[key] = ''
+        },
+        onLoadEnd: () => {
           this.dliLiquidityLoading[key] = false
-          dliLiquidityFetchPromises.delete(key)
+        },
+        onLoadError: (error) => {
+          console.error('DLI liquidity fetch failed', error)
+          this.dliLiquidityErrors[key] = '宏观流动性数据加载失败'
         }
-        return this.dliLiquidityCache[key]?.data || null
-      })()
-
-      dliLiquidityFetchPromises.set(key, request)
-      return request
+      })
     },
   },
 })

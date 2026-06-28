@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
 from app.contracts.dto.market import MarketIndexHistoryResponse
-from app.contracts.market_history import build_ohlcv_point_payloads
+from app.contracts.market_history import build_ohlcv_points
 from app.services.tools.pair_compare_service import PairCompareService
 
 
@@ -18,12 +18,12 @@ def test_compare_index_symbols_uses_index_history():
         source="test",
         price_basis="index",
         count=2,
-        data=build_ohlcv_point_payloads([
+        data=build_ohlcv_points([
             [1704067200000, 100.0, 110.0, 90.0, 105.0, 0],
             [1704153600000, 105.0, 120.0, 100.0, 115.0, 0],
         ])
         if kwargs["symbol"] == "HK_HSI"
-        else build_ohlcv_point_payloads([
+        else build_ohlcv_points([
             [1704067200000, 10.0, 11.0, 9.0, 10.5, 0],
             [1704153600000, 10.5, 12.0, 10.0, 11.5, 0],
         ]),

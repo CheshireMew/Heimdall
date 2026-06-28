@@ -5,10 +5,11 @@ from datetime import datetime
 from typing import Callable, Literal
 
 from app.contracts.market_history import (
-    build_kline_tail_payload,
-    build_market_history_batch_payload,
-    build_market_history_payload,
+    build_kline_tail_response,
+    build_market_history_batch_response,
+    build_market_history_response,
 )
+from app.contracts.dto.market import KlineTailResponse, MarketHistoryBatchResponse, MarketHistoryResponse
 from app.infra.executor import run_database, run_external_io
 from app.services.market.app_service_support import validate_market_request
 from app.services.market.market_data_service import MarketDataService
@@ -25,12 +26,12 @@ class MarketHistoryQueryService:
         timeframe: str,
         end_ts: int,
         limit: int,
-    ):
+    ) -> MarketHistoryResponse:
         validate_market_request(symbol, timeframe)
         rows = await run_database(
             lambda: self.market_data_service.get_history_data(symbol, timeframe, end_ts, limit)
         )
-        return build_market_history_payload(symbol=symbol, timeframe=timeframe, rows=rows)
+        return build_market_history_response(symbol=symbol, timeframe=timeframe, rows=rows)
 
     async def get_recent_klines(
         self,
@@ -38,7 +39,7 @@ class MarketHistoryQueryService:
         symbol: str,
         timeframe: str,
         limit: int,
-    ):
+    ) -> MarketHistoryResponse:
         validate_market_request(symbol, timeframe)
         rows = await run_database(
             lambda: self.market_data_service.get_recent_candles(
@@ -48,7 +49,7 @@ class MarketHistoryQueryService:
                 allow_cached_response=True,
             )
         )
-        return build_market_history_payload(symbol=symbol, timeframe=timeframe, rows=rows)
+        return build_market_history_response(symbol=symbol, timeframe=timeframe, rows=rows)
 
     async def get_live_kline_tail(
         self,
@@ -56,7 +57,7 @@ class MarketHistoryQueryService:
         symbol: str,
         timeframe: str,
         limit: int,
-    ):
+    ) -> KlineTailResponse:
         validate_market_request(symbol, timeframe)
         end_ts = int(datetime.now().timestamp() * 1000)
         kline_data = await run_database(
@@ -68,7 +69,7 @@ class MarketHistoryQueryService:
             )
         )
         current_price = kline_data[-1][4] if kline_data else None
-        return build_kline_tail_payload(
+        return build_kline_tail_response(
             symbol=symbol,
             timeframe=timeframe,
             timestamp=datetime.now().isoformat(),
@@ -84,7 +85,7 @@ class MarketHistoryQueryService:
         start_date: str,
         fetch_policy: Literal["cache_only", "hydrate"] = "hydrate",
         persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
-    ):
+    ) -> MarketHistoryResponse:
         validate_market_request(symbol, timeframe)
         rows, missing_ranges = await self._load_full_history_rows(
             symbol=symbol,
@@ -93,7 +94,7 @@ class MarketHistoryQueryService:
             fetch_policy=fetch_policy,
             persist_klines=persist_klines,
         )
-        return build_market_history_payload(
+        return build_market_history_response(
             symbol=symbol,
             timeframe=timeframe,
             rows=rows,
@@ -108,7 +109,7 @@ class MarketHistoryQueryService:
         start_date: str,
         fetch_policy: Literal["cache_only", "hydrate"] = "hydrate",
         persist_klines: Callable[[str, str, list[list[float]]], None] | None = None,
-    ):
+    ) -> MarketHistoryBatchResponse:
         normalized_symbols: list[str] = []
         seen_symbols: set[str] = set()
         for symbol in symbols:
@@ -130,7 +131,7 @@ class MarketHistoryQueryService:
                 for symbol in normalized_symbols
             ],
         )
-        return build_market_history_batch_payload(
+        return build_market_history_batch_response(
             timeframe=timeframe,
             series_by_symbol=dict(zip(normalized_symbols, series, strict=False)),
         )

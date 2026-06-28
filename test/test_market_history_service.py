@@ -31,7 +31,7 @@ async def test_live_tail_reads_cached_history_without_exchange_fetch():
         realtime_service=FakeRealtimeService(),
     )
 
-    response = await service.get_live_kline_tail(symbol="BTC/USDT", timeframe="1h", limit=16)
+    response = (await service.get_live_kline_tail(symbol="BTC/USDT", timeframe="1h", limit=16)).model_dump()
 
     assert response["current_price"] == 456.0
     assert len(market_data_service.calls) == 1

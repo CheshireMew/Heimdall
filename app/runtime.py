@@ -1,9 +1,40 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 from config import settings
+
+if TYPE_CHECKING:
+    from app.infra.cache import RedisService
+    from app.infra.db.database import DatabaseRuntime
+    from app.infra.persistence.market.binance_market_research_store import BinanceMarketResearchStore
+    from app.infra.persistence.market.indicator_repository import MarketIndicatorRepository
+    from app.infra.persistence.market.kline_store import KlineStore
+    from app.infra.persistence.sentiment_repository import SentimentRepository
+    from app.services.currency_service import CurrencyRateService
+    from app.services.fred_api_config_service import FredApiConfigService
+    from app.services.llm_config_service import LlmConfigService
+    from app.services.market.binance_market_intel_service import BinanceMarketIntelService
+    from app.services.market.binance_market_snapshot_service import BinanceMarketSnapshotService
+    from app.services.market.binance_web3_heat_rank_service import BinanceWeb3HeatRankService
+    from app.services.market.binance_web3_rank_gateway import BinanceWeb3RankGateway
+    from app.services.market.binance_web3_tokens import BinanceWeb3TokenService
+    from app.services.market.dli_cache import DliLiquidityCache
+    from app.services.market.exchange_gateway import ExchangeGateway
+    from app.services.market.index_data_service import IndexDataService
+    from app.services.market.indicator_service import IndicatorService
+    from app.services.market.insight_app_service import MarketInsightAppService
+    from app.services.market.market_data_service import MarketDataService
+    from app.services.market.query_app_service import MarketQueryAppService
+    from app.services.market.realtime_service import RealtimeService
+    from app.services.market.websocket_service import MarketWebSocketService
+    from app.services.market_scheduler_runtime import MarketSchedulerRuntime
+    from app.services.sentiment_client import SentimentApiClient
+    from app.services.sentiment_service import SentimentService
+    from app.services.tools.app_service import ToolsAppService
+    from app.services.tools.dca_service import DCAService
+    from app.services.tools.pair_compare_service import PairCompareService
 
 
 RuntimeRole = Literal["all", "api", "background"]
@@ -26,44 +57,47 @@ def runtime_role_has_target(role: RuntimeRole, target: RuntimeTarget) -> bool:
 
 @dataclass(slots=True)
 class AppRuntimeServices:
-    database_runtime: Any
-    cache_service: Any
-    exchange_gateway: Any | None = None
-    kline_store: Any | None = None
-    market_data_service: Any | None = None
-    realtime_service: Any | None = None
-    market_indicator_repository: Any | None = None
-    dli_cache: Any | None = None
-    indicator_service: Any | None = None
-    market_query_service: Any | None = None
-    market_insight_service: Any | None = None
-    market_websocket_service: Any | None = None
-    index_data_service: Any | None = None
-    binance_market_research_store: Any | None = None
-    binance_market_intel: Any | None = None
-    binance_market_snapshot: Any | None = None
-    binance_web3_ranks: Any | None = None
-    binance_web3_heat_ranks: Any | None = None
-    binance_web3_tokens: Any | None = None
-    sentiment_api_client: Any | None = None
-    sentiment_repository: Any | None = None
-    sentiment_service: Any | None = None
-    dca_service: Any | None = None
-    pair_compare_service: Any | None = None
-    tools_app_service: Any | None = None
-    currency_rate_service: Any | None = None
-    llm_config_service: Any | None = None
-    fred_api_config_service: Any | None = None
-    market_scheduler_runtime: Any | None = None
+    database_runtime: "DatabaseRuntime"
+    cache_service: "RedisService"
+    exchange_gateway: "ExchangeGateway | None" = None
+    kline_store: "KlineStore | None" = None
+    market_data_service: "MarketDataService | None" = None
+    realtime_service: "RealtimeService | None" = None
+    market_indicator_repository: "MarketIndicatorRepository | None" = None
+    dli_cache: "DliLiquidityCache | None" = None
+    indicator_service: "IndicatorService | None" = None
+    market_query_service: "MarketQueryAppService | None" = None
+    market_insight_service: "MarketInsightAppService | None" = None
+    market_websocket_service: "MarketWebSocketService | None" = None
+    index_data_service: "IndexDataService | None" = None
+    binance_market_research_store: "BinanceMarketResearchStore | None" = None
+    binance_market_intel: "BinanceMarketIntelService | None" = None
+    binance_market_snapshot: "BinanceMarketSnapshotService | None" = None
+    binance_web3_ranks: "BinanceWeb3RankGateway | None" = None
+    binance_web3_heat_ranks: "BinanceWeb3HeatRankService | None" = None
+    binance_web3_tokens: "BinanceWeb3TokenService | None" = None
+    sentiment_api_client: "SentimentApiClient | None" = None
+    sentiment_repository: "SentimentRepository | None" = None
+    sentiment_service: "SentimentService | None" = None
+    dca_service: "DCAService | None" = None
+    pair_compare_service: "PairCompareService | None" = None
+    tools_app_service: "ToolsAppService | None" = None
+    currency_rate_service: "CurrencyRateService | None" = None
+    llm_config_service: "LlmConfigService | None" = None
+    fred_api_config_service: "FredApiConfigService | None" = None
+    market_scheduler_runtime: "MarketSchedulerRuntime | None" = None
 
-    def require(self, name: str) -> Any:
+    def require(self, name: str) -> object:
         service = getattr(self, name, None)
         if service is None:
             raise RuntimeError(f"Runtime service is not initialized: {name}")
         return service
 
     def dispose(self) -> None:
+        from app.infra.executor import shutdown_blocking_executors
+
         self.database_runtime.dispose()
+        shutdown_blocking_executors()
 
 
 API_REQUIRED_SERVICES = (
@@ -163,8 +197,8 @@ def build_app_runtime_services(role: RuntimeRole | None = None) -> AppRuntimeSer
         )
         services.realtime_service = RealtimeService()
         services.indicator_service = IndicatorService(
-            repository=services.require("market_indicator_repository"),
-            dli_cache=services.require("dli_cache"),
+            repository=cast("MarketIndicatorRepository", services.require("market_indicator_repository")),
+            dli_cache=cast("DliLiquidityCache", services.require("dli_cache")),
         )
         services.currency_rate_service = CurrencyRateService()
         services.llm_config_service = LlmConfigService()
@@ -238,9 +272,9 @@ def build_app_runtime_services(role: RuntimeRole | None = None) -> AppRuntimeSer
         from app.services.market_scheduler_runtime import MarketSchedulerRuntime
 
         services.market_scheduler_runtime = MarketSchedulerRuntime(
-            indicator_repository=services.require("market_indicator_repository"),
+            indicator_repository=cast("MarketIndicatorRepository", services.require("market_indicator_repository")),
             cleanup_old_data=lambda: cleanup_old_data(database_runtime),
-            dli_cache=services.require("dli_cache"),
+            dli_cache=cast("DliLiquidityCache", services.require("dli_cache")),
         )
 
     validate_runtime_services(services, resolved_role)

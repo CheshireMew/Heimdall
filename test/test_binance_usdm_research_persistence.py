@@ -204,7 +204,7 @@ async def test_usdm_contract_research_detail_collects_derivative_series(installe
         ],
     )
 
-    detail = await service.get_contract_research_detail(symbol="btcusdt", period="1h", limit=10)
+    detail = (await service.get_contract_research_detail(symbol="btcusdt", period="1h", limit=10)).model_dump()
 
     assert detail["symbol"] == "BTCUSDT"
     assert detail["open_interest"]["items"][0]["sum_open_interest_value"] == 6800000

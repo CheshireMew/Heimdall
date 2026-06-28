@@ -1,7 +1,7 @@
 from __future__ import annotations
 from app.contracts.market_history import (
-    build_market_history_payload,
-    build_ohlcv_point_payloads,
+    build_market_history_response,
+    build_ohlcv_points,
 )
 
 
@@ -50,7 +50,7 @@ def make_market_realtime_response() -> dict:
             "annualized_volatility_pct": 0.44,
         },
         "ai_analysis": {"signal": "BUY", "confidence": 78},
-        "kline_data": build_ohlcv_point_payloads(make_kline_data()),
+        "kline_data": build_ohlcv_points(make_kline_data()),
         "timeframe": "1h",
         "type": "snapshot",
     }
@@ -248,7 +248,7 @@ class StubMarketQueryAppService:
         }
 
     async def get_history(self, **kwargs):
-        return build_market_history_payload(
+        return build_market_history_response(
             symbol=kwargs.get("symbol", "BTC/USDT"),
             timeframe=kwargs.get("timeframe", "1h"),
             rows=make_kline_data(),
@@ -262,7 +262,7 @@ class StubMarketQueryAppService:
         self.full_history_used_external_persist_callback = persist_klines is not None
         if persist_klines:
             persist_klines(kwargs["symbol"], kwargs["timeframe"], klines)
-        return build_market_history_payload(
+        return build_market_history_response(
             symbol=kwargs.get("symbol", "BTC/USDT"),
             timeframe=kwargs.get("timeframe", "1h"),
             rows=klines,
@@ -274,7 +274,7 @@ class StubMarketQueryAppService:
             "timeframe": kwargs.get("timeframe", "1h"),
             "timestamp": "2025-06-01T12:00:00",
             "current_price": 116.0,
-            "kline_data": build_ohlcv_point_payloads(make_kline_data()),
+            "kline_data": build_ohlcv_points(make_kline_data()),
         }
 
 
@@ -290,7 +290,7 @@ class StubMarketInsightAppService:
 
 
 class StubBinanceMarketPageService:
-    async def get_page_payload(self, **kwargs):
+    async def get_page(self, **kwargs):
         monitor = make_binance_breakout_monitor_response()
         return {
             "exchange": "binance",

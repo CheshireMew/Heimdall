@@ -23,7 +23,7 @@ def test_dli_liquidity_service_builds_weighted_pressure_score(installed_database
             points.append({"indicator_id": definition.id, "timestamp": timestamp, "value": value})
     repository.upsert_points(points, market_indicator_meta_catalog())
 
-    payload = DliLiquidityService(repository).build(days=90)
+    payload = DliLiquidityService(repository).build(days=90).model_dump()
 
     assert payload["score"] is not None
     assert payload["score"] < 20
@@ -49,7 +49,7 @@ def test_dli_liquidity_service_reports_missing_coverage(installed_database_runti
     ]
     repository.upsert_points(points, market_indicator_meta_catalog())
 
-    payload = DliLiquidityService(repository).build(days=30)
+    payload = DliLiquidityService(repository).build(days=30).model_dump()
 
     assert payload["score"] is not None
     assert round(payload["coverage"], 2) == round(65.0 / 3.0, 2)
@@ -117,7 +117,7 @@ class StaticIndicatorRepository:
 
 def test_indicator_service_returns_display_unit_values_for_market_indicator_api():
     payload = IndicatorService(StaticIndicatorRepository()).get_indicators(category="Onchain", days=30)
-    values = {item["indicator_id"]: item["current_value"] for item in payload}
+    values = {item.indicator_id: item.current_value for item in payload}
 
     assert values["HASHRATE"] == pytest.approx(1008.0)
     assert values["DIFFICULTY"] == pytest.approx(132.47)

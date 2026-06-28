@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any
 
+from app.contracts.dto.market import DliLiquidityResponse
 from app.domain.market.dli_catalog import DLI_SOURCE_IDS
 from app.services.persistence_ports import IndicatorRepositoryPort
 from app.services.market.dli_payload import DliPayloadBuilder
@@ -24,7 +24,7 @@ class DliLiquidityService:
         self.score_engine = score_engine or DliScoreEngine()
         self.payload_builder = payload_builder or DliPayloadBuilder()
 
-    def build(self, *, days: int = 365, change_days: int = 30) -> dict[str, Any]:
+    def build(self, *, days: int = 365, change_days: int = 30) -> DliLiquidityResponse:
         display_days = max(30, min(days, 3650))
         change_window_days = max(1, min(change_days, 365))
         now = datetime.now()
@@ -61,7 +61,7 @@ class DliLiquidityService:
         ]
         updated_at = self.series_builder.latest_update(history_map)
 
-        return {
+        return DliLiquidityResponse.model_validate({
             "score": None if score_percentile is None else round(score_percentile),
             "raw_score": None if raw_score is None else round(raw_score, 4),
             "score_percentile": None if score_percentile is None else round(score_percentile, 2),
@@ -75,4 +75,4 @@ class DliLiquidityService:
             "history": display_history,
             "indicators": self.payload_builder.indicator_payloads(history_map, meta_map, display_cutoff, as_of=now),
             "alerts": self.score_engine.alerts(current["components"], change_days=change_window_days),
-        }
+        })

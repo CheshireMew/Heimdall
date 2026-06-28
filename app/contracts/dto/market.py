@@ -3,7 +3,6 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from app.contracts.json_types import JsonValue
-from app.contracts.market_history import build_market_history_coverage_payload
 
 
 class MACDResponse(BaseModel):
@@ -44,8 +43,12 @@ class MarketHistoryCoverageResponse(BaseModel):
 def build_market_history_coverage(
     missing_ranges: list[tuple[int, int]] | None = None,
 ) -> MarketHistoryCoverageResponse:
-    return MarketHistoryCoverageResponse.model_validate(
-        build_market_history_coverage_payload(missing_ranges)
+    return MarketHistoryCoverageResponse(
+        complete=not missing_ranges,
+        missing_ranges=[
+            MarketHistoryMissingRangeResponse(start_ts=int(start), end_ts=int(end))
+            for start, end in (missing_ranges or [])
+        ],
     )
 
 

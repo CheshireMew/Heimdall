@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from typing import Any
-
+from app.contracts.dto.market import CurrentPriceBatchItemResponse, CurrentPriceBatchResponse, CurrentPriceResponse
 from app.contracts.market_history import (
-    build_current_price_batch_item_payload,
-    build_current_price_batch_payload,
-    build_current_price_payload,
+    build_current_price_batch_item_response,
+    build_current_price_batch_response,
+    build_current_price_response,
 )
 from app.infra.executor import run_database
 from app.services.market.app_service_support import validate_market_request
@@ -29,7 +28,7 @@ class MarketPriceQueryService:
         *,
         symbol: str,
         timeframe: str,
-    ) -> dict[str, Any]:
+    ) -> CurrentPriceResponse:
         validate_market_request(symbol, timeframe)
         current_price = await self._get_current_price_from_snapshot(symbol)
         if current_price is None:
@@ -37,7 +36,7 @@ class MarketPriceQueryService:
                 symbol=symbol,
                 timeframe=timeframe,
             )
-        return build_current_price_payload(
+        return build_current_price_response(
             symbol=symbol,
             timeframe=timeframe,
             timestamp=datetime.now().isoformat(),
@@ -49,7 +48,7 @@ class MarketPriceQueryService:
         *,
         symbols: list[str],
         timeframe: str,
-    ) -> dict[str, Any]:
+    ) -> CurrentPriceBatchResponse:
         normalized_symbols: list[str] = []
         seen_symbols: set[str] = set()
         for symbol in symbols:
@@ -65,14 +64,14 @@ class MarketPriceQueryService:
                 for symbol in normalized_symbols
             ],
         )
-        return build_current_price_batch_payload(timeframe=timeframe, items=items)
+        return build_current_price_batch_response(timeframe=timeframe, items=items)
 
     async def _build_current_price_batch_item(
         self,
         *,
         symbol: str,
         timeframe: str,
-    ) -> dict[str, Any]:
+    ) -> CurrentPriceBatchItemResponse:
         current_price = await self._get_current_price_from_snapshot(symbol)
         source = "websocket_snapshot" if current_price is not None else "cached_history"
         if current_price is None:
@@ -80,7 +79,7 @@ class MarketPriceQueryService:
                 symbol=symbol,
                 timeframe=timeframe,
             )
-        return build_current_price_batch_item_payload(
+        return build_current_price_batch_item_response(
             symbol=symbol,
             timeframe=timeframe,
             timestamp=datetime.now().isoformat(),

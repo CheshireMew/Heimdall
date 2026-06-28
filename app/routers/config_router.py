@@ -3,10 +3,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import Request
 from fastapi import Depends
 
-from app.dependencies import runtime_dependency
+from app.contracts.frontend import FrontendContractRouter
+from app.dependencies import (
+    get_currency_rate_service,
+    get_database_runtime,
+    get_fred_api_config_service,
+    get_llm_config_service,
+)
 from app.exceptions import AppError
 from app.domain.market.symbol_catalog import get_supported_market_symbols
 from app.contracts.dto.config import (
@@ -19,11 +25,7 @@ from app.contracts.dto.config import (
 from app.contracts.dto.market import CurrencyRatesResponse
 from config import settings
 
-router = APIRouter()
-database_runtime_dependency = runtime_dependency("database_runtime")
-currency_rate_dependency = runtime_dependency("currency_rate_service")
-llm_config_dependency = runtime_dependency("llm_config_service")
-fred_api_config_dependency = runtime_dependency("fred_api_config_service")
+router = FrontendContractRouter(frontend_contract_target="config")
 
 
 def _require_local_settings_request(request: Request) -> None:
@@ -45,7 +47,7 @@ def _optional_runtime_service(request: Request, name: str) -> Any | None:
 @router.get("/config", response_model=SystemConfigResponse)
 async def get_config(
     request: Request,
-    database_runtime = Depends(database_runtime_dependency),
+    database_runtime = Depends(get_database_runtime),
 ):
     """获取系统配置"""
     cache_service = _optional_runtime_service(request, "cache_service")
@@ -71,7 +73,7 @@ async def get_config(
 
 @router.get("/currencies", response_model=CurrencyRatesResponse)
 async def get_currencies(
-    currency_service = Depends(currency_rate_dependency),
+    currency_service = Depends(get_currency_rate_service),
 ):
     return await currency_service.get_rates()
 
@@ -79,7 +81,7 @@ async def get_currencies(
 @router.get("/llm-config", response_model=LlmProviderConfigResponse)
 async def get_llm_config(
     request: Request,
-    service = Depends(llm_config_dependency),
+    service = Depends(get_llm_config_service),
 ):
     _require_local_settings_request(request)
     return service.read_config()
@@ -89,7 +91,7 @@ async def get_llm_config(
 async def update_llm_config(
     request: Request,
     payload: LlmProviderConfigUpdateRequest,
-    service = Depends(llm_config_dependency),
+    service = Depends(get_llm_config_service),
 ):
     _require_local_settings_request(request)
     return service.save_config(payload.model_dump())
@@ -98,7 +100,7 @@ async def update_llm_config(
 @router.get("/fred-api-config", response_model=FredApiConfigResponse)
 async def get_fred_api_config(
     request: Request,
-    service = Depends(fred_api_config_dependency),
+    service = Depends(get_fred_api_config_service),
 ):
     _require_local_settings_request(request)
     return service.read_config()
@@ -108,7 +110,7 @@ async def get_fred_api_config(
 async def update_fred_api_config(
     request: Request,
     payload: FredApiConfigUpdateRequest,
-    service = Depends(fred_api_config_dependency),
+    service = Depends(get_fred_api_config_service),
 ):
     _require_local_settings_request(request)
     return service.save_config(payload.model_dump())

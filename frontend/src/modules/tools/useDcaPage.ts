@@ -6,20 +6,12 @@ import { ensureSymbolCatalogLoaded, isIndexSymbol } from '@/modules/market'
 import { useTheme } from '@/composables/useTheme'
 import { useMoney } from '@/composables/useMoney'
 import { useUserPreferences } from '@/composables/useUserPreferences'
+import { apiErrorMessage } from '@/api/request'
 import type { DCAResponse, SimulateDcaCommand } from './contracts'
 import { toolsApi } from './api'
 import { buildDcaSnapshot, createDefaultDcaConfig, createEmptyDcaConfig, createEmptyDcaSnapshot, normalizeDcaConfig, normalizeDcaSnapshot } from './pageSnapshots'
 import { createEmptyMarketData, useDcaMarketContext } from './useDcaMarketContext'
 import { useDcaCharts } from './useDcaCharts'
-
-type RequestError = {
-  message?: string
-  response?: {
-    data?: {
-      detail?: string
-    }
-  }
-}
 
 export function useDcaPage() {
   const { theme } = useTheme()
@@ -74,9 +66,8 @@ export function useDcaPage() {
       await fetchMarketIndicators()
       renderCharts()
     } catch (error: unknown) {
-      const requestError = error as RequestError
       console.error('DCA Error:', error)
-      alert(`${t('dca.simFailed')}: ${requestError.response?.data?.detail || requestError.message || 'Unknown error'}`)
+      alert(`${t('dca.simFailed')}: ${apiErrorMessage(error, 'Unknown error')}`)
     } finally {
       loading.value = false
     }

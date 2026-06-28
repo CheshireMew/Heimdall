@@ -3,28 +3,54 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from typing import TypeVar
 
 from config import settings
 
 T = TypeVar("T")
 
-_database_executor = ThreadPoolExecutor(
-    max_workers=max(int(settings.BLOCKING_DATABASE_MAX_WORKERS), 1),
-    thread_name_prefix="heimdall-db",
-)
-_compute_executor = ThreadPoolExecutor(
-    max_workers=max(int(settings.BLOCKING_COMPUTE_MAX_WORKERS), 1),
-    thread_name_prefix="heimdall-compute",
-)
-_external_io_executor = ThreadPoolExecutor(
-    max_workers=max(int(settings.BLOCKING_EXTERNAL_IO_MAX_WORKERS), 1),
-    thread_name_prefix="heimdall-external",
-)
-_background_executor = ThreadPoolExecutor(
-    max_workers=max(int(settings.BLOCKING_BACKGROUND_MAX_WORKERS), 1),
-    thread_name_prefix="heimdall-background",
-)
+
+@dataclass(slots=True)
+class BlockingExecutorRuntime:
+    database: ThreadPoolExecutor = field(default_factory=lambda: ThreadPoolExecutor(
+        max_workers=max(int(settings.BLOCKING_DATABASE_MAX_WORKERS), 1),
+        thread_name_prefix="heimdall-db",
+    ))
+    compute: ThreadPoolExecutor = field(default_factory=lambda: ThreadPoolExecutor(
+        max_workers=max(int(settings.BLOCKING_COMPUTE_MAX_WORKERS), 1),
+        thread_name_prefix="heimdall-compute",
+    ))
+    external_io: ThreadPoolExecutor = field(default_factory=lambda: ThreadPoolExecutor(
+        max_workers=max(int(settings.BLOCKING_EXTERNAL_IO_MAX_WORKERS), 1),
+        thread_name_prefix="heimdall-external",
+    ))
+    background: ThreadPoolExecutor = field(default_factory=lambda: ThreadPoolExecutor(
+        max_workers=max(int(settings.BLOCKING_BACKGROUND_MAX_WORKERS), 1),
+        thread_name_prefix="heimdall-background",
+    ))
+
+    def shutdown(self) -> None:
+        for executor in (self.database, self.compute, self.external_io, self.background):
+            executor.shutdown(wait=False, cancel_futures=True)
+
+
+_executor_runtime: BlockingExecutorRuntime | None = None
+
+
+def _get_executor_runtime() -> BlockingExecutorRuntime:
+    global _executor_runtime
+    if _executor_runtime is None:
+        _executor_runtime = BlockingExecutorRuntime()
+    return _executor_runtime
+
+
+def shutdown_blocking_executors() -> None:
+    global _executor_runtime
+    if _executor_runtime is None:
+        return
+    _executor_runtime.shutdown()
+    _executor_runtime = None
 
 
 async def _run(executor: ThreadPoolExecutor, action: Callable[[], T]) -> T:
@@ -33,16 +59,16 @@ async def _run(executor: ThreadPoolExecutor, action: Callable[[], T]) -> T:
 
 
 async def run_database(action: Callable[[], T]) -> T:
-    return await _run(_database_executor, action)
+    return await _run(_get_executor_runtime().database, action)
 
 
 async def run_compute(action: Callable[[], T]) -> T:
-    return await _run(_compute_executor, action)
+    return await _run(_get_executor_runtime().compute, action)
 
 
 async def run_external_io(action: Callable[[], T]) -> T:
-    return await _run(_external_io_executor, action)
+    return await _run(_get_executor_runtime().external_io, action)
 
 
 async def run_background(action: Callable[[], T]) -> T:
-    return await _run(_background_executor, action)
+    return await _run(_get_executor_runtime().background, action)

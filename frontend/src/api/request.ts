@@ -13,6 +13,47 @@ import {
     type ApiRouteResponse,
     type RouteParams,
 } from './routes'
+import type { ApiErrorResponse } from './errors'
+
+export class ApiRequestError extends Error {
+    readonly detail: string
+    readonly status: number | null
+    readonly payload: ApiErrorResponse | null
+
+    constructor(detail: string, options: { status?: number | null; payload?: ApiErrorResponse | null } = {}) {
+        super(detail)
+        this.name = 'ApiRequestError'
+        this.detail = detail
+        this.status = options.status ?? null
+        this.payload = options.payload ?? null
+    }
+}
+
+const isApiErrorResponse = (value: unknown): value is ApiErrorResponse => (
+    typeof value === 'object'
+    && value !== null
+    && 'detail' in value
+    && typeof (value as { detail?: unknown }).detail === 'string'
+)
+
+export const normalizeApiError = (error: unknown, fallback = 'Request failed'): ApiRequestError => {
+    if (error instanceof ApiRequestError) return error
+    if (axios.isAxiosError(error)) {
+        const payload = isApiErrorResponse(error.response?.data) ? error.response.data : null
+        const detail = payload?.detail || error.message || fallback
+        return new ApiRequestError(detail, {
+            status: error.response?.status ?? null,
+            payload,
+        })
+    }
+    if (error instanceof Error) return new ApiRequestError(error.message || fallback)
+    return new ApiRequestError(fallback)
+}
+
+export const apiErrorMessage = (error: unknown, fallback: string): string => {
+    const message = normalizeApiError(error, fallback).detail.trim()
+    return message || fallback
+}
 
 const attachInterceptors = (client: AxiosInstance) => {
     client.interceptors.request.use(
@@ -31,6 +72,7 @@ const attachInterceptors = (client: AxiosInstance) => {
         (error: unknown) => {
             if (!isRequestCanceled(error)) {
                 console.error('API Request Failed:', error)
+                return Promise.reject(normalizeApiError(error))
             }
             return Promise.reject(error)
         }

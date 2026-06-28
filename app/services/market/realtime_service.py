@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from app.contracts.market_history import build_realtime_payload
+from app.contracts.dto.market import RealtimeResponse
+from app.contracts.market_history import build_realtime_response
 from config import settings
 from app.domain.market.constants import DEFAULT_ATR_PERIOD, DEFAULT_VOLATILITY_PERIOD
 from app.domain.market.prompt_engine import PromptEngine
@@ -68,7 +69,7 @@ class RealtimeService:
         }
         return MarketSnapshot(kline_data=kline_data, indicators=indicators)
 
-    def build_response_payload(
+    def build_response(
         self,
         symbol: str,
         timeframe: str | None,
@@ -76,9 +77,9 @@ class RealtimeService:
         indicators: dict[str, Any],
         ai_analysis: Any = None,
         include_type: bool = False,
-    ) -> dict[str, Any]:
+    ) -> RealtimeResponse:
         closes = [x[4] for x in kline_data]
-        return build_realtime_payload(
+        return build_realtime_response(
             symbol=symbol,
             timestamp=datetime.now().isoformat(),
             current_price=closes[-1],

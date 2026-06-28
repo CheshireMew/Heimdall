@@ -4,6 +4,11 @@ import hashlib
 import time
 import uuid
 
+from app.contracts.dto.binance.web3 import (
+    BinanceWeb3TokenAuditResponse,
+    BinanceWeb3TokenDynamicResponse,
+    BinanceWeb3TokenKlineResponse,
+)
 from app.domain.market.constants import KLINE_SYMBOL_MAX_LENGTH
 from app.services.market.history_ranges import collect_missing_ranges, is_recent_cache_usable, timeframe_to_ms
 from app.services.persistence_ports import KlineStorePort
@@ -19,7 +24,7 @@ class BinanceWeb3TokenService:
         self.kline_client = kline_client
         self.kline_store = kline_store
 
-    async def get_dynamic(self, *, chain_id: str | None = None, contract_address: str | None = None) -> dict:
+    async def get_dynamic(self, *, chain_id: str | None = None, contract_address: str | None = None) -> BinanceWeb3TokenDynamicResponse:
         if not chain_id or not contract_address:
             raise ValueError("chain_id and contract_address are required")
         payload = await self.web3_client.get_json(
@@ -27,12 +32,12 @@ class BinanceWeb3TokenService:
             params={"chainId": chain_id, "contractAddress": contract_address},
             ttl=30,
         )
-        return {
+        return BinanceWeb3TokenDynamicResponse.model_validate({
             "source": "binance-web3",
             "chain_id": chain_id,
             "contract_address": contract_address,
             **normalize_token_dynamic(payload.get("data") or {}),
-        }
+        })
 
     async def get_kline(
         self,
@@ -44,7 +49,7 @@ class BinanceWeb3TokenService:
         from_time: int | None = None,
         to_time: int | None = None,
         pm: str | None = None,
-    ) -> dict:
+    ) -> BinanceWeb3TokenKlineResponse:
         if not address or not platform or not interval:
             raise ValueError("address, platform and interval are required")
 
@@ -115,7 +120,7 @@ class BinanceWeb3TokenService:
             rows=window_rows[-limit_value:],
         )
 
-    async def get_audit(self, *, binance_chain_id: str | None = None, contract_address: str | None = None) -> dict:
+    async def get_audit(self, *, binance_chain_id: str | None = None, contract_address: str | None = None) -> BinanceWeb3TokenAuditResponse:
         if not binance_chain_id or not contract_address:
             raise ValueError("binance_chain_id and contract_address are required")
         payload = await self.web3_client.post_json(
@@ -129,7 +134,7 @@ class BinanceWeb3TokenService:
             ttl=30,
         )
         data = payload.get("data") or {}
-        return {
+        return BinanceWeb3TokenAuditResponse.model_validate({
             "source": "binance-web3",
             "binance_chain_id": binance_chain_id,
             "contract_address": contract_address,
@@ -141,7 +146,7 @@ class BinanceWeb3TokenService:
             "sell_tax": to_float((data.get("extraInfo") or {}).get("sellTax")),
             "is_verified": (data.get("extraInfo") or {}).get("isVerified"),
             "risk_items": data.get("riskItems") or [],
-        }
+        })
 
     async def _fetch_kline_rows(
         self,
@@ -179,8 +184,8 @@ class BinanceWeb3TokenService:
         platform: str,
         interval: str,
         rows: list[list[float]],
-    ) -> dict:
-        return {
+    ) -> BinanceWeb3TokenKlineResponse:
+        return BinanceWeb3TokenKlineResponse.model_validate({
             "source": "binance-web3",
             "address": address,
             "platform": platform,
@@ -197,7 +202,7 @@ class BinanceWeb3TokenService:
                 }
                 for row in rows
             ],
-        }
+        })
 
     def _normalize_kline_rows(self, rows: list) -> list[list[float]]:
         normalized: list[list[float]] = []

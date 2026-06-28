@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import Depends, Query
 
-from app.dependencies import runtime_dependency
+from app.contracts.frontend import FrontendContractRouter
+from app.dependencies import get_market_insight_service
 from app.contracts.dto.market import (
     DliLiquidityResponse,
     MarketIndicatorResponse,
@@ -11,15 +12,14 @@ from app.contracts.dto.market import (
 from config import settings
 
 
-router = APIRouter(tags=["Market Data"])
-market_insight_dependency = runtime_dependency("market_insight_service")
+router = FrontendContractRouter(frontend_contract_target="market", tags=["Market Data"])
 
 
 @router.get("/indicators", response_model=list[MarketIndicatorResponse])
 async def get_market_indicators(
     category: str | None = Query(None, description="过滤分类, 如 Macro, Onchain, Sentiment, General"),
     days: int = Query(settings.INDICATORS_DEFAULT_DAYS, description="历史数据天数"),
-    service = Depends(market_insight_dependency),
+    service = Depends(get_market_insight_service),
 ):
     return await service.get_indicators_async(category=category, days=days)
 
@@ -28,7 +28,7 @@ async def get_market_indicators(
 async def get_dli_liquidity(
     days: int = Query(settings.INDICATORS_DEFAULT_DAYS, ge=30, le=3650, description="展示历史数据天数"),
     change_days: int = Query(30, ge=1, le=365, description="变化统计周期天数"),
-    service = Depends(market_insight_dependency),
+    service = Depends(get_market_insight_service),
 ):
     return await service.get_dli_liquidity_async(days=days, change_days=change_days)
 
@@ -42,7 +42,7 @@ async def get_trade_setup(
     style: str = Query("Scalping"),
     strategy: str = Query("最大收益"),
     mode: str = Query("rules", pattern="^(rules|ai)$"),
-    service = Depends(market_insight_dependency),
+    service = Depends(get_market_insight_service),
 ):
     return await service.get_trade_setup(
         symbol=symbol,

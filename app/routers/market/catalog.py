@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter
-
+from app.contracts.frontend import FrontendContractRouter
 from app.domain.market.symbol_catalog import list_market_search_items
 from app.contracts.dto.market import ApiStatusResponse, MarketSymbolSearchResponse
 
-router = APIRouter(tags=["Market Data"])
+router = FrontendContractRouter(frontend_contract_target="market", tags=["Market Data"])
 
 
 @router.get("/symbols", response_model=list[MarketSymbolSearchResponse])

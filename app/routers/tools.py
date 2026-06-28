@@ -3,9 +3,10 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import Depends, Request
 
-from app.dependencies import runtime_dependency
+from app.contracts.frontend import FrontendContractRouter
+from app.dependencies import get_tools_app_service
 from app.rate_limit import limiter
 from app.contracts.dto.tools import (
     DCAResponse,
@@ -16,8 +17,7 @@ from app.contracts.tools import ComparePairsCommand, DCA_STRATEGY_KEYS, Simulate
 from config import settings
 
 
-router = APIRouter()
-tools_app_dependency = runtime_dependency("tools_app_service")
+router = FrontendContractRouter(frontend_contract_target="tools")
 
 
 @router.get("/contract", response_model=ToolsPageContractResponse)
@@ -35,7 +35,7 @@ async def get_tools_contract():
 async def dca_simulate(
     request: Request,
     body: SimulateDcaCommand,
-    service = Depends(tools_app_dependency),
+    service = Depends(get_tools_app_service),
 ):
     return await service.simulate_dca(body)
 
@@ -45,6 +45,6 @@ async def dca_simulate(
 async def compare_pairs(
     request: Request,
     body: ComparePairsCommand,
-    service = Depends(tools_app_dependency),
+    service = Depends(get_tools_app_service),
 ):
     return await service.compare_pairs(body)

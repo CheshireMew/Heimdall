@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.contracts.dto.binance.web3 import BinanceWeb3AddressPnlResponse
 from .binance_api_support import BinanceApiSupport, compact_query
 from .binance_numbers import to_float, to_int
 from .binance_web3_support import asset_url, normalize_rank_token
@@ -19,7 +20,7 @@ class BinanceWeb3RankGateway:
         time_range: int = 1,
         sentiment: str = "All",
         social_language: str = "ALL",
-    ) -> dict[str, Any]:
+    ) -> BinanceWeb3AddressPnlResponse:
         payload = await self.client.get_json(
             "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/pulse/social/hype/rank/leaderboard/ai",
             params={
@@ -182,7 +183,7 @@ class BinanceWeb3RankGateway:
         )
         data = payload.get("data") or {}
         rows = data.get("data") or []
-        return {
+        return BinanceWeb3AddressPnlResponse.model_validate({
             "source": "binance-web3",
             "leaderboard": "address_pnl_rank",
             "page": data.get("current", page_no),
@@ -204,4 +205,4 @@ class BinanceWeb3RankGateway:
                 }
                 for item in rows
             ],
-        }
+        })

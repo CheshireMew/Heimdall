@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from app.contracts.dto.errors import ApiErrorResponse
 from utils.logger import logger
 
 
@@ -30,13 +31,13 @@ class ServiceUnavailableError(AppError):
 
 
 async def app_error_handler(_request: Request, exc: AppError):
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    return JSONResponse(status_code=exc.status_code, content=ApiErrorResponse(detail=exc.detail).model_dump())
 
 
 async def value_error_handler(_request: Request, exc: ValueError):
-    return JSONResponse(status_code=400, content={"detail": str(exc)})
+    return JSONResponse(status_code=400, content=ApiErrorResponse(detail=str(exc)).model_dump())
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled: {request.method} {request.url} - {exc}", exc_info=True)
-    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+    return JSONResponse(status_code=500, content=ApiErrorResponse(detail="Internal server error").model_dump())
